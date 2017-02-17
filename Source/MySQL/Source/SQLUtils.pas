@@ -189,7 +189,7 @@ procedure MoveString();
 // ECX will be decremened of the string length
 // ZF if no string copied
 label
-  Quoted, Quoted1, QuotedL, QuotedL1, QuotedL2, QuotedLE, QuotedLE2,
+  Quoted, Quoted1, QuotedL, QuotedL1, QuotedL2, QuotedLA, QuotedL4, QuotedLE,
   Finish;
 asm
         PUSH EAX
@@ -210,11 +210,11 @@ asm
         LODSW                            // Get used Quoter
         CMP EDI,0                        // Store the string somewhere?
         JE Quoted1                       // No!
-        STOSW                            // Put character
+        STOSW                            // Put Quoter
       Quoted1:
         MOV DX,AX                        // Remember Quoter
         DEC ECX                          // Quoter handled
-        JZ Finish                        // No further characters left in SQL!
+        JZ Finish                        // End of SQL!
 
       QuotedL:
         LODSW                            // Get character from SQL
@@ -222,32 +222,34 @@ asm
         JE QuotedL1                      // No!
         STOSW                            // Put character
       QuotedL1:
-        CMP ECX,1                        // Last character in SQL?
-        JE QuotedLE2                     // Yes!
         CMP AX,'\'                       // Character = Escaper?
-        JNE QuotedLE                     // No!
+        JNE QuotedL4                     // No!
+        CMP ECX,1                        // Last character in SQL?
+        JE QuotedLE                      // Yes!
         MOV AX,[ESI]                     // Character after Escape
         CMP AX,''''                      // "'"?
         JE QuotedL2                      // Yes!
         CMP AX,'"'                       // '"'?
         JE QuotedL2                      // Yes!
-        ADD ESI,2                        // Step over escaped character
-        DEC ECX                          // One character handled
-        JZ Finish                        // End of SQL!
         JMP QuotedLE
       QuotedL2:
-        CMP AX,DX                        // Escaped Quoter?
-        JNE QuotedLE2                    // Yes!
-      QuotedLE:
+        DEC ECX                          // Escaper handled
+        LODSW                            // Get char after Escaper from SQL
+        CMP EDI,0                        // Store the string somewhere?
+        JE QuotedLA                      // No!
+        STOSW                            // Put character
+      QuotedLA:
+        JMP QuotedLE
+      QuotedL4:
         CMP AX,DX                        // End Quoter?
-        JNE QuotedLE2                    // No!
+        JNE QuotedLE                     // No!
         DEC ECX                          // End Quoter handled
         JZ Finish                        // End of SQL!
         CMP [ESI],DX                     // Second Quoter?
         JNE Finish                       // No!
         ADD ESI,2                        // Step over second Quoter
         DEC ECX                          // One character handled
-      QuotedLE2:
+      QuotedLE:
         LOOP QuotedL
 
       Finish:

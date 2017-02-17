@@ -4083,8 +4083,13 @@ begin
               DataTable := Data and (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0);
 
               if (DataTable) then
+              begin
+                // Debug 2017-02-17
+                Assert((Success <> daSuccess) or not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.DebugState <> ssResult));
+
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
                   DoError(DatabaseError(Session), nil, True);
+              end;
 
               if (Success <> daAbort) then
               begin

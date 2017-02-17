@@ -73,10 +73,6 @@ object DImport: TDImport
       Caption = 'TSTables'
       TabVisible = False
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

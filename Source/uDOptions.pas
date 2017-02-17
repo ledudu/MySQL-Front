@@ -632,7 +632,7 @@ begin
   if (not Assigned(Item)) then
     Attri := nil
   else
-    Attri := TSynHighlighterAttributes(FStyles.Selected.Data);
+    Attri := TSynHighlighterAttributes(Item.Data);
 
   FForeground.Checked := False;
   FBackground.Checked := False;

@@ -17758,13 +17758,16 @@ begin
     begin
       ConstraintTag := ParseTag(kiCONSTRAINT);
 
-      if (not IsTag(kiPRIMARY, kiKEY)
-        and not IsTag(kiFOREIGN, kiKEY)
-        and not IsTag(kiUNIQUE)) then
-        ConstraintIdent := ParseDbIdent(ditConstraint);
+      if (not ErrorFound) then
+        if (not IsTag(kiPRIMARY, kiKEY)
+          and not IsTag(kiFOREIGN, kiKEY)
+          and not IsTag(kiUNIQUE)) then
+          ConstraintIdent := ParseDbIdent(ditConstraint);
     end;
 
-  if (IsTag(kiPRIMARY, kiKEY)
+  if (ErrorFound) then
+    Result := 0
+  else if (IsTag(kiPRIMARY, kiKEY)
     or IsTag(kiUNIQUE, kiINDEX)
     or IsTag(kiUNIQUE, kiKEY)
     or IsTag(kiUNIQUE)
@@ -28063,7 +28066,7 @@ begin
       and (RowCount >= 0)) then
       // Replace existing LIMIT clause
     begin
-      LastToken := Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.PLimit(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit).Nodes.Tag)^.LastToken;
+      LastToken := Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.PLimit(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit)).Nodes.Tag)^.LastToken;
 
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do
@@ -28100,8 +28103,9 @@ begin
     else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit > 0) then
       // Remove existing LIMIT clause
     begin
+      Assert(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit)^.NodeType = ntSelectStmtLimit);
       Token := Stmt^.FirstToken;
-      while (Token <> Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.PLimit(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit).Nodes.Tag)^.LastToken) do
+      while (Token <> Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.PLimit(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit)).Nodes.Tag)^.LastToken) do
       begin
         Token^.GetText(Text, Length);
         Stmt^.Parser.Commands.Write(Text, Length);
@@ -28109,10 +28113,10 @@ begin
         Token := Token^.NextTokenAll;
       end;
 
-      if (TSQLParser.TSelectStmt.PLimit(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit).Nodes.RowCountToken = 0) then
+      if (TSQLParser.TSelectStmt.PLimit(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit)).Nodes.RowCountToken = 0) then
         raise ERangeError.Create(SRangeError);
 
-      Token := Stmt^.Parser.TokenPtr(TSQLParser.TSelectStmt.PLimit(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit).Nodes.RowCountToken);
+      Token := Stmt^.Parser.TokenPtr(TSQLParser.TSelectStmt.PLimit(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit)).Nodes.RowCountToken);
       if (Token = Stmt^.LastToken) then
         Token := nil
       else

@@ -2949,7 +2949,13 @@ begin
         FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
 
       if (Window.ActiveControl = FNavigator) then
-        FNavigatorChanged(FNavigator, FNavigator.Selected);
+        try
+          FNavigatorChanged(FNavigator, FNavigator.Selected);
+        except
+          on E: Exception do
+            raise Exception.Create('Text: ' + FNavigator.Selected.Text + #13#10
+              + E.Message);
+        end;
 
       FNavigator.AutoExpand := not (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) and not CheckWin32Version(6);
 
@@ -5061,13 +5067,8 @@ constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinContro
 var
   Kind: TPAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
-  Profile: TProfile;
 begin
-  CreateProfile(Profile);
-
   inherited Create(AOwner);
-
-  ProfilingPoint(Profile, 1);
 
   ASession.Account.RegisterTab(Self);
 
@@ -5358,11 +5359,8 @@ begin
 
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
-  ProfilingPoint(Profile, 2);
   Perform(UM_CHANGEPREFERENCES, 0, 0);
-  ProfilingPoint(Profile, 3);
   Perform(CM_SYSFONTCHANGED, 0, 0);
-  ProfilingPoint(Profile, 4);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
@@ -5370,10 +5368,6 @@ begin
 
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
-
-  if (ProfilingTime(Profile) > 1000) then
-    SendToDeveloper(ProfilingReport(Profile));
-  CloseProfile(Profile);
 end;
 
 procedure TFSession.CreateParams(var Params: TCreateParams);
@@ -5669,7 +5663,7 @@ begin
   Result.DragMode := dmAutomatic;
   Result.HelpType := htContext;
   Result.HelpContext := 1155;
-  Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
+  Result.Options := [dgEditing, dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
   Result.ParentFont := False;
   Result.Font.Name := Preferences.GridFontName;
   Result.Font.Style := Preferences.GridFontStyle;
@@ -6143,11 +6137,6 @@ begin
         else
           aVBlobHexEditor.Execute();
       end;
-
-      if ((DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) or (DBGrid.SelectedField.DataType in [ftUnknown])) then
-        DBGrid.Options := DBGrid.Options - [dgEditing]
-      else
-        DBGrid.Options := DBGrid.Options + [dgEditing];
 
       FText.OnChange := FTextChange;
     end;
@@ -6706,6 +6695,8 @@ begin
 
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style - [fsBold];
+
+      DBGrid.Columns[I].ReadOnly := (DBGrid.Columns[I].Field.DataType in [ftWideMemo, ftBlob]) or (DBGrid.SelectedField.DataType in [ftUnknown]);
 
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
     end;
@@ -12385,7 +12376,7 @@ begin
       if (Event.Item is TSTable) then
         S := S
           + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Changes: ' + IntToStr(Changes) + ', ';
+      S := S + 'Changes: ' + IntToStr(Changes) + #13#10;
       S := S + ProfilingReport(Profile) + #13#10;
       TimeMonitor.Append(S, ttDebug);
     end;
@@ -13867,18 +13858,7 @@ procedure TFSession.PContentChange(Sender: TObject);
     Top: Integer;
   begin
     if (Control.Top >= 0) then Top := Control.Top else Top := 0;
-
-try
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Top));
-except
-  on E: Exception do
-    raise ERangeError.Create('Left: ' + IntToStr(Control.Left) + #13#10
-      + 'Top: ' + IntToStr(Top) + #13#10
-      + 'Name: ' + Control.Name + #13#10
-      + 'ClassType: ' + Control.ClassName + #13#10
-      + E.Message);
-end;
-
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
       if (Control.Controls[I] is TWinControl) then
@@ -14871,6 +14851,7 @@ begin
     else
     begin
       ProfilingPoint(Profile, 3);
+
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
 

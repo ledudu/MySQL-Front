@@ -1438,7 +1438,7 @@ begin
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Details^.Error.Session.Connection.ErrorCode), Details^.Error.Session.Connection.ErrorMessage);
         ErrorMsg := Details^.Error.ErrorMessage
-          + ' (#' + IntToStr(Details^.Error.ErrorCode) + ') - ' + Trim(Session.Connection.ErrorCommandText) + #13#10;
+          + ' (#' + IntToStr(Details^.Error.ErrorCode) + ') - ' + Trim(Details^.Error.Session.Connection.ErrorCommandText) + #13#10;
       end;
     TE_File:
       begin

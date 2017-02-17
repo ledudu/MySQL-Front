@@ -5517,8 +5517,7 @@ begin
   begin
     // Debug 2017-02-16
     Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FindField('Table_Type')),
-      'Field[0]:' + DataSet.Fields[0].DisplayName + #13#10
-      + 'SQL: ' + DataSet.CommandText + #13#10
+      'SQL: ' + DataSet.CommandText + #13#10
       + 'FieldCount: ' + IntToStr(DataSet.FieldCount));
 
     DeleteList := TList.Create();
@@ -11144,6 +11143,7 @@ begin
   begin
     // Debug 2017-02-09
     Assert(Assigned(Session));
+    Assert(Sessions.IndexOf(Session) >= 0);
     Assert(TObject(Session) is TSSession);
     Assert(Assigned(Session.Connection));
     Assert(TObject(Session.Connection) is TMySQLConnection);
@@ -12201,6 +12201,7 @@ begin
     EventProcs[I](AEvent);
     if (ProfilingTime(Profile) > 1000) then
       SendToDeveloper('Proc: ' + ProcAddrToStr(@EventProcs[I]) + #13#10
+        + 'EventType: ' + IntToStr(Ord(AEvent.EventType)) + #13#10
         + ProfilingReport(Profile));
   end;
 
@@ -12601,27 +12602,32 @@ begin
                 dtAlter,
                 dtAlterRename:
                   begin
+                    ProfilingPoint(Profile, 4);
                     Table := Database.TableByName(DDLStmt.ObjectName);
+                    ProfilingPoint(Profile, 5);
                     if (not Assigned(Table)) then
-                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
+                    begin
+                      ProfilingPoint(Profile, 6);
+                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName));
+                      ProfilingPoint(Profile, 7);
+                    end
                     else
                     begin
-                      ProfilingPoint(Profile, 4);
                       Table.Invalidate();
-                      ProfilingPoint(Profile, 5);
+                      ProfilingPoint(Profile, 8);
                       if (Table is TSBaseTable) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);
                       end;
-                      ProfilingPoint(Profile, 6);
+                      ProfilingPoint(Profile, 9);
 
                       if (DDLStmt.NewDatabaseName <> '') then
                         Table.SetDatabase(Database);
-                      ProfilingPoint(Profile, 7);
+                      ProfilingPoint(Profile, 10);
                       if (DDLStmt.NewObjectName <> '') then
                         Table.Name := DDLStmt.NewObjectName;
-                      ProfilingPoint(Profile, 8);
+                      ProfilingPoint(Profile, 11);
                     end;
                   end;
                 dtDrop:
