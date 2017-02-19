@@ -12511,7 +12511,7 @@ begin
           UnparsableSQL := UnparsableSQL
             + '# MonitorExecutedStmts()' + #13#10
             + '# Error: ' + SQLParser.ErrorMessage + #13#10
-            + Trim(SQL) + #13#10 + #13#10 + #13#10
+            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
         else
           UnparsableSQL := UnparsableSQL
             + '# MonitorExecutedStmts()' + #13#10
@@ -12576,16 +12576,20 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   begin
-                    ProfilingPoint(Profile, 3);
                     Table := Database.TableByName(DDLStmt.ObjectName);
-                    ProfilingPoint(Profile, 4);
                     if (Assigned(Table)) then
                       Table.Invalidate()
-                    else if (DDLStmt.ObjectType = otTable) then
-                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName), True)
                     else
-                      Database.Tables.Add(TSView.Create(Database.Tables, DDLStmt.ObjectName), True);
-                    ProfilingPoint(Profile, 5);
+                    begin
+                      ProfilingPoint(Profile, 3);
+                      if (DDLStmt.ObjectType = otTable) then
+                        Table := TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName)
+                      else
+                        Table := TSView.Create(Database.Tables, DDLStmt.ObjectName);
+                      ProfilingPoint(Profile, 4);
+                      Database.Tables.Add(Table, True);
+                      ProfilingPoint(Profile, 5);
+                    end;
                   end;
                 dtRename:
                   if (SQLParseKeyword(Parse, 'RENAME')

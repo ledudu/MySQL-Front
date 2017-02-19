@@ -531,7 +531,10 @@ begin
             FErrorMessage := IntToStr(ReceiveStream.Size) + ' bytes of ' + IntToStr(ReceiveFileSize) + 'received only';
           end;
 
-          DebugReceiveFileSize := ReceiveStream.Size;
+          if (not Assigned(ReceiveStream)) then
+            DebugReceiveFileSize := -1
+          else
+            DebugReceiveFileSize := ReceiveStream.Size;
         end;
         InternetCloseHandle(Request);
       end;

@@ -207,7 +207,8 @@ type
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
-      property DebugState: TState read State; // Debug 2017-02-016
+      property DebugState: TState read State; // Debug 2017-02-16
+      property DebugSQL: string read SQL; // Debug 2017-02-19
     end;
 
     TTerminatedThreads = class(TList)
@@ -395,6 +396,7 @@ type
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
     property ThreadId: my_uint read FThreadId;
     property WarningCount: Integer read FWarningCount;
+    property DebugSyncThread: TSyncThread read FSyncThread; // Debug 2017-02-19
   published
     property Asynchron: Boolean read FAsynchron write FAsynchron default False;
     property AfterExecuteSQL: TNotifyEvent read FAfterExecuteSQL write FAfterExecuteSQL;
@@ -2575,8 +2577,10 @@ begin
   if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
     Terminate();
 
+  TerminateCS.Enter();
   if (not Assigned(SyncThread)) then
     FSyncThread := TSyncThread.Create(Self);
+  TerminateCS.Leave();
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 

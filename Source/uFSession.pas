@@ -9123,6 +9123,8 @@ begin
 
   // 1.3 seconds, EventType: 1
   // 1.6 seconds, EventType: 1
+  // 1.4 seconds, EventType: 2
+  // 1.1 seconds, EventType: 2
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -10076,15 +10078,16 @@ end;
 
 function TFSession.GetEditorField(): TField;
 begin
-  // Debug 2016-12-24
-  if (Assigned(ActiveDBGrid)) then
+  if (not (csDestroying in ComponentState) and Assigned(ActiveDBGrid)) then
   begin
+    // Debug 2016-12-24
     if (not (TObject(ActiveDBGrid) is TDBGrid)) then
       try
         raise ERangeERror.Create('ClassType: ' + TObject(ActiveDBGrid).ClassName);
       except
         raise ERangeError.Create(SRangeError);
       end;
+
     if (Assigned(ActiveDBGrid.SelectedField)) then
       if (not (ActiveDBGrid.SelectedField is TField)) then
         try
