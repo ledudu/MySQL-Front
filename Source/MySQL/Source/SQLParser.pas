@@ -7021,7 +7021,7 @@ type
     function ParseSavepointStmt(): TOffset;
     function ParseSchedule(): TOffset;
     function ParseSecretIdent(): TOffset;
-    function ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False): TOffset; overload;
+    function ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False; const TableFactor: Boolean = False): TOffset; overload;
     function ParseSelectStmtColumn(): TOffset;
     function ParseSelectStmtGroup(): TOffset;
     function ParseSelectStmtLimit(): TOffset;
@@ -19622,7 +19622,9 @@ begin
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
       else if (TokenPtr(CurrentToken)^.OperatorType <> otNone) then
-        if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
+        if (TokenPtr(CurrentToken)^.OperatorType = otAssign) then
+          SetError(PE_UnexpectedToken)
+        else if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
         begin
           TokenPtr(CurrentToken)^.FOperatorType := otNone;
           Nodes.Add(ApplyCurrentToken(utDbIdent));
@@ -22101,7 +22103,7 @@ begin
   Result := TSecretIdent.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False): TOffset;
+function TSQLParser.ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False; const TableFactor: Boolean = False): TOffset;
 
   function ParseInto(): TSelectStmt.TIntoNodes;
   var
@@ -22740,7 +22742,7 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   begin
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsSymbol(ttOpenBracket) and IsSelectStmt()) then
+    else if (IsTag(kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
@@ -24667,7 +24669,7 @@ end;
 
 function TSQLParser.ParseTableAliasIdent(): TOffset;
 begin
-  Result := ParseDbIdent(ditTableAlias);
+  Result := ParseDbIdent(ditTableAlias, False);
 end;
 
 function TSQLParser.ParseTableIdent(): TOffset;
@@ -28088,7 +28090,7 @@ begin
       end;
       Stmt^.Parser.Commands.Write(IntToStr(RowCount));
 
-      Token := Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.PLimit(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit).Nodes.RowCountToken)^.LastToken^.NextTokenAll;
+      Token := Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.PLimit(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit)).Nodes.RowCountToken)^.LastToken^.NextTokenAll;
       while (Assigned(Token)) do
       begin
         Token^.GetText(Text, Length);

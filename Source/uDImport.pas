@@ -341,6 +341,9 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
+  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
+    raise EAssertionFailed.Create(SRangeError);
+
   Progress := 'a';
 
   ModalResult := mrNone;

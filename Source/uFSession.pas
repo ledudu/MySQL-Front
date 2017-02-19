@@ -6942,6 +6942,14 @@ begin
     URI := TUURI.Create(CurrentAddress);
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
+
+    // Debug 2017-02-18
+    if ((URI.Param['view'] = 'objectsearch') and (URI.Param['text'] = Null)) then
+    begin
+      URI.Param['view'] := Null;
+      SendToDeveloper(URI.Address);
+    end;
+
     Session.Account.Desktop.Address := URI.Address;
     URI.Free();
   end;
@@ -7656,7 +7664,9 @@ begin
   else if (TObject(Node.Data) is TSItem) then
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
-    raise ERangeError.Create('ClassType: ' + TObject(Node.Data).ClassName)
+    raise ERangeError.Create('ClassType: ' + TObject(Node.Data).ClassName + #13#10
+      + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+      + 'Text: ' + Node.Text)
   else
     raise ERangeError.Create(SRangeError);
 
@@ -8523,7 +8533,7 @@ var
     Node := FNavigatorNodeToExpand;
     while (Assigned(Node)) do
     begin
-      if (Child = Node) then
+      if (Node = Child) then
         FNavigatorNodeToExpand := nil;
       Node := Node.Parent;
     end;
@@ -9109,6 +9119,10 @@ begin
   // Debug 2017-02-05
   Assert(Assigned(SBlob),
     'EventType: ' + IntToStr(Ord(Event.EventType)));
+
+
+  // 1.3 seconds, EventType: 1
+  // 1.6 seconds, EventType: 1
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -10169,7 +10183,7 @@ begin
     vEditor: Result := SQLEditor;
     vEditor2: Result := SQLEditor2;
     vEditor3: Result := SQLEditor3;
-    else raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(View)) +  ')');
+    else raise ERangeError.Create('View: ' + IntToStr(Ord(View)));
   end;
 end;
 
@@ -11430,6 +11444,11 @@ var
     ProfilingPoint(Profile, 9);
 
     Item.SubItems.BeginUpdate();
+
+    // 0.8 seconds, EventType: 1, Items: 105
+    // 1.0 seconds, EventType: 0, Items: 5
+    // 1.1 seconds, EventType: 2, Items: 76
+
     ProfilingPoint(Profile, 10);
     Item.SubItems.Clear();
     ProfilingPoint(Profile, 11);
@@ -12357,9 +12376,12 @@ begin
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
     ListView.EnableAlign();
-    ListView.Items.EndUpdate();
 
     ProfilingPoint(Profile, 24);
+
+    ListView.Items.EndUpdate();
+
+    ProfilingPoint(Profile, 25);
 
     ListView.OnChanging := ChangingEvent;
 
@@ -14783,11 +14805,10 @@ begin
   TempActiveControl := Window.ActiveControl;
 
   ListViewUpdateCount := 0;
-  CreateProfile(Profile);
 
   if (Assigned(Event)) then
   begin
-    ProfilingPoint(Profile, 1);
+    CreateProfile(Profile);
 
     if (Event.EventType = etItemDeleted) then
     begin
@@ -14845,17 +14866,25 @@ begin
     ProfilingPoint(Profile, 2);
 
     if (Event.Items is TSItemSearch) then
-      ListViewUpdate(Event, ObjectSearchListView)
-    else if (Event.Items is TSQuickAccess) then
-      ListViewUpdate(Event, QuickAccessListView)
-    else
     begin
       ProfilingPoint(Profile, 3);
+      ListViewUpdate(Event, ObjectSearchListView);
+      ProfilingPoint(Profile, 4);
+    end
+    else if (Event.Items is TSQuickAccess) then
+    begin
+      ProfilingPoint(Profile, 5);
+      ListViewUpdate(Event, QuickAccessListView);
+      ProfilingPoint(Profile, 6);
+    end
+    else
+    begin
+      ProfilingPoint(Profile, 7);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
 
-      ProfilingPoint(Profile, 4);
+      ProfilingPoint(Profile, 8);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
       begin
@@ -14912,7 +14941,7 @@ begin
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
-      ProfilingPoint(Profile, 5);
+      ProfilingPoint(Profile, 9);
 
       if ((Event.EventType = etItemValid)) then
       begin
@@ -14943,7 +14972,25 @@ begin
       end;
     end;
 
-    ProfilingPoint(Profile, 6);
+    ProfilingPoint(Profile, 10);
+
+    if (ProfilingTime(Profile) > 1000) then
+    begin
+      S := 'SessionUpdate - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType));
+      if (Assigned(Event.Items)) then
+        S := S
+          + ', Items: ' + Event.Items.ClassName
+          + ', Count: ' + IntToStr(Event.Items.Count);
+      if (Event.Item is TSTable) then
+        S := S
+          + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
+      S := S
+        + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
+        + ProfilingReport(Profile);
+      TimeMonitor.Append(S, ttDebug);
+    end;
+    CloseProfile(Profile);
   end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
@@ -14963,24 +15010,6 @@ begin
     and (Screen.ActiveForm = Window)
     and Wanted.Nothing) then
     Wanted.Update := Session.Update;
-
-  if (ProfilingTime(Profile) > 1000) then
-  begin
-    S := 'SessionUpdate - '
-      + 'EventType: ' + IntToStr(Ord(Event.EventType));
-    if (Assigned(Event.Items)) then
-      S := S
-        + ', Items: ' + Event.Items.ClassName
-        + ', Count: ' + IntToStr(Event.Items.Count);
-    if (Event.Item is TSTable) then
-      S := S
-        + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
-    S := S
-      + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
-      + ProfilingReport(Profile);
-    TimeMonitor.Append(S, ttDebug);
-  end;
-  CloseProfile(Profile);
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
@@ -16449,6 +16478,7 @@ begin
     for View in [vEditor, vEditor2, vEditor3] do
       if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
       begin
+        Self.View := View;
         Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
           IDYES: SaveSQLFile(MainAction('aFSave'));

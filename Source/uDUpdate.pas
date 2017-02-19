@@ -242,6 +242,9 @@ begin
     RaiseLastOSError(HTTPThread.ErrorCode)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
     MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if ((HTTPThread.DebugReceiveFileSize > 0) and (HTTPThread.DebugReceiveFileSize < HTTPThread.DebugReceivedFileSize)) then
+    raise EAssertionFailed.Create('DebugReceiveFileSize: ' + IntToStr(HTTPThread.DebugReceiveFileSize) + #13#10
+      + 'DebugReceivedFileSize: ' + IntToStr(HTTPThread.DebugReceivedFileSize))
   else if (Assigned(PADFileStream)) then
     Perform(UM_PAD_FILE_RECEIVED, 0, 0)
   else if (Assigned(SetupProgramStream)) then

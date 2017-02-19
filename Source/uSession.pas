@@ -5577,7 +5577,8 @@ begin
         begin
           // Debug 2017-02-15
           Assert(Assigned(DataSet.FindField('TABLE_NAME')),
-            DataSet.Fields[0].DisplayName);
+            'FieldName: ' + DataSet.Fields[0].DisplayName + #13#10
+            + DataSet.CommandText);
           Name := DataSet.FieldByName('TABLE_NAME').AsString;
         end;
 
@@ -5613,7 +5614,7 @@ begin
               TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
             TSBaseTable(Table[Index]).FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
             if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
-            TSBaseTable(Table[Index]).FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
+            if (not TryStrToInt64(DataSet.FieldByName('Avg_row_length').AsString, TSBaseTable(Table[Index]).FAvgRowLength)) then TSBaseTable(Table[Index]).FAvgRowLength := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, TSBaseTable(Table[Index]).FDataSize)) then TSBaseTable(Table[Index]).FDataSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, TSBaseTable(Table[Index]).FIndexSize)) then TSBaseTable(Table[Index]).FIndexSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, TSBaseTable(Table[Index]).FMaxDataSize)) then TSBaseTable(Table[Index]).FMaxDataSize := 0;
@@ -12024,12 +12025,17 @@ begin
     if (TObject(List[I]) is TSDBObject) then
       for J := 0 to TSDBObject(List[I]).References.Count - 1 do
         for K := I - 1 downto 0 do
+        begin
+          // Debug 2017-02-19
+          Assert(not (TObject(List[K]) is TSDBObject) or Assigned(TSDBObject(List[I]).References[J]));
+
           if ((TObject(List[K]) is TSDBObject)
             and (TSDBObject(List[K]) = TSDBObject(List[I]).References[J].DBObject)) then
           begin
             List.Move(K, I);
             Dec(I);
           end;
+        end;
 
     Inc(I);
     Dec(CycleProtection);
@@ -12516,11 +12522,15 @@ begin
     end;
   end;
 
+  ProfilingPoint(Profile, 1);
+
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
     else if (SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
     begin
+      ProfilingPoint(Profile, 2);
+
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
       if (DDLStmt.ObjectType = otTable) then
         DDLStmt.ObjectName := TableName(DDLStmt.ObjectName);
@@ -12566,16 +12576,16 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   begin
-                    ProfilingPoint(Profile, 1);
+                    ProfilingPoint(Profile, 3);
                     Table := Database.TableByName(DDLStmt.ObjectName);
-                    ProfilingPoint(Profile, 2);
+                    ProfilingPoint(Profile, 4);
                     if (Assigned(Table)) then
                       Table.Invalidate()
                     else if (DDLStmt.ObjectType = otTable) then
                       Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName), True)
                     else
                       Database.Tables.Add(TSView.Create(Database.Tables, DDLStmt.ObjectName), True);
-                    ProfilingPoint(Profile, 3);
+                    ProfilingPoint(Profile, 5);
                   end;
                 dtRename:
                   if (SQLParseKeyword(Parse, 'RENAME')
@@ -12602,32 +12612,32 @@ begin
                 dtAlter,
                 dtAlterRename:
                   begin
-                    ProfilingPoint(Profile, 4);
+                    ProfilingPoint(Profile, 6);
                     Table := Database.TableByName(DDLStmt.ObjectName);
-                    ProfilingPoint(Profile, 5);
+                    ProfilingPoint(Profile, 7);
                     if (not Assigned(Table)) then
                     begin
-                      ProfilingPoint(Profile, 6);
+                      ProfilingPoint(Profile, 8);
                       Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName));
-                      ProfilingPoint(Profile, 7);
+                      ProfilingPoint(Profile, 9);
                     end
                     else
                     begin
                       Table.Invalidate();
-                      ProfilingPoint(Profile, 8);
+                      ProfilingPoint(Profile, 10);
                       if (Table is TSBaseTable) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);
                       end;
-                      ProfilingPoint(Profile, 9);
+                      ProfilingPoint(Profile, 11);
 
                       if (DDLStmt.NewDatabaseName <> '') then
                         Table.SetDatabase(Database);
-                      ProfilingPoint(Profile, 10);
+                      ProfilingPoint(Profile, 12);
                       if (DDLStmt.NewObjectName <> '') then
                         Table.Name := DDLStmt.NewObjectName;
-                      ProfilingPoint(Profile, 11);
+                      ProfilingPoint(Profile, 13);
                     end;
                   end;
                 dtDrop:
@@ -12636,6 +12646,7 @@ begin
                     raise ERangeError.Create('SQL: ' + SQL)
                   else
                   begin
+                    ProfilingPoint(Profile, 14);
                     SQLParseKeyword(Parse, 'IF EXISTS');
                     First := True; Database := nil;
                     repeat
@@ -12657,12 +12668,18 @@ begin
                             and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                             // will be handled in the next Stmt
                           else
+                          begin
+                            ProfilingPoint(Profile, 15);
                             Database.Tables.Delete(Table);
+                            ProfilingPoint(Profile, 16);
+                          end;
                         end;
                       end;
                       First := False;
                     until (not SQLParseChar(Parse, ','));
+                    ProfilingPoint(Profile, 17);
                     SendEvent(etItemsValid, Database, Database.Tables);
+                    ProfilingPoint(Profile, 18);
                   end;
               end;
             otFunction,
@@ -12901,8 +12918,11 @@ begin
           Table := Database.TableByName(ObjectName);
           if (Assigned(Table)) then
           begin
+            ProfilingPoint(Profile, 19);
             Table.InvalidateData();
+            ProfilingPoint(Profile, 20);
             SendEvent(etItemValid, Database, Database.Tables, Table);
+            ProfilingPoint(Profile, 21);
           end;
         end;
       end;

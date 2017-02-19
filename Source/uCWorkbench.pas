@@ -3912,8 +3912,12 @@ begin
         begin
           Link := TWForeignKey.Create(Self, Coord(-1, -1));
           TWForeignKey(Link).BaseForeignKey := BaseTable.ForeignKeys[J];
-          Link.ChildTable := TableByBaseTable(BaseTable);
-          Link.ParentTable := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
+          Table := TableByBaseTable(BaseTable);
+          Assert(Assigned(Table)); // Debug 2018-02-18
+          Link.ChildTable := Table;
+          Table := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
+          Assert(Assigned(Table)); // Debug 2018-02-18
+          Link.ParentTable := Table;
         end;
 
     for I := 0 to Tables.Count - 1 do
@@ -3923,8 +3927,12 @@ begin
         begin
           Link := TWForeignKey.Create(Self, Coord(-1, -1));
           TWForeignKey(Link).BaseForeignKey := Tables[I].BaseTable.ForeignKeys[J];
-          Link.ChildTable := Tables[I];
-          Link.ParentTable := TableByBaseTable(BaseTable);
+          Table := Tables[I];
+          Assert(Assigned(Table));
+          Link.ChildTable := Table; // Debug 2017-02-18
+          Table := TableByBaseTable(BaseTable);
+          Assert(Assigned(Table)); // Debug 2017-02-18
+          Link.ParentTable := Table;
         end;
   end
   else if ((Event.EventType = etItemDeleted) and (Event.Item is TSBaseTable)) then

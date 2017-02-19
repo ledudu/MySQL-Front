@@ -3885,6 +3885,7 @@ end;
 
 procedure TTExport.Execute();
 var
+  Cancel: Boolean;
   Database: TSDatabase;
   DatabaseName: string;
   DataSet: TMySQLQuery;
@@ -3984,6 +3985,7 @@ begin
         DataSet.Open(ResultHandle);
         DatabaseName := DataSet.Connection.DatabaseName;
 
+        Cancel := False;
         if (not DataSet.IsEmpty
           and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
           and SQLParseKeyword(Parse, 'SELECT')
@@ -3998,10 +4000,19 @@ begin
               and (Items[I] is TDBObjectItem)
               and (TDBObjectItem(Items[I]).DBObject = Database.TableByName(ObjectName))) then
               Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
-          end;
+          end
+        else
+          Cancel := True;
+
         DataSet.Close();
 
+        if (Cancel) then
+          Session.Connection.CancelResultHandle(ResultHandle);
+
         DoUpdateGUI();
+
+        Assert(not Assigned(ResultHandle.SyncThread)
+          or (ResultHandle.SyncThread.DebugState <> ssResult));
       end;
       Session.Connection.CloseResultHandle(ResultHandle);
       DataSet.Free();
@@ -4116,7 +4127,10 @@ begin
                 // Debug 2017-02-16
                 Assert(not DataTable
                   or not Assigned(ResultHandle.SyncThread)
-                  or (ResultHandle.SyncThread.DebugState <> ssResult));
+                  or (ResultHandle.SyncThread.DebugState <> ssResult),
+                  'Success: ' + IntToStr(Ord(Success)) + #13#10
+                  + 'DataTable:' + BoolToStr(DataTable, True) + #13#10
+                  + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
               end;
             end;
           end;

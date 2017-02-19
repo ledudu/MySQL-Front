@@ -27,6 +27,8 @@ type
     ReceiveStream: TStream;
     URI: string;
   public
+    DebugReceiveFileSize: Int64; // Debug 2017-02-18
+    DebugReceivedFileSize: Int64; // Debug 2017-02-18
     constructor Create(const AURI: string;
       const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
     procedure Execute(); override;
@@ -359,7 +361,6 @@ var
   Body: RawByteString;
   Buffer: array [0 .. 32768 - 1] of Byte;
   Client: HInternet;
-  FileSize: Int64;
   Headers: string;
   Index: Cardinal;
   Internet: HInternet;
@@ -369,6 +370,7 @@ var
   Method: PChar;
   QueryIndex: DWORD;
   QueryInfo: array [0 .. 2048] of Char;
+  ReceiveFileSize: Int64;
   Request: HInternet;
   RequestTry: Integer;
   Size: Cardinal;
@@ -466,7 +468,7 @@ begin
         else
         begin
           repeat
-            FileSize := -1;
+            ReceiveFileSize := -1;
 
             // Debug 2017-01-23
             lpszHeaders := PChar(Headers);
@@ -484,7 +486,10 @@ begin
               Index := 0;
               if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_LENGTH, @Buffer,
                 Size, Index)) then
-                FileSize := StrToInt(PChar(@Buffer));
+              begin
+                ReceiveFileSize := StrToInt(PChar(@Buffer));
+                DebugReceiveFileSize := ReceiveFileSize;
+              end;
 
               if (Assigned(ReceiveStream)) then
                 repeat
@@ -494,8 +499,8 @@ begin
                     ReceiveStream.Write(Buffer, Size);
 
                   if (not Terminated and Assigned(OnProgress) and
-                    (ReceiveStream.Size < FileSize)) then
-                    OnProgress(Self, ReceiveStream.Size, FileSize);
+                    (ReceiveStream.Size < ReceiveFileSize)) then
+                    OnProgress(Self, ReceiveStream.Size, ReceiveFileSize);
                 until (Terminated or (Success and (Size = 0)));
 
               Size := SizeOf(Buffer);
@@ -518,6 +523,15 @@ begin
           until (Terminated or (FErrorCode <> 0) or
             (FHTTPStatus = HTTP_STATUS_OK) or Assigned(ReceiveStream) and
             (ReceiveStream.Size = 0) or (RequestTry >= 3));
+
+          if ((FErrorCode = 0) and (FHTTPStatus = HTTP_STATUS_OK)
+            and (ReceiveFileSize > 0) and (ReceiveFileSize < ReceiveStream.Size)) then
+          begin
+            FErrorCode := 123456;
+            FErrorMessage := IntToStr(ReceiveStream.Size) + ' bytes of ' + IntToStr(ReceiveFileSize) + 'received only';
+          end;
+
+          DebugReceiveFileSize := ReceiveStream.Size;
         end;
         InternetCloseHandle(Request);
       end;

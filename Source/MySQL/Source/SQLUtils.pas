@@ -227,6 +227,8 @@ asm
         CMP ECX,1                        // Last character in SQL?
         JE QuotedLE                      // Yes!
         MOV AX,[ESI]                     // Character after Escape
+        CMP AX,'\'                       // Character = second Escaper?
+        JE QuotedL2                      // Yes!
         CMP AX,''''                      // "'"?
         JE QuotedL2                      // Yes!
         CMP AX,'"'                       // '"'?

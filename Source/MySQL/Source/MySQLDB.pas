@@ -2625,8 +2625,9 @@ begin
 
     if (StmtLength > 0) then
     begin
-	  // Debug 2017-02-16
+      // Debug 2017-02-16
       Assert(Assigned(SyncThread));
+      Assert(not SyncThread.Terminated);
       Assert(Assigned(SyncThread.StmtLengths));
 
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -3626,7 +3627,7 @@ begin
 
     if (AlterTableAfterCreateTable) then
       PacketComplete := pcExclusiveStmt
-    else if ((StmtLength = 8) and (StrLIComp(SQL, 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709)) then
+    else if ((StmtLength = 9) and (StrLIComp(SQL, 'SHUTDOWN;', 9) = 0) and (MySQLVersion < 50709)) then
       PacketComplete := pcExclusiveStmt
     else if ((SizeOf(COM_QUERY) + SQLIndex - 1 + StmtLength > MaxAllowedServerPacket)
       and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SQLIndex]), StmtLength, nil, 0) > MaxAllowedServerPacket)) then
@@ -3688,7 +3689,7 @@ begin
 
     if (not SyncThread.Terminated and Success) then
     begin
-      if ((LibLength = 8) and (AnsiStrings.StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709) and Assigned(Lib.mysql_shutdown)) then
+      if ((LibLength = 9) and (AnsiStrings.StrLIComp(my_char(LibSQL), 'SHUTDOWN;', 9) = 0) and (MySQLVersion < 50709) and Assigned(Lib.mysql_shutdown)) then
         Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
       else
       begin
@@ -4599,6 +4600,10 @@ var
   SQL: string;
   WhereClause: string;
 begin
+  // Debug 2017-02-18
+  Assert(Assigned(Field));
+  Assert(Field.FieldNo > 0);
+
   LibRow := TMySQLQuery(Field.DataSet).LibRow;
   LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
 
@@ -5076,6 +5081,9 @@ begin
           raise ERangeError.Create(SRangeError);
         if (not Assigned(Connection.Lib)) then
           raise ERangeError.Create(SRangeError);
+
+        // Debug 2017-02-19
+        Assert(Assigned(Handle));
 
         RawField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field(Handle));
 
