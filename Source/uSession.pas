@@ -2650,16 +2650,32 @@ begin
 end;
 
 procedure TSDBObjects.Delete(const AItem: TSItem);
+var
+  Profile: TProfile;
 begin
   Assert(AItem is TSDBObject);
 
+  CreateProfile(Profile); // Debug 2017-02-20
+
   Session.SendEvent(etItemDeleted, Database, Self, AItem);
+
+  ProfilingPoint(Profile, 1);
 
   Delete(IndexOf(AItem));
 
+  ProfilingPoint(Profile, 2);
+
   Session.SendEvent(etItemsValid, Session, Session.Databases);
 
+  ProfilingPoint(Profile, 3);
+
   AItem.Free();
+
+  if (ProfilingTime(Profile) > 1000) then
+    SendToDeveloper('Class: ' + ClassName + #13#10
+      + 'Count: ' + IntToStr(Count) + #13#10
+      + ProfilingReport(Profile));
+  CloseProfile(Profile);
 end;
 
 { TSKeyColumn *****************************************************************}

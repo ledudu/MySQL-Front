@@ -9684,7 +9684,7 @@ end;
 
 procedure TFSession.FTextChange(Sender: TObject);
 begin
-  if (Assigned(EditorField) and EditorField.CanModify and FText.Modified) then
+  if (FText.Visible and Assigned(EditorField) and EditorField.CanModify and FText.Modified) then
   begin
     if (EditorField.DataSet.State = dsBrowse) then
       EditorField.DataSet.Edit();
@@ -10042,30 +10042,6 @@ end;
 
 function TFSession.GetEditorField(): TField;
 begin
-  if (Assigned(ActiveDBGrid)) then
-  begin
-    // Debug 2017-02-20
-    Assert(ActiveDBGrid = GetActiveDBGrid(),
-      'View: ' + IntToStr(Ord(View)) + #13#10
-      + 'CurrentAddress: ' + CurrentAddress);
-
-    // Debug 2016-12-24
-    if (not (TObject(ActiveDBGrid) is TDBGrid)) then
-      try
-        raise ERangeERror.Create('ClassType: ' + TObject(ActiveDBGrid).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
-    if (Assigned(ActiveDBGrid.SelectedField)) then
-      if (not (ActiveDBGrid.SelectedField is TField)) then
-        try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + ActiveDBGrid.SelectedField.ClassName);
-        finally
-          raise ERangeError.Create(SRangeError);
-        end;
-  end;
-
   if (not Assigned(ActiveDBGrid)
     or not Assigned(ActiveDBGrid.SelectedField)
     or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
@@ -12087,7 +12063,7 @@ var
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
-              ProfilingPoint(Profile, 17);
+              ProfilingPoint(Profile, 18);
               ListView.Items.Delete(I);
               ProfilingPoint(Profile, 19);
               Inc(Changes);

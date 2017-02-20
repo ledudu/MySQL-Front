@@ -125,7 +125,6 @@ contains
   BCEditor.Highlighter.Import.JSON in '..\Source\BCEditor.Highlighter.Import.JSON.pas',
   BCEditor.Highlighter.Rules in '..\Source\BCEditor.Highlighter.Rules.pas',
   BCEditor.Highlighter.Token in '..\Source\BCEditor.Highlighter.Token.pas',
-  BCEditor.JsonDataObjects in '..\Source\BCEditor.JsonDataObjects.pas',
   BCEditor.KeyboardHandler in '..\Source\BCEditor.KeyboardHandler.pas',
   BCEditor.Language in '..\Source\BCEditor.Language.pas',
   BCEditor.Lines in '..\Source\BCEditor.Lines.pas',
@@ -143,6 +142,7 @@ contains
   BCEditor.StyleHooks in '..\Source\BCEditor.StyleHooks.pas',
   BCEditor.PaintHelper in '..\Source\BCEditor.PaintHelper.pas',
   BCEditor.Types in '..\Source\BCEditor.Types.pas',
-  BCEditor.Utils in '..\Source\BCEditor.Utils.pas';
+  BCEditor.Utils in '..\Source\BCEditor.Utils.pas',
+  JsonDataObjects in '..\Source\JsonDataObjects.pas';
 
 end.

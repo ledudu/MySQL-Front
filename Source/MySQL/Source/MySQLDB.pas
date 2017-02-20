@@ -2577,11 +2577,8 @@ begin
   if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
     Terminate();
 
-  TerminateCS.Enter();
-  Assert(not SyncThread.Terminated);
   if (not Assigned(SyncThread)) then
     FSyncThread := TSyncThread.Create(Self);
-  TerminateCS.Leave();
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
@@ -7014,6 +7011,8 @@ begin
   else
     SQL := CommandText;
 
+  Success := False;
+
   if (SQL <> '') then
   begin
     Connection.BeginSynchron();
@@ -7023,7 +7022,10 @@ begin
       Connection.SyncBindDataSet(Self);
   end;
 
-  DataEvent(deDataSetChange, 0);
+  if (Success) then
+    DataEvent(deDataSetChange, 0)
+  else
+    DataEvent(deDataSetChange, 0);
 end;
 
 procedure TMySQLDataSet.InternalSetToRecord(Buffer: TRecBuf);
