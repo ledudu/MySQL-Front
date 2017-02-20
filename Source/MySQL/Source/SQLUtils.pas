@@ -249,8 +249,10 @@ asm
         JZ Finish                        // End of SQL!
         CMP [ESI],DX                     // Second Quoter?
         JNE Finish                       // No!
-        ADD ESI,2                        // Step over second Quoter
-        DEC ECX                          // One character handled
+        LODSW                            // Get char after Escaper from SQL
+        CMP EDI,0                        // Store the string somewhere?
+        JE QuotedLE                      // No!
+        STOSW                            // Put character
       QuotedLE:
         LOOP QuotedL
 

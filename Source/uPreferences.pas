@@ -2219,9 +2219,8 @@ end;
 
 procedure TPPreferences.LoadFromXML(const XML: IXMLNode);
 var
-  Visible: Boolean;
-var
   PixelsPerInch: Integer;
+  Visible: Boolean;
 begin
   inherited;
 

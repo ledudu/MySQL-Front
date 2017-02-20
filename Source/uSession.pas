@@ -5515,15 +5515,17 @@ begin
 
   if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
   begin
-    // Debug 2017-02-16
-    Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FindField('Table_Type')),
-      'SQL: ' + DataSet.CommandText + #13#10
-      + 'FieldCount: ' + IntToStr(DataSet.FieldCount));
-
     DeleteList := TList.Create();
     DeleteList.Assign(Self);
 
     if (not DataSet.IsEmpty()) then
+    begin
+      // Debug 2017-02-16
+      Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FindField('Table_Type')),
+        'SQL: ' + DataSet.CommandText + #13#10
+        + 'FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+        + 'Field[0]: ' + DataSet.Fields[0].DisplayName);
+
       repeat
         Name := DataSet.Fields[0].AsString;
 
@@ -5549,6 +5551,7 @@ begin
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
       until (not DataSet.FindNext());
+    end;
 
     if (not Filtered) then
       while (DeleteList.Count > 0) do

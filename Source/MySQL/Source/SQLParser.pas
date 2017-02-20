@@ -1638,7 +1638,6 @@ type
           {$IFDEF Debug}; const AIndex: Integer {$ENDIF}): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
         function GetAsString(): string;
         function GetDbIdentType(): TDbIdentType;
-        function GetDefinerToken(): PToken;
         {$IFNDEF Debug}
         function GetIndex(): Integer;
         {$ENDIF}
@@ -1662,7 +1661,6 @@ type
       public
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
-        property DefinerToken: PToken read GetDefinerToken;
         property NextToken: PToken read GetNextToken;
         property NextTokenAll: PToken read GetNextTokenAll;
         property OperatorType: TOperatorType read FOperatorType;
@@ -3012,7 +3010,6 @@ type
       private
         FDbIdentType: TDbIdentType;
         FDbTableType: TDbIdentType;
-        FDefinerToken: TOffset;
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser; const ADbIdentType: TDbIdentType; const ANodes: TNodes): TOffset; overload; static;
         function GetDatabaseIdent(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -6723,7 +6720,7 @@ type
     ReservedWordList: TWordList;
     TokenBuffer: record
       Count: Integer;
-      Items: array [0 .. 50 - 1] of record Error: TError; Token: TOffset; end;
+      Items: array [0 .. 10000 - 1] of record Error: TError; Token: TOffset; end;
     end;
     {$IFDEF Debug}
     TokenIndex: Integer;
@@ -7220,7 +7217,7 @@ implementation {***************************************************************}
 uses
   Windows,
   Classes, SysUtils, StrUtils, SysConst, Math,
-uDeveloper,
+uDeveloper, uProfiling,
   SQLUtils;
 
 resourcestring
@@ -7435,6 +7432,9 @@ const
     'UNIQUE,UNLOCK,UNSIGNED,UPDATE,USAGE,USE,USING,UTC_DATE,UTC_TIME,' +
     'UTC_TIMESTAMP,VALUES,VARBINARY,VARCHAR,VARCHARACTER,VARYING,VIRTUAL,' +
     'WHEN,WHERE,WHILE,WITH,WRITE,XOR,YEAR_MONTH,ZEROFILL';
+
+var
+  Profile: TProfile;
 
 function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
 label
@@ -8380,17 +8380,6 @@ begin
       Result := ditTable
   else
     Result := PDbIdent(Heritage.ParentNode)^.DbIdentType;
-end;
-
-function TSQLParser.TToken.GetDefinerToken(): PToken;
-begin
-  if ((UsageType <> utDbIdent)
-    or not Assigned(Heritage.ParentNode)
-    or (PNode(Heritage.ParentNode)^.NodeType <> ntDbIdent)
-    or (PDbIdent(Heritage.ParentNode)^.FDefinerToken = 0)) then
-    Result := nil
-  else
-    Result := Parser.TokenPtr(PDbIdent(Heritage.ParentNode)^.FDefinerToken);
 end;
 
 {$IFNDEF Debug}
@@ -9492,7 +9481,6 @@ begin
   begin
     FDbIdentType := ADbIdentType;
     FDbTableType := ditUnknown;
-    FDefinerToken := 0;
 
     Nodes := ANodes;
 
@@ -14361,10 +14349,7 @@ begin
     else if (Token.DbIdentType in [ditUser, ditHost, ditColumnAlias]) then
       Commands.Write(SQLEscape(Token.AsString, ''''))
     else if ((Token.DbIdentType in [ditTableAlias, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) and IsSimpleDbIdent(@Token)) then
-      if (not Assigned(Token.DefinerToken)) then
-        Commands.Write(Token.AsString)
-      else
-        Commands.Write(Token.DefinerToken^.AsString)
+      Commands.Write(Token.AsString)
     else if (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditTableAlias, ditPlugin, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) then
       if (AnsiQuotes) then
         Commands.Write(SQLEscape(Token.AsString, '"'))
@@ -15888,12 +15873,6 @@ begin
     if (IsTag(kiPARTITION, kiBY)) then
       Nodes.PartitionOptions := ParseCreateTableStmtPartitionOptions();
 
-  if (not ErrorFound and (Specifications.Count = 0) and (Nodes.PartitionOptions = 0)) then
-    if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
-    else
-      SetError(PE_UnexpectedToken);
-
   FillChar(ListNodes, SizeOf(ListNodes), 0);
   Nodes.SpecificationList := TList.Create(Self, ListNodes, ttComma, @Specifications);
   Result := TAlterTableStmt.Create(Self, Nodes);
@@ -16630,9 +16609,6 @@ end;
 function TSQLParser.ParseCompoundStmt(const BeginLabel: TOffset = 0): TOffset;
 var
   Nodes: TCompoundStmt.TNodes;
-  CompoundVariableToken: PToken;
-  CursorToken: PToken;
-  Token: PToken;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
@@ -16661,77 +16637,6 @@ begin
   Dec(FInCompound);
 
   Result := TCompoundStmt.Create(Self, Nodes);
-
-  if (IsStmt(Result)) then
-  begin
-    // Change ditUnknown in ditCompoundVariable and set DefinerToken
-
-    CompoundVariableToken := StmtPtr(Result)^.FirstToken;
-    while (Assigned(CompoundVariableToken)) do
-    begin
-      if ((CompoundVariableToken^.UsageType = utDbIdent)
-        and (CompoundVariableToken^.DbIdentType = ditCompoundVariable)
-        and Assigned(CompoundVariableToken^.ParentNode) and IsChild(CompoundVariableToken^.ParentNode) and Assigned(PChild(CompoundVariableToken^.ParentNode)^.ParentNode)) then
-      begin
-        Token := StmtPtr(Result)^.FirstToken;
-        while (Assigned(Token)) do
-        begin
-          if ((Token^.DbIdentType = ditUnknown)
-            and (lstrcmpi(PChar(Token^.AsString), PChar(CompoundVariableToken^.AsString)) = 0)
-            and Assigned(Token^.ParentNode) and (PNode(Token^.ParentNode)^.NodeType = ntDbIdent)
-            and (PDbIdent(Token^.ParentNode)^.FDefinerToken = 0)) then
-          begin
-            PDbIdent(Token^.ParentNode)^.FDbIdentType := CompoundVariableToken^.DbIdentType;
-            PDbIdent(Token^.ParentNode)^.FDefinerToken := CompoundVariableToken^.Offset;
-          end;
-
-          if (Token = StmtPtr(Result)^.LastToken) then
-            Token := nil
-          else
-            Token := Token^.NextToken;
-        end;
-      end;
-
-      if (CompoundVariableToken = StmtPtr(Result)^.LastToken) then
-        CompoundVariableToken := nil
-      else
-        CompoundVariableToken := CompoundVariableToken^.NextToken;
-    end;
-
-
-    // Change ditUnknown to ditCursor and set DefinerToken
-
-    CursorToken := StmtPtr(Result)^.FirstToken;
-    while (Assigned(CursorToken)) do
-    begin
-      if ((CursorToken^.DbIdentType = ditCursor)
-        and Assigned(CursorToken^.ParentNode) and IsChild(CursorToken^.ParentNode) and Assigned(PChild(CursorToken^.ParentNode)^.ParentNode) and (PNode(PChild(CursorToken^.ParentNode)^.ParentNode)^.NodeType = ntDeclareCursorStmt)) then
-      begin
-        Token := StmtPtr(Result)^.FirstToken;
-        while (Assigned(Token)) do
-        begin
-          if ((Token^.DbIdentType = ditUnknown)
-            and (lstrcmpi(PChar(Token^.AsString), PChar(CursorToken^.AsString)) = 0)
-            and Assigned(Token^.ParentNode) and (PNode(Token^.ParentNode)^.NodeType = ntDbIdent)
-            and (PDbIdent(Token^.ParentNode)^.FDefinerToken = 0)) then
-          begin
-            PDbIdent(Token^.ParentNode)^.FDbIdentType := CursorToken^.DbIdentType;
-            PDbIdent(Token^.ParentNode)^.FDefinerToken := CursorToken^.Offset;
-          end;
-
-          if (Token = StmtPtr(Result)^.LastToken) then
-            Token := nil
-          else
-            Token := Token^.NextToken;
-        end;
-      end;
-
-      if (CursorToken = StmtPtr(Result)^.LastToken) then
-        CursorToken := nil
-      else
-        CursorToken := CursorToken^.NextToken;
-    end;
-  end;
 end;
 
 function TSQLParser.ParseConstIdent(): TOffset;
@@ -16963,8 +16868,6 @@ function TSQLParser.ParseCreateRoutineStmt(const ARoutineType: TRoutineType; con
 var
   Found: Boolean;
   Nodes: TCreateRoutineStmt.TNodes;
-  ParamToken: PToken;
-  Token: PToken;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
@@ -17032,42 +16935,6 @@ begin
   end;
 
   Result := TCreateRoutineStmt.Create(Self, ARoutineType, Nodes);
-
-  if (IsStmt(Result)) then
-  begin
-    // Change ditUnknown in ditRoutineParam and set DefinerToken
-
-    ParamToken := StmtPtr(Result)^.FirstToken;
-    while (Assigned(ParamToken)) do
-    begin
-      if ((ParamToken^.UsageType = utDbIdent)
-        and (ParamToken^.DbIdentType = ditRoutineParam)) then
-      begin
-        Token := StmtPtr(Result)^.FirstToken;
-        while (Assigned(Token)) do
-        begin
-          if ((Token^.DbIdentType = ditUnknown)
-            and (lstrcmpi(PChar(Token^.AsString), PChar(ParamToken^.AsString)) = 0)
-            and Assigned(Token^.ParentNode) and (PNode(Token^.ParentNode)^.NodeType = ntDbIdent)
-            and (PDbIdent(Token^.ParentNode)^.FDefinerToken = 0)) then
-          begin
-            PDbIdent(Token^.ParentNode)^.FDbIdentType := ParamToken^.DbIdentType;
-            PDbIdent(Token^.ParentNode)^.FDefinerToken := ParamToken^.Offset;
-          end;
-
-          if (Token = StmtPtr(Result)^.LastToken) then
-            Token := nil
-          else
-            Token := Token^.NextToken;
-        end;
-      end;
-
-      if (ParamToken = StmtPtr(Result)^.LastToken) then
-        ParamToken := nil
-      else
-        ParamToken := ParamToken^.NextToken;
-    end;
-  end;
 end;
 
 function TSQLParser.ParseCreateServerStmt(const CreateTag: TOffset): TOffset;
@@ -19060,9 +18927,7 @@ end;
 function TSQLParser.ParseDeleteStmt(): TOffset;
 var
   Nodes: TDeleteStmt.TNodes;
-  TableAliasToken: PToken;
   TableCount: Integer;
-  Token: PToken;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   TableCount := 1;
@@ -19151,40 +19016,6 @@ begin
     end;
 
   Result := TDeleteStmt.Create(Self, Nodes);
-
-  if (IsStmt(Result)) then
-  begin
-    TableAliasToken := StmtPtr(Result)^.FirstToken;
-    while (Assigned(TableAliasToken)) do
-    begin
-      if ((TableAliasToken^.UsageType = utDbIdent)
-        and (TableAliasToken^.DbIdentType = ditTableAlias)) then
-      begin
-        Token := StmtPtr(Result)^.FirstToken;
-        while (Assigned(Token)) do
-        begin
-          if ((Token^.DbIdentType = ditTable)
-            and Assigned(Token^.ParentNode) and (PNode(Token^.ParentNode)^.NodeType = ntDbIdent) and not Assigned(PDbIdent(Token^.ParentNode)^.DatabaseIdent)
-            and (lstrcmpi(PChar(Token^.AsString), PChar(TableAliasToken^.AsString)) = 0)
-            and (PDbIdent(Token^.ParentNode)^.FDefinerToken = 0)) then
-          begin
-            PDbIdent(Token^.ParentNode)^.FDbTableType := TableAliasToken^.DbIdentType;
-            PDbIdent(Token^.ParentNode)^.FDefinerToken := TableAliasToken^.Offset;
-          end;
-
-          if (Token = StmtPtr(Result)^.LastToken) then
-            Token := nil
-          else
-            Token := Token^.NextToken;
-        end;
-      end;
-
-      if (TableAliasToken = StmtPtr(Result)^.LastToken) then
-        TableAliasToken := nil
-      else
-        TableAliasToken := TableAliasToken^.NextToken;
-    end;
-  end;
 end;
 
 function TSQLParser.ParseDeleteStmtTableIdent(): TOffset;
@@ -19622,9 +19453,7 @@ begin
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
       else if (TokenPtr(CurrentToken)^.OperatorType <> otNone) then
-        if (TokenPtr(CurrentToken)^.OperatorType = otAssign) then
-          SetError(PE_UnexpectedToken)
-        else if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
+        if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
         begin
           TokenPtr(CurrentToken)^.FOperatorType := otNone;
           Nodes.Add(ApplyCurrentToken(utDbIdent));
@@ -21983,9 +21812,6 @@ function TSQLParser.ParseRoot(): TOffset;
 var
   FirstTokenAll: TOffset;
   StmtList: TOffset;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
 begin
   if (not AnsiQuotes) then
   begin
@@ -22009,14 +21835,14 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
+  CreateProfile(Profile);
 
   StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
 
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) * 1000 div Frequency > 1000) then
-      SendToDeveloper('Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s' + #13#10
-        + Parse.SQL);
+  if (ProfilingTime(Profile) > 1000) then
+    SendToDeveloper(ProfilingReport(Profile) + #13#10#13#10
+      + Parse.SQL);
+  CloseProfile(Profile);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -22200,18 +22026,14 @@ var
   CloseBracket1Count: Integer;
   Element: PChild;
   Elements: TOffsetList;
-  FirstToken: TOffset;
   Found: Boolean;
   ListNodes: TList.TNodes;
   Nodes: TSelectStmt.TNodes;
   OpenBracketCount: Integer;
-  TableAliasToken: PToken;
-  Token: PToken;
   UnionAllowed: Boolean;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   UnionAllowed := True;
-  FirstToken := CurrentToken;
 
   Elements.Init();
   while (IsSymbol(ttOpenBracket)) do
@@ -22373,42 +22195,6 @@ begin
   begin
     FillChar(ListNodes, SizeOf(ListNodes), 0);
     Nodes.CloseBrackets1 := TList.Create(Self, ListNodes, ttComma, @Elements);
-  end;
-
-  if (not ErrorFound) then
-  begin
-    TableAliasToken := TokenPtr(FirstToken);
-    while (Assigned(TableAliasToken)) do
-    begin
-      if ((TableAliasToken^.UsageType = utDbIdent)
-        and (TableAliasToken^.DbIdentType = ditTableAlias)) then
-      begin
-        Token := TokenPtr(FirstToken);
-        while (Assigned(Token)) do
-        begin
-          if ((Token^.DbIdentType = ditTable)
-            and Assigned(Token^.ParentNode) and (PNode(Token^.ParentNode)^.NodeType = ntDbIdent) and not Assigned(PDbIdent(Token^.ParentNode)^.DatabaseIdent)
-            and (lstrcmpi(PChar(Token^.AsString), PChar(TableAliasToken^.AsString)) = 0)
-            and (PDbIdent(Token^.ParentNode)^.FDefinerToken = 0)) then
-          begin
-            PDbIdent(Token^.ParentNode)^.FDbTableType := TableAliasToken^.DbIdentType;
-            PDbIdent(Token^.ParentNode)^.FDefinerToken := TableAliasToken^.Offset;
-          end;
-
-          Token := Token^.NextToken;
-          if (Assigned(Token)
-            and (CurrentToken > 0)
-            and (Token = TokenPtr(CurrentToken))) then
-            Token := nil;
-        end;
-      end;
-
-      TableAliasToken := TableAliasToken^.NextToken;
-      if (Assigned(TableAliasToken)
-        and (CurrentToken > 0)
-        and (TableAliasToken = TokenPtr(CurrentToken))) then
-        TableAliasToken := nil;
-    end;
   end;
 
   if (not ErrorFound
@@ -22739,15 +22525,35 @@ end;
 function TSQLParser.ParseSelectStmtTableReference(): TOffset;
 
   function ParseTableFactor(): TOffset;
+  var
+    BracketDeep: Integer;
+    Index: Integer;
   begin
-    if (IsTag(kiDUAL)) then
+    if (IsSymbol(ttOpenBracket)) then
+    begin
+      BracketDeep := 0;
+      Index := 0;
+      repeat
+        if (IsNextSymbol(Index, ttOpenBracket)) then
+          Inc(BracketDeep)
+        else if (IsNextSymbol(Index, ttCloseBracket)) then
+          Dec(BracketDeep);
+        Inc(Index);
+      until (EndOfStmt(NextToken[Index])
+        or (BracketDeep = 0));
+
+      if (IsNextTag(1, kiSELECT)
+        and (EndOfStmt(NextToken[Index]) or IsNextTag(Index, kiAS) or (TokenPtr(NextToken[Index])^.TokenType in ttIdents) and (ReservedWords.IndexOf(TokenPtr(NextToken[Index])^.AsString) < 0))) then
+        Result := ParseSelectStmtTableFactorSubquery()
+      else
+        Result := ParseList(True, ParseSelectStmtTableReference, ttComma, False);
+    end
+    else if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
     else if (IsTag(kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
-    else if (IsSymbol(ttOpenBracket)) then
-      Result := ParseList(True, ParseSelectStmtTableReference, ttComma, False)
     else if (EndOfStmt(CurrentToken)) then
     begin
       CompletionList.AddList(ditDatabase);

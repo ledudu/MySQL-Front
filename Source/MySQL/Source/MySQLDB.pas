@@ -2578,6 +2578,7 @@ begin
     Terminate();
 
   TerminateCS.Enter();
+  Assert(not SyncThread.Terminated);
   if (not Assigned(SyncThread)) then
     FSyncThread := TSyncThread.Create(Self);
   TerminateCS.Leave();
@@ -3089,7 +3090,12 @@ begin
               begin
                 Assert(SynchronCount > 0,
                   'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
-                  + 'ErrorMessage: ' + SyncThread.ErrorMessage);
+                  + 'ErrorMessage: ' + SyncThread.ErrorMessage + #13#10
+                  + 'State: ' + IntToStr(Ord(SyncThread.State)));
+
+                // 2017-02-20
+                // ErrorCode: 0, TTool.DoError, no Result for SELECT query
+
                 SyncThreadExecuted.SetEvent();
               end;
           end;
@@ -3133,8 +3139,7 @@ begin
           SyncTerminate();
           SyncThreadExecuted.SetEvent();
         end;
-      else
-        raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
+      else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
   end;
 end;
@@ -3915,6 +3920,7 @@ begin
       SyncTerminate()
     else
     begin
+      SyncThread.State := ssTerminate;
       MySQLConnectionOnSynchronize(SyncThread);
       SyncThreadExecuted.WaitFor(INFINITE);
     end;
