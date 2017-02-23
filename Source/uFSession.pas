@@ -2740,8 +2740,11 @@ begin
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
-      ActiveDBGrid.DataSource.DataSet.Delete()
-    else if (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) then
+      if (ActiveDBGrid.SelectedFields.Count > 0) then
+        TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).DeleteAll()
+      else
+        ActiveDBGrid.DataSource.DataSet.Delete()
+    else
     begin
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
       for I := 0 to Length(Bookmarks) - 1 do

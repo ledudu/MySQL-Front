@@ -542,6 +542,7 @@ type
       property RecordReceived: TEvent read FRecordReceived;
     end;
   strict private
+    DeleteAllRecords: Boolean;
     FCachedUpdates: Boolean;
     FCanModify: Boolean;
     FCursorOpen: Boolean;
@@ -613,12 +614,13 @@ type
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
     property RecordsReceived: TEvent read FRecordsReceived;
   public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy(); override;
     function BookmarkValid(Bookmark: TBookmark): Boolean; override;
     function CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer; override;
+    constructor Create(AOwner: TComponent); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
-    procedure Delete(const Bookmarks: array of TBookmark); overload; virtual;
+    procedure Delete(const Bookmarks: array of TBookmark); overload;
+    procedure DeleteAll();
+    destructor Destroy(); override;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
@@ -1772,6 +1774,8 @@ begin
           end;
         else
           begin
+            if (ATraceType in [ttRequest, ttResult]) then
+              Cache.Mem[Pos - 3] := ';';
             Cache.Mem[Pos - 2] := #13;
             Cache.Mem[Pos - 1] := #10;
           end;
@@ -5984,6 +5988,7 @@ constructor TMySQLDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+  DeleteAllRecords := False;
   FCanModify := False;
   FCommandType := ctQuery;
   FCursorOpen := False;
@@ -6044,6 +6049,17 @@ begin
   Delete();
 
   SetLength(DeleteBookmarks, 0);
+end;
+
+procedure TMySQLDataSet.DeleteAll();
+begin
+  DeleteAllRecords := True;
+
+  try
+    Delete();
+  finally
+    DeleteAllRecords := False;
+  end;
 end;
 
 destructor TMySQLDataSet.Destroy();
@@ -6448,7 +6464,15 @@ begin
       raise EDatabasePostError.Create(SRecordChanged);
 
     InternRecordBuffers.CriticalSection.Enter();
-    if (Length(DeleteBookmarks) = 0) then
+    if (DeleteAllRecords) then
+    begin
+      InternRecordBuffers.Clear();
+      if (BufferCount > 0) then
+        InternalInitRecord(ActiveBuffer());
+      for I := 0 to BufferCount - 1 do
+        InternalInitRecord(Buffers[I]);
+    end
+    else if (Length(DeleteBookmarks) = 0) then
     begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
@@ -6465,7 +6489,8 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      InternalInitRecord(ActiveBuffer());
+      if (BufferCount > 0) then
+        InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
@@ -7541,7 +7566,9 @@ var
   WhereField: TField;
   WhereFieldCount: Integer;
 begin
-  if (Length(DeleteBookmarks) = 0) then
+  if (DeleteAllRecords) then
+    Result := 'DELETE FROM ' + SQLTableClause()
+  else if (Length(DeleteBookmarks) = 0) then
     Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + SQLWhereClause()
   else
   begin

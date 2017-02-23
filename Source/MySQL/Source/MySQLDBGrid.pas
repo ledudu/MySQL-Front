@@ -528,7 +528,6 @@ var
   ClipboardData: HGLOBAL;
   Content: string;
   FormatSettings: TFormatSettings;
-  Len: Cardinal;
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
@@ -549,11 +548,10 @@ begin
 
 
       Content := CalcSQLData();
-      Len := Length(Content);
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
       SetClipboardData(CF_MYSQLSQLDATA, ClipboardData);
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
       GlobalUnlock(ClipboardData);
 
       DataLink.DataSet.EnableControls();
@@ -1187,7 +1185,7 @@ begin
       BeginDrag(False);
     end;
 
-    if (not (ssCtrl in Shift) and not (ssAlt in Shift)) then
+    if ((Shift = [ssLeft]) and not (ssCtrl in Shift) and not (ssAlt in Shift)) then
     begin
       if (SelectedRows.Count = 0) then
         for I := 0 to Columns.Count - 1 do
@@ -1206,14 +1204,14 @@ begin
       LeftClickAnchor.Col := Col;
       LeftClickAnchor.Rec := DataLink.ActiveRecord;
 
-      if (ssAlt in Shift) then
+      if ((Shift = [ssLeft]) and (ssAlt in Shift)) then
       begin
         SelectedFields.Clear();
         SelectedFields.Add(Columns[Cell.X].Field);
       end;
     end;
 
-    if (not (ssCtrl in Shift) and not (ssAlt in Shift) and (dgMultiSelect in Options) and (SelectedRows.Count = 1)) then
+    if ((Shift = [ssLeft]) and not (ssCtrl in Shift) and not (ssAlt in Shift) and (dgMultiSelect in Options) and (SelectedRows.Count = 1)) then
       SelectedRows.Clear();
   end;
 end;
@@ -1503,6 +1501,7 @@ begin
   DataLink.DataSet.CheckBrowseMode();
 
   DataLink.DataSet.DisableControls();
+  EditorMode := False;
 
   if ((SelectedRows.Count > 0) and (SelectedRows.Count <> DataLink.DataSet.RecordCount)) then
     SelectedRows.Clear();

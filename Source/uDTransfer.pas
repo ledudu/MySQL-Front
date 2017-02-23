@@ -203,7 +203,7 @@ procedure TDTransfer.FDataClick(Sender: TObject);
 begin
   FStructure.Checked := FStructure.Checked or FData.Checked;
 
-  TSExecute.Enabled := FStructure.Checked;
+  TSExecute.Enabled := FStructure.Checked or FData.Checked;
   CheckActivePageChange(TSWhat);
 end;
 
@@ -350,7 +350,7 @@ procedure TDTransfer.FStructureClick(Sender: TObject);
 begin
   FData.Checked := FData.Checked and FStructure.Checked;
 
-  TSExecute.Enabled := FStructure.Checked;
+  TSExecute.Enabled := FStructure.Checked or FData.Checked;
   CheckActivePageChange(TSWhat);
 end;
 
@@ -424,9 +424,11 @@ begin
       FSource.MultiSelect := Assigned(Node.Parent);
 
     TSWhat.Enabled := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
-      and (FSource.Selected.Parent.Level = FDestination.Selected.Level)
-      and ((FSource.Selected.ImageIndex <> iiDatabase) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text))
-      and ((FSource.Selected.ImageIndex <> iiBaseTable) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text) or (FSource.Selected.Parent.Parent.Text <> FDestination.Selected.Parent.Text));
+      and ((FSource.Selected.Parent.Level = FDestination.Selected.Level)
+          and ((FSource.Selected.ImageIndex <> iiDatabase) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text))
+          and ((FSource.Selected.ImageIndex <> iiBaseTable) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text) or (FSource.Selected.Parent.Parent.Text <> FDestination.Selected.Parent.Text))
+        or (FSource.SelectionCount = 1)
+          and (FSource.Selected.ImageIndex = FDestination.Selected.ImageIndex) and (FSource.Selected.ImageIndex in [iiDatabase, iiBaseTable]));
 
     CheckActivePageChange(PageControl.ActivePage);
   end;
@@ -470,7 +472,7 @@ begin
                     NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                     NewNode.ImageIndex := iiDatabase;
                     NewNode.Data := Session.Databases[I];
-                    NewNode.HasChildren := TreeView = FSource;
+                    NewNode.HasChildren := True;
                   end;
                 Node.HasChildren := Assigned(Node.getFirstChild());
               end;
@@ -729,33 +731,46 @@ begin
 
     for I := 0 to FSource.Selected.Parent.Count - 1 do
       if (FSource.Selected.Parent[I].Selected) then
-        case (FSource.Selected.Parent[I].ImageIndex) of
-          iiDatabase:
-            begin
-              SourceDatabase := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
-              for J := 0 to SourceDatabase.Tables.Count - 1 do
-                AddDBObject(SourceDatabase.Tables[J], DestinationSession, SourceDatabase.Name);
-              if (Assigned(SourceDatabase.Routines)) then
-                for J := 0 to SourceDatabase.Routines.Count - 1 do
-                  AddDBObject(SourceDatabase.Routines[J], DestinationSession, SourceDatabase.Name);
-              if (Assigned(SourceDatabase.Events)) then
-                for J := 0 to SourceDatabase.Events.Count - 1 do
-                  AddDBObject(SourceDatabase.Events[J], DestinationSession, SourceDatabase.Name);
-            end;
-          iiBaseTable,
-          iiView:
-            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
-              DestinationSession, FDestination.Selected.Text);
-          iiProcedure:
-            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).ProcedureByName(FSource.Selected.Parent[I].Text),
-              DestinationSession, FDestination.Selected.Text);
-          iiFunction:
-            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).FunctionByName(FSource.Selected.Parent[I].Text),
-              DestinationSession, FDestination.Selected.Text);
-          iiEvent:
-            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).EventByName(FSource.Selected.Parent[I].Text),
-              DestinationSession, FDestination.Selected.Text);
-        end;
+        if (FSource.Selected.Level = FDestination.Selected.Level) then
+          case (FSource.Selected.Parent[I].ImageIndex) of
+            iiDatabase:
+              begin
+                SourceDatabase := SourceSession.DatabaseByName(FSource.Selected.Text);
+                for J := 0 to SourceDatabase.Tables.Count - 1 do
+                  AddDBObject(SourceDatabase.Tables[J], DestinationSession, FDestination.Selected.Text);
+              end;
+            iiBaseTable:
+              AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
+                DestinationSession, FDestination.Selected.Parent.Text);
+          end
+        else
+          case (FSource.Selected.Parent[I].ImageIndex) of
+            iiDatabase:
+              begin
+                SourceDatabase := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
+                for J := 0 to SourceDatabase.Tables.Count - 1 do
+                  AddDBObject(SourceDatabase.Tables[J], DestinationSession, SourceDatabase.Name);
+                if (Assigned(SourceDatabase.Routines)) then
+                  for J := 0 to SourceDatabase.Routines.Count - 1 do
+                    AddDBObject(SourceDatabase.Routines[J], DestinationSession, SourceDatabase.Name);
+                if (Assigned(SourceDatabase.Events)) then
+                  for J := 0 to SourceDatabase.Events.Count - 1 do
+                    AddDBObject(SourceDatabase.Events[J], DestinationSession, SourceDatabase.Name);
+              end;
+            iiBaseTable,
+            iiView:
+              AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
+                DestinationSession, FDestination.Selected.Text);
+            iiProcedure:
+              AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).ProcedureByName(FSource.Selected.Parent[I].Text),
+                DestinationSession, FDestination.Selected.Text);
+            iiFunction:
+              AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).FunctionByName(FSource.Selected.Parent[I].Text),
+                DestinationSession, FDestination.Selected.Text);
+            iiEvent:
+              AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).EventByName(FSource.Selected.Parent[I].Text),
+                DestinationSession, FDestination.Selected.Text);
+          end;
 
     if ((SkipAnswer = IDCANCEL) or (OverrideAnswer = IDCANCEL)) then
     begin
