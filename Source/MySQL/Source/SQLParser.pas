@@ -15934,7 +15934,7 @@ begin
 
   if (not ErrorFound) then
     if (IsTag(kiCOLUMN)) then
-      Nodes.ColumnTag := ParseTag(kiALTER);
+      Nodes.ColumnTag := ParseTag(kiCOLUMN);
 
   if (not ErrorFound) then
     Nodes.Ident := ParseDbIdent(ditField, False);

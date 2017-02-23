@@ -670,6 +670,13 @@ begin
     Node := FDestination.Selected;
     while (Assigned(Node) and Assigned(Node.Parent)) do Node := Node.Parent;
     DestinationSession := GetSession(Node);
+
+    // Debug 2017-02-22
+    Assert(Assigned(DestinationSession),
+      'Text: ' + Node.Text + #13#10
+      + 'Data: ' + BoolToStr(Assigned(Node.Data), True));
+    Assert(Assigned(DestinationSession.Databases));
+
     if (not DestinationSession.Databases.Update()) then
       Wanted.Page := TSExecute;
   end;

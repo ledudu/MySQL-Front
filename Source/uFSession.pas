@@ -410,6 +410,7 @@ type
     procedure aVSortAscExecute(Sender: TObject);
     procedure aVSortDescExecute(Sender: TObject);
     procedure BObjectIDEClick(Sender: TObject);
+    procedure DBGridCanEditShow(Sender: TObject);
     procedure DBGridCellEnter(Column: TColumn);
     procedure DBGridColEnter(Sender: TObject);
     procedure DBGridColExit(Sender: TObject);
@@ -4920,14 +4921,6 @@ begin
     if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
       URI.Param['view'] := 'ide';
 
-    // Debug 2017-02-03
-    if ((ParamToView(URI.Param['view']) in [vBrowser]) and (URI.Table = '')) then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'URI.Address: ' + URI.Address);
-    // Debug 2017-02-04
-    Assert((ParamToView(URI.Param['view']) <> vObjectSearch) or (URI.Param['text'] <> Null),
-      'URI.Address: ' + URI.Address);
-
     FCurrentAddress := URI.Address;
     if ((Session.Account.Desktop.Addresses.Count = 0)
       or (FCurrentAddress <> Session.Account.Desktop.Addresses[Session.Account.Desktop.Addresses.Count - 1])) then
@@ -5681,7 +5674,7 @@ begin
     Result.Columns[I].Font := Result.Font;
   Result.PopupMenu := MGrid;
   Result.TabOrder := 0;
-  Result.OnCanEditShow := Session.GridCanEditShow;
+  Result.OnCanEditShow := DBGridCanEditShow;
   Result.OnCellClick := DBGridCellEnter;
   Result.OnColEnter := DBGridColEnter;
   Result.OnColExit := DBGridColExit;
@@ -6071,6 +6064,12 @@ end;
 procedure TFSession.DBGridCellEnter(Column: TColumn);
 begin
   StatusBarRefresh();
+end;
+
+procedure TFSession.DBGridCanEditShow(Sender: TObject);
+begin
+  Session.GridCanEditShow(Sender);
+  TDBGrid(Sender).ReadOnly := not Assigned(TDBGrid(Sender).SelectedField) or (TDBGrid(Sender).SelectedField.DataType in [ftUnknown, ftWideMemo, ftBlob]);
 end;
 
 procedure TFSession.DBGridColEnter(Sender: TObject);
@@ -6690,7 +6689,8 @@ begin
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style - [fsBold];
 
-      DBGrid.Columns[I].ReadOnly := (DBGrid.Columns[I].Field.DataType in [ftWideMemo, ftBlob]) or (DBGrid.SelectedField.DataType in [ftUnknown]);
+      // DBGrid.Columns[I].ReadOnly := ...
+      // ... set Field.ReadOnly, but TEXT fields should be editable in FText.
 
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
     end;
@@ -6728,9 +6728,9 @@ begin
     begin
       aVBlobText.Checked := True;
 
-      // Debug 2016-12-06
-      if (not PBlob.Visible) then
-        raise ERangeError.Create(SRangeError);
+      // Debug 2017-02-22
+      Assert(FText.Visible);
+      Assert(FText.Parent.Visible);
 
       Window.ActiveControl := FText;
       if (Key = VK_RETURN) then
@@ -9066,7 +9066,11 @@ begin
 end;
 
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -9085,10 +9089,10 @@ begin
         Wanted.Clear();
     end;
 
-  // 1.3 seconds, EventType: 1
-  // 1.6 seconds, EventType: 1
-  // 1.4 seconds, EventType: 2
-  // 1.1 seconds, EventType: 2
+  if (ProfilingTime(Profile) > 1000) then
+    SendToDeveloper('EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
+      + ProfilingReport(Profile));
+  CloseProfile(Profile);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -12328,6 +12332,8 @@ begin
     ProfilingPoint(Profile, 24);
 
     ListView.Items.EndUpdate();
+
+    // 0.7 seconds, EventType: 0, Items: 0
 
     ProfilingPoint(Profile, 25);
 

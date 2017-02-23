@@ -15,29 +15,38 @@
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
+        <Base_Win32>true</Base_Win32>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <VerInfo_Locale>1031</VerInfo_Locale>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi;System.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <SanitizedProjectName>BCEditor</SanitizedProjectName>
-        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
         <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_WriteableConstants>true</DCC_WriteableConstants>
-        <DCC_Description>BCEditor component suite runtime</DCC_Description>
+        <DCC_Description>BCEditor components</DCC_Description>
         <DCC_E>false</DCC_E>
         <DCC_N>false</DCC_N>
         <DCC_S>false</DCC_S>
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win32)'!=''">
+        <DCC_UsePackage>vcl;rtl;dbrtl;vcldb;$(DCC_UsePackage)</DCC_UsePackage>
+    </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="..\Source\BCEditor.Register.dcr"/>
+        <DCCReference Include="designide.dcp"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
@@ -70,7 +79,6 @@
         <DCCReference Include="..\Source\BCEditor.Editor.CompletionProposal.Columns.Title.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.CompletionProposal.PopupWindow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.CompletionProposal.Trigger.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.DB.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Directories.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Glyph.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.InternalImage.pas"/>
@@ -85,67 +93,36 @@
         <DCCReference Include="..\Source\BCEditor.Editor.LeftMargin.MarksPanel.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Marks.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.MatchingPair.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.MatchingPair.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Minimap.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Minimap.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Minimap.Indicator.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Minimap.Shadow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.PopupWindow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Replace.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.RightMargin.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.RightMargin.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Scroll.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Scroll.Hint.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Scroll.Shadow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Search.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Search.Highlighter.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Search.Highlighter.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Search.InSelection.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Search.Map.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Search.Map.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Selection.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Selection.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.SkipRegions.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.SpecialChars.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.SpecialChars.EndOfLine.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.SpecialChars.Selection.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.SyncEdit.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.SyncEdit.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Tabs.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.Title.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.Title.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.PopupWindow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Undo.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.UnknownChars.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Utils.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.WordWrap.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.WordWrap.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Encoding.pas"/>
         <DCCReference Include="..\Source\BCEditor.Export.HTML.pas"/>
         <DCCReference Include="..\Source\BCEditor.Highlighter.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Attributes.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Comments.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Info.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Import.JSON.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Rules.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Highlighter.Token.pas"/>
         <DCCReference Include="..\Source\BCEditor.KeyboardHandler.pas"/>
         <DCCReference Include="..\Source\BCEditor.Language.pas"/>
         <DCCReference Include="..\Source\BCEditor.Lines.pas"/>
         <DCCReference Include="..\Source\BCEditor.MacroRecorder.pas"/>
         <DCCReference Include="..\Source\BCEditor.Print.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Print.HeaderFooter.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Print.Margins.pas"/>
         <DCCReference Include="..\Source\BCEditor.Print.Preview.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Print.PrinterInfo.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Print.Types.pas"/>
+        <DCCReference Include="..\Source\BCEditor.Register.pas"/>
         <DCCReference Include="..\Source\BCEditor.Search.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Search.Normal.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Search.RegularExpressions.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Search.Wildcard.pas"/>
         <DCCReference Include="..\Source\BCEditor.StyleHooks.pas"/>
         <DCCReference Include="..\Source\BCEditor.PaintHelper.pas"/>
         <DCCReference Include="..\Source\BCEditor.Types.pas"/>

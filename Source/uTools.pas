@@ -3975,7 +3975,7 @@ begin
 
     DoUpdateGUI();
 
-    if ((SQL <> '') and (Session.Connection.CreateResultHandle(ResultHandle, SQL))) then
+    if (Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Connection := Session.Connection;
@@ -7841,15 +7841,10 @@ begin
   SourceTable := TSTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
 
-  // Debug 2016-12-06
-  if (not Assigned(SourceDatabase)) then
-    raise ERangeError.Create(SRangeError);
-
   if (Session = DestinationSession) then
   begin
     while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, Item.DBObject.Name, Data)) do
       DoError(DatabaseError(Session), Item, True);
-
 
     DestinationTable := DestinationDatabase.TableByName(Item.DBObject.Name);
     if (DestinationTable is TSBaseTable) then
@@ -8436,7 +8431,7 @@ begin
 
   DoUpdateGUI();
 
-  if ((SQL <> '') and Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
+  if (Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
   begin
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Connection := Session.Connection;

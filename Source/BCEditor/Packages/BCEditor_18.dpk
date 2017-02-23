@@ -1,5 +1,6 @@
 package BCEditor_18;
 
+{$R '..\Source\BCEditor.Register.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -11,24 +12,23 @@ package BCEditor_18;
 {$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION OFF}
+{$OPTIMIZATION ON}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
 {$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES ON}
+{$STACKFRAMES OFF}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST ON}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'BCEditor component suite runtime'}
-{$RUNONLY}
+{$DESCRIPTION 'BCEditor components'}
 {$IMPLICITBUILD ON}
 
 requires
+  designide,
   rtl,
   vcl,
   dbrtl,
@@ -57,13 +57,12 @@ contains
   BCEditor.Editor.CodeFolding.Regions in '..\Source\BCEditor.Editor.CodeFolding.Regions.pas',
   BCEditor.Editor.CompletionProposal in '..\Source\BCEditor.Editor.CompletionProposal.pas',
   BCEditor.Editor.CompletionProposal.Colors in '..\Source\BCEditor.Editor.CompletionProposal.Colors.pas',
-	BCEditor.Editor.CompletionProposal.Columns.Items in '..\Source\BCEditor.Editor.CompletionProposal.Columns.Items.pas',
+  BCEditor.Editor.CompletionProposal.Columns.Items in '..\Source\BCEditor.Editor.CompletionProposal.Columns.Items.pas',
   BCEditor.Editor.CompletionProposal.Columns in '..\Source\BCEditor.Editor.CompletionProposal.Columns.pas',
-	BCEditor.Editor.CompletionProposal.Columns.Title.Colors in '..\Source\BCEditor.Editor.CompletionProposal.Columns.Title.Colors.pas',
-	BCEditor.Editor.CompletionProposal.Columns.Title in '..\Source\BCEditor.Editor.CompletionProposal.Columns.Title.pas',
+  BCEditor.Editor.CompletionProposal.Columns.Title.Colors in '..\Source\BCEditor.Editor.CompletionProposal.Columns.Title.Colors.pas',
+  BCEditor.Editor.CompletionProposal.Columns.Title in '..\Source\BCEditor.Editor.CompletionProposal.Columns.Title.pas',
   BCEditor.Editor.CompletionProposal.PopupWindow in '..\Source\BCEditor.Editor.CompletionProposal.PopupWindow.pas',
   BCEditor.Editor.CompletionProposal.Trigger in '..\Source\BCEditor.Editor.CompletionProposal.Trigger.pas',
-  BCEditor.Editor.DB in '..\Source\BCEditor.Editor.DB.pas',
   BCEditor.Editor.Directories in '..\Source\BCEditor.Editor.Directories.pas',
   BCEditor.Editor.Glyph in '..\Source\BCEditor.Editor.Glyph.pas',
   BCEditor.Editor.InternalImage in '..\Source\BCEditor.Editor.InternalImage.pas',
@@ -78,67 +77,36 @@ contains
   BCEditor.Editor.LeftMargin.MarksPanel in '..\Source\BCEditor.Editor.LeftMargin.MarksPanel.pas',
   BCEditor.Editor.Marks in '..\Source\BCEditor.Editor.Marks.pas',
   BCEditor.Editor.MatchingPair in '..\Source\BCEditor.Editor.MatchingPair.pas',
-  BCEditor.Editor.MatchingPair.Colors in '..\Source\BCEditor.Editor.MatchingPair.Colors.pas',
   BCEditor.Editor.Minimap in '..\Source\BCEditor.Editor.Minimap.pas',
   BCEditor.Editor.Minimap.Colors in '..\Source\BCEditor.Editor.Minimap.Colors.pas',
-  BCEditor.Editor.Minimap.Indicator in '..\Source\BCEditor.Editor.Minimap.Indicator.pas',
   BCEditor.Editor.Minimap.Shadow in '..\Source\BCEditor.Editor.Minimap.Shadow.pas',
   BCEditor.Editor.PopupWindow in '..\Source\BCEditor.Editor.PopupWindow.pas',
   BCEditor.Editor.Replace in '..\Source\BCEditor.Editor.Replace.pas',
   BCEditor.Editor.RightMargin in '..\Source\BCEditor.Editor.RightMargin.pas',
   BCEditor.Editor.RightMargin.Colors in '..\Source\BCEditor.Editor.RightMargin.Colors.pas',
   BCEditor.Editor.Scroll in '..\Source\BCEditor.Editor.Scroll.pas',
-  BCEditor.Editor.Scroll.Hint in '..\Source\BCEditor.Editor.Scroll.Hint.pas',
-  BCEditor.Editor.Scroll.Shadow in '..\Source\BCEditor.Editor.Scroll.Shadow.pas',
   BCEditor.Editor.Search in '..\Source\BCEditor.Editor.Search.pas',
-  BCEditor.Editor.Search.Highlighter in '..\Source\BCEditor.Editor.Search.Highlighter.pas',
-  BCEditor.Editor.Search.Highlighter.Colors in '..\Source\BCEditor.Editor.Search.Highlighter.Colors.pas',
-  BCEditor.Editor.Search.InSelection in '..\Source\BCEditor.Editor.Search.InSelection.pas',
-  BCEditor.Editor.Search.Map in '..\Source\BCEditor.Editor.Search.Map.pas',
-  BCEditor.Editor.Search.Map.Colors in '..\Source\BCEditor.Editor.Search.Map.Colors.pas',
   BCEditor.Editor.Selection in '..\Source\BCEditor.Editor.Selection.pas',
-  BCEditor.Editor.Selection.Colors in '..\Source\BCEditor.Editor.Selection.Colors.pas',
   BCEditor.Editor.SkipRegions in '..\Source\BCEditor.Editor.SkipRegions.pas',
   BCEditor.Editor.SpecialChars in '..\Source\BCEditor.Editor.SpecialChars.pas',
-  BCEditor.Editor.SpecialChars.EndOfLine in '..\Source\BCEditor.Editor.SpecialChars.EndOfLine.pas',
-  BCEditor.Editor.SpecialChars.Selection in '..\Source\BCEditor.Editor.SpecialChars.Selection.pas',
   BCEditor.Editor.SyncEdit in '..\Source\BCEditor.Editor.SyncEdit.pas',
   BCEditor.Editor.SyncEdit.Colors in '..\Source\BCEditor.Editor.SyncEdit.Colors.pas',
   BCEditor.Editor.Tabs in '..\Source\BCEditor.Editor.Tabs.pas',
   BCEditor.Editor.TokenInfo in '..\Source\BCEditor.Editor.TokenInfo.pas',
-  BCEditor.Editor.TokenInfo.Colors in '..\Source\BCEditor.Editor.TokenInfo.Colors.pas',
-  BCEditor.Editor.TokenInfo.Title in '..\Source\BCEditor.Editor.TokenInfo.Title.pas',
-  BCEditor.Editor.TokenInfo.Title.Colors in '..\Source\BCEditor.Editor.TokenInfo.Title.Colors.pas',
   BCEditor.Editor.TokenInfo.PopupWindow in '..\Source\BCEditor.Editor.TokenInfo.PopupWindow.pas',
   BCEditor.Editor.Undo in '..\Source\BCEditor.Editor.Undo.pas',
   BCEditor.Editor.UnknownChars in '..\Source\BCEditor.Editor.UnknownChars.pas',
-  BCEditor.Editor.Utils in '..\Source\BCEditor.Editor.Utils.pas',
   BCEditor.Editor.WordWrap in '..\Source\BCEditor.Editor.WordWrap.pas',
-  BCEditor.Editor.WordWrap.Colors in '..\Source\BCEditor.Editor.WordWrap.Colors.pas',
-  BCEditor.Encoding in '..\Source\BCEditor.Encoding.pas',
   BCEditor.Export.HTML in '..\Source\BCEditor.Export.HTML.pas',
   BCEditor.Highlighter in '..\Source\BCEditor.Highlighter.pas',
-  BCEditor.Highlighter.Attributes in '..\Source\BCEditor.Highlighter.Attributes.pas',
-  BCEditor.Highlighter.Colors in '..\Source\BCEditor.Highlighter.Colors.pas',
-  BCEditor.Highlighter.Comments in '..\Source\BCEditor.Highlighter.Comments.pas',
-  BCEditor.Highlighter.Info in '..\Source\BCEditor.Highlighter.Info.pas',
-  BCEditor.Highlighter.Import.JSON in '..\Source\BCEditor.Highlighter.Import.JSON.pas',
-  BCEditor.Highlighter.Rules in '..\Source\BCEditor.Highlighter.Rules.pas',
-  BCEditor.Highlighter.Token in '..\Source\BCEditor.Highlighter.Token.pas',
   BCEditor.KeyboardHandler in '..\Source\BCEditor.KeyboardHandler.pas',
   BCEditor.Language in '..\Source\BCEditor.Language.pas',
   BCEditor.Lines in '..\Source\BCEditor.Lines.pas',
   BCEditor.MacroRecorder in '..\Source\BCEditor.MacroRecorder.pas',
   BCEditor.Print in '..\Source\BCEditor.Print.pas',
-  BCEditor.Print.HeaderFooter in '..\Source\BCEditor.Print.HeaderFooter.pas',
-  BCEditor.Print.Margins in '..\Source\BCEditor.Print.Margins.pas',
   BCEditor.Print.Preview in '..\Source\BCEditor.Print.Preview.pas',
-  BCEditor.Print.PrinterInfo in '..\Source\BCEditor.Print.PrinterInfo.pas',
-  BCEditor.Print.Types in '..\Source\BCEditor.Print.Types.pas',
+  BCEditor.Register in '..\Source\BCEditor.Register.pas',
   BCEditor.Search in '..\Source\BCEditor.Search.pas',
-	BCEditor.Search.Normal in '..\Source\BCEditor.Search.Normal.pas',
-  BCEditor.Search.RegularExpressions in '..\Source\BCEditor.Search.RegularExpressions.pas',
-  BCEditor.Search.Wildcard in '..\Source\BCEditor.Search.Wildcard.pas',
   BCEditor.StyleHooks in '..\Source\BCEditor.StyleHooks.pas',
   BCEditor.PaintHelper in '..\Source\BCEditor.PaintHelper.pas',
   BCEditor.Types in '..\Source\BCEditor.Types.pas',
@@ -146,3 +114,5 @@ contains
   JsonDataObjects in '..\Source\JsonDataObjects.pas';
 
 end.
+
+

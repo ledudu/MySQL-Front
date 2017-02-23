@@ -341,6 +341,7 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
+  // Debug 2017-02-19
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise EAssertionFailed.Create(SRangeError);
 

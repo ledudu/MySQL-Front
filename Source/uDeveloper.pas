@@ -524,7 +524,7 @@ begin
             (FHTTPStatus = HTTP_STATUS_OK) or Assigned(ReceiveStream) and
             (ReceiveStream.Size = 0) or (RequestTry >= 3));
 
-          if ((FErrorCode = 0) and (FHTTPStatus = HTTP_STATUS_OK)
+          if ((FErrorCode = 0) and (FHTTPStatus = HTTP_STATUS_OK) and Assigned(ReceiveStream)
             and (ReceiveFileSize > 0) and (ReceiveFileSize < ReceiveStream.Size)) then
           begin
             FErrorCode := 123456;
@@ -1082,7 +1082,7 @@ begin
   begin
     ShowDialog := False;
 
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 1, True);
   end
   else
   begin
@@ -1102,7 +1102,7 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 1, True);
 
       ExceptionInfo.Options.EMailSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +

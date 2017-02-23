@@ -37,7 +37,7 @@
                      "CloseOnEndOfLine": true
                   },
                   "TokenRange": {
-                     "Open": "-- "
+                     "Open": "#"
                   }
                },
                {
@@ -49,11 +49,11 @@
                      "CloseOnEndOfLine": true
                   },
                   "TokenRange": {
-                     "Open": "#"
+                     "Open": "-- "
                   }
                },
                {
-                  "Type": "LineComment",
+                  "Type": "BlockComment",
                   "Attributes": {
                      "Element": "Conditional"
                   },

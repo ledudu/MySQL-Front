@@ -222,7 +222,7 @@ begin
   else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemRenamed])) then
     ModalResult := mrOk;
 
-  if (SessionState = ssValid) then
+  if (SessionState in [ssCreate, ssValid]) then
   begin
     if (not PageControl.Visible) then
     begin

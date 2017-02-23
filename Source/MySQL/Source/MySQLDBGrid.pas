@@ -1485,7 +1485,7 @@ begin
     if ((FListView > 0) and Header_Layout(ListView_GetHeader(FListView), @HDLayout)) then
       FHeaderControl.Height := HDWindowPos.cy;
 
-    if (EditorMode) then Perform(CM_Exit, 0, 0);
+    if (Assigned(InplaceEditor)) then InplaceEditor.Hide();
     if (dgRowLines in Options) then
       RowHeights[0] := FHeaderControl.Height - GridLineWidth
     else

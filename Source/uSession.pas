@@ -4684,10 +4684,9 @@ begin
               else
               begin
                 Field.Default := SQLParseValue(Parse);
-                if (not TryStrToInt(Field.Default, I)) then
-                  Field.Default := SQLEscape(Field.Default)
-                else if (SQLParseChar(Parse, '.')) then
+                if (TryStrToInt(Field.Default, I) and SQLParseChar(Parse, '.')) then
                   Field.Default := Field.Default + '.' + SQLParseValue(Parse);
+                Field.Default := SQLEscape(Field.Default);
               end;
             end
             else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
@@ -12546,7 +12545,7 @@ begin
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
-    else if (SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
+    else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
       ProfilingPoint(Profile, 2);
 
