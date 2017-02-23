@@ -204,12 +204,13 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (not UpdateAvailable) then
-    begin
-      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-      FBCancel.Click();
-    end
-    else
+    {$MESSAGE 'Reinhard'}
+//    if (not UpdateAvailable) then
+//    begin
+//      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+//      FBCancel.Click();
+//    end
+//    else
     begin
       SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
 
@@ -228,6 +229,8 @@ begin
   FreeAndNil(SetupProgramStream);
 
   Preferences.SetupProgram := SetupPrgFilename;
+
+  MessageBox(0, PChar('Datei " + SetupPrgFilename + " sollte geschrieben worden sein.'), 'Debug für Reinhard', MB_OK);
 
   ModalResult := mrOk;
 end;
