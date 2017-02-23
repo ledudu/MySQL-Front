@@ -1015,6 +1015,8 @@ begin
   else
     SaveDialog.InitialDir := StrPas(PChar(@Foldername[0]));
 
+  TabControl.Height := TabControl.Height - 1;
+
   for I := 0 to StatusBar.Panels.Count - 1 do
     StatusBar.Panels[I].Text := '';
 end;
