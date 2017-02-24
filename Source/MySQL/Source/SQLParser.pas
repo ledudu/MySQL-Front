@@ -20901,7 +20901,7 @@ end;
 
 function TSQLParser.ParseKeyIdent(): TOffset;
 begin
-  Result := ParseDbIdent(ditKey);
+  Result := ParseDbIdent(ditKey, False);
 end;
 
 function TSQLParser.ParseKillStmt(): TOffset;

@@ -3121,7 +3121,8 @@ begin
                   end;
                 ssReceivingResult:
                   SyncThreadExecuted.SetEvent();
-                ssReady: ;
+                ssReady:
+                  SyncAfterExecuteSQL(SyncThread);
                 else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
               end;
             smResultHandle:
@@ -3174,7 +3175,7 @@ procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
 begin
   Assert(Assigned(DataSet));
   Assert(Assigned(SyncThread));
-  Assert(SyncThread.State = ssResult);
+  Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
   Assert(not Assigned(SyncThread.DataSet));
 
   DataSet.SyncThread := SyncThread;
@@ -3521,6 +3522,9 @@ begin
     end;
   end;
 
+  // Debug 2017-02-24
+  DebugMonitor.Append('SyncExecuted: ' + SyncThread.CommandText, ttDebug);
+
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
     if (KillThreadId > 0) then
@@ -3567,7 +3571,11 @@ begin
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
         // Debug 2016-12-23
         if (SyncThread.CommandText <> '') then
-          raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
+        begin
+          Log := 'Query has not been handled: ' + SyncThread.CommandText
+            + 'Proc: ' + ProcAddrToStr(@SyncThread.OnResult) + #13#10;
+          raise Exception.Create(Log);
+        end
         else
         begin
           if (SyncThread.ErrorCode <> 0) then

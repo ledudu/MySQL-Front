@@ -44,7 +44,7 @@ type
     procedure FParentDatabaseChange(Sender: TObject);
     procedure FParentTableChange(Sender: TObject);
   private
-    SessionState: (ssTable, ssCreate, ssInit, ssValid, ssAlter);
+    SessionState: (ssTable, ssCreate, ssInit, ssValid, ssAlter, ssParentDatabase, ssParentTable);
     Wanted: record
       ComboBox: TComboBox;
     end;
@@ -314,11 +314,6 @@ begin
 
   if (SessionState in [ssCreate, ssValid]) then
   begin
-    FParentTable.Cursor := crDefault;
-    FParentFields.Cursor := crDefault;
-
-    Wanted.ComboBox := nil;
-
     if (not GBasics.Visible) then
     begin
       GBasics.Visible := True;
@@ -414,6 +409,9 @@ begin
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
+  FParentTable.Cursor := crDefault;
+  FParentFields.Cursor := crDefault;
+
   FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
   if (FBOk.Visible) then
     FBCancel.Caption := Preferences.LoadStr(30)
@@ -437,7 +435,9 @@ begin
 
   FParentTable.Clear();
 
-  if (not Assigned(SelectedParentDatabase) or not SelectedParentDatabase.Update()) then
+  if (not Assigned(SelectedParentDatabase)) then
+    // do nothing
+  else if (not SelectedParentDatabase.Update()) then
     Wanted.ComboBox := FParentDatabase
   else
   begin
@@ -452,7 +452,10 @@ begin
   if (not Assigned(Wanted.ComboBox)) then
     FParentTable.Cursor := crDefault
   else
+  begin
+    SessionState := ssParentDatabase;
     FParentTable.Cursor := crSQLWait;
+  end;
 end;
 
 procedure TDForeignKey.FParentTableChange(Sender: TObject);
@@ -464,7 +467,9 @@ begin
 
   FParentFields.Clear();
 
-  if (not Assigned(SelectedParentTable) or not SelectedParentTable.Update()) then
+  if (not Assigned(SelectedParentTable)) then
+    // do nothing
+  else if (not SelectedParentTable.Update()) then
     Wanted.ComboBox := FParentTable
   else
   begin
@@ -484,7 +489,10 @@ begin
   if (not Assigned(Wanted.ComboBox)) then
     FParentFields.Cursor := crDefault
   else
+  begin
+    SessionState := ssParentTable;
     FParentFields.Cursor := crSQLWait;
+  end;
 end;
 
 function TDForeignKey.GetParentDatabase(): TSDatabase;

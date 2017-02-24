@@ -542,9 +542,6 @@ begin
       InternetCloseHandle(Internet);
     end;
 
-if (Assigned(ReceiveStream)) then
-  MessageBox(0, PChar(IntToStr(ReceiveStream.Size) + ' Bytes empfangen'), 'Debug für Reinhard', MB_OK);
-
     if (FErrorCode <> 0) then
       if ((INTERNET_ERROR_BASE <= FErrorCode) and
         (FErrorCode <= INTERNET_ERROR_LAST)) then

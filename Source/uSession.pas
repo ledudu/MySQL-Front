@@ -414,7 +414,6 @@ type
   protected
     FOriginalName: string;
     function GetIndex(): Integer; override;
-    procedure SetName(const AName: string); override;
   public
     Moved: Boolean;
     OnUpdate: string;
@@ -3331,14 +3330,6 @@ begin
   Result := TSBaseTable(Fields.Table);
 end;
 
-procedure TSBaseField.SetName(const AName: string);
-begin
-  FName := AName;
-
-  Session.SendEvent(etItemRenamed, Self, Fields, Self);
-  FOriginalName := AName;
-end;
-
 { TSViewField *****************************************************************}
 
 function TSViewField.GetIndex(): Integer;
@@ -5846,10 +5837,21 @@ begin
 end;
 
 procedure TSTables.Delete(const AItem: TSItem);
+var
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
+  ProfilingPoint(Profile, 1);
+
   inherited;
+
+  if (ProfilingTime(Profile) > 1000) then
+    SendToDeveloper(ProfilingReport(Profile));
+
+  CloseProfile(Profile);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;

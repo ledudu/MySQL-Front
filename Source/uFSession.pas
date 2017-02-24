@@ -3342,7 +3342,7 @@ begin
       DVariable.Execute();
     end;
 
-    UpdateAfterAddressChanged();
+    Wanted.Update := UpdateAfterAddressChanged;
   end;
 end;
 
@@ -8756,6 +8756,17 @@ begin
 
   ProfilingPoint(Profile, 14);
 
+
+  // Debug 2017-02-24
+  try
+    if (Assigned(FNavigatorNodeToExpand)) then
+      FNavigatorNodeToExpand.Count;
+  except
+    on E: Exception do
+      raise EAssertionFailed.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + E.Message);
+  end;
+
   if (Assigned(FNavigatorNodeToExpand) and (FNavigatorNodeToExpand.Count > 0)) then
   begin
     ExpandingEvent := FNavigator.OnExpanding;
@@ -9094,6 +9105,7 @@ begin
 
   if (ProfilingTime(Profile) > 1000) then
     SendToDeveloper('EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
+      + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True)
       + ProfilingReport(Profile));
   CloseProfile(Profile);
 end;
