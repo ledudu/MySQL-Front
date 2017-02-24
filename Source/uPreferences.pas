@@ -1970,7 +1970,9 @@ begin
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  if (SysUtils.LoadStr(1002) = '') then
+  if (FileExists(IncludeTrailingPathDelimiter(GetCurrentDir()) + 'Desktop.xml')) then
+    FUserPath := IncludeTrailingPathDelimiter(GetCurrentDir())
+  else if (SysUtils.LoadStr(1002) = '') then
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + 'MySQL-Front')
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));

@@ -22,10 +22,10 @@ type
     FHTTPMessage: string;
     FHTTPStatus: Integer;
     FOnProgress: TProgressEvent;
+    FURI: string;
     SendStream: TStream;
     Subject: string;
     ReceiveStream: TStream;
-    URI: string;
   public
     DebugReceiveFileSize: Int64; // Debug 2017-02-18
     DebugReceivedFileSize: Int64; // Debug 2017-02-18
@@ -38,6 +38,7 @@ type
     property ErrorMessage: string read FErrorMessage;
     property HTTPMessage: string read FHTTPMessage;
     property HTTPStatus: Integer read FHTTPStatus;
+    property URI: string read FURI;
   end;
 
   TCheckOnlineVersionThread = class(THTTPThread)
@@ -347,7 +348,7 @@ constructor THTTPThread.Create(const AURI: string;
 begin
   inherited Create(True);
 
-  URI := AURI;
+  FURI := AURI;
   SendStream := ASendStream;
   ReceiveStream := AReceiveStream;
   Subject := ASubject;
@@ -368,7 +369,6 @@ var
   Len: Integer;
   MessageBuffer: array [0 .. 2048 - 1] of Char;
   Method: PChar;
-  QueryIndex: DWORD;
   QueryInfo: array [0 .. 2048] of Char;
   ReceiveFileSize: Int64;
   Request: HInternet;
@@ -503,20 +503,23 @@ begin
                     OnProgress(Self, ReceiveStream.Size, ReceiveFileSize);
                 until (Terminated or (Success and (Size = 0)));
 
-              Size := SizeOf(Buffer);
-              Index := 0;
               if (not Terminated) then
+              begin
+                Size := SizeOf(Buffer);
+                Index := 0;
                 if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @Buffer,
                   Size, Index)) then
                   FErrorCode := GetLastError()
                 else
                 begin
                   FHTTPStatus := StrToInt(PChar(@Buffer));
-                  QueryIndex := Length(QueryInfo);
+                  Index := 0;
+                  Size := SizeOf(Buffer);
                   if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo,
                     Size, Index)) then
-                    SetString(FHTTPMessage, PChar(@QueryInfo[0]), QueryIndex);
+                    SetString(FHTTPMessage, PChar(@QueryInfo[0]), Size div SizeOf(QueryInfo[0]));
                 end;
+              end;
             end;
 
             Inc(RequestTry);

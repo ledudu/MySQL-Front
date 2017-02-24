@@ -6119,6 +6119,7 @@ type
   private type
     TSpacer = (sNone, sSpace, sReturn);
     TExprOptions = set of (eoIn, eoAllFields, eoOperators);
+    TSelectOptions = set of (soSubSelect, soUnionSelect, soTableFactor);
   private
     diBIGINT,
     diBINARY,
@@ -7018,7 +7019,7 @@ type
     function ParseSavepointStmt(): TOffset;
     function ParseSchedule(): TOffset;
     function ParseSecretIdent(): TOffset;
-    function ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False; const TableFactor: Boolean = False): TOffset; overload;
+    function ParseSelectStmt(const Options: TSelectOptions): TOffset; overload;
     function ParseSelectStmtColumn(): TOffset;
     function ParseSelectStmtGroup(): TOffset;
     function ParseSelectStmtLimit(): TOffset;
@@ -16108,7 +16109,7 @@ begin
     Nodes.AsTag := ParseTag(kiAS);
 
   if (not ErrorFound) then
-    Nodes.SelectStmt := ParseSelectStmt(True);
+    Nodes.SelectStmt := ParseSelectStmt([soSubSelect]);
 
   if (not ErrorFound) then
     if (IsTag(kiWITH, kiCASCADED, kiCHECK, kiOPTION)) then
@@ -17449,7 +17450,7 @@ begin
       if (EndOfStmt(CurrentToken) and (Nodes.AsTag > 0)) then
         SetError(PE_IncompleteStmt)
       else if (IsSelectStmt()) then
-        Nodes.SelectStmt2 := ParseSelectStmt(True);
+        Nodes.SelectStmt2 := ParseSelectStmt([soSubSelect]);
   end;
 
   Result := TCreateTableStmt.Create(Self, Nodes);
@@ -18263,7 +18264,7 @@ begin
     Nodes.AsTag := ParseTag(kiAS);
 
   if (not ErrorFound) then
-    Nodes.SelectStmt := ParseSelectStmt(True);
+    Nodes.SelectStmt := ParseSelectStmt([soSubSelect]);
 
   if (not ErrorFound) then
     if (IsTag(kiWITH, kiCASCADED, kiCHECK, kiOPTION)) then
@@ -18772,7 +18773,7 @@ begin
     Nodes.CursorTag := ParseTag(kiCURSOR, kiFOR);
 
   if (not ErrorFound) then
-    Nodes.SelectStmt := ParseSelectStmt(True);
+    Nodes.SelectStmt := ParseSelectStmt([soSubSelect]);
 
   Result := TDeclareCursorStmt.Create(Self, Nodes);
 end;
@@ -19347,7 +19348,7 @@ begin
 
       if (not ErrorFound) then
         if (IsSelectStmt()) then
-          Nodes.ExplainStmt := ParseSelectStmt(True)
+          Nodes.ExplainStmt := ParseSelectStmt([soSubSelect])
         else if (IsTag(kiDELETE)) then
           Nodes.ExplainStmt := ParseDeleteStmt()
         else if (IsTag(kiINSERT)) then
@@ -20682,9 +20683,9 @@ begin
         Nodes.Set_.List := ParseList(False, ParseInsertStmtSetItemsList);
     end
     else if (IsTag(kiSELECT)) then
-      Nodes.SelectStmt := ParseSelectStmt(True)
+      Nodes.SelectStmt := ParseSelectStmt([soSubSelect])
     else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
-      Nodes.SelectStmt := ParseSelectStmt(True)
+      Nodes.SelectStmt := ParseSelectStmt([soSubSelect])
     else if (not EndOfStmt(CurrentToken)) then
     begin
       if (IsSymbol(ttOpenBracket)) then
@@ -20706,9 +20707,9 @@ begin
             Nodes.Values.List := ParseList(False, ParseInsertStmtValuesList);
         end
         else if ((Nodes.SelectStmt = 0) and IsTag(kiSELECT)) then
-          Nodes.SelectStmt := ParseSelectStmt(True)
+          Nodes.SelectStmt := ParseSelectStmt([soSubSelect])
         else if ((Nodes.SelectStmt = 0) and IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
-          Nodes.SelectStmt := ParseSelectStmt(True)
+          Nodes.SelectStmt := ParseSelectStmt([soSubSelect])
         else if (EndOfStmt(CurrentToken)) then
           SetError(PE_IncompleteStmt)
         else
@@ -21929,7 +21930,7 @@ begin
   Result := TSecretIdent.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False; const TableFactor: Boolean = False): TOffset;
+function TSQLParser.ParseSelectStmt(const Options: TSelectOptions): TOffset;
 
   function ParseInto(): TSelectStmt.TIntoNodes;
   var
@@ -22096,7 +22097,7 @@ begin
     end;
   end;
 
-  if (not ErrorFound and not SubSelect) then
+  if (not ErrorFound and not (soSubSelect in Options)) then
     if (IsTag(kiINTO)) then
     begin
       UnionAllowed := False;
@@ -22150,11 +22151,11 @@ begin
             Nodes.Having.Expr := ParseExpr();
         end;
 
-      if (not ErrorFound and not UnionSelect) then
+      if (not ErrorFound and not (soUnionSelect in Options)) then
         if (IsTag(kiORDER, kiBY)) then
           Nodes.OrderBy := ParseSelectStmtOrderBy();
 
-      if (not ErrorFound and not UnionSelect) then
+      if (not ErrorFound and not (soUnionSelect in Options)) then
         if (IsTag(kiLIMIT)) then
           Nodes.Limit := ParseSelectStmtLimit();
 
@@ -22170,7 +22171,7 @@ begin
             Nodes.Proc.ParamList := ParseList(True, ParseExpr);
         end;
 
-      if (not ErrorFound and not SubSelect) then
+      if (not ErrorFound and not (soSubSelect in Options)) then
         if (IsTag(kiINTO)) then
           if (Nodes.Into1.Tag > 0) then
             SetError(PE_UnexpectedToken)
@@ -22198,7 +22199,7 @@ begin
   end;
 
   if (not ErrorFound
-    and not UnionSelect
+    and not (soUnionSelect in Options)
     and UnionAllowed
     and IsTag(kiUNION)) then
   begin
@@ -22213,7 +22214,10 @@ begin
         Elements.Add(ParseTag(kiUNION));
 
       if (not ErrorFound) then
-        Elements.Add(ParseSelectStmt(SubSelect, not IsSymbol(ttOpenBracket)));
+        if (IsSymbol(ttOpenBracket)) then
+          Elements.Add(ParseSelectStmt([soSubSelect]))
+        else
+          Elements.Add(ParseSelectStmt([soSubSelect, soUnionSelect]));
     until (ErrorFound or not IsTag(kiUNION));
 
     if (not ErrorFound) then
@@ -22448,7 +22452,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.SelectStmt := ParseSelectStmt(True);
+  Nodes.SelectStmt := ParseSelectStmt([soSubSelect]);
 
   if (not ErrorFound) then
   begin
@@ -22527,10 +22531,41 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   function ParseTableFactor(): TOffset;
   var
     BracketDeep: Integer;
+//    Element: PChild;
+//    OpenBracket: TOffset;
+//    OpenedBrackets: Integer;
     Index: Integer;
   begin
     if (IsSymbol(ttOpenBracket)) then
     begin
+//      if (IsSelectStmt()) then
+//      begin
+//        Result := ParseSelectStmt([soTableFactor]);
+//        if (IsStmt(Result) and (PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets > 0)) then
+//        begin
+//          Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)^.NodeType = ntList);
+//          OpenedBrackets := PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).ElementCount;
+//          if (PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1 > 0)) then
+//          begin
+//            Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1)^.NodeType = ntList);
+//            Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1)).ElementCount);
+//          end;
+//          if (PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2 > 0)) then
+//          begin
+//            Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)^.NodeType = ntList);
+//            Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)).ElementCount);
+//          end;
+//          while (OpenedBrackets > 0) do
+//          begin
+//            OpenBracket := PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement;
+//            PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement
+//              := PToken(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetNextElement(
+//                PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetFirstElement()))^.Offset;
+//
+//          end;
+//        end;
+//      end;
+
       BracketDeep := 0;
       Index := 0;
       repeat
@@ -24083,7 +24118,7 @@ begin
   else if (IsTag(kiSAVEPOINT)) then
     Result := ParseSavepointStmt()
   else if (IsSelectStmt()) then
-    Result := ParseSelectStmt(False)
+    Result := ParseSelectStmt([])
   else if (IsTag(kiSET, kiNAMES)) then
     Result := ParseSetNamesStmt()
   else if (IsTag(kiSET, kiCHARACTER)
@@ -24374,7 +24409,7 @@ begin
     Nodes.OpenToken := ParseSymbol(ttOpenBracket);
 
   if (not ErrorFound) then
-    Nodes.Subquery := ParseSelectStmt(True);
+    Nodes.Subquery := ParseSelectStmt([soSubSelect]);
 
   if (not ErrorFound) then
     Nodes.CloseToken := ParseSymbol(ttCloseBracket);
@@ -24384,7 +24419,7 @@ end;
 
 function TSQLParser.ParseSubSelectStmt(): TOffset;
 begin
-  Result := ParseSelectStmt(True);
+  Result := ParseSelectStmt([soSubSelect]);
 end;
 
 function TSQLParser.ParseSubstringFunc(): TOffset;

@@ -2195,7 +2195,11 @@ begin
 
     if (FOriginalName <> '') then
     begin
-      Session.SendEvent(etItemRenamed, Self, Objects, Self);
+      if (Self is TSDBObject) then
+        Session.SendEvent(etItemRenamed, TSDBObject(Self).Database, Objects, Self)
+      else
+        Session.SendEvent(etItemRenamed, Session, Objects, Self);
+
       FOriginalName := AName;
     end;
   end;

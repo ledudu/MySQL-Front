@@ -243,7 +243,8 @@ begin
   else if (HTTPThread.ErrorCode <> 0) then
     RaiseLastOSError(HTTPThread.ErrorCode)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
-    MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+    MsgBox('HTTP Error #' + IntToStr(HTTPThread.HTTPStatus) + ':' + #10 + HTTPThread.HTTPMessage + #10#10
+      + HTTPThread.URI, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
   else if ((HTTPThread.DebugReceiveFileSize > 0) and (HTTPThread.DebugReceiveFileSize < HTTPThread.DebugReceivedFileSize)) then
     raise EAssertionFailed.Create('DebugReceiveFileSize: ' + IntToStr(HTTPThread.DebugReceiveFileSize) + #13#10
       + 'DebugReceivedFileSize: ' + IntToStr(HTTPThread.DebugReceivedFileSize))
