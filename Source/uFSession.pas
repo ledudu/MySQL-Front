@@ -2740,7 +2740,7 @@ begin
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
-      if (ActiveDBGrid.SelectedFields.Count > 0) then
+      if (ActiveDBGrid.SelectedFields.Count = ActiveDBGrid.DataSource.DataSet.FieldCount) then
         TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).DeleteAll()
       else
         ActiveDBGrid.DataSource.DataSet.Delete()

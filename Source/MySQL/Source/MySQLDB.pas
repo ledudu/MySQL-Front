@@ -6504,7 +6504,8 @@ begin
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
+    if (BufferCount > 0) then
+      PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
 end;
 
