@@ -406,6 +406,7 @@ procedure TDImport.FCSVPreviewUpdate(Sender: TObject);
 var
   I: Integer;
   Item: TListItem;
+  MissingFieldname: Boolean;
   Values: TSQLStrings;
 begin
   if (Visible) then
@@ -431,8 +432,16 @@ begin
       TTImportText(Import).UseHeadLine := FCSVHeadline.Checked;
       TTImportText(Import).Open();
 
+      MissingFieldname := False;
       for I := 0 to TTImportText(Import).HeadlineNameCount - 1 do
+      begin
         FCSVPreview.Columns.Add().Caption := TTImportText(Import).HeadlineNames[I];
+        if (not MissingFieldname and (FCSVPreview.Columns.Add().Caption = '')) then
+        begin
+          MsgBox(Preferences.LoadStr(942, IntToStr(I + 1)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+          MissingFieldname := True;
+        end;
+      end;
 
       Item := nil;
       while ((FCSVPreview.Items.Count < 10) and TTImportText(Import).GetPreviewValues(nil, Values)) do

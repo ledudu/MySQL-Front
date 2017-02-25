@@ -2740,10 +2740,7 @@ begin
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
-      if (ActiveDBGrid.SelectedFields.Count = ActiveDBGrid.DataSource.DataSet.FieldCount) then
-        TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).DeleteAll()
-      else
-        ActiveDBGrid.DataSource.DataSet.Delete()
+      ActiveDBGrid.DataSource.DataSet.Delete()
     else
     begin
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
@@ -6040,7 +6037,7 @@ begin
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
     MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and (ActiveDBGrid.SelectedFields.Count = 0) and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -9105,7 +9102,7 @@ begin
 
   if (ProfilingTime(Profile) > 1000) then
     SendToDeveloper('EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
-      + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True)
+      + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
       + ProfilingReport(Profile));
   CloseProfile(Profile);
 end;
@@ -12349,6 +12346,7 @@ begin
     ListView.Items.EndUpdate();
 
     // 0.7 seconds, EventType: 0, Items: 0
+    // 1.0 seconds, EventType: 0, Items: 49
 
     ProfilingPoint(Profile, 25);
 

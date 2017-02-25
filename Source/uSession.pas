@@ -776,6 +776,7 @@ type
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; overload; override;
     function BuildFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
     procedure Delete(const AItem: TSItem); override;
+    procedure DeleteProfile(const AItem: TSItem; var Profile: TProfile);
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
     function SQLGetFields(): string;
@@ -5856,6 +5857,19 @@ begin
     SendToDeveloper(ProfilingReport(Profile));
 
   CloseProfile(Profile);
+end;
+
+procedure TSTables.DeleteProfile(const AItem: TSItem; var Profile: TProfile);
+begin
+  ProfilingPoint(Profile, 16);
+
+  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
+
+  ProfilingPoint(Profile, 17);
+
+  inherited Delete(AItem);
+
+  ProfilingPoint(Profile, 18);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
@@ -12698,16 +12712,16 @@ begin
                           else
                           begin
                             ProfilingPoint(Profile, 15);
-                            Database.Tables.Delete(Table);
-                            ProfilingPoint(Profile, 16);
+                            Database.Tables.DeleteProfile(Table, Profile);
+                            ProfilingPoint(Profile, 19);
                           end;
                         end;
                       end;
                       First := False;
                     until (not SQLParseChar(Parse, ','));
-                    ProfilingPoint(Profile, 17);
+                    ProfilingPoint(Profile, 20);
                     SendEvent(etItemsValid, Database, Database.Tables);
-                    ProfilingPoint(Profile, 18);
+                    ProfilingPoint(Profile, 21);
                   end;
               end;
             otFunction,
@@ -12946,11 +12960,11 @@ begin
           Table := Database.TableByName(ObjectName);
           if (Assigned(Table)) then
           begin
-            ProfilingPoint(Profile, 19);
+            ProfilingPoint(Profile, 22);
             Table.InvalidateData();
-            ProfilingPoint(Profile, 20);
+            ProfilingPoint(Profile, 23);
             SendEvent(etItemValid, Database, Database.Tables, Table);
-            ProfilingPoint(Profile, 21);
+            ProfilingPoint(Profile, 24);
           end;
         end;
       end;

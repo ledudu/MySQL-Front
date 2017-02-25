@@ -542,7 +542,6 @@ type
       property RecordReceived: TEvent read FRecordReceived;
     end;
   strict private
-    DeleteAllRecords: Boolean;
     FCachedUpdates: Boolean;
     FCanModify: Boolean;
     FCursorOpen: Boolean;
@@ -619,7 +618,6 @@ type
     constructor Create(AOwner: TComponent); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
     procedure Delete(const Bookmarks: array of TBookmark); overload;
-    procedure DeleteAll();
     destructor Destroy(); override;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
@@ -3063,6 +3061,12 @@ begin
         begin
           SyncExecuted(SyncThread);
 
+          if ((SyncThread.Mode = smSQL) and (SyncThread.State = ssResult)) then
+            SyncHandledResult(SyncThread);
+
+          if (SyncThread.State = ssReady) then
+            SyncAfterExecuteSQL(SyncThread);
+
           case (SyncThread.Mode) of
             smSQL,
             smDataSet:
@@ -3449,7 +3453,7 @@ begin
   FThreadId := SyncThread.LibThreadId;
 
   // Debug 2017-02-22
-  WriteMonitor('SyncExecuted', ttDebug);
+  DebugMonitor.Append('SyncExecuted - start', ttDebug);
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
@@ -3523,7 +3527,7 @@ begin
   end;
 
   // Debug 2017-02-24
-  DebugMonitor.Append('SyncExecuted: ' + SyncThread.CommandText, ttDebug);
+  DebugMonitor.Append('SyncExecuted - 2:' + SyncThread.CommandText, ttDebug);
 
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
@@ -3607,12 +3611,6 @@ begin
       InOnResult := False;
     end;
   end;
-
-  if ((SyncThread.Mode = smSQL) and (SyncThread.State = ssResult)) then
-    SyncHandledResult(SyncThread);
-
-  if (SyncThread.State = ssReady) then
-    SyncAfterExecuteSQL(SyncThread);
 end;
 
 procedure TMySQLConnection.SyncExecutingFirst(const SyncThread: TSyncThread);
@@ -3673,19 +3671,6 @@ begin
     Inc(SQLIndex, StmtLength);
   end;
 
-  // Debug 2016-12-28
-  if (SyncThread.SQL = '') then
-    raise ERangeError.Create(SRangeError);
-  if (SyncThread.SQLIndex = 0) then
-    raise ERangeError.Create(SRangeError);
-  if (SyncThread.SQLIndex - 1 > Length(SyncThread.SQL)) then
-    raise ERangeError.Create('SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-      + 'StmtIndex: ' + IntToStr(StmtIndex) + #13#10
-      + 'SyncThread.SQLIndex: ' + IntToStr(SyncThread.SQLIndex) + #13#10
-      + 'SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-      + 'Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-      + 'SQL: ' + SQLEscapeBin(SyncThread.SQL, True));
-
   LibLength := WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, nil, 0);
   SetLength(LibSQL, LibLength);
   WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, PAnsiChar(LibSQL), LibLength);
@@ -3694,13 +3679,15 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
-  // Debug 2016-12
-  if (LibLength = 0) then
-    raise ERangeError.Create('SQL: ' + SyncThread.SQL + #13#10
-      + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-      + 'Stmt Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-      + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
-      + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])));
+  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
+    + 'LibLength: ' + IntToStr(LibLength) + #13#10
+    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
+    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
+    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
+    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -3802,6 +3789,12 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
 
+  DebugMonitor.Append('SyncHandledResult -'
+    + ' State: ' + IntToStr(Ord(SyncThread.State))
+    + ' ErrorCode: ' + IntToStr(SyncThread.ErrorCode)
+    + ' Multi: ' + BoolToStr(MultiStatements, True)
+    + ' LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
+    + ' More: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
 
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
@@ -5786,6 +5779,8 @@ procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
 begin
+  Assert(Assigned(DataSet));
+
   CriticalSection.Enter();
   if ((DataSet.State = dsBrowse)
     and Assigned(Pointer(DataSet.ActiveBuffer()))
@@ -5996,7 +5991,6 @@ constructor TMySQLDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
-  DeleteAllRecords := False;
   FCanModify := False;
   FCommandType := ctQuery;
   FCursorOpen := False;
@@ -6057,17 +6051,6 @@ begin
   Delete();
 
   SetLength(DeleteBookmarks, 0);
-end;
-
-procedure TMySQLDataSet.DeleteAll();
-begin
-  DeleteAllRecords := True;
-
-  try
-    Delete();
-  finally
-    DeleteAllRecords := False;
-  end;
 end;
 
 destructor TMySQLDataSet.Destroy();
@@ -6472,15 +6455,7 @@ begin
       raise EDatabasePostError.Create(SRecordChanged);
 
     InternRecordBuffers.CriticalSection.Enter();
-    if (DeleteAllRecords) then
-    begin
-      InternRecordBuffers.Clear();
-      if (BufferCount > 0) then
-        InternalInitRecord(ActiveBuffer());
-      for I := 0 to BufferCount - 1 do
-        InternalInitRecord(Buffers[I]);
-    end
-    else if (Length(DeleteBookmarks) = 0) then
+    if (Length(DeleteBookmarks) = 0) then
     begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
@@ -7575,9 +7550,7 @@ var
   WhereField: TField;
   WhereFieldCount: Integer;
 begin
-  if (DeleteAllRecords) then
-    Result := 'DELETE FROM ' + SQLTableClause()
-  else if (Length(DeleteBookmarks) = 0) then
+  if (Length(DeleteBookmarks) = 0) then
     Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + SQLWhereClause()
   else
   begin
