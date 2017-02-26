@@ -1703,8 +1703,6 @@ var
   MoveLen: Integer;
   Pos: Integer;
 begin
-  Assert(GetCurrentThreadId() = MainThreadId);
-
   if ((Cache.MemLen > 0) and (Length > 0)) then
   begin
     ItemText := Text; ItemLen := Length;
@@ -1782,7 +1780,11 @@ begin
   end;
 
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
+  begin
+    Assert(GetCurrentThreadId() = MainThreadId);
+
     OnMonitor(Connection, Text, Length, ATraceType);
+  end;
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -3091,10 +3093,13 @@ begin
               end
               else
               begin
-                Assert(SynchronCount > 0,
-                  'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
-                  + 'ErrorMessage: ' + SyncThread.ErrorMessage + #13#10
-                  + 'State: ' + IntToStr(Ord(SyncThread.State)));
+                if (not Assigned(SyncThread)) then
+                  Assert(SynchronCount > 0)
+                else
+                  Assert(SynchronCount > 0,
+                    'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
+                    + 'ErrorMessage: ' + SyncThread.ErrorMessage + #13#10
+                    + 'State: ' + IntToStr(Ord(SyncThread.State)));
 
                 // 2017-02-20
                 // ErrorCode: 0, TTool.DoError, no Result for SELECT query
@@ -3677,16 +3682,16 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
-//  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
-//    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-//    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-//    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
-//    + 'LibLength: ' + IntToStr(LibLength) + #13#10
-//    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
-//    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
-//    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-//    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
-//
+  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
+    + 'LibLength: ' + IntToStr(LibLength) + #13#10
+    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
+    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
+    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
+    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
+
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
     if (not NeedReconnect) then

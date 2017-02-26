@@ -1030,7 +1030,7 @@ begin
     end;
 end;
 
-{ ****************************************************************************** }
+{******************************************************************************}
 
 procedure CustomButtonClick(const Custom: Pointer;
   ExceptionInfo: TEurekaExceptionInfo; Dialog: TObject;

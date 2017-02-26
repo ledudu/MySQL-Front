@@ -414,6 +414,7 @@ type
   protected
     FOriginalName: string;
     function GetIndex(): Integer; override;
+    procedure SetName(const AName: string); override;
   public
     Moved: Boolean;
     OnUpdate: string;
@@ -776,7 +777,6 @@ type
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; overload; override;
     function BuildFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
     procedure Delete(const AItem: TSItem); override;
-    procedure DeleteProfile(const AItem: TSItem; var Profile: TProfile);
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
     function SQLGetFields(): string;
@@ -2654,32 +2654,16 @@ begin
 end;
 
 procedure TSDBObjects.Delete(const AItem: TSItem);
-var
-  Profile: TProfile;
 begin
   Assert(AItem is TSDBObject);
 
-  CreateProfile(Profile); // Debug 2017-02-20
-
   Session.SendEvent(etItemDeleted, Database, Self, AItem);
-
-  ProfilingPoint(Profile, 1);
 
   Delete(IndexOf(AItem));
 
-  ProfilingPoint(Profile, 2);
-
   Session.SendEvent(etItemsValid, Session, Session.Databases);
 
-  ProfilingPoint(Profile, 3);
-
   AItem.Free();
-
-  if (ProfilingTime(Profile) > 1000) then
-    SendToDeveloper('Class: ' + ClassName + #13#10
-      + 'Count: ' + IntToStr(Count) + #13#10
-      + ProfilingReport(Profile));
-  CloseProfile(Profile);
 end;
 
 { TSKeyColumn *****************************************************************}
@@ -3333,6 +3317,13 @@ begin
   Assert(Fields.Table is TSBaseTable);
 
   Result := TSBaseTable(Fields.Table);
+end;
+
+procedure TSBaseField.SetName(const AName: string);
+begin
+  Assert(AName <> '');
+
+  FName := AName;
 end;
 
 { TSViewField *****************************************************************}
@@ -5857,19 +5848,6 @@ begin
     SendToDeveloper(ProfilingReport(Profile));
 
   CloseProfile(Profile);
-end;
-
-procedure TSTables.DeleteProfile(const AItem: TSItem; var Profile: TProfile);
-begin
-  ProfilingPoint(Profile, 16);
-
-  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
-
-  ProfilingPoint(Profile, 17);
-
-  inherited Delete(AItem);
-
-  ProfilingPoint(Profile, 18);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
@@ -12712,7 +12690,7 @@ begin
                           else
                           begin
                             ProfilingPoint(Profile, 15);
-                            Database.Tables.DeleteProfile(Table, Profile);
+                            Database.Tables.Delete(Table);
                             ProfilingPoint(Profile, 19);
                           end;
                         end;
