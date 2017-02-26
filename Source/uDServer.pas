@@ -367,7 +367,6 @@ begin
 
   TSStartup.Caption := Preferences.LoadStr(805);
   FStartup.Font.Name := Preferences.SQLFontName;
-  FStartup.Font.Style := Preferences.SQLFontStyle;
   FStartup.Font.Color := Preferences.SQLFontColor;
   FStartup.Font.Size := Preferences.SQLFontSize;
   FStartup.Font.Charset := Preferences.SQLFontCharset;

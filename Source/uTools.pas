@@ -5182,7 +5182,6 @@ begin
 
   SQLFont := TFont.Create();
   SQLFont.Name := Preferences.SQLFontName;
-  SQLFont.Style := Preferences.SQLFontStyle;
   SQLFont.Charset := Preferences.SQLFontCharset;
   SQLFont.Color := Preferences.SQLFontColor;
   SQLFont.Size := Preferences.SQLFontSize;
@@ -6868,7 +6867,6 @@ begin
   GridFont.Size := Preferences.GridFontSize;
 
   SQLFont.Name := Preferences.SQLFontName;
-  SQLFont.Style := Preferences.SQLFontStyle;
   SQLFont.Charset := Preferences.SQLFontCharset;
   SQLFont.Color := clBlack;
   SQLFont.Size := Preferences.SQLFontSize;

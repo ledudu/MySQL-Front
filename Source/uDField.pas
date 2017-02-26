@@ -1167,7 +1167,6 @@ begin
   FLComment.Caption := Preferences.LoadStr(111) + ':';
 
   FExpression.Font.Name := Preferences.SQLFontName;
-  FExpression.Font.Style := Preferences.SQLFontStyle;
   FExpression.Font.Color := Preferences.SQLFontColor;
   FExpression.Font.Size := Preferences.SQLFontSize;
   FExpression.Font.Charset := Preferences.SQLFontCharset;

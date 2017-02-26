@@ -471,7 +471,6 @@ begin
     Preferences.GridCurrRowBGColor := PGridCurrRowBGColor.Color;
 
     Preferences.SQLFontName := PEditorFont.Font.Name;
-    Preferences.SQLFontStyle := PEditorFont.Font.Style;
     Preferences.SQLFontColor := PEditorFont.Font.Color;
     Preferences.SQLFontSize := PEditorFont.Font.Size;
     Preferences.SQLFontCharset := PEditorFont.Font.Charset;
@@ -587,7 +586,6 @@ begin
 
   FEditorFont.Text := Preferences.SQLFontName;
   PEditorFont.Font.Name := Preferences.SQLFontName;
-  PEditorFont.Font.Style := Preferences.SQLFontStyle;
   PEditorFont.Font.Color := Preferences.SQLFontColor;
   PEditorFont.Font.Size := Preferences.SQLFontSize;
   PEditorFont.Font.Charset := Preferences.SQLFontCharset;

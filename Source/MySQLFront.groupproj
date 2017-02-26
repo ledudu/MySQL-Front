@@ -15,6 +15,9 @@
         <Projects Include="SynEdit\Packages\SynEdit_18.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="BCEditor\Packages\BCEditor_18.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="QueryBuilder\Packages\acQueryBuilderDsgn_18.dproj">
             <Dependencies/>
         </Projects>
@@ -74,6 +77,15 @@
     <Target Name="SynEdit_18:Make">
         <MSBuild Projects="SynEdit\Packages\SynEdit_18.dproj" Targets="Make"/>
     </Target>
+    <Target Name="BCEditor_18">
+        <MSBuild Projects="BCEditor\Packages\BCEditor_18.dproj"/>
+    </Target>
+    <Target Name="BCEditor_18:Clean">
+        <MSBuild Projects="BCEditor\Packages\BCEditor_18.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="BCEditor_18:Make">
+        <MSBuild Projects="BCEditor\Packages\BCEditor_18.dproj" Targets="Make"/>
+    </Target>
     <Target Name="acQueryBuilderDsgn_18">
         <MSBuild Projects="QueryBuilder\Packages\acQueryBuilderDsgn_18.dproj"/>
     </Target>
@@ -120,13 +132,13 @@
         <MSBuild Projects="MySQLFront.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="FastMM_18;SynopsePDF_18;MPHexEditor_18;SynEdit_18;acQueryBuilderDsgn_18;Win32_Ext_18;VCL_Ext_18;MySQL_18;MySQLFront"/>
+        <CallTarget Targets="FastMM_18;SynopsePDF_18;MPHexEditor_18;SynEdit_18;BCEditor_18;acQueryBuilderDsgn_18;Win32_Ext_18;VCL_Ext_18;MySQL_18;MySQLFront"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="FastMM_18:Clean;SynopsePDF_18:Clean;MPHexEditor_18:Clean;SynEdit_18:Clean;acQueryBuilderDsgn_18:Clean;Win32_Ext_18:Clean;VCL_Ext_18:Clean;MySQL_18:Clean;MySQLFront:Clean"/>
+        <CallTarget Targets="FastMM_18:Clean;SynopsePDF_18:Clean;MPHexEditor_18:Clean;SynEdit_18:Clean;BCEditor_18:Clean;acQueryBuilderDsgn_18:Clean;Win32_Ext_18:Clean;VCL_Ext_18:Clean;MySQL_18:Clean;MySQLFront:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="FastMM_18:Make;SynopsePDF_18:Make;MPHexEditor_18:Make;SynEdit_18:Make;acQueryBuilderDsgn_18:Make;Win32_Ext_18:Make;VCL_Ext_18:Make;MySQL_18:Make;MySQLFront:Make"/>
+        <CallTarget Targets="FastMM_18:Make;SynopsePDF_18:Make;MPHexEditor_18:Make;SynEdit_18:Make;BCEditor_18:Make;acQueryBuilderDsgn_18:Make;Win32_Ext_18:Make;VCL_Ext_18:Make;MySQL_18:Make;MySQLFront:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

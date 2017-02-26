@@ -1311,7 +1311,7 @@ end;
 
 function TMySQLDBGrid.PasteFromClipboard(): Boolean;
 var
-  ClipboardData: HGLOBAL;
+  Global: HGLOBAL;
   Text: string;
 begin
   Result := not ReadOnly;
@@ -1322,14 +1322,14 @@ begin
       InplaceEditor.PasteFromClipboard();
       Result := True;
     end
-    else if ((DataLink.DataSet is TMySQLDataSet) and (IsClipboardFormatAvailable(CF_UNICODETEXT))
+    else if ((DataLink.DataSet is TMySQLDataSet) and IsClipboardFormatAvailable(CF_UNICODETEXT)
       and OpenClipboard(Handle)) then
     begin
       Text := '';
       try
-        ClipboardData := GetClipboardData(CF_UNICODETEXT);
-        SetString(Text, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Text[1]));
-        GlobalUnlock(ClipboardData);
+        Global := GetClipboardData(CF_UNICODETEXT);
+        SetString(Text, PChar(GlobalLock(Global)), GlobalSize(Global) div SizeOf(Text[1]));
+        GlobalUnlock(Global);
       finally
         CloseClipboard();
       end;

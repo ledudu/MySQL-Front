@@ -617,7 +617,6 @@ begin
   FLStmt.Caption := Preferences.LoadStr(307) + ':';
 
   FStmt.Font.Name := Preferences.SQLFontName;
-  FStmt.Font.Style := Preferences.SQLFontStyle;
   FStmt.Font.Color := Preferences.SQLFontColor;
   FStmt.Font.Size := Preferences.SQLFontSize;
   FStmt.Font.Charset := Preferences.SQLFontCharset;
@@ -653,7 +652,6 @@ begin
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
   FSource.Font.Color := Preferences.SQLFontColor;
   FSource.Font.Size := Preferences.SQLFontSize;
   FSource.Font.Charset := Preferences.SQLFontCharset;

@@ -3,6 +3,7 @@
       "Editor": {
          "Colors": {
             "Background": "clWindow",
+            "ActiveLineBackground": "$C0FFFF",
             "CodeFoldingActiveLineBackground": "$C0FFFF",
             "CodeFoldingBackground": "clWindow",
             "CodeFoldingCollapsedLine": "$00CC9999",
@@ -20,16 +21,16 @@
             "CompletionProposalForeground": "clBlack",
             "CompletionProposalSelectedBackground": "clHighlight",
             "CompletionProposalSelectedText": "clHighlightText",
-            "LeftMarginActiveLineBackground": "$F8F8F8",
-            "LeftMarginBackground": "$F8F8F8",
+            "LeftMarginActiveLineBackground": "$F4F4F4",
+            "LeftMarginBackground": "$F4F4F4",
             "LeftMarginBorder": "clWindow",
-            "LeftMarginLineNumberLine": "$EAD9BD",
-            "LeftMarginLineNumbers": "$E6C08D",
+            "LeftMarginLineNumberLine": "$CC9999",
+            "LeftMarginLineNumbers": "$CC9999",
             "LeftMarginLineStateModified": "clYellow",
             "LeftMarginLineStateNormal": "clLime",
             "LeftMarginBookmarkPanel": "clWindow",
             "MatchingPairMatched": "clAqua",
-            "MatchingPairUnderline": "$00CC9999",
+            "MatchingPairUnderline": "$00FFFF00",
             "MatchingPairUnmatched": "clYellow",
             "MinimapBackground": "clNone",
             "MinimapBookmark": "clGreen",
@@ -59,50 +60,50 @@
          },
          {
             "Name": "Comment",
-            "Foreground": "$89AD56",
+            "Foreground": "clGreen",
             "Style": "Italic"
          },
          {
             "Name": "Constante",
-            "Foreground": "$996735"
+            "Foreground": "clBlue"
          },
          {
             "Name": "Conditional",
-            "Foreground": "$89AD56"
+            "Foreground": "clTeal"
          },
          {
             "Name": "Identifier",
-            "Foreground": "$736243"
+            "Foreground": "clWindowText"
          },
          {
             "Name": "Keyword",
-            "Foreground": "$736243",
+            "Foreground": "clNavy",
             "Style": "Bold"
          },
          {
             "Name": "Method",
-            "Foreground": "$736243",
+            "Foreground": "clNavy",
             "Style": "Bold"
          },
          {
             "Name": "Number",
-            "Foreground": "$996735"
+            "Foreground": "clBlue"
          },
          {
             "Name": "String",
-            "Foreground": "$996735"
+            "Foreground": "clBlue"
          },
          {
             "Name": "Symbol"
          },
          {
             "Name": "Type",
-            "Foreground": "$8D52AB",
+            "Foreground": "clMaroon",
             "Style": "Bold"
          },
          {
             "Name": "Variable",
-            "Foreground": "$AB528D"
+            "Foreground": "clGreen"
          }
       ]
    }

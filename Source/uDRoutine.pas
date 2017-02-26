@@ -564,7 +564,6 @@ begin
   else
     FSource.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
   FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
   FSource.Font.Color := Preferences.SQLFontColor;
   FSource.Font.Size := Preferences.SQLFontSize;
   FSource.Font.Charset := Preferences.SQLFontCharset;

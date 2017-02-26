@@ -415,7 +415,6 @@ type
     SQLFontColor: TColor;
     SQLFontName: TFontName;
     SQLFontSize: Integer;
-    SQLFontStyle: TFontStyles;
     SQLHelp: TSQLHelp;
     Statement: TStatement;
     Table: TTable;
@@ -1970,7 +1969,6 @@ begin
   SetupProgramInstalled := False;
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
-  SQLFontStyle := [];
   SQLFontSize := FontSize;
   SQLFontCharset := DEFAULT_CHARSET;
   LogFontName := 'Courier New';
@@ -2276,7 +2274,6 @@ begin
   if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
   if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
   if (Assigned(XMLNode(XML, 'sql/font/size'))) then TryStrToInt(XMLNode(XML, 'sql/font/size').Text, SQLFontSize);
-  if (Assigned(XMLNode(XML, 'sql/font/style'))) then SQLFontStyle := StrToStyle(XMLNode(XML, 'sql/font/style').Text);
   if (Assigned(XMLNode(XML, 'sql/highlighting/comment/color'))) then Editor.CommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/color').Text);
   if (Assigned(XMLNode(XML, 'sql/highlighting/comment/background/color'))) then Editor.CommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/background/color').Text);
   if (Assigned(XMLNode(XML, 'sql/highlighting/comment/style'))) then Editor.CommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/comment/style').Text);
@@ -2451,7 +2448,6 @@ begin
   XMLNode(XML, 'sql/font/color').Text := ColorToString(SQLFontColor);
   XMLNode(XML, 'sql/font/name').Text := SQLFontName;
   XMLNode(XML, 'sql/font/size').Text := IntToStr(SQLFontSize);
-  XMLNode(XML, 'sql/font/style').Text := StyleToStr(SQLFontStyle);
   XMLNode(XML, 'sql/highlighting/comment/color').Text := ColorToString(Editor.CommentForeground);
   XMLNode(XML, 'sql/highlighting/comment/background/color').Text := ColorToString(Editor.CommentBackground);
   XMLNode(XML, 'sql/highlighting/comment/style').Text := StyleToStr(Editor.CommentStyle);

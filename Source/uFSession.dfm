@@ -353,7 +353,7 @@ object FSession: TFSession
         OnSelectItem = ListViewSelectItem
       end
     end
-    object PSynMemo: TPanel_Ext
+    object PBCEditor: TPanel_Ext
       Left = 0
       Top = 310
       Width = 467
@@ -366,57 +366,6 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 2
       Visible = False
-      object FSQLEditorSynMemo: TSynMemo
-        Left = 2
-        Top = 2
-        Width = 463
-        Height = 46
-        HelpContext = 1037
-        OnSearchNotFound = SearchNotFound
-        Align = alClient
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
-        PopupMenu = MSQLEditor
-        TabOrder = 0
-        Visible = False
-        OnDragDrop = SynMemoDragDrop
-        OnDragOver = SynMemoDragOver
-        OnEnter = SynMemoEnter
-        OnExit = SynMemoExit
-        OnKeyPress = FSQLEditorSynMemoKeyPress
-        BorderStyle = bsNone
-        Gutter.AutoSize = True
-        Gutter.DigitCount = 2
-        Gutter.Font.Charset = DEFAULT_CHARSET
-        Gutter.Font.Color = clWindowText
-        Gutter.Font.Height = -11
-        Gutter.Font.Name = 'Courier New'
-        Gutter.Font.Style = []
-        Gutter.LeftOffset = 2
-        Gutter.ShowLineNumbers = True
-        MaxScrollWidth = 1048576
-        Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
-        RightEdge = 0
-        ScrollHintFormat = shfTopToBottom
-        SearchEngine = FSQLEditorSearch
-        TabWidth = 2
-        WantTabs = True
-        OnStatusChange = SynMemoStatusChange
-        FontSmoothing = fsmNone
-        RemovedKeystrokes = <
-          item
-            Command = ecContextHelp
-            ShortCut = 112
-          end>
-        AddedKeystrokes = <
-          item
-            Command = ecContextHelp
-            ShortCut = 16496
-          end>
-      end
     end
     object PResult: TPanel_Ext
       Left = 0
@@ -469,7 +418,7 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 1
       Visible = False
-      object SQueryBuilderSynMemo: TSplitter_Ext
+      object SQueryBuilderBCEditor: TSplitter_Ext
         Left = 0
         Top = 96
         Width = 467
@@ -482,7 +431,7 @@ object FSession: TFSession
         ActiveBorderColor = clWindow
         ExplicitWidth = 319
       end
-      object PQueryBuilderSynMemo: TPanel_Ext
+      object PQueryBuilderBCEditor: TPanel_Ext
         Left = 0
         Top = 100
         Width = 467
@@ -494,44 +443,6 @@ object FSession: TFSession
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
-        object FQueryBuilderSynMemo: TSynMemo
-          Left = 2
-          Top = 2
-          Width = 463
-          Height = 46
-          HelpContext = 1120
-          OnSearchNotFound = SearchNotFound
-          Align = alClient
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -13
-          Font.Name = 'Courier New'
-          Font.Style = []
-          PopupMenu = MSQLEditor
-          TabOrder = 0
-          OnDragDrop = SynMemoDragDrop
-          OnDragOver = SynMemoDragOver
-          OnEnter = FQueryBuilderSynMemoEnter
-          OnExit = FQueryBuilderSynMemoExit
-          BorderStyle = bsNone
-          Gutter.AutoSize = True
-          Gutter.DigitCount = 2
-          Gutter.Font.Charset = DEFAULT_CHARSET
-          Gutter.Font.Color = clWindowText
-          Gutter.Font.Height = -11
-          Gutter.Font.Name = 'Courier New'
-          Gutter.Font.Style = []
-          Gutter.LeftOffset = 2
-          Gutter.ShowLineNumbers = True
-          MaxScrollWidth = 65535
-          Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
-          ScrollHintFormat = shfTopToBottom
-          SearchEngine = FSQLEditorSearch
-          WantTabs = True
-          OnChange = FQueryBuilderSynMemoChange
-          OnStatusChange = SynMemoStatusChange
-          FontSmoothing = fsmNone
-        end
       end
       object FQueryBuilder: TacQueryBuilder
         Left = 0
@@ -1271,7 +1182,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 40682
+      Left = 32752
       Top = 0
       Width = 140
       Height = 22
@@ -1283,10 +1194,9 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
-      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 40667
+      Left = 32752
       Top = 0
       Width = 23
       Height = 22
@@ -1295,7 +1205,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
@@ -1880,10 +1789,6 @@ object FSession: TFSession
       Caption = 'aESelectAll'
     end
   end
-  object FSQLEditorSearch: TSynEditSearch
-    Left = 192
-    Top = 208
-  end
   object MGridHeader: TPopupMenu
     OnPopup = MGridHeaderPopup
     Left = 217
@@ -2217,32 +2122,5 @@ object FSession: TFSession
     EncodingLabel = '&Encoding:'
     Left = 64
     Top = 72
-  end
-  object SynCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoConsiderWordBreakChars, scoCompleteWithEnter]
-    EndOfTokenChr = '()[]. '
-    TriggerChars = 
-      '._$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678' +
-      '9'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -12
-    Font.Name = 'MS Sans Serif'
-    Font.Style = []
-    TitleFont.Charset = DEFAULT_CHARSET
-    TitleFont.Color = clBtnText
-    TitleFont.Height = -12
-    TitleFont.Name = 'MS Sans Serif'
-    TitleFont.Style = [fsBold]
-    Columns = <>
-    OnChange = SynCompletionChange
-    OnClose = SynCompletionClose
-    OnExecute = SynCompletionExecute
-    ShortCut = 16416
-    Editor = FSQLEditorSynMemo
-    OnAfterCodeCompletion = SynCompletionAfterCodeCompletion
-    OnCancelled = SynCompletionCancelled
-    Left = 280
-    Top = 208
   end
 end

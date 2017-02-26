@@ -383,7 +383,6 @@ begin
   FDelete.Font.Name := Preferences.SQLFontName;
 
   FStatement.Font.Name := Preferences.SQLFontName;
-  FStatement.Font.Style := Preferences.SQLFontStyle;
   FStatement.Font.Color := Preferences.SQLFontColor;
   FStatement.Font.Size := Preferences.SQLFontSize;
   FStatement.Font.Charset := Preferences.SQLFontCharset;
@@ -400,7 +399,6 @@ begin
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
   FSource.Font.Color := Preferences.SQLFontColor;
   FSource.Font.Size := Preferences.SQLFontSize;
   FSource.Font.Charset := Preferences.SQLFontCharset;

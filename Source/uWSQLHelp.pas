@@ -335,13 +335,11 @@ begin
   FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
 
   FDescription.Font.Name := Preferences.SQLFontName;
-  FDescription.Font.Style := Preferences.SQLFontStyle;
   FDescription.Font.Size := Preferences.SQLFontSize;
   FDescription.Font.Charset := Preferences.SQLFontCharset;
   FQuickSearch.Font := FDescription.Font;
 
   FExample.Font.Name := Preferences.SQLFontName;
-  FExample.Font.Style := Preferences.SQLFontStyle;
   FExample.Font.Size := Preferences.SQLFontSize;
   FExample.Font.Charset := Preferences.SQLFontCharset;
 
