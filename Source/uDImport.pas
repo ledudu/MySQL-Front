@@ -341,6 +341,10 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
+  // Debug 2017-02-19
+  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
+    raise EAssertionFailed.Create(SRangeError);
+
   Progress := 'a';
 
   ModalResult := mrNone;
@@ -402,6 +406,7 @@ procedure TDImport.FCSVPreviewUpdate(Sender: TObject);
 var
   I: Integer;
   Item: TListItem;
+  MissingFieldname: Boolean;
   Values: TSQLStrings;
 begin
   if (Visible) then
@@ -427,8 +432,16 @@ begin
       TTImportText(Import).UseHeadLine := FCSVHeadline.Checked;
       TTImportText(Import).Open();
 
+      MissingFieldname := False;
       for I := 0 to TTImportText(Import).HeadlineNameCount - 1 do
+      begin
         FCSVPreview.Columns.Add().Caption := TTImportText(Import).HeadlineNames[I];
+        if (not MissingFieldname and (FCSVPreview.Columns.Add().Caption = '')) then
+        begin
+          MsgBox(Preferences.LoadStr(942, IntToStr(I + 1)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+          MissingFieldname := True;
+        end;
+      end;
 
       Item := nil;
       while ((FCSVPreview.Items.Count < 10) and TTImportText(Import).GetPreviewValues(nil, Values)) do
@@ -537,7 +550,7 @@ begin
     Progress := Progress + 'f';
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -552,7 +565,7 @@ begin
 
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -580,7 +593,7 @@ begin
       EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_DISABLED);
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -626,12 +639,26 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
+  if (Assigned(Import)) then
+  begin
+    SendToDeveloper('Visible: ' + BoolToStr(Visible, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
+
+    Import.WaitFor();
+    Import.Free();
+    Import := nil;
+  end;
+
   Progress := Progress + 'j';
 
   if (Assigned(FNavigator) and not Assigned(FNavigator^)
     or Visible
     or Assigned(Import)) then
-    raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+    raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -1427,7 +1454,7 @@ begin
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Details^.Error.Session.Connection.ErrorCode), Details^.Error.Session.Connection.ErrorMessage);
         ErrorMsg := Details^.Error.ErrorMessage
-          + ' (#' + IntToStr(Details^.Error.ErrorCode) + ') - ' + Trim(Session.Connection.ErrorCommandText) + #13#10;
+          + ' (#' + IntToStr(Details^.Error.ErrorCode) + ') - ' + Trim(Details^.Error.Session.Connection.ErrorCommandText) + #13#10;
       end;
     TE_File:
       begin

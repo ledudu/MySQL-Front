@@ -1,4 +1,4 @@
-unit uFSession;
+ï»¿unit uFSession;
 
 interface {********************************************************************}
 
@@ -36,14 +36,11 @@ type
     ActionList: TActionList;
     aDCreate: TAction;
     aDDelete: TAction;
-    aDDeleteRecord: TDataSetDelete;
-    aDInsertRecord: TDataSetInsert;
     aDNext: TAction;
     aDPrev: TAction;
     aEClearAll: TAction;
     aPCollapse: TAction;
     aPExpand: TAction;
-    aPObjectBrowserTable: TAction;
     aPResult: TAction;
     aSynCompletionExecute: TAction;
     aTBFilter: TAction;
@@ -397,7 +394,6 @@ type
     procedure aHRunExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
     procedure aPExpandExecute(Sender: TObject);
-    procedure aPObjectBrowserTableExecute(Sender: TObject);
     procedure aPResultExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
     procedure aSynCompletionExecuteExecute(Sender: TObject);
@@ -409,6 +405,7 @@ type
     procedure aVSortAscExecute(Sender: TObject);
     procedure aVSortDescExecute(Sender: TObject);
     procedure BObjectIDEClick(Sender: TObject);
+    procedure DBGridCanEditShow(Sender: TObject);
     procedure DBGridCellEnter(Column: TColumn);
     procedure DBGridColEnter(Sender: TObject);
     procedure DBGridColExit(Sender: TObject);
@@ -908,7 +905,7 @@ type
     PResultHeight: Integer;
     ProcessesListView: TListView;
     QuickAccessListView: TListView;
-    SBlobDebug: TSplitter;
+    SBlobDebug: TSplitter_Ext;
     ServerListView: TListView;
     ShellLink: TJamShellLink;
     SplitColor: TColor;
@@ -2606,9 +2603,6 @@ var
 begin
   Wanted.Clear();
 
-  // Debug 2017-02-06
-  Session.Connection.DebugMonitor.Append('aDDeleteExecute - start - SBlob: ' + BoolToStr(Assigned(SBlob), True), ttDebug);
-
   Items := TList.Create();
 
   if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 1)) then
@@ -2728,9 +2722,6 @@ begin
   end;
 
   Items.Free();
-
-  // Debug 2017-02-06
-  Session.Connection.DebugMonitor.Append('aDDeleteExecute - end - SBlob: ' + BoolToStr(Assigned(SBlob), True), ttDebug);
 end;
 
 procedure TFSession.aDDeleteRecordExecute(Sender: TObject);
@@ -2742,10 +2733,13 @@ begin
 
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
-    if (ActiveDBGrid.SelectedRows.Count = 0) then
-      aDDeleteRecord.Execute()
-    else if (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) then
+    if ((ActiveDBGrid.SelectedRows.Count = 0) and (ActiveDBGrid.SelectedFields.Count = 0)) then
+      ActiveDBGrid.DataSource.DataSet.Delete()
+    else
     begin
+      if (ActiveDBGrid.SelectedRows.Count = 0) then
+        ActiveDBGrid.SelectAll();
+
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
       for I := 0 to Length(Bookmarks) - 1 do
         Bookmarks[I] := ActiveDBGrid.SelectedRows.Items[I];
@@ -2947,7 +2941,13 @@ begin
         FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
 
       if (Window.ActiveControl = FNavigator) then
-        FNavigatorChanged(FNavigator, FNavigator.Selected);
+        try
+          FNavigatorChanged(FNavigator, FNavigator.Selected);
+        except
+          on E: Exception do
+            raise Exception.Create('Text: ' + FNavigator.Selected.Text + #13#10
+              + E.Message);
+        end;
 
       FNavigator.AutoExpand := not (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) and not CheckWin32Version(6);
 
@@ -3176,7 +3176,7 @@ procedure TFSession.aDInsertRecordExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  aDInsertRecord.Execute();
+  ActiveDBGrid.DataSource.DataSet.Insert();
 end;
 
 procedure TFSession.aDNextExecute(Sender: TObject);
@@ -3307,7 +3307,7 @@ begin
     end
     else if (SItem is TSProcess) then
     begin
-      Process := Session.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
+      Process := Session.ProcessByThreadId(SysUtils.StrToInt64(ActiveListView.Selected.Caption));
 
       DStatement.DatabaseName := Process.DatabaseName;
       DStatement.DateTime := Session.Connection.ServerDateTime - Process.Time;
@@ -3336,7 +3336,7 @@ begin
       DVariable.Execute();
     end;
 
-    UpdateAfterAddressChanged();
+    Wanted.Update := UpdateAfterAddressChanged;
   end;
 end;
 
@@ -3444,9 +3444,7 @@ begin
     FText.Text := ''
   else if (Window.ActiveControl = ActiveBCEditor) then
   begin
-    // ClearAll kann nicht mit Undo Rückgängig gemacht werden.
-    ActiveBCEditor.BeginUpdate();
-    ActiveBCEditor.SelectAll();
+    ActiveBCEditor.Text := '';
     MainAction('aEDelete').Execute();
     ActiveBCEditor.EndUpdate();
   end;
@@ -4399,13 +4397,6 @@ begin
     FSQLHistoryMenuNode.Expand(False);
 end;
 
-procedure TFSession.aPObjectBrowserTableExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  CurrentAddress := LastSelectedTable;
-end;
-
 procedure TFSession.aPResultExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -4924,14 +4915,6 @@ begin
     if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
       URI.Param['view'] := 'ide';
 
-    // Debug 2017-02-03
-    if ((ParamToView(URI.Param['view']) in [vBrowser]) and (URI.Table = '')) then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'URI.Address: ' + URI.Address);
-    // Debug 2017-02-04
-    Assert((ParamToView(URI.Param['view']) <> vObjectSearch) or (URI.Param['text'] <> Null),
-      'URI.Address: ' + URI.Address);
-
     FCurrentAddress := URI.Address;
     if ((Session.Account.Desktop.Addresses.Count = 0)
       or (FCurrentAddress <> Session.Account.Desktop.Addresses[Session.Account.Desktop.Addresses.Count - 1])) then
@@ -5360,16 +5343,12 @@ begin
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
   Perform(UM_CHANGEPREFERENCES, 0, 0);
-  Window.Perform(CM_SYSFONTCHANGED, 0, 0);
+  Perform(CM_SYSFONTCHANGED, 0, 0);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
 
-
-  // Debug 2017-02-02
-  if (FObjectSearchStart.Enabled) then
-    raise ERangeError.Create(SRangeError);
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
@@ -5717,7 +5696,7 @@ begin
   Result.DragMode := dmAutomatic;
   Result.HelpType := htContext;
   Result.HelpContext := 1155;
-  Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
+  Result.Options := [dgEditing, dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
   Result.ParentFont := False;
   Result.Font.Name := Preferences.GridFontName;
   Result.Font.Style := Preferences.GridFontStyle;
@@ -5741,7 +5720,7 @@ begin
     Result.Columns[I].Font := Result.Font;
   Result.PopupMenu := MGrid;
   Result.TabOrder := 0;
-  Result.OnCanEditShow := Session.GridCanEditShow;
+  Result.OnCanEditShow := DBGridCanEditShow;
   Result.OnCellClick := DBGridCellEnter;
   Result.OnColEnter := DBGridColEnter;
   Result.OnColExit := DBGridColExit;
@@ -6052,8 +6031,8 @@ begin
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
-    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and aDInsertRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and aDDeleteRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -6080,6 +6059,12 @@ end;
 procedure TFSession.DBGridCellEnter(Column: TColumn);
 begin
   StatusBarRefresh();
+end;
+
+procedure TFSession.DBGridCanEditShow(Sender: TObject);
+begin
+  Session.GridCanEditShow(Sender);
+  TDBGrid(Sender).ReadOnly := not Assigned(TDBGrid(Sender).SelectedField) or (TDBGrid(Sender).SelectedField.DataType in [ftUnknown, ftWideMemo, ftBlob]);
 end;
 
 procedure TFSession.DBGridColEnter(Sender: TObject);
@@ -6141,11 +6126,6 @@ begin
           aVBlobHexEditor.Execute();
       end;
 
-      if ((DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) or (DBGrid.SelectedField.DataType in [ftUnknown])) then
-        DBGrid.Options := DBGrid.Options - [dgEditing]
-      else
-        DBGrid.Options := DBGrid.Options + [dgEditing];
-
       FText.OnChange := FTextChange;
     end;
 
@@ -6153,7 +6133,7 @@ begin
     MainAction('aECopyToFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aEPasteFromFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aDCreateField').Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
-    MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and (View <> vIDE);
+    MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and DBGrid.DataSource.DataSet.CanModify and (View <> vIDE);
     MainAction('aDEmpty').Enabled := (DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
   end;
 
@@ -6613,15 +6593,15 @@ begin
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)
       and not (DBGrid.Columns[GridCoord.X].Field.DataType in BinaryDataTypes)) then
     begin
-      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
       DBGrid.PopupMenu := MGridHeader;
+      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
       if (BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))
         and (HDItem.fmt and HDF_SPLITBUTTON = 0)) then
       begin
         HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
         SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
       end;
-      if not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = DBGrid.Header.Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
+      if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = DBGrid.Header.Handle) and (KeysToShiftState(Msg.wParam) = Shift))) then
         SetCapture(DBGrid.Header.Handle);
     end
     else
@@ -6630,8 +6610,8 @@ begin
         and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
         ReleaseCapture();
 
-      MGridHeaderColumn := nil;
       DBGrid.PopupMenu := MGrid;
+      MGridHeaderColumn := nil;
     end;
 
     inherited;
@@ -6676,6 +6656,7 @@ end;
 procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
+  Fields: string;
 begin
   DBGrid.DataSource.DataSet.AfterClose := DataSetAfterClose;
   DBGrid.DataSource.DataSet.AfterScroll := DataSetAfterScroll;
@@ -6691,7 +6672,12 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
-    if (Assigned(DBGrid.Columns[I].Field)) then
+    if (not Assigned(DBGrid.Columns[I].Field)) then
+    begin
+      if (Fields <> '') then Fields := Fields + ',';
+      Fields := Fields + IntToStr(I);
+    end
+    else
     begin
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style + [fsBold];
@@ -6704,11 +6690,19 @@ begin
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style - [fsBold];
 
+      // DBGrid.Columns[I].ReadOnly := ...
+      // ... set Field.ReadOnly, but TEXT fields should be editable in FText.
+
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
     end;
   DBGrid.Columns.EndUpdate();
 
   SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PBCEditor.Visible);
+
+  if (Fields <> '') then
+    SendToDeveloper('Version: ' + Session.Connection.ServerVersionStr + #13#10
+      + 'Fields: ' + Fields + #13#10
+      + TMySQLDataSet(DBGrid.DataSource.DataSet).CommandText);
 end;
 
 procedure TFSession.DBGridKeyDown(Sender: TObject; var Key: Word;
@@ -6740,9 +6734,9 @@ begin
     begin
       aVBlobText.Checked := True;
 
-      // Debug 2016-12-06
-      if (not PBlob.Visible) then
-        raise ERangeError.Create(SRangeError);
+      // Debug 2017-02-22
+      Assert(FText.Visible);
+      Assert(FText.Parent.Visible);
 
       Window.ActiveControl := FText;
       if (Key = VK_RETURN) then
@@ -6948,6 +6942,14 @@ begin
     URI := TUURI.Create(CurrentAddress);
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
+
+    // Debug 2017-02-18
+    if ((URI.Param['view'] = 'objectsearch') and (URI.Param['text'] = Null)) then
+    begin
+      URI.Param['view'] := Null;
+      SendToDeveloper(URI.Address);
+    end;
+
     Session.Account.Desktop.Address := URI.Address;
     URI.Free();
   end;
@@ -7582,15 +7584,8 @@ procedure TFSession.FLogUpdate();
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    ProfilingPoint(MonitorProfile, 8);
-
     FLog.Text := Session.SQLMonitor.CacheText;
-
-    ProfilingPoint(MonitorProfile, 9);
-
     PLogResize(nil);
-
-    ProfilingPoint(MonitorProfile, 10);
   end;
 end;
 
@@ -7649,7 +7644,9 @@ begin
   else if (TObject(Node.Data) is TSItem) then
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
-    raise ERangeError.Create('ClassType: ' + TObject(Node.Data).ClassName)
+    raise ERangeError.Create('ClassType: ' + TObject(Node.Data).ClassName + #13#10
+      + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+      + 'Text: ' + Node.Text)
   else
     raise ERangeError.Create(SRangeError);
 
@@ -8372,6 +8369,7 @@ end;
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 var
   LastChild: TTreeNode;
+  Profile: TProfile;
 
   procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
   var
@@ -8413,7 +8411,7 @@ var
     Node: TTreeNode;
     Text: string;
   begin
-    ProfilingPoint(3);
+    ProfilingPoint(Profile, 3);
 
     Node := TTreeNode.Create(Parent.Owner);
     Node.Data := Data;
@@ -8424,7 +8422,7 @@ var
       Result := LastChild.GetNextSibling()
     else
     begin
-      ProfilingPoint(6);
+      ProfilingPoint(Profile, 4);
 
       Result := Parent.getFirstChild();
       while (Assigned(Result)) do
@@ -8434,7 +8432,7 @@ var
         Result := Result.getNextSibling();
       end;
 
-      ProfilingPoint(10);
+      ProfilingPoint(Profile, 5);
     end;
 
     Node.Free();
@@ -8471,7 +8469,7 @@ var
     if (Assigned(Result)) then
       SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
 
-    ProfilingPoint(14);
+    ProfilingPoint(Profile, 6);
   end;
 
   function AddChild(const Parent: TTreeNode; const Data: TObject): TTreeNode;
@@ -8489,11 +8487,10 @@ var
     else
       raise ERangeError.Create(SRangeError);
 
-    ProfilingPoint(15);
-
+    ProfilingPoint(Profile, 7);
     Result := FNavigator.Items.AddChild(Parent, Text);
 
-    ProfilingPoint(16);
+    ProfilingPoint(Profile, 8);
 
     Result.Data := Data;
     Result.ImageIndex := ImageIndexByData(Data);
@@ -8501,12 +8498,12 @@ var
     if (Result.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
       Result.HasChildren := True;
 
-    ProfilingPoint(17);
+    ProfilingPoint(Profile, 9);
 
     if (Assigned(Result)) then
       SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
 
-    ProfilingPoint(18);
+    ProfilingPoint(Profile, 10);
   end;
 
   procedure DeleteChild(const Child: TTreeNode);
@@ -8516,7 +8513,7 @@ var
     Node := FNavigatorNodeToExpand;
     while (Assigned(Node)) do
     begin
-      if (Child = Node) then
+      if (Node = Child) then
         FNavigatorNodeToExpand := nil;
       Node := Node.Parent;
     end;
@@ -8538,7 +8535,7 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
-          ProfilingPoint(1);
+          ProfilingPoint(Profile, 1);
 
           Child := Parent.getFirstChild();
           while (Assigned(Child)) do
@@ -8553,7 +8550,7 @@ var
               DeleteChild(Node);
             end;
 
-          ProfilingPoint(2);
+          ProfilingPoint(Profile, 1);
 
           Add := not Assigned(Parent.getFirstChild());
           for I := 0 to Items.Count - 1 do
@@ -8570,7 +8567,7 @@ var
                 LastChild := AddChild(Parent, Items[I]);
             end;
 
-          ProfilingPoint(21);
+          ProfilingPoint(Profile, 11);
         end;
       etItemCreated:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
@@ -8643,15 +8640,10 @@ var
   ExpandingEvent: TTVExpandingEvent;
   Node: TTreeNode;
   OldSelected: TTreeNode;
-  Table: TSTable;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
   S: string;
+  Table: TSTable;
 begin
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
-  ProfilingReset();
-
+  CreateProfile(Profile);
   OldSelected := FNavigator.Selected;
 
   ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
@@ -8751,17 +8743,28 @@ begin
     end;
   end;
 
-  ProfilingPoint(22);
+  ProfilingPoint(Profile, 12);
 
   FNavigator.OnChanging := ChangingEvent;
   FNavigator.OnChange := ChangeEvent;
 
-  ProfilingPoint(23);
+  ProfilingPoint(Profile, 13);
 
   if (FNavigator.Selected <> OldSelected) then
     SetTimer(Self.Handle, tiNavigator, 1, nil); // We're inside a Monitor call. So we can't call FNavigatorNodeChange2 directly
 
-  ProfilingPoint(24);
+  ProfilingPoint(Profile, 14);
+
+
+  // Debug 2017-02-24
+  try
+    if (Assigned(FNavigatorNodeToExpand)) then
+      FNavigatorNodeToExpand.Count;
+  except
+    on E: Exception do
+      raise EAssertionFailed.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + E.Message);
+  end;
 
   if (Assigned(FNavigatorNodeToExpand) and (FNavigatorNodeToExpand.Count > 0)) then
   begin
@@ -8772,126 +8775,117 @@ begin
     FNavigator.OnExpanding := ExpandingEvent;
   end;
 
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) div Frequency > 1) then
-    begin
-      S := 'FNavigatorUpdate - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
-        + 'Sender: ' + Event.Sender.ClassName + ', ';
-      if (Assigned(Event.Items)) then
-        S := S
-          + 'Items: ' + Event.Items.ClassName + ', '
-          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-      if (Event.Item is TSTable) then
-        S := S
-          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-      S := S + ProfilingReport() + #13#10;
-      TimeMonitor.Append(S, ttDebug);
-    end;
-  ProfilingReset();
+  if (ProfilingTime(Profile) > 1000) then
+  begin
+    S := 'FNavigatorUpdate - '
+      + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
+      + 'Sender: ' + Event.Sender.ClassName + ', ';
+    if (Assigned(Event.Items)) then
+      S := S
+        + 'Items: ' + Event.Items.ClassName + ', '
+        + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+    if (Event.Item is TSTable) then
+      S := S
+        + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+    S := S + ProfilingReport(Profile) + #13#10;
+    TimeMonitor.Append(S, ttDebug);
+  end;
+  CloseProfile(Profile);
 end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
 begin
-  MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
-  MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
-  MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-  MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
-  MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField]);
-  MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
-  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
-  MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
-  MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
-  MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
-  MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-  MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
-
-  // Debug 2017-01-02
-  if (Assigned(Node) and (Node.ImageIndex = iiBaseTable)) then
+  if (not Assigned(Node) or not (TObject(Node.Data) is TPAccount.TFavorite)) then
   begin
-    if (not Assigned(Node.Data)) then
-      raise ERangeError.Create('Table: ' + Node.Text);
-    if (not Assigned(TSBaseTable(Node.Data).Database)) then
-      raise ERangeError.Create('Table: ' + Node.Text);
+    MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
+    MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
+    MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+    MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
+    MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField]);
+    MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
+    MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
+    MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
+    MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
+    MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
+    MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
+    MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
+    MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
+    MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
+    MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
+    MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+    MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+    MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
+    MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
+    MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
+    MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
+    MainAction('aDDeleteProcess').Enabled := False;
+    MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
+    MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+    MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+    MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
+    MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]);
+    MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
+    MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
+    MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiBaseField]) and TSTableField(Node.Data).NullAllowed));
+
+    miNExpand.Default := aPExpand.Enabled;
+    miNCollapse.Default := aPCollapse.Enabled;
+    aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
+      or MainAction('aDDeleteTable').Enabled
+      or MainAction('aDDeleteView').Enabled
+      or MainAction('aDDeleteRoutine').Enabled
+      or MainAction('aDDeleteEvent').Enabled
+      or MainAction('aDDeleteKey').Enabled
+      or MainAction('aDDeleteField').Enabled
+      or MainAction('aDDeleteForeignKey').Enabled
+      or MainAction('aDDeleteTrigger').Enabled;
+    if (not Assigned(Node)) then
+      miNProperties.Action := nil
+    else
+      case (Node.ImageIndex) of
+        iiServer: miNProperties.Action := MainAction('aDEditServer');
+        iiDatabase: miNProperties.Action := MainAction('aDEditDatabase');
+        iiBaseTable: miNProperties.Action := MainAction('aDEditTable');
+        iiView: miNProperties.Action := MainAction('aDEditView');
+        iiProcedure,
+        iiFunction: miNProperties.Action := MainAction('aDEditRoutine');
+        iiEvent: miNProperties.Action := MainAction('aDEditEvent');
+        iiTrigger: miNProperties.Action := MainAction('aDEditTrigger');
+        iiKey: miNProperties.Action := MainAction('aDEditKey');
+        iiBaseField,
+        iiVirtualField: miNProperties.Action := MainAction('aDEditField');
+        iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
+        iiProcess: miNProperties.Action := MainAction('aDEditProcess');
+        iiVariable: miNProperties.Action := MainAction('aDEditVariable');
+        else miNProperties.Action := nil;
+      end;
+    miNProperties.Enabled := Assigned(miNProperties.Action) and (miNProperties.Action is TAction) and TAction(miNProperties.Action).Enabled;
+    miNProperties.Caption := Preferences.LoadStr(97) + '...';
+    miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
+
+    ToolBarData.tbPropertiesAction := miNProperties.Action;
+    Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
+
+    FNavigator.ReadOnly := not MainAction('aERename').Enabled;
   end;
-
-  MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
-  MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
-  MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
-  MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-  MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-  MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
-  MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
-  MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
-  MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDDeleteProcess').Enabled := False;
-  MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
-  MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-  MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-  MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
-  MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]);
-  MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
-  MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiBaseField]) and TSTableField(Node.Data).NullAllowed));
-
-  miNExpand.Default := aPExpand.Enabled;
-  miNCollapse.Default := aPCollapse.Enabled;
-  aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
-    or MainAction('aDDeleteTable').Enabled
-    or MainAction('aDDeleteView').Enabled
-    or MainAction('aDDeleteRoutine').Enabled
-    or MainAction('aDDeleteEvent').Enabled
-    or MainAction('aDDeleteKey').Enabled
-    or MainAction('aDDeleteField').Enabled
-    or MainAction('aDDeleteForeignKey').Enabled
-    or MainAction('aDDeleteTrigger').Enabled;
-  if (not Assigned(Node)) then
-    miNProperties.Action := nil
-  else
-    case (Node.ImageIndex) of
-      iiServer: miNProperties.Action := MainAction('aDEditServer');
-      iiDatabase: miNProperties.Action := MainAction('aDEditDatabase');
-      iiBaseTable: miNProperties.Action := MainAction('aDEditTable');
-      iiView: miNProperties.Action := MainAction('aDEditView');
-      iiProcedure,
-      iiFunction: miNProperties.Action := MainAction('aDEditRoutine');
-      iiEvent: miNProperties.Action := MainAction('aDEditEvent');
-      iiTrigger: miNProperties.Action := MainAction('aDEditTrigger');
-      iiKey: miNProperties.Action := MainAction('aDEditKey');
-      iiBaseField,
-      iiVirtualField: miNProperties.Action := MainAction('aDEditField');
-      iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
-      iiProcess: miNProperties.Action := MainAction('aDEditProcess');
-      iiVariable: miNProperties.Action := MainAction('aDEditVariable');
-      else miNProperties.Action := nil;
-    end;
-  miNProperties.Enabled := Assigned(miNProperties.Action) and (miNProperties.Action is TAction) and TAction(miNProperties.Action).Enabled;
-  miNProperties.Caption := Preferences.LoadStr(97) + '...';
-  miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
-
-  ToolBarData.tbPropertiesAction := miNProperties.Action;
-  Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
-
-  FNavigator.ReadOnly := not MainAction('aERename').Enabled;
 end;
 
 procedure TFSession.FObjectSearchChange(Sender: TObject);
@@ -9085,15 +9079,10 @@ begin
 end;
 
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  Profile: TProfile;
 begin
-  // Debug 2017-02-05
-  Assert(Assigned(SBlob),
-    'SBlob = SBlobDebug: ' + BoolToStr(SBlob = SBlobDebug, True));
-  // 2017-02-08:
-  // aDDeleteExecute - start - SBlob: True
-  // # 2017-02-08 15:39:58
-  // DROP TABLE `mixer`.`extranet`;
-  // aDDeleteExecute - end - SBlob: True
+  CreateProfile(Profile);
 
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
@@ -9104,11 +9093,7 @@ begin
       etItemDeleted:
         SessionUpdate(Event);
       etMonitor:
-        begin
-          ProfilingPoint(MonitorProfile, 7);
-          FLogUpdate();
-          ProfilingPoint(MonitorProfile, 11);
-        end;
+        FLogUpdate();
       etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
       etAfterExecuteSQL:
@@ -9117,9 +9102,11 @@ begin
         Wanted.Clear();
     end;
 
-  // Debug 2017-02-05
-  Assert(Assigned(SBlob),
-    'EventType: ' + IntToStr(Ord(Event.EventType)));
+  if (ProfilingTime(Profile) > 1000) then
+    SendToDeveloper('EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
+      + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+      + ProfilingReport(Profile));
+  CloseProfile(Profile);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -9698,7 +9685,7 @@ end;
 
 procedure TFSession.FTextChange(Sender: TObject);
 begin
-  if (Assigned(EditorField) and EditorField.CanModify and FText.Modified) then
+  if (FText.Visible and Assigned(EditorField) and EditorField.CanModify and FText.Modified) then
   begin
     if (EditorField.DataSet.State = dsBrowse) then
       EditorField.DataSet.Edit();
@@ -9891,8 +9878,6 @@ begin
     if (not Assigned(TUnprotectedDBGrid(Result).DataLink)) then
       raise ERangeError.Create(SRangeError);
 
-    aDDeleteRecord.DataSource := Result.DataSource;
-    aDInsertRecord.DataSource := Result.DataSource;
     Result.DataSource.OnDataChange := DBGridDataSourceDataChange;
 
     for I := 0 to PResult.ControlCount - 1 do
@@ -10052,24 +10037,6 @@ end;
 
 function TFSession.GetEditorField(): TField;
 begin
-  // Debug 2016-12-24
-  if (Assigned(ActiveDBGrid)) then
-  begin
-    if (not (TObject(ActiveDBGrid) is TDBGrid)) then
-      try
-        raise ERangeERror.Create('ClassType: ' + TObject(ActiveDBGrid).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-    if (Assigned(ActiveDBGrid.SelectedField)) then
-      if (not (ActiveDBGrid.SelectedField is TField)) then
-        try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + ActiveDBGrid.SelectedField.ClassName);
-        finally
-          raise ERangeError.Create(SRangeError);
-        end;
-  end;
-
   if (not Assigned(ActiveDBGrid)
     or not Assigned(ActiveDBGrid.SelectedField)
     or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
@@ -10102,19 +10069,15 @@ begin
   // Debug 2016-12-19
   if (Assigned(Result)) then
   begin
-    try
-      if (Result is TObject) then
-        Write;
-    except
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName);
-    end;
     if (not (TObject(Result) is TSItem)) then
       if ((Window.ActiveControl is TTreeView) and Assigned(TTreeView(Window.ActiveControl).Selected)) then
         raise ERangeError.Create('ImageIndex: ' + IntToStr(TTreeView(Window.ActiveControl).Selected.ImageIndex) + #13#10
           + 'Text: ' + TTreeView(Window.ActiveControl).Selected.Text)
       else if ((Window.ActiveControl is TListView) and Assigned(TListView(Window.ActiveControl).Selected)) then
         raise ERangeError.Create('ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption)
+          + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption + #13#10
+          + 'Assigned(Data): ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data), True) + #13#10
+          + 'Is User: ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data) and (Session.Users.IndexOf(TListView(Window.ActiveControl).Selected.Data) >= 0), True))
       else
         raise ERangeError.Create('ActiveControl.ClassType: ' + Window.ActiveControl.ClassName);
   end;
@@ -10163,7 +10126,7 @@ begin
     vEditor: Result := SQLEditor;
     vEditor2: Result := SQLEditor2;
     vEditor3: Result := SQLEditor3;
-    else raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(View)) +  ')');
+    else raise ERangeError.Create('View: ' + IntToStr(Ord(View)));
   end;
 end;
 
@@ -11328,43 +11291,20 @@ end;
 
 procedure TFSession.ListViewExit(Sender: TObject);
 var
-  Column: TListColumn;
+  Count: Integer;
   I: Integer;
-  ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
-  Width: Integer; // Debug 2016-12-01
+  Width: Integer;
 begin
   if (Sender is TListView) then
   begin
-    // Debug 2016-12-20
-    // Somewhere, Session demagged, but why and where???
-    if (not Assigned(Session.Account)) then // Why looses Session the Account value???
-      raise ERangeError.Create(SRangeError);
-
+    Count := TListView(Sender).Items.Count;
     for I := 0 to TListView(Sender).Columns.Count - 1 do
     begin
-      // Debug 2016-12-02
-      if (not Assigned(Session)) then
-        raise ERangeError.Create(SRangeError);
-      if (not (TObject(Session) is TSSession)) then
-        try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
-        except
-          raise ERangeError.Create(SRangeError);
-        end;
-      if (not Assigned(Session.Account)) then
-        raise ERangeError.Create(SRangeError);
-      if (not (TObject(Session.Account) is TPAccount)) then
-        try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
-        except
-          raise ERangeError.Create(SRangeError);
-        end;
-      if (not Assigned(Session.Account.Desktop)) then
-        raise ERangeError.Create(SRangeError);
-      Column := TListView(Sender).Columns[I];
-      Width := Column.Width;
-      ListViewKind := ColumnWidthKindByListView(TListView(Sender));
-      Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
+      if (Count = 0) then
+        Width := TListView(Sender).Column[I].Width
+      else
+        Width := ListView_GetColumnWidth(TListView(Sender).Handle, I);
+      Session.Account.Desktop.ColumnWidths[ColumnWidthKindByListView(TListView(Sender)), I] := Width;
     end;
   end;
 
@@ -11428,6 +11368,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 var
   Changes: Integer; // Debug 2017-02-04
   LastItem: TListItem;
+  Profile: TProfile;
   ReorderGroupIndex: Integer;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
@@ -11443,23 +11384,28 @@ var
   begin
     Assert(Item.Data = Data);
 
-    ProfilingPoint(14);
+    ProfilingPoint(Profile, 9);
 
     Item.SubItems.BeginUpdate();
-    ProfilingPoint(15);
+
+    // 0.8 seconds, EventType: 1, Items: 105
+    // 1.0 seconds, EventType: 0, Items: 5
+    // 1.1 seconds, EventType: 2, Items: 76
+
+    ProfilingPoint(Profile, 10);
     Item.SubItems.Clear();
-    ProfilingPoint(16);
+    ProfilingPoint(Profile, 11);
 
     Item.GroupID := GroupID;
 
     // 3.2 seconds for 329 items
 
-    ProfilingPoint(17);
+    ProfilingPoint(Profile, 12);
     Item.ImageIndex := ImageIndexByData(Data);
 
     // 3.8 seconds for 329 items
 
-    ProfilingPoint(18);
+    ProfilingPoint(Profile, 13);
 
     if ((TObject(ListView.Tag) is TSItemSearch)
         and not (Data is TSProcess)
@@ -11629,7 +11575,9 @@ var
         end;
         Item.SubItems.Add(S);
         if (Data is TSBaseTable) then
-          Item.SubItems.Add(TSBaseTable(Data).Comment);
+          Item.SubItems.Add(TSBaseTable(Data).Comment)
+        else
+          Item.SubItems.Add('');
       end
       else if (Data is TSRoutine) then
       begin
@@ -11844,84 +11792,63 @@ var
 
     // Event.Items.ClassType ???
 
-    ProfilingPoint(19);
+    ProfilingPoint(Profile, 14);
 
     Item.SubItems.EndUpdate();
 
-    ProfilingPoint(20);
+    ProfilingPoint(Profile, 15);
     Inc(Changes);
   end;
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; GroupID: Integer; const Data: TObject): TListItem;
   var
-    Count: Integer; // Cache for speeding
-    I: Integer;
     Item: TListItem;
     Index: Integer;
     Left: Integer;
     Mid: Integer;
     Right: Integer;
   begin
-    ProfilingPoint(7);
+    ProfilingPoint(Profile, 4);
 
-    Count := ListView.Items.Count; // Cache for speeding
-    if (Assigned(LastItem) and (LastItem.Index + 1 < Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
+    if (Assigned(LastItem) and (LastItem.Index + 1 < ListView.Items.Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
       Index := LastItem.Index + 1
     else
-    begin
-      ProfilingPoint(8);
-
-      Index := -1;
-      for I := 0 to Count - 1 do
-        if (ListView.Items[I].Data = Data) then
-        begin
-          Index := I;
-          break;
-        end;
-
-      // 0.8 seconds, 483 items
-
-      ProfilingPoint(9);
-    end;
-
-    ProfilingPoint(10);
-
-    if ((Count > 0) and (Index < 0)) then
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
       UpdateItem(Item, GroupID, Data);
 
+      Index := ListView.Items.Count;
       Left := 0;
       Right := ListView.Items.Count - 1;
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
-          -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s = %s', [ListView.Items[Mid].Caption, Item.Caption]);
-          1: begin Right := Mid - 1; Index := Mid - 1; end;
+          -1: begin Left := Mid + 1; Index := Mid + 1; end;
+          0: begin Index := Mid; break; end;
+          1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
 
       Item.Free();
     end;
 
-    ProfilingPoint(11);
+    ProfilingPoint(Profile, 5);
 
-    if (Index < 0) then
+    if (Index = ListView.Items.Count) then
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
-      Result := ListView.Items.Insert(Index + 1);
+      Result := ListView.Items.Insert(Index);
       Result.Data := Data;
       if (ReorderGroupIndex < 0) then
-        ReorderGroupIndex := Index + 1
+        ReorderGroupIndex := Index
       else
-        ReorderGroupIndex := Min(ReorderGroupIndex, Index + 1);
+        ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end
     else
     begin
@@ -11932,19 +11859,19 @@ var
         else
           ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
-    ProfilingPoint(12);
+    ProfilingPoint(Profile, 6);
 
     UpdateItem(Result, GroupID, Data);
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    ProfilingPoint(12);
+    ProfilingPoint(Profile, 7);
     Result := ListView.Items.Add();
 
     Result.Data := Data;
 
-    ProfilingPoint(13);
+    ProfilingPoint(Profile, 8);
 
     UpdateItem(Result, GroupID, Data);
   end;
@@ -12024,7 +11951,6 @@ var
 
   var
     Add: Boolean;
-    ColumnWidths: array [0..7] of Integer;
     Count: Integer;
     Data: TCustomData;
     Header: string;
@@ -12043,15 +11969,20 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
+          ProfilingPoint(Profile, 2);
+
+          Count := ListView.Items.Count;
           for I := 0 to ListView.Columns.Count - 1 do
-          begin
-            ColumnWidths[I] := ListView.Columns[I].Width;
-            ListView.Columns[I].Width := 50; // Make soure no auto column width will be calculated for each item
-          end;
+            if (Count = 0) then
+              ListView.Columns[I].Width := 50
+            else if (ListView.Columns[I].WidthType < 0) then
+              ListView.Columns[I].Width := ListView_GetColumnWidth(ListView.Handle, I);
 
           for I := ListView.Items.Count - 1 downto 0 do
             if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
               ListView.Items.Delete(I);
+
+          ProfilingPoint(Profile, 3);
 
           Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].ColumnIndex = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to SItems.Count - 1 do
@@ -12064,8 +11995,8 @@ var
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
               ListView.Columns[I].Width := Preferences.GridMaxColumnWidth
-            else
-              ListView.Columns[I].Width := ColumnWidths[I];
+            else if (Count = 0) then
+              ListView.Columns[I].Width := Session.Account.Desktop.ColumnWidths[Kind, I];
         end;
       etItemValid:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
@@ -12123,22 +12054,22 @@ var
       etItemDeleted:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          ProfilingPoint(21);
+          ProfilingPoint(Profile, 17);
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
-              ProfilingPoint(22);
+              ProfilingPoint(Profile, 18);
               ListView.Items.Delete(I);
-              ProfilingPoint(23);
+              ProfilingPoint(Profile, 19);
               Inc(Changes);
               break;
             end;
 
-          ProfilingPoint(24);
+          ProfilingPoint(Profile, 20);
         end;
     end;
 
-    ProfilingPoint(25);
+    ProfilingPoint(Profile, 21);
 
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
@@ -12153,7 +12084,7 @@ var
         end;
     end;
 
-    ProfilingPoint(26);
+    ProfilingPoint(Profile, 22);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDeleted]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -12200,7 +12131,7 @@ var
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
 
-    ProfilingPoint(27);
+    ProfilingPoint(Profile, 23);
   end;
 
   procedure UpdateQuickAccess();
@@ -12306,16 +12237,12 @@ var
   Count: Integer;
   I: Integer;
   Kind: TPAccount.TDesktop.TListViewKind;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
   S: string;
 begin
   if (Assigned(ListView)
     and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
-    if (not QueryPerformanceCounter(Start)) then Start := 0;
-    ProfilingReset();
+    CreateProfile(Profile);
 
     LastItem := nil;
     Changes := 0;
@@ -12323,13 +12250,12 @@ begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
 
-    ListView.Columns.BeginUpdate();
     ListView.Items.BeginUpdate();
     ListView.DisableAlign();
 
     Kind := ColumnWidthKindByListView(ListView);
 
-    ProfilingPoint(5);
+    ProfilingPoint(Profile, 1);
 
     if (TObject(ListView.Tag) is TSSession) then
     begin
@@ -12393,52 +12319,37 @@ begin
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
     ListView.EnableAlign();
+
+    ProfilingPoint(Profile, 24);
+
     ListView.Items.EndUpdate();
 
-    ProfilingPoint(28);
+    // 0.7 seconds, EventType: 0, Items: 0
+    // 1.0 seconds, EventType: 0, Items: 49
 
-    ListView.Columns.EndUpdate();
-
-    // 5 seconds
-    // 1 seconds, EventType: 1, Items: 36
-    // 19 seconds, EventType: 0, Items: 66
-    // 2.7 seconds, EventType: 0, Items: 0
-    // 0.9 seconds, EventType: 0, Items: 39
-    // 0.4 seconds, EventType: 0, Items: 740
-    // 2.7 seconds, EventType: 0, Items: 36
-    // 5.4 seconds, EventType: 0, Items: 46
-    // 4.4 seconds, EventType: 0, Items: 0
-    // 2.0 seconds, EventType: 0, Items: 38
-    // 2.7 seconds, EventType: 0, Items: 3
-    // 6.7 seconds, EventType: 0, Items: 0
-    // 3.0 seconds, EventType: 0, Items: 10, TSBaseTableFields
-    // 0.7 seconds, EventType: 0, Items: 483, TSBaseTableFields
-
-    ProfilingPoint(29);
+    ProfilingPoint(Profile, 25);
 
     ListView.OnChanging := ChangingEvent;
 
     ListViewHeaderUpdate(ListView);
 
-    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-      if ((Finish - Start) div Frequency > 1) then
-      begin
-        S := 'ListViewUpdate - '
-          + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-        if (Assigned(Event.Items)) then
-          S := S
-            + 'Items: ' + Event.Items.ClassName + ', '
-            + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-        if (Event.Item is TSTable) then
-          S := S
-            + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-        S := S + 'Changes: ' + IntToStr(Changes) + ', ';
-        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-        S := S + ProfilingReport() + #13#10;
-        TimeMonitor.Append(S, ttDebug);
-      end;
+    if (ProfilingTime(Profile) > 1000) then
+    begin
+      S := 'ListViewUpdate - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+      if (Assigned(Event.Items)) then
+        S := S
+          + 'Items: ' + Event.Items.ClassName + ', '
+          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      if (Event.Item is TSTable) then
+        S := S
+          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+      S := S + 'Changes: ' + IntToStr(Changes) + #13#10;
+      S := S + ProfilingReport(Profile) + #13#10;
+      TimeMonitor.Append(S, ttDebug);
+    end;
 
-    ProfilingReset();
+    CloseProfile(Profile);
   end;
 
   Inc(ListViewUpdateCount);
@@ -13774,7 +13685,8 @@ begin
               begin
                 SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
 
-                DExecutingSQL.Update := SourceTable.Update;
+                if (Assigned(SourceTable)) then
+                  DExecutingSQL.Update := SourceTable.Update;
                 if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
                   MessageBeep(MB_ICONERROR)
                 else
@@ -13906,18 +13818,7 @@ procedure TFSession.PContentChange(Sender: TObject);
     Top: Integer;
   begin
     if (Control.Top >= 0) then Top := Control.Top else Top := 0;
-
-try
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Top));
-except
-  on E: Exception do
-    raise ERangeError.Create('Left: ' + IntToStr(Control.Left) + #13#10
-      + 'Top: ' + IntToStr(Top) + #13#10
-      + 'Name: ' + Control.Name + #13#10
-      + 'ClassType: ' + Control.ClassName + #13#10
-      + E.Message);
-end;
-
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
       if (Control.Controls[I] is TWinControl) then
@@ -13969,18 +13870,9 @@ begin
     SResult.Align := alNone;
     PResult.Align := alNone;
 
-    // Debug 2016-12-27
-    if (not Assigned(SBlob)) then
-      raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-        + 'SBlob = SBlobDebug: ' + BoolToStr(SBlob = SBlobDebug, True) + #13#10
-        + 'Assigned(PBlob): ' + BoolToStr(Assigned(PBlob), True));
-      // 2017-01-04: DROP TABLE was the last stmt
-      // 2017-01-10: DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-10: DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-11: DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-26: DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-26: DROP DATABASE was in the log, but not the last stmt
-      // 2017-02-04: DROP TABLE (generated by MF) was the last stmt
+    // 2017-02-20
+    // I can't find out, why SBlob will be set to nil - but this works... :-/
+    if (not Assigned(SBlob)) then SBlob := SBlobDebug;
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -14513,80 +14405,85 @@ var
   Trigger: TSTrigger;
   User: TSUser;
 begin
-  if (SItem is TSTable) then
-  begin
-    Table := TSTable(SItem);
-
-    Result := Table.Database.RenameTable(Table, NewName);
-  end
-  else if (SItem is TSTrigger) then
-  begin
-    Trigger := TSTrigger(SItem);
-
-    NewTrigger := TSTrigger.Create(Trigger.Database.Triggers);
-    NewTrigger.Assign(Trigger);
-    NewTrigger.Name := NewName;
-    Result := Trigger.Database.UpdateTrigger(Trigger, NewTrigger);
-    NewTrigger.Free();
-  end
-  else if (SItem is TSEvent) then
-  begin
-    Event := TSEvent(SItem);
-
-    NewEvent := TSEvent.Create(Event.Database.Events);
-    NewEvent.Assign(Event);
-    NewEvent.Name := NewName;
-    Result := Event.Database.UpdateEvent(Event, NewEvent);
-    NewEvent.Free();
-  end
-  else if (SItem is TSKey) then
-  begin
-    BaseTable := TSBaseField(SItem).Table;
-
-    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
-    NewBaseTable.Assign(BaseTable);
-    NewBaseTable.KeyByCaption(SItem.Caption).Name := NewName;
-    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
-    NewBaseTable.Free();
-  end
-  else if (SItem is TSBaseField) then
-  begin
-    BaseTable := TSBaseField(SItem).Table;
-
-    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
-    NewBaseTable.Assign(BaseTable);
-    NewBaseTable.FieldByName(SItem.Name).Name := NewName;
-    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
-    NewBaseTable.Free();
-  end
-  else if (SItem is TSForeignKey) then
-  begin
-    BaseTable := TSForeignKey(SItem).Table;
-
-    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
-    NewBaseTable.Assign(BaseTable);
-    NewBaseTable.ForeignKeyByName(SItem.Name).Name := NewName;
-    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
-    NewBaseTable.Free();
-  end
-  else if (SItem is TSUser) then
-  begin
-    User := TSUser(SItem);
-
-    NewUser := TSUser.Create(Session.Users);
-    NewUser.Assign(User);
-    if (NewName = '<' + Preferences.LoadStr(287) + '>') then
-      NewUser.Name := ''
-    else
-      NewUser.Name := NewName;
-    Result := Session.UpdateUser(User, NewUser);
-    NewUser.Free();
-  end
+  if (NewName = '') then
+    Result := False
   else
-    Result := False;
+  begin
+    if (SItem is TSTable) then
+    begin
+      Table := TSTable(SItem);
 
-  if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and Result) then
-    ActiveDBGrid.DataSource.DataSet.Close();
+      Result := Table.Database.RenameTable(Table, NewName);
+    end
+    else if (SItem is TSTrigger) then
+    begin
+      Trigger := TSTrigger(SItem);
+
+      NewTrigger := TSTrigger.Create(Trigger.Database.Triggers);
+      NewTrigger.Assign(Trigger);
+      NewTrigger.Name := NewName;
+      Result := Trigger.Database.UpdateTrigger(Trigger, NewTrigger);
+      NewTrigger.Free();
+    end
+    else if (SItem is TSEvent) then
+    begin
+      Event := TSEvent(SItem);
+
+      NewEvent := TSEvent.Create(Event.Database.Events);
+      NewEvent.Assign(Event);
+      NewEvent.Name := NewName;
+      Result := Event.Database.UpdateEvent(Event, NewEvent);
+      NewEvent.Free();
+    end
+    else if (SItem is TSKey) then
+    begin
+      BaseTable := TSBaseField(SItem).Table;
+
+      NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
+      NewBaseTable.Assign(BaseTable);
+      NewBaseTable.KeyByCaption(SItem.Caption).Name := NewName;
+      Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
+      NewBaseTable.Free();
+    end
+    else if (SItem is TSBaseField) then
+    begin
+      BaseTable := TSBaseField(SItem).Table;
+
+      NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
+      NewBaseTable.Assign(BaseTable);
+      NewBaseTable.FieldByName(SItem.Name).Name := NewName;
+      Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
+      NewBaseTable.Free();
+    end
+    else if (SItem is TSForeignKey) then
+    begin
+      BaseTable := TSForeignKey(SItem).Table;
+
+      NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
+      NewBaseTable.Assign(BaseTable);
+      NewBaseTable.ForeignKeyByName(SItem.Name).Name := NewName;
+      Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
+      NewBaseTable.Free();
+    end
+    else if (SItem is TSUser) then
+    begin
+      User := TSUser(SItem);
+
+      NewUser := TSUser.Create(Session.Users);
+      NewUser.Assign(User);
+      if (NewName = '<' + Preferences.LoadStr(287) + '>') then
+        NewUser.Name := ''
+      else
+        NewUser.Name := NewName;
+      Result := Session.UpdateUser(User, NewUser);
+      NewUser.Free();
+    end
+    else
+      Result := False;
+
+    if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and Result) then
+      ActiveDBGrid.DataSource.DataSet.Close();
+  end;
 end;
 
 procedure TFSession.SaveDiagram(Sender: TObject);
@@ -14842,13 +14739,10 @@ begin
   TempActiveControl := Window.ActiveControl;
 
   ListViewUpdateCount := 0;
-  CreateProfile(Profile);
 
   if (Assigned(Event)) then
   begin
-    ProfilingPoint(Profile, 1);
-
-    ProfilingReset();
+    CreateProfile(Profile);
 
     if (Event.EventType = etItemDeleted) then
     begin
@@ -14857,8 +14751,6 @@ begin
       if (Assigned(FNavigatorNodeToExpand) and (Event.Item = TObject(FNavigatorNodeToExpand.Data))) then
         FNavigatorNodeToExpand := nil;
     end;
-
-    ProfilingPoint(Profile, 2);
 
     if (Event.EventType in [etItemDeleted, etItemRenamed]) then
     begin
@@ -14905,32 +14797,28 @@ begin
       end;
     end;
 
-    ProfilingPoint(Profile, 3);
+    ProfilingPoint(Profile, 2);
 
     if (Event.Items is TSItemSearch) then
     begin
-      ProfilingPoint(Profile, 4);
-
+      ProfilingPoint(Profile, 3);
       ListViewUpdate(Event, ObjectSearchListView);
-
-      ProfilingPoint(Profile, 5);
+      ProfilingPoint(Profile, 4);
     end
     else if (Event.Items is TSQuickAccess) then
     begin
-      ProfilingPoint(Profile, 6);
-
+      ProfilingPoint(Profile, 5);
       ListViewUpdate(Event, QuickAccessListView);
-
-      ProfilingPoint(Profile, 7);
+      ProfilingPoint(Profile, 6);
     end
     else
     begin
-      ProfilingPoint(Profile, 8);
+      ProfilingPoint(Profile, 7);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
 
-      ProfilingPoint(Profile, 9);
+      ProfilingPoint(Profile, 8);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
       begin
@@ -14987,7 +14875,7 @@ begin
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
-      ProfilingPoint(Profile, 10);
+      ProfilingPoint(Profile, 9);
 
       if ((Event.EventType = etItemValid)) then
       begin
@@ -15012,24 +14900,34 @@ begin
           PContentChange(nil);
         end;
 
-        ProfilingPoint(Profile, 12);
-
         if ((View = vBrowser) and (Event.Item = CurrentData)) then
           Wanted.Update := UpdateAfterAddressChanged;
 
-        ProfilingPoint(Profile, 13);
-
         if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
           PContentChange(nil);
-
-        ProfilingPoint(Profile, 14);
       end;
     end;
 
-    ProfilingPoint(Profile, 15);
-  end;
+    ProfilingPoint(Profile, 10);
 
-  ProfilingPoint(Profile, 16);
+    if (ProfilingTime(Profile) > 1000) then
+    begin
+      S := 'SessionUpdate - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType));
+      if (Assigned(Event.Items)) then
+        S := S
+          + ', Items: ' + Event.Items.ClassName
+          + ', Count: ' + IntToStr(Event.Items.Count);
+      if (Event.Item is TSTable) then
+        S := S
+          + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
+      S := S
+        + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
+        + ProfilingReport(Profile);
+      TimeMonitor.Append(S, ttDebug);
+    end;
+    CloseProfile(Profile);
+  end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
   begin
@@ -15039,12 +14937,8 @@ begin
       Window.ActiveControl := TempActiveControl;
   end;
 
-  ProfilingPoint(Profile, 17);
-
   // StatusBar should be refreshed, after all events applied.
   PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
-
-  ProfilingPoint(Profile, 18);
 
   if (Assigned(Event)
     and ((Event.EventType in [etItemCreated, etItemRenamed])
@@ -15052,26 +14946,6 @@ begin
     and (Screen.ActiveForm = Window)
     and Wanted.Nothing) then
     Wanted.Update := Session.Update;
-
-  ProfilingPoint(Profile, 19);
-
-  if (ProfilingTime(Profile) > 1000) then
-  begin
-    S := 'SessionUpdate - '
-      + 'EventType: ' + IntToStr(Ord(Event.EventType));
-    if (Assigned(Event.Items)) then
-      S := S
-        + ', Items: ' + Event.Items.ClassName
-        + ', Count: ' + IntToStr(Event.Items.Count);
-    if (Event.Item is TSTable) then
-      S := S
-        + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
-    S := S + #13#10
-      + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
-      + ProfilingReport(Profile);
-    TimeMonitor.Append(S, ttDebug);
-  end;
-  CloseProfile(Profile);
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
@@ -15342,10 +15216,13 @@ end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
+  Control: TWinControl; // Debug 2017-02-12
   Count: Integer;
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
+  Control := Window.ActiveControl;
+
   if (Assigned(StatusBar) and (Immediately or (fsActive in FrameState)) and not (csDestroying in ComponentState) and Assigned(Window)) then
   begin
     if (not Assigned(Window.ActiveControl)) then
@@ -15354,6 +15231,11 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveBCEditor.TextCaretPosition.Char) + ':' + IntToStr(ActiveBCEditor.TextCaretPosition.Line)
     else if (Window.ActiveControl = ActiveListView) then
     begin
+      // Debug 2017-02-12
+      Assert(Window.ActiveControl = Control);
+      Assert(not Assigned(ActiveListView.Selected) or Assigned(ActiveListView.Selected.Data),
+        'Count: ' + IntToStr(ActiveListView.Items.Count));
+    
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
       else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then
@@ -16070,56 +15952,12 @@ begin
 
   if (not Table.DataSet.Active) then
   begin
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
       TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
-
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
-
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
-
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     if (Table is TSView) then
       Table.DataSet.BeforeOpen := Desktop(TSView(Table)).DataSetBeforeOpen;
-
-    // Debug 2017-01-01
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
   else
@@ -16293,11 +16131,8 @@ end;
 
 procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
 begin
-  if ((TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
+  if (PResult.Visible and (TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
   begin
-    // Debug 2017-02-08
-    Assert(ActiveDBGrid.Enabled);
-
     Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.EditorMode := False;
   end;
@@ -16593,9 +16428,6 @@ begin
     for View in [vEditor, vEditor2, vEditor3] do
       if (Assigned(SQLEditors[View]) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
       begin
-        // Debug 2016-12-06
-        Assert(View in [vEditor, vEditor2, vEditor3]);
-
         Self.View := View;
 
         // Debug 2017-01-15
@@ -16963,7 +16795,12 @@ begin
         ciBaseTable,
         ciView,
         ciSystemView:
-          TSTable(CurrentData).Update();
+          begin
+            // Debug 2017-02-13
+            Assert(Assigned(CurrentData),
+              'CurrentAddress: ' + CurrentAddress);
+            TSTable(CurrentData).Update();
+          end;
         ciProcesses:
           Session.Processes.Update();
         ciUsers:
@@ -16974,19 +16811,11 @@ begin
           QuickAccessStep1();
       end;
     vBrowser:
-      begin
-        // Debug 2017-02-07
-        Assert(Assigned(CurrentData),
-          'CurrentAddress: ' + CurrentAddress + #13#10
-          + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-          + 'Text: ' + FNavigator.Selected.Text);
-
-        if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
-          or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
-          Wanted.Update := UpdateAfterAddressChanged
-        else if (not TSTable(CurrentData).DataSet.Active) then
-          TableOpen(nil);
-      end;
+      if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
+        or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
+        Wanted.Update := UpdateAfterAddressChanged
+      else if ((TObject(CurrentData) is TSTable) and not TSTable(CurrentData).DataSet.Active) then
+        TableOpen(nil);
     vIDE:
       TSDBObject(CurrentData).Update();
     vDiagram:
@@ -17111,9 +16940,15 @@ begin
     GridPoint := ActiveDBGrid.Parent.ScreenToClient(ScreenPoint);
     GridCoord := ActiveDBGrid.MouseCoord(GridPoint.X, GridPoint.Y);
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)) then
-      ActiveDBGrid.PopupMenu := MGridHeader
+    begin
+      ActiveDBGrid.PopupMenu := MGridHeader;
+      MGridHeaderColumn := ActiveDBGrid.Columns[GridCoord.X];
+    end
     else
+    begin
       ActiveDBGrid.PopupMenu := MGrid;
+      MGridHeaderColumn := nil;
+    end;
   end;
 
   inherited;

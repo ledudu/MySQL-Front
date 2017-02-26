@@ -204,7 +204,7 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (OnlineVersion <= ProgramVersion) then
+    if (not UpdateAvailable) then
     begin
       MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       FBCancel.Click();
@@ -229,6 +229,8 @@ begin
 
   Preferences.SetupProgram := SetupPrgFilename;
 
+  MessageBox(0, PChar('Datei " + SetupPrgFilename + " sollte geschrieben worden sein.'), 'Debug für Reinhard', MB_OK);
+
   ModalResult := mrOk;
 end;
 
@@ -241,7 +243,11 @@ begin
   else if (HTTPThread.ErrorCode <> 0) then
     RaiseLastOSError(HTTPThread.ErrorCode)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
-    MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+    MsgBox('HTTP Error #' + IntToStr(HTTPThread.HTTPStatus) + ':' + #10 + HTTPThread.HTTPMessage + #10#10
+      + HTTPThread.URI, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if ((HTTPThread.DebugReceiveFileSize > 0) and (HTTPThread.DebugReceiveFileSize < HTTPThread.DebugReceivedFileSize)) then
+    raise EAssertionFailed.Create('DebugReceiveFileSize: ' + IntToStr(HTTPThread.DebugReceiveFileSize) + #13#10
+      + 'DebugReceivedFileSize: ' + IntToStr(HTTPThread.DebugReceivedFileSize))
   else if (Assigned(PADFileStream)) then
     Perform(UM_PAD_FILE_RECEIVED, 0, 0)
   else if (Assigned(SetupProgramStream)) then

@@ -3885,6 +3885,7 @@ end;
 
 procedure TTExport.Execute();
 var
+  Cancel: Boolean;
   Database: TSDatabase;
   DatabaseName: string;
   DataSet: TMySQLQuery;
@@ -3974,7 +3975,7 @@ begin
 
     DoUpdateGUI();
 
-    if ((SQL <> '') and (Session.Connection.CreateResultHandle(ResultHandle, SQL))) then
+    if (Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Connection := Session.Connection;
@@ -3984,6 +3985,7 @@ begin
         DataSet.Open(ResultHandle);
         DatabaseName := DataSet.Connection.DatabaseName;
 
+        Cancel := False;
         if (not DataSet.IsEmpty
           and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
           and SQLParseKeyword(Parse, 'SELECT')
@@ -3998,10 +4000,19 @@ begin
               and (Items[I] is TDBObjectItem)
               and (TDBObjectItem(Items[I]).DBObject = Database.TableByName(ObjectName))) then
               Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
-          end;
+          end
+        else
+          Cancel := True;
+
         DataSet.Close();
 
+        if (Cancel) then
+          Session.Connection.CancelResultHandle(ResultHandle);
+
         DoUpdateGUI();
+
+        Assert(not Assigned(ResultHandle.SyncThread)
+          or (ResultHandle.SyncThread.DebugState <> ssResult));
       end;
       Session.Connection.CloseResultHandle(ResultHandle);
       DataSet.Free();
@@ -4083,8 +4094,13 @@ begin
               DataTable := Data and (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0);
 
               if (DataTable) then
+              begin
+                // Debug 2017-02-17
+                Assert((Success <> daSuccess) or not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.DebugState <> ssResult));
+
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
                   DoError(DatabaseError(Session), nil, True);
+              end;
 
               if (Success <> daAbort) then
               begin
@@ -4105,7 +4121,17 @@ begin
               end;
 
               if (DataTable and (Success <> daSuccess)) then
-                Session.Connection.CancelResultHandle(ResultHandle);
+                Session.Connection.CancelResultHandle(ResultHandle)
+              else
+              begin
+                // Debug 2017-02-16
+                Assert(not DataTable
+                  or not Assigned(ResultHandle.SyncThread)
+                  or (ResultHandle.SyncThread.DebugState <> ssResult),
+                  'Success: ' + IntToStr(Ord(Success)) + #13#10
+                  + 'DataTable:' + BoolToStr(DataTable, True) + #13#10
+                  + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+              end;
             end;
           end;
 
@@ -6684,6 +6710,7 @@ begin
         SQL := SQL + 'NUMBER'
     else
     case (Fields[I].DataType) of
+      ftUnknown,
       ftString:
         SQL := SQL + 'TEXT';
       ftShortInt,
@@ -7812,15 +7839,10 @@ begin
   SourceTable := TSTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
 
-  // Debug 2016-12-06
-  if (not Assigned(SourceDatabase)) then
-    raise ERangeError.Create(SRangeError);
-
   if (Session = DestinationSession) then
   begin
     while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, Item.DBObject.Name, Data)) do
       DoError(DatabaseError(Session), Item, True);
-
 
     DestinationTable := DestinationDatabase.TableByName(Item.DBObject.Name);
     if (DestinationTable is TSBaseTable) then
@@ -8407,7 +8429,7 @@ begin
 
   DoUpdateGUI();
 
-  if ((SQL <> '') and Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
+  if (Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
   begin
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Connection := Session.Connection;

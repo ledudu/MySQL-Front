@@ -5,7 +5,6 @@ interface {********************************************************************}
 uses
   Classes, SysUtils, Windows, SyncObjs,
   DB, DBCommon, SqlTimSt,
-uProfiling,
   SQLParser, MySQLConsts;
 
 const
@@ -24,7 +23,7 @@ type
   TMySQLLibrary = class
   type
     TLibraryType = (ltBuiltIn, ltDLL, ltHTTP);
-  private
+  strict private
     FHandle: HModule;
     FLibraryType: TLibraryType;
     FFilename: TFileName;
@@ -104,7 +103,7 @@ type
     TTraceType = (ttTime, ttRequest, ttResult, ttInfo, ttDebug);
     TTraceTypes = set of TTraceType;
     TMySQLOnMonitor = procedure (const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType) of object;
-  private
+  strict private
     Cache: record
       First: Integer;
       ItemsLen: TList;
@@ -173,27 +172,27 @@ type
     type
       TMode = (smSQL, smResultHandle, smDataSet);
       TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
-    private
-      Done: TEvent;
-      ExecutionTime: TDateTime;
+    strict private
       FConnection: TMySQLConnection;
-      RunExecute: TEvent;
-      SQL: string;
+      FRunExecute: TEvent;
       function GetCommandText(): string;
       function GetIsRunning(): Boolean;
       function GetNextCommandText(): string;
     protected
       CLStmts: array of Boolean;
       DataSet: TMySQLQuery;
+      Done: TEvent;
       ErrorCode: Integer;
       ErrorMessage: string;
       Executed: TEvent;
+      ExecutionTime: TDateTime;
       LibHandle: MySQLConsts.MYSQL;
       LibThreadId: my_uint;
       Mode: TMode;
       OnResult: TResultEvent;
       RequestThreadID: TThreadID;
       ResHandle: MYSQL_RES;
+      SQL: string;
       SQLIndex: Integer;
       StmtIndex: Integer;
       StmtLengths: TList;
@@ -203,14 +202,17 @@ type
       property CommandText: string read GetCommandText;
       property IsRunning: Boolean read GetIsRunning;
       property NextCommandText: string read GetNextCommandText;
+      property RunExecute: TEvent read FRunExecute;
     public
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
+      property DebugState: TState read State; // Debug 2017-02-16
+      property DebugSQL: string read SQL; // Debug 2017-02-19
     end;
 
     TTerminatedThreads = class(TList)
-    private
+    strict private
       CriticalSection: TCriticalSection;
       FConnection: TMySQLConnection;
     protected
@@ -222,7 +224,7 @@ type
       procedure Delete(const Item: Pointer); overload;
     end;
 
-  private
+  strict private
     FAfterExecuteSQL: TNotifyEvent;
     FAnsiQuotes: Boolean;
     FAsynchron: Boolean;
@@ -266,7 +268,7 @@ type
     KillThreadId: my_uint;
     SilentCount: Integer;
     SynchronCount: Integer;
-    SyncThreadExecuted: TEvent;
+    FSyncThreadExecuted: TEvent;
     function GetNextCommandText(): string;
     function GetServerTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
@@ -306,10 +308,6 @@ type
     function GetMaxAllowedServerPacket(): Integer; virtual;
     function InternExecuteSQL(const Mode: TSyncThread.TMode; const SQL: string;
       const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
-    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
-    function LibEncode(const Value: string): RawByteString; virtual;
-    function LibPack(const Value: string): RawByteString; virtual;
-    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure local_infile_end(const local_infile: Plocal_infile); virtual;
     function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
     function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
@@ -335,7 +333,11 @@ type
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
-    procedure SyncTerminate();
+    procedure SyncTerminate(const SyncThread: TSyncThread);
+    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
+    function LibEncode(const Value: string): RawByteString; virtual;
+    function LibPack(const Value: string): RawByteString; virtual;
+    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
@@ -344,6 +346,7 @@ type
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
     property SyncThread: TSyncThread read FSyncThread;
+    property SyncThreadExecuted: TEvent read FSyncThreadExecuted;
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
@@ -393,6 +396,7 @@ type
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
     property ThreadId: my_uint read FThreadId;
     property WarningCount: Integer read FWarningCount;
+    property DebugSyncThread: TSyncThread read FSyncThread; // Debug 2017-02-19
   published
     property Asynchron: Boolean read FAsynchron write FAsynchron default False;
     property AfterExecuteSQL: TNotifyEvent read FAfterExecuteSQL write FAfterExecuteSQL;
@@ -428,7 +432,7 @@ type
       LibRow: MYSQL_ROW;
     end;
     TRecordCompareDefs = array of record Ascending: Boolean; Field: TField; end;
-  private
+  strict private
     FConnection: TMySQLConnection;
     FIndexDefs: TIndexDefs;
     FInformConvertError: Boolean;
@@ -515,7 +519,7 @@ type
       BookmarkFlag: TBookmarkFlag;
     end;
     TInternRecordBuffers = class(TList)
-    private
+    strict private
       FDataSet: TMySQLDataSet;
       FRecordReceived: TEvent;
       function Get(Index: Integer): PInternRecordBuffer; inline;
@@ -526,7 +530,6 @@ type
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
-      function Add(Item: Pointer): Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
@@ -538,8 +541,7 @@ type
       property DataSet: TMySQLDataSet read FDataSet;
       property RecordReceived: TEvent read FRecordReceived;
     end;
-  private
-    DeleteBookmarks: array of TBookmark;
+  strict private
     FCachedUpdates: Boolean;
     FCanModify: Boolean;
     FCursorOpen: Boolean;
@@ -550,17 +552,18 @@ type
     FRecordsReceived: TEvent;
     FSortDef: TIndexDef;
     FTableName: string;
+    InGetNextRecords: Boolean;
     InternalPostResult: record
       Exception: Exception;
       NewIndex: Integer;
     end;
     function AllocInternRecordBuffer(): PInternRecordBuffer;
     procedure FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
-    procedure InternActivateFilter();
     function InternalPostEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     function VisibleInFilter(const InternRecordBuffer: PInternRecordBuffer): Boolean;
   protected
+    DeleteBookmarks: array of TBookmark;
     procedure ActivateFilter(); virtual;
     function AllocRecordBuffer(): TRecordBuffer; override;
     procedure DeactivateFilter(); virtual;
@@ -571,10 +574,12 @@ type
     function GetCanModify(): Boolean; override;
     function GetLibLengths(): MYSQL_LENGTHS; override;
     function GetLibRow(): MYSQL_ROW; override;
+    function GetNextRecords(): Integer; override;
     function GetRecNo(): Integer; override;
     function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount(): Integer; override;
     function GetUniDirectional(): Boolean; override;
+    procedure InternActivateFilter();
     function InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean; virtual;
     procedure InternalAddRecord(Buffer: Pointer; Append: Boolean); override;
     procedure InternalCancel(); override;
@@ -608,12 +613,12 @@ type
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
     property RecordsReceived: TEvent read FRecordsReceived;
   public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy(); override;
     function BookmarkValid(Bookmark: TBookmark): Boolean; override;
     function CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer; override;
+    constructor Create(AOwner: TComponent); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
-    procedure Delete(const Bookmarks: array of TBookmark); overload; virtual;
+    procedure Delete(const Bookmarks: array of TBookmark); overload;
+    destructor Destroy(); override;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
@@ -647,13 +652,15 @@ type
   end;
 
   TMySQLTable = class(TMySQLDataSet)
-  private
+  type
+    TWaitFor = (wfNothing, wfRecord, wfLast);
+  strict private
     FAutomaticLoadNextRecords: Boolean;
     FLimit: Integer;
-    FLimitedDataReceived: Boolean;
     FOffset: Integer;
-    FWaitForLast: Boolean;
+    FWaitFor: TWaitFor;
   protected
+    FLimitedDataReceived: Boolean;
     RequestedRecordCount: Integer;
     procedure DoBeforeScroll(); override;
     function GetCanModify(): Boolean; override;
@@ -665,7 +672,7 @@ type
     procedure InternalOpen(); override;
     function SQLSelect(): string; overload;
     function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
-    property WaitForLast: Boolean read FWaitForLast;
+    property WaitFor: TWaitFor read FWaitFor;
   public
     constructor Create(AOwner: TComponent); override;
     function LoadNextRecords(const AllRecords: Boolean = False): Boolean; virtual;
@@ -704,7 +711,7 @@ type
   end;
 
   TMySQLDateField = class(TDateField)
-  private
+  strict private
     ZeroDateString: string;
   protected
     function GetAsString(): string; override;
@@ -715,7 +722,7 @@ type
   end;
 
   TMySQLDateTimeField = class(TDateTimeField)
-  private
+  strict private
     ZeroDateString: string;
   protected
     function GetAsString(): string; override;
@@ -754,7 +761,7 @@ type
   end;
 
   TMySQLLargeWordField = class(TLargeintField)
-  private
+  strict private
     FMaxValue: UInt64;
     FMinValue: UInt64;
     procedure CheckRange(Value, Min, Max: UInt64);
@@ -859,7 +866,7 @@ type
   end;
 
   TMySQLSyncThreads = class(TList)
-  private
+  strict private
     CriticalSection: TCriticalSection;
     function ThreadByIndex(Index: Integer): TMySQLConnection.TSyncThread; inline;
   public
@@ -907,7 +914,6 @@ const
 var
   LocaleFormatSettings: TFormatSettings;
   MySQLConnectionOnSynchronize: TMySQLConnection.TSynchronizeEvent;
-  MonitorProfile: TProfile;
 
 implementation {***************************************************************}
 
@@ -996,7 +1002,7 @@ type
   TMySQLQueryMemoStream = TMySQLQueryBlobStream;
 
   TMySQLDataSetBlobStream = class(TMemoryStream)
-  private
+  strict private
     Empty: Boolean;
     Field: TBlobField;
     Mode: TBlobStreamMode;
@@ -1697,10 +1703,6 @@ var
   MoveLen: Integer;
   Pos: Integer;
 begin
-  ProfilingPoint(MonitorProfile, 4);
-
-  Assert(GetCurrentThreadId() = MainThreadId);
-
   if ((Cache.MemLen > 0) and (Length > 0)) then
   begin
     ItemText := Text; ItemLen := Length;
@@ -1777,12 +1779,12 @@ begin
     end;
   end;
 
-  ProfilingPoint(MonitorProfile, 5);
-
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
-    OnMonitor(Connection, Text, Length, ATraceType);
+  begin
+    Assert(GetCurrentThreadId() = MainThreadId);
 
-  ProfilingPoint(MonitorProfile, 17);
+    OnMonitor(Connection, Text, Length, ATraceType);
+  end;
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -1966,7 +1968,7 @@ begin
 
   FConnection := AConnection;
 
-  RunExecute := TEvent.Create(nil, True, False, '');
+  FRunExecute := TEvent.Create(nil, True, False, '');
   SetLength(CLStmts, 0);
   StmtLengths := TList.Create();
   State := ssClose;
@@ -1978,7 +1980,7 @@ destructor TMySQLConnection.TSyncThread.Destroy();
 begin
   MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(Self));
 
-  RunExecute.Free(); RunExecute := nil;
+  RunExecute.Free();
   SetLength(CLStmts, 0);
   StmtLengths.Free();
 
@@ -2135,9 +2137,16 @@ end;
 procedure TMySQLConnection.CancelResultHandle(var ResultHandle: TResultHandle);
 begin
   TerminateCS.Enter();
-  if (ResultHandle.SyncThread.State <> ssReady) then
+  if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssReady])) then
   begin
-    ResultHandle.SyncThread.Terminate();
+    ResultHandle.SyncThread.State := ssTerminate;
+    if (GetCurrentThreadId() = MainThreadID) then
+      Sync(ResultHandle.SyncThread)
+    else
+    begin
+      MySQLConnectionOnSynchronize(SyncThread);
+      SyncThreadExecuted.WaitFor(INFINITE);
+    end;
     ResultHandle.SyncThread := nil;
   end;
   TerminateCS.Leave();
@@ -2145,13 +2154,7 @@ end;
 
 procedure TMySQLConnection.CloseResultHandle(var ResultHandle: TResultHandle);
 begin
-  if (Assigned(ResultHandle.SyncThread) and (ResultHandle.SyncThread.State <> ssReady)) then
-    CancelResultHandle(ResultHandle);
-
-  if (Assigned(ResultHandle.SyncThread)) then
-    SyncAfterExecuteSQL(ResultHandle.SyncThread)
-  else
-    DoAfterExecuteSQL();
+  CancelResultHandle(ResultHandle);
 
   ResultHandle.SQL := '';
   ResultHandle.SQLIndex := 0;
@@ -2230,11 +2233,11 @@ begin
   InOnResult := False;
   TimeDiff := 0;
   SilentCount := 0;
-  SyncThreadExecuted := TEvent.Create(nil, False, False, '');
+  FSyncThreadExecuted := TEvent.Create(nil, False, False, '');
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
-  FDebugMonitor.CacheSize := 1000;
+  FDebugMonitor.CacheSize := 5000;
   FDebugMonitor.Enabled := True;
   FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;
@@ -2473,7 +2476,7 @@ end;
 
 function TMySQLConnection.GetDataFileAllowed(): Boolean;
 begin
-  Result := Assigned(Lib) and not (Lib.FLibraryType in [ltHTTP]);
+  Result := Assigned(Lib) and not (Lib.LibraryType in [ltHTTP]);
 end;
 
 function TMySQLConnection.GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string;
@@ -2560,9 +2563,9 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode;
 var
   CLStmt: TSQLCLStmt;
   P: PChar;
+  S: string; // Debug 2017-02-14
   SetNames: Boolean;
   SQLIndex: Integer;
-  SQLLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
@@ -2578,7 +2581,9 @@ begin
     Terminate();
 
   if (not Assigned(SyncThread)) then
-    FSyncThread := TSyncThread.Create(Self);
+    FSyncThread := TSyncThread.Create(Self)
+  else
+    Assert(not SyncThread.Terminated);
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
@@ -2609,16 +2614,24 @@ begin
 
 
   // Debug 2017-02-04
-  Assert(Assigned(SyncThread.StmtLengths) and (TObject(SyncThread.StmtLengths) is TList));
+  Assert(TerminatedThreads.IndexOf(SyncThread) < 0);
+  Assert(Assigned(SyncThread.StmtLengths));
+  Assert(TObject(SyncThread.StmtLengths) is TList);
 
   SQLIndex := 1;
-  SQLLength := Length(SyncThread.SQL);
-
-  StmtLength := 1; // To make sure, the first SQLStmtLength will be executed
-  while ((SQLIndex < SQLLength) and (StmtLength > 0)) do
+  StmtLength := 1; // ... to make sure, the first SQLStmtLength will be executed
+  while ((SQLIndex < Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
     P := PChar(@SyncThread.SQL[SQLIndex]);
-    StmtLength := SQLStmtLength(P, SQLLength - (SQLIndex - 1));
+    StmtLength := SQLStmtLength(P, Length(SyncThread.SQL) - (SQLIndex - 1));
+
+    // Debug 2017-02-14
+    if (StmtLength < 0) then
+    begin
+      SetString(S, P, Length(SyncThread.SQL) - (SQLIndex - 1));
+      raise EAssertionFailed.Create(S);
+    end;
+
     if (StmtLength > 0) then
     begin
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -2631,7 +2644,7 @@ begin
     // The MySQL server answers sometimes about a problem "near ''", if a
     // statement is not terminated by ";". A ";" attached to the last statement
     // avoids this...
-    if (SQLIndex < SQLLength) then
+    if (SQLIndex < Length(SyncThread.SQL)) then
       SyncThread.SQL[SQLIndex] := ';'
     else
       SyncThread.SQL := SyncThread.SQL + ';';
@@ -2669,7 +2682,7 @@ begin
       if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
     until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
-    Result := SyncThread.ErrorCode = 0;
+    Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
   end
   else
   begin
@@ -2694,15 +2707,18 @@ label
 var
   Len: Integer;
 begin
-  if (Length >= 0) then
-    Len := Length
-  else if (Assigned(Text)) then
-    Len := lstrlenA(Text)
+  if (not Assigned(Text) or (Length = 0)) then
+    Result := ''
   else
-    Len := 0;
-  SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, nil, 0));
-  if (Len > 0) then
-    SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, PChar(Result), System.Length(Result)));
+  begin
+    if (Length >= 0) then
+      Len := Length
+    else
+      Len := lstrlenA(Text);
+    SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, nil, 0));
+    if (Len > 0) then
+      SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, PChar(Result), System.Length(Result)));
+  end;
 end;
 
 function TMySQLConnection.LibEncode(const Value: string): RawByteString;
@@ -3045,6 +3061,12 @@ begin
         begin
           SyncExecuted(SyncThread);
 
+          if ((SyncThread.Mode = smSQL) and (SyncThread.State = ssResult)) then
+            SyncHandledResult(SyncThread);
+
+          if (SyncThread.State = ssReady) then
+            SyncAfterExecuteSQL(SyncThread);
+
           case (SyncThread.Mode) of
             smSQL,
             smDataSet:
@@ -3071,7 +3093,17 @@ begin
               end
               else
               begin
-                Assert(SynchronCount > 0);
+                if (not Assigned(SyncThread)) then
+                  Assert(SynchronCount > 0)
+                else
+                  Assert(SynchronCount > 0,
+                    'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
+                    + 'ErrorMessage: ' + SyncThread.ErrorMessage + #13#10
+                    + 'State: ' + IntToStr(Ord(SyncThread.State)));
+
+                // 2017-02-20
+                // ErrorCode: 0, TTool.DoError, no Result for SELECT query
+
                 SyncThreadExecuted.SetEvent();
               end;
           end;
@@ -3094,16 +3126,11 @@ begin
                     SyncExecute(SyncThread);
                     SyncThread.RunExecute.SetEvent();
                   end;
-                ssReceivingResult: ;
-                {$IFNDEF Debug}
-                else
-                  SyncAfterExecuteSQL(SyncThread);
-                {$ELSE}
+                ssReceivingResult:
+                  SyncThreadExecuted.SetEvent();
                 ssReady:
                   SyncAfterExecuteSQL(SyncThread);
-                else
-                  raise ERangeError.Create(SRangeError);
-                {$ENDIF}
+                else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
               end;
             smResultHandle:
               SyncThreadExecuted.SetEvent();
@@ -3118,11 +3145,13 @@ begin
         SyncDisconnected(SyncThread);
       ssTerminate:
         begin
-          SyncTerminate();
+          SyncTerminate(SyncThread);
+          SyncThread.State := ssClose;
+          if (SyncThread.Mode = smResultHandle) then
+            DoAfterExecuteSQL();
           SyncThreadExecuted.SetEvent();
         end;
-      else
-        raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
+      else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
   end;
 end;
@@ -3151,16 +3180,10 @@ end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
 begin
-  // Debug 2017-01-15
-  if (SyncThread.State <> ssResult) then
-    raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
-
+  Assert(Assigned(DataSet));
   Assert(Assigned(SyncThread));
-  Assert(SyncThread.State = ssResult);
+  Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
   Assert(not Assigned(SyncThread.DataSet));
-
-  if (not Assigned(DataSet)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataSet']);
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
@@ -3344,7 +3367,7 @@ begin
       FCodePage := CharsetToCodePage(Charset);
 
       FHostInfo := LibDecode(Lib.mysql_get_host_info(SyncThread.LibHandle));
-      FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((MySQLVersion > 40100) or (Lib.FLibraryType = ltHTTP)) and not ((50000 <= MySQLVersion) and (MySQLVersion < 50007));
+      FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((MySQLVersion > 40100) or (Lib.LibraryType = ltHTTP)) and not ((50000 <= MySQLVersion) and (MySQLVersion < 50007));
     end;
   end;
 
@@ -3390,6 +3413,9 @@ var
 begin
   Assert(SyncThread.State in [ssFirst, ssNext]);
 
+  // Debug 2017-02-22
+  WriteMonitor('SyncExecute', ttDebug);
+
   if (SyncThread.State = ssFirst) then
     WriteMonitor('# ' + SysUtils.DateTimeToStr(GetServerTime(), FormatSettings), ttTime);
 
@@ -3410,6 +3436,7 @@ procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
   Data: my_char;
+  DataSet: TMySQLQuery; // Debug 2017-02-16
   DataHandle: TDataHandle;
   Info: my_char;
   Len: Integer;
@@ -3428,26 +3455,20 @@ begin
   Inc(FWarningCount, SyncThread.WarningCount);
   FThreadId := SyncThread.LibThreadId;
 
+  // Debug 2017-02-22
+  DebugMonitor.Append('SyncExecuted - start', ttDebug);
+
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
   if (SyncThread.ErrorCode > 0) then
     WriteMonitor('--> Error #' + IntToStr(SyncThread.ErrorCode) + ': ' + SyncThread.ErrorMessage, ttInfo)
-  else
+  else if (Assigned(SyncThread.LibHandle)) then
   begin
     Inc(FExecutedStmts);
 
     if (SyncThread.WarningCount > 0) then
       WriteMonitor('--> Warnings: ' + IntToStr(SyncThread.WarningCount), ttInfo);
-
-    // Debug 2017-01-15
-    if (not Assigned(SyncThread.LibHandle)) then
-      raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
-        + 'Mode: ' + IntToStr(Ord(SyncThread.Mode)) + #13#10
-        + 'Terminated: ' + BoolToStr(SyncThread.Terminated, True) + #13#10
-        + 'SyncThread.ThreadID: ' + IntToStr(SyncThread.ThreadID) + #13#10
-        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
-        + 'Self.SyncThread.ThreadID: ' + IntToStr(Self.SyncThread.ThreadID));
 
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
@@ -3508,6 +3529,8 @@ begin
     end;
   end;
 
+  // Debug 2017-02-24
+  DebugMonitor.Append('SyncExecuted - 2:' + SyncThread.CommandText, ttDebug);
 
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
@@ -3555,16 +3578,33 @@ begin
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
         // Debug 2016-12-23
         if (SyncThread.CommandText <> '') then
-          raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
+        begin
+          Log := 'Query has not been handled: ' + SyncThread.CommandText
+            + 'Proc: ' + ProcAddrToStr(@SyncThread.OnResult) + #13#10;
+          raise Exception.Create(Log);
+        end
         else
         begin
+          if (SyncThread.ErrorCode <> 0) then
+            DataSet := nil
+          else
+          begin
+            DataSet := TMySQLQuery.Create(nil);
+            DataSet.Open(DataHandle);
+          end;
+
           Log := 'Statement #' + IntToStr(SyncThread.StmtIndex + 1) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled' + #13#10;
           for I := 0 to SyncThread.StmtLengths.Count - 1 do
             Log := Log + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I])) + #13#10;
           Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' CommandText:' + #13#10
             + SyncThread.CommandText + #13#10;
           Log := Log + 'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10;
-          Log := Log + 'SQL:' + #13#10
+          if (Assigned(DataSet) and DataSet.Active) then
+            Log := Log + 'FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+              + 'Field[0]: ' + DataSet.Fields[0].DisplayName + #13#10;
+          Log := Log
+            + 'Proc: ' + ProcAddrToStr(@SyncThread.OnResult) + #13#10
+            + 'SQL:' + #13#10
             + SQLEscapeBin(SyncThread.SQL, True) + #13#10;
           raise Exception.Create(Log);
 
@@ -3574,12 +3614,6 @@ begin
       InOnResult := False;
     end;
   end;
-
-  if ((SyncThread.Mode = smSQL) and (SyncThread.State = ssResult)) then
-    SyncHandledResult(SyncThread);
-
-  if (SyncThread.State = ssReady) then
-    SyncAfterExecuteSQL(SyncThread);
 end;
 
 procedure TMySQLConnection.SyncExecutingFirst(const SyncThread: TSyncThread);
@@ -3621,7 +3655,7 @@ begin
 
     if (AlterTableAfterCreateTable) then
       PacketComplete := pcExclusiveStmt
-    else if ((StmtLength = 8) and (StrLIComp(SQL, 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709)) then
+    else if ((StmtLength = 9) and (StrLIComp(SQL, 'SHUTDOWN;', 9) = 0) and (MySQLVersion < 50709)) then
       PacketComplete := pcExclusiveStmt
     else if ((SizeOf(COM_QUERY) + SQLIndex - 1 + StmtLength > MaxAllowedServerPacket)
       and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SQLIndex]), StmtLength, nil, 0) > MaxAllowedServerPacket)) then
@@ -3640,19 +3674,6 @@ begin
     Inc(SQLIndex, StmtLength);
   end;
 
-  // Debug 2016-12-28
-  if (SyncThread.SQL = '') then
-    raise ERangeError.Create(SRangeError);
-  if (SyncThread.SQLIndex = 0) then
-    raise ERangeError.Create(SRangeError);
-  if (SyncThread.SQLIndex - 1 > Length(SyncThread.SQL)) then
-    raise ERangeError.Create('SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-      + 'StmtIndex: ' + IntToStr(StmtIndex) + #13#10
-      + 'SyncThread.SQLIndex: ' + IntToStr(SyncThread.SQLIndex) + #13#10
-      + 'SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-      + 'Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-      + 'SQL: ' + SQLEscapeBin(SyncThread.SQL, True));
-
   LibLength := WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, nil, 0);
   SetLength(LibSQL, LibLength);
   WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, PAnsiChar(LibSQL), LibLength);
@@ -3661,13 +3682,15 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
-  // Debug 2016-12
-  if (LibLength = 0) then
-    raise ERangeError.Create('SQL: ' + SyncThread.SQL + #13#10
-      + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-      + 'Stmt Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-      + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
-      + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])));
+  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
+    + 'LibLength: ' + IntToStr(LibLength) + #13#10
+    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
+    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
+    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
+    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -3683,7 +3706,7 @@ begin
 
     if (not SyncThread.Terminated and Success) then
     begin
-      if ((LibLength = 8) and (AnsiStrings.StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709) and Assigned(Lib.mysql_shutdown)) then
+      if ((LibLength = 9) and (AnsiStrings.StrLIComp(my_char(LibSQL), 'SHUTDOWN;', 9) = 0) and (MySQLVersion < 50709) and Assigned(Lib.mysql_shutdown)) then
         Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
       else
       begin
@@ -3769,6 +3792,12 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
 
+  DebugMonitor.Append('SyncHandledResult -'
+    + ' State: ' + IntToStr(Ord(SyncThread.State))
+    + ' ErrorCode: ' + IntToStr(SyncThread.ErrorCode)
+    + ' Multi: ' + BoolToStr(MultiStatements, True)
+    + ' LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
+    + ' More: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
 
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
@@ -3855,11 +3884,11 @@ begin
     if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
     begin
       SyncHandledResult(SyncThread);
-      if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
+      if ((SyncThread.Mode in [smResultHandle, smDataSet]) and (SyncThread.State = ssReady)) then
       begin
         SyncAfterExecuteSQL(SyncThread);
 
-        if ((DataSet is TMySQLTable) and TMySQLTable(DataSet).WaitForLast) then
+        if ((DataSet is TMySQLTable) and (TMySQLTable(DataSet).WaitFor = wfLast)) then
           DataSet.Last();
       end;
     end;
@@ -3869,7 +3898,7 @@ begin
   DataSet.SyncThread := nil;
 end;
 
-procedure TMySQLConnection.SyncTerminate();
+procedure TMySQLConnection.SyncTerminate(const SyncThread: TSyncThread);
 begin
   Assert(GetCurrentThreadId() = MainThreadID);
 
@@ -3892,7 +3921,7 @@ begin
 
   TerminatedThreads.Add(SyncThread);
 
-  FSyncThread := nil;
+  Self.FSyncThread := nil;
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -3900,9 +3929,13 @@ begin
   TerminateCS.Enter();
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
     if (GetCurrentThreadId() = MainThreadID) then
-      SyncTerminate()
+    begin
+      SyncTerminate(SyncThread);
+      SyncThreadExecuted.SetEvent();
+    end
     else
     begin
+      SyncThread.State := ssTerminate;
       MySQLConnectionOnSynchronize(SyncThread);
       SyncThreadExecuted.WaitFor(INFINITE);
     end;
@@ -3929,28 +3962,14 @@ procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer
 var
   I: Integer;
 begin
-  ProfilingReset(MonitorProfile);
-
   InMonitor := True;
   try
-    ProfilingPoint(MonitorProfile, 2);
-
     for I := 0 to FSQLMonitors.Count - 1 do
       if (TraceType in TMySQLMonitor(FSQLMonitors[I]).TraceTypes) then
-      begin
-        ProfilingPoint(MonitorProfile, 3);
         TMySQLMonitor(FSQLMonitors[I]).Append(Text, Length, TraceType);
-        ProfilingPoint(MonitorProfile, 18);
-      end;
-
-    ProfilingPoint(MonitorProfile, 19);
   finally
     InMonitor := False;
   end;
-
-  if (ProfilingTime(MonitorProfile) > 1000) then
-    SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10
-      + ProfilingReport(MonitorProfile));
 end;
 
 { TMySQLBitField **************************************************************}
@@ -4606,6 +4625,10 @@ var
   SQL: string;
   WhereClause: string;
 begin
+  // Debug 2017-02-18
+  Assert(Assigned(Field));
+  Assert(Field.FieldNo > 0);
+
   LibRow := TMySQLQuery(Field.DataSet).LibRow;
   LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
 
@@ -5031,17 +5054,8 @@ end;
 procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SyncThread)) then
-    if (SyncThread.Mode in [smSQL, smDataSet]) then
+    if ((SyncThread.Mode in [smSQL, smDataSet]) and (GetCurrentThreadId() = MainThreadID)) then
       Connection.SyncReleaseDataSet(Self)
-    else if (GetCurrentThreadId() = MainThreadID) then
-    begin
-      // Should never occur, since smResultHandle can be used in TTool only.
-      {$IFDEF Debug}
-      // Debug 2017-02-02
-      raise ERangeError.Create(SRangeError);
-      {$ENDIF}
-      Connection.Sync(SyncThread);
-    end
     else
     begin
       MySQLConnectionOnSynchronize(SyncThread);
@@ -5093,6 +5107,9 @@ begin
         if (not Assigned(Connection.Lib)) then
           raise ERangeError.Create(SRangeError);
 
+        // Debug 2017-02-19
+        Assert(Assigned(Handle));
+
         RawField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field(Handle));
 
         if (Assigned(RawField)) then
@@ -5118,13 +5135,15 @@ begin
           begin
             Binary := LibField.charsetnr = 63;
             Len := LibField.length;
-            if (not Binary and (Connection.MySQLVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
+            if (not Binary and (Connection.MySQLVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed.
               for I := 0 to Length(MySQL_Collations) - 1 do
                 if (MySQL_Collations[I].CharsetNr = LibField.charsetnr) then
+                begin
                   if (MySQL_Collations[I].MaxLen = 0) then
                     raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
                   else
                     Len := LibField.length div MySQL_Collations[I].MaxLen;
+                end;
           end;
           Binary := Binary or (LibField.field_type = MYSQL_TYPE_IPV6);
           Len := Len and $7FFFFFFF;
@@ -5266,8 +5285,7 @@ begin
 
           // Debug 2017-01-23
           if (Field.FieldName = '') then
-            raise ERangeError.Create('LibField.name: ' + string(AnsiStrings.StrPas(LibField.name)) + #13#10
-              + CommandText);
+            Field.FieldName := 'Field_' + IntToStr(Fields.Count);
 
           if (Assigned(FindField(Field.FieldName))) then
           begin
@@ -5415,8 +5433,11 @@ begin
         FDatabaseName := DName;
 
       // Debug 2016-12-12
-      if (my_uint(FieldCount) <> Connection.Lib.mysql_num_fields(Handle)) then
-        raise ERangeError.Create(SRangeError + ' ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)) + '/ ' + IntToStr(FieldDefs.Count) + ' / ' + IntToStr(FieldCount));
+      Assert(my_uint(FieldCount) = Connection.Lib.mysql_num_fields(Handle),
+        'mysql_num_fields: ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)) + #13#10
+        + 'FieldDefs.Count: ' + IntToStr(FieldDefs.Count) + #13#10
+        + 'FieldCount: ' + IntToStr(FieldCount)
+        + 'mysql_fetch_field_direct: ' + BoolToStr(Assigned(Connection.Lib.mysql_fetch_field_direct(Handle, FieldCount - 1))));
     end;
   end;
 end;
@@ -5499,6 +5520,10 @@ var
   StringA, StringB: string;
 begin
   Field := CompareDefs[FieldIndex].Field;
+
+  // Debug 2017-02-13
+  Assert(Assigned(A));
+  Assert(Assigned(B));
 
   if (A = B) then
     Result := 0
@@ -5753,18 +5778,12 @@ end;
 
 { TMySQLDataSet.TInternRecordBuffers ******************************************}
 
-function TMySQLDataSet.TInternRecordBuffers.Add(Item: Pointer): Integer;
-begin
-  Assert(not Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer)
-    or Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
-
-  Result := inherited;
-end;
-
 procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
 begin
+  Assert(Assigned(DataSet));
+
   CriticalSection.Enter();
   if ((DataSet.State = dsBrowse)
     and Assigned(Pointer(DataSet.ActiveBuffer()))
@@ -5879,9 +5898,6 @@ procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; Item: Pointe
 var
   I: Integer;
 begin
-  // Debug 2017-02-09
-  Assert(Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
-
   inherited;
 
   for I := 0 to DataSet.BufferCount - 1 do
@@ -5988,6 +6004,7 @@ begin
   FRecordsReceived := TEvent.Create(nil, True, False, '');
   FSortDef := TIndexDef.Create(nil, '', '', []);
   FTableName := '';
+  InGetNextRecords := False;
 
   BookmarkSize := SizeOf(InternRecordBuffers[0]);
 
@@ -6162,6 +6179,15 @@ begin
   InternRecordBuffers.CriticalSection.Leave();
 end;
 
+function TMySQLDataSet.GetNextRecords(): Integer;
+begin
+  InGetNextRecords := True;
+
+  Result := inherited;
+
+  InGetNextRecords := False;
+end;
+
 function TMySQLDataSet.GetRecNo(): Integer;
 begin
   if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
@@ -6221,8 +6247,8 @@ begin
           begin
             InternRecordBuffers.CriticalSection.Enter();
             Wait := (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
-              and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
-              and Assigned(SyncThread);
+              and (Assigned(SyncThread) and (RecordsReceived.WaitFor(IGNORE) <> wrSignaled)
+                or not Assigned(SyncThread) and (Self is TMySQLTable) and not InGetNextRecords and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords());
             if (Wait) then
               InternRecordBuffers.RecordReceived.ResetEvent();
             InternRecordBuffers.CriticalSection.Leave();
@@ -6449,7 +6475,8 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      InternalInitRecord(ActiveBuffer());
+      if (BufferCount > 0) then
+        InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
@@ -6462,9 +6489,8 @@ end;
 procedure TMySQLDataSet.InternalEdit();
 begin
   // Debug 2017-01-24
-  if (not CachedUpdates
-    and not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
-    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+  Assert(CachedUpdates or Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData),
+    'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
 
@@ -6473,6 +6499,8 @@ begin
   // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
   // 2017-02-09 was in the log:
   // SELECT * FROM `db_database28`.`tb_gysinfo` ORDER BY `name` LIMIT 100;
+  // 2017-02-13
+  // INSERT INTO
 
   inherited;
 end;
@@ -6598,8 +6626,8 @@ procedure TMySQLDataSet.InternalPost();
 var
   AllWhereFieldsInWhere: Boolean;
   AutoGeneratedValues: Boolean;
-  CheckPosition: Boolean;
-  ControlPosition: Boolean;
+  CheckPosition: Boolean; // Checks the position of the record (internally or externally)
+  ControlPosition: Boolean; // Checks the position of the record externally
   ControlSQL: string;
   Field: TField;
   FieldName: string;
@@ -6758,6 +6786,7 @@ begin
       end;
 
       if (ControlPosition) then
+      begin
         for I := 1 to Length(WhereFields) - 1 do
         begin
           WhereClause := WhereClause + ' OR ';
@@ -6790,28 +6819,29 @@ begin
                 WhereClause := WhereClause + ' IS NOT NULL';
             end;
           end;
+        end;
 
-          if (WhereClause = '') then
+        if (WhereClause = '') then
+          ControlSQL := ''
+        else
+        begin
+          SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
+
+          if (not Connection.SQLParser.ParseSQL(SQL)) then
             ControlSQL := ''
           else
           begin
-            SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
-
-            if (not Connection.SQLParser.ParseSQL(SQL)) then
-              ControlSQL := ''
+            if (not ControlPosition) then
+              RowCount := -1
             else
-            begin
-              if (not ControlPosition) then
-                RowCount := -1
-              else
-                RowCount := 2;
-              ControlSQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, RowCount);
+              RowCount := 2;
+            ControlSQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, RowCount);
 
-              if (ControlSQL <> '') then
-                ControlSQL := ControlSQL + #13#10;
-            end;
+            if (ControlSQL <> '') then
+              ControlSQL := ControlSQL + #13#10;
           end;
         end;
+      end;
     end;
 
     Connection.SQLParser.Clear();
@@ -6901,6 +6931,9 @@ begin
         if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
           FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+
+        // Debug 2017-02-13
+        Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData));
       end;
     end
     else if ((ErrorCode = 0) and SQLParseKeyword(Parse, 'SELECT')) then
@@ -6982,6 +7015,7 @@ end;
 
 procedure TMySQLDataSet.InternalRefresh();
 var
+  I: Integer;
   SQL: string;
   Success: Boolean;
 begin
@@ -6991,8 +7025,11 @@ begin
     SyncThread := nil;
   end;
 
-  ClearBuffers();
   InternRecordBuffers.Clear();
+  ClearBuffers();
+  InternalInitRecord(ActiveBuffer());
+  for I := 0 to BufferCount - 1 do
+    InternalInitRecord(Buffers[I]);
 
   RecordsReceived.ResetEvent();
 
@@ -7287,8 +7324,10 @@ begin
     + 'Field.DataType: ' + IntToStr(Ord(Field.DataType)) + #13#10
     + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
     + 'State: ' + IntToStr(Ord(State)));
-  // 2017-02-08: BookmarkFlag := bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
+  // 2017-02-08: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
   // Why is dsBrowse set while CloseUp???
+  // 2017-02-13: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp, Last SQL: SELECT
+  // 2017-02-14: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp, Last SQL: SELECT
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
@@ -8205,7 +8244,7 @@ end;
 
 procedure TMySQLTable.DoBeforeScroll();
 begin
-  FWaitForLast := False;
+  FWaitFor := wfNothing;
 
   inherited;
 end;
@@ -8226,7 +8265,7 @@ begin
   SetLength(DeleteBookmarks, 0);
   FCommandType := ctTable;
   FLimitedDataReceived := False;
-  FWaitForLast := False;
+  FWaitFor := wfNothing;
 end;
 
 procedure TMySQLTable.InternalClose();
@@ -8238,21 +8277,21 @@ end;
 
 procedure TMySQLTable.InternalDelete();
 begin
-  FWaitForLast := False;
+  FWaitFor := wfNothing;
 
   inherited;
 end;
 
 procedure TMySQLTable.InternalEdit();
 begin
-  FWaitForLast := False;
+  FWaitFor := wfNothing;
 
   inherited;
 end;
 
 procedure TMySQLTable.InternalInsert();
 begin
-  FWaitForLast := False;
+  FWaitFor := wfNothing;
 
   inherited;
 end;
@@ -8260,7 +8299,7 @@ end;
 procedure TMySQLTable.InternalLast();
 begin
   if (LimitedDataReceived and AutomaticLoadNextRecords and LoadNextRecords(True)) then
-    FWaitForLast := True
+    FWaitFor := wfLast
   else
     inherited;
 end;
@@ -8458,11 +8497,7 @@ initialization
   SetLength(MySQLLibraries, 0);
 
   MySQLSyncThreads := TMySQLSyncThreads.Create();
-
-  CreateProfile(MonitorProfile);
 finalization
-  CloseProfile(MonitorProfile);
-
   MySQLSyncThreads.Free();
 
   FreeMySQLLibraries();

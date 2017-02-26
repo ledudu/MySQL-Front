@@ -72,6 +72,7 @@ type
       Y: Integer;
     end;
     ShiftDownAnchor: record
+      Col: Longint;
       Rec: Integer;
     end;
     TitleBoldFont: TFont;
@@ -527,7 +528,6 @@ var
   ClipboardData: HGLOBAL;
   Content: string;
   FormatSettings: TFormatSettings;
-  Len: Cardinal;
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
@@ -548,11 +548,10 @@ begin
 
 
       Content := CalcSQLData();
-      Len := Length(Content);
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
       SetClipboardData(CF_MYSQLSQLDATA, ClipboardData);
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
       GlobalUnlock(ClipboardData);
 
       DataLink.DataSet.EnableControls();
@@ -593,6 +592,7 @@ begin
   LeftClickAnchor.Col := -1;
   LeftClickAnchor.Shift := [];
   LeftClickAnchor.Rec := -1;
+  ShiftDownAnchor.Col := -1;
   ShiftDownAnchor.Rec := -1;
   TitleBoldFont := nil;
 
@@ -900,6 +900,7 @@ end;
 
 procedure TMySQLDBGrid.KeyDown(var Key: Word; Shift: TShiftState);
 var
+  I: Integer;
   OldCol: Longint;
   OldRecNo: Integer;
 begin
@@ -907,7 +908,10 @@ begin
     FreeAndNil(FHintWindow);
 
   if ((Key = VK_SHIFT) and (ShiftDownAnchor.Rec < 0)) then
+  begin
+    ShiftDownAnchor.Col := Col;
     ShiftDownAnchor.Rec := DataLink.ActiveRecord;
+  end;
   if ((Key = VK_SHIFT) and (AltDownAnchor.Col < 0)) then
   begin
     AltDownAnchor.Col := Col;
@@ -958,6 +962,34 @@ begin
     end;
     SelectedRows.Clear();
     inherited;
+  end
+  else if ((Key = VK_LEFT) and (ssShift in Shift)) then
+  begin
+    if (Col > 0) then
+    begin
+      if (Col > ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+      Col := Col - 1;
+      SelectedFields.Clear();
+      for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
+        SelectedFields.Add(Columns[I].Field);
+      if (Col < ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+    end;
+  end
+  else if ((Key = VK_RIGHT) and (ssShift in Shift)) then
+  begin
+    if (Col < Columns.Count - 2) then
+    begin
+      if (Col < ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+      Col := Col + 1;
+      SelectedFields.Clear();
+      for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
+        SelectedFields.Add(Columns[I].Field);
+      if (Col > ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+    end;
   end
   else if ((Key = VK_LEFT) and (ssCtrl in Shift)) then
   begin
@@ -1153,7 +1185,7 @@ begin
       BeginDrag(False);
     end;
 
-    if (not (ssCtrl in Shift) and not (ssAlt in Shift)) then
+    if ((Shift = [ssLeft]) and not (ssCtrl in Shift) and not (ssAlt in Shift)) then
     begin
       if (SelectedRows.Count = 0) then
         for I := 0 to Columns.Count - 1 do
@@ -1172,14 +1204,14 @@ begin
       LeftClickAnchor.Col := Col;
       LeftClickAnchor.Rec := DataLink.ActiveRecord;
 
-      if (ssAlt in Shift) then
+      if ((Shift = [ssLeft]) and (ssAlt in Shift)) then
       begin
         SelectedFields.Clear();
         SelectedFields.Add(Columns[Cell.X].Field);
       end;
     end;
 
-    if (not (ssCtrl in Shift) and not (ssAlt in Shift) and (dgMultiSelect in Options) and (SelectedRows.Count = 1)) then
+    if ((Shift = [ssLeft]) and not (ssCtrl in Shift) and not (ssAlt in Shift) and (dgMultiSelect in Options) and (SelectedRows.Count = 1)) then
       SelectedRows.Clear();
   end;
 end;
@@ -1451,7 +1483,7 @@ begin
     if ((FListView > 0) and Header_Layout(ListView_GetHeader(FListView), @HDLayout)) then
       FHeaderControl.Height := HDWindowPos.cy;
 
-    if (EditorMode) then Perform(CM_Exit, 0, 0);
+    if (Assigned(InplaceEditor)) then InplaceEditor.Hide();
     if (dgRowLines in Options) then
       RowHeights[0] := FHeaderControl.Height - GridLineWidth
     else
@@ -1469,6 +1501,7 @@ begin
   DataLink.DataSet.CheckBrowseMode();
 
   DataLink.DataSet.DisableControls();
+  EditorMode := False;
 
   if ((SelectedRows.Count > 0) and (SelectedRows.Count <> DataLink.DataSet.RecordCount)) then
     SelectedRows.Clear();
@@ -1545,13 +1578,13 @@ begin
 
     if (Result) then
       if (Action is TEditCut) then
-        TEditCut(Action).Enabled := not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
+        TEditCut(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditCopy) then
         TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
       else if (Action is TEditPaste) then
         TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and (EditorMode and IsClipboardFormatAvailable(CF_UNICODETEXT) or not EditorMode and IsClipboardFormatAvailable(CF_UNICODETEXT))
       else if (Action is TEditDelete) then
-        TEditDelete(Action).Enabled := (SelectedRows.Count = 0) and not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
+        TEditDelete(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (SelectedRows.Count = 0) and (SelectedFields.Count = 0) and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditSelectAll) then
         TEditSelectAll(Action).Enabled := (DataLink.DataSet.RecordCount > 0)
       else

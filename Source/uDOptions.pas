@@ -60,7 +60,6 @@ type
     FLogSize: TEdit;
     FLogTime: TCheckBox;
     FLTabsVisible: TLabel;
-    FLUpdateCheck: TLabel;
     FLViewDatas: TLabel;
     FMaxColumnWidth: TEdit;
     FontDialog: TFontDialog;
@@ -71,15 +70,12 @@ type
     FUDLogSize: TUpDown;
     FUDMaxColumnWidth: TUpDown;
     FUnderline: TCheckBox;
-    FUpdateCheckDaily: TRadioButton;
-    FUpdateCheckNever: TRadioButton;
     GColors: TGroupBox_Ext;
     GEditor: TGroupBox_Ext;
     GGrid: TGroupBox_Ext;
     GLog: TGroupBox_Ext;
     GProgram: TGroupBox_Ext;
     GTabs: TGroupBox_Ext;
-    GUpdates: TGroupBox_Ext;
     Highlighter: TSynSQLSyn;
     PageControl: TPageControl;
     PEditorCurrRowBGColor: TPanel_Ext;
@@ -95,7 +91,6 @@ type
     TSEditor: TTabSheet;
     TSHighlighter: TTabSheet;
     TSLog: TTabSheet;
-    TSUpdates: TTabSheet;
     TSView: TTabSheet;
     FBLogFont: TButton;
     GNavigator: TGroupBox;
@@ -140,7 +135,6 @@ type
     procedure FLanguageChange(Sender: TObject);
   private
     LineNumbersAttri: TSynHighlighterAttributes;
-    function Attribute(const Caption: string): TSynHighlighterAttributes;
     procedure FPreviewRefresh();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
@@ -155,7 +149,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  IniFiles, UITypes,
+  IniFiles, UITypes, DateUtils,
   StrUtils,
   uDeveloper,
   uDLanguage;
@@ -174,23 +168,6 @@ begin
   Result := FDOptions;
 end;
 
-function TDOptions.Attribute(const Caption: string): TSynHighlighterAttributes;
-begin
-  Result := nil;
-
-  if (Caption = Preferences.LoadStr(461)) then Result := Highlighter.CommentAttri;
-  if (Caption = Preferences.LoadStr(462)) then Result := Highlighter.StringAttri;
-  if (Caption = Preferences.LoadStr(463)) then Result := Highlighter.KeyAttri;
-  if (Caption = Preferences.LoadStr(464)) then Result := Highlighter.NumberAttri;
-  if (Caption = Preferences.LoadStr(465)) then Result := Highlighter.IdentifierAttri;
-  if (Caption = Preferences.LoadStr(466)) then Result := Highlighter.SymbolAttri;
-  if (Caption = Preferences.LoadStr(467)) then Result := Highlighter.FunctionAttri;
-  if (Caption = Preferences.LoadStr(468)) then Result := Highlighter.DataTypeAttri;
-  if (Caption = Preferences.LoadStr(469)) then Result := Highlighter.VariableAttri;
-  if (Caption = Preferences.LoadStr(735)) then Result := Highlighter.ConditionalCommentAttri;
-  if (Caption = Preferences.LoadStr(526)) then Result := LineNumbersAttri;
-end;
-
 function TDOptions.Execute(): Boolean;
 begin
   Result := ShowModal() = mrOk;
@@ -199,7 +176,7 @@ end;
 procedure TDOptions.FBackgroundClick(Sender: TObject);
 begin
   if (not FBackground.Checked) and Assigned(FStyles.Selected) then
-    Attribute(FStyles.Selected.Caption).Background := clNone;
+    TSynHighlighterAttributes(FStyles.Selected.Data).Background := clNone;
   FPreviewRefresh();
 
   FBBackground.Enabled := FBackground.Checked;
@@ -211,19 +188,16 @@ begin
 end;
 
 procedure TDOptions.FBBackgroundClick(Sender: TObject);
-var
-  Attri: TSynHighlighterAttributes;
 begin
   if (Assigned(FStyles.Selected)) then
   begin
-    Attri := Attribute(FStyles.Selected.Caption);
-    if (Attri.Background = clNone) then
+    if (TSynHighlighterAttributes(FStyles.Selected.Data).Background = clNone) then
       ColorDialog.Color := FPreview.Color
     else
-      ColorDialog.Color := Attri.Background;
+      ColorDialog.Color := TSynHighlighterAttributes(FStyles.Selected.Data).Background;
 
     if (ColorDialog.Execute()) then
-      Attri.Background := ColorDialog.Color;
+      TSynHighlighterAttributes(FStyles.Selected.Data).Background := ColorDialog.Color;
     FPreviewRefresh();
   end;
 end;
@@ -251,18 +225,15 @@ begin
 end;
 
 procedure TDOptions.FBForegroundClick(Sender: TObject);
-var
-  Attri: TSynHighlighterAttributes;
 begin
   if (Assigned(FStyles.Selected)) then
   begin
-    Attri := Attribute(FStyles.Selected.Caption);
-    if (Attri.Foreground = clNone) then
+    if (TSynHighlighterAttributes(FStyles.Selected.Data).Foreground = clNone) then
       ColorDialog.Color := FPreview.Font.Color
     else
-      ColorDialog.Color := Attri.Foreground;
+      ColorDialog.Color := TSynHighlighterAttributes(FStyles.Selected.Data).Foreground;
     if (ColorDialog.Execute()) then
-      Attri.Foreground := ColorDialog.Color;
+      TSynHighlighterAttributes(FStyles.Selected.Data).Foreground := ColorDialog.Color;
     FPreviewRefresh();
   end;
 end;
@@ -304,20 +275,20 @@ var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
   I: Integer;
 begin
-  if ((ObsoleteVersion < 0) and (OnlineVersion < 0)) then
+  if (not UpdateAvailable and (DateOf(LastUpdateCheck) < Today())) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.Execute();
     CheckOnlineVersionThread.Free();
   end;
 
-  if ((ObsoleteVersion > 0) or (OnlineVersion > ProgramVersion)) then
+  if (UpdateAvailable) then
   begin
     MsgBox('An update of ' + LoadStr(1000) + ' is available. Please install that update first.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
     PostMessage(Application.MainForm.Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
     exit;
   end
-  else if (OnlineVersion < 0) then
+  else if (DateOf(LastUpdateCheck) < Today()) then
     MsgBox('Can''t check, if you are using the latest update. Maybe an update of ' + LoadStr(1000) + ' is available...', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING);
 
 
@@ -351,16 +322,13 @@ begin
 end;
 
 procedure TDOptions.FBoldClick(Sender: TObject);
-var
-  Attri: TSynHighlighterAttributes;
 begin
   if (Assigned(FStyles.Selected)) then
   begin
-    Attri := Attribute(FStyles.Selected.Caption);
     if (FBold.Checked) then
-      Attri.Style := Attri.Style + [fsBold]
+      TSynHighlighterAttributes(FStyles.Selected.Data).Style := TSynHighlighterAttributes(FStyles.Selected.Data).Style + [fsBold]
     else
-      Attri.Style := Attri.Style - [fsBold];
+      TSynHighlighterAttributes(FStyles.Selected.Data).Style := TSynHighlighterAttributes(FStyles.Selected.Data).Style - [fsBold];
     FPreviewRefresh();
   end;
 end;
@@ -373,7 +341,7 @@ end;
 procedure TDOptions.FForegroundClick(Sender: TObject);
 begin
   if (not FForeground.Checked) and Assigned(FStyles.Selected) then
-    Attribute(FStyles.Selected.Caption).Foreground := clNone;
+    TSynHighlighterAttributes(FStyles.Selected.Data).Foreground := clNone;
   FPreviewRefresh();
 
   FBForeground.Enabled := FForeground.Checked;
@@ -390,16 +358,13 @@ begin
 end;
 
 procedure TDOptions.FItalicClick(Sender: TObject);
-var
-  Attri: TSynHighlighterAttributes;
 begin
   if (Assigned(FStyles.Selected)) then
   begin
-    Attri := Attribute(FStyles.Selected.Caption);
     if (FItalic.Checked) then
-      Attri.Style := Attri.Style + [fsItalic]
+      TSynHighlighterAttributes(FStyles.Selected.Data).Style := TSynHighlighterAttributes(FStyles.Selected.Data).Style + [fsItalic]
     else
-      Attri.Style := Attri.Style - [fsItalic];
+      TSynHighlighterAttributes(FStyles.Selected.Data).Style := TSynHighlighterAttributes(FStyles.Selected.Data).Style - [fsItalic];
     FPreviewRefresh();
   end;
 end;
@@ -526,9 +491,6 @@ begin
     Preferences.Editor.LineNumbersForeground := LineNumbersAttri.Foreground;
     Preferences.Editor.LineNumbersBackground := LineNumbersAttri.Background;
     Preferences.Editor.LineNumbersStyle := LineNumbersAttri.Style;
-
-    if (FUpdateCheckNever.Checked) then Preferences.UpdateCheck := utNever;
-    if (FUpdateCheckDaily.Checked) then Preferences.UpdateCheck := utDaily;
   end;
 end;
 
@@ -640,8 +602,6 @@ begin
   LineNumbersAttri.Background := Preferences.Editor.LineNumbersBackground;
   LineNumbersAttri.Style := Preferences.Editor.LineNumbersStyle; FPreviewRefresh();
   FStyles.ItemIndex := 0; FStylesSelectItem(Self, FStyles.Selected, True);
-  FUpdateCheckNever.Checked := Preferences.UpdateCheck = utNever;
-  FUpdateCheckDaily.Checked := Preferences.UpdateCheck = utDaily;
 
   PageControl.ActivePage := TSView;
   ActiveControl := FLanguage;
@@ -670,7 +630,7 @@ begin
   if (not Assigned(Item)) then
     Attri := nil
   else
-    Attri := Attribute(Item.Caption);
+    Attri := TSynHighlighterAttributes(Item.Data);
 
   FForeground.Checked := False;
   FBackground.Checked := False;
@@ -698,16 +658,13 @@ begin
 end;
 
 procedure TDOptions.FUnderlineClick(Sender: TObject);
-var
-  Attri: TSynHighlighterAttributes;
 begin
   if (Assigned(FStyles.Selected)) then
   begin
-    Attri := Attribute(FStyles.Selected.Caption);
     if (FUnderline.Checked) then
-      Attri.Style := Attri.Style + [fsUnderline]
+      TSynHighlighterAttributes(FStyles.Selected.Data).Style := TSynHighlighterAttributes(FStyles.Selected.Data).Style + [fsUnderline]
     else
-      Attri.Style := Attri.Style - [fsUnderline];
+      TSynHighlighterAttributes(FStyles.Selected.Data).Style := TSynHighlighterAttributes(FStyles.Selected.Data).Style - [fsUnderline];
     FPreviewRefresh();
   end;
 end;
@@ -768,6 +725,8 @@ begin
 end;
 
 procedure TDOptions.UMChangePreferences(var Message: TMessage);
+var
+  Item: TListItem;
 begin
   Canvas.Font := Font;
 
@@ -811,17 +770,39 @@ begin
   TSHighlighter.Caption := Preferences.LoadStr(528);
   GColors.Caption := Preferences.LoadStr(474);
   FStyles.Items.Clear();
-  FStyles.Items.Add().Caption := Preferences.LoadStr(461);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(462);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(463);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(464);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(465);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(466);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(467);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(468);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(469);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(735);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(526);
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(461);
+  Item.Data := Highlighter.CommentAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(462);
+  Item.Data := Highlighter.StringAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(463);
+  Item.Data := Highlighter.KeyAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(464);
+  Item.Data := Highlighter.NumberAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(465);
+  Item.Data := Highlighter.IdentifierAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(466);
+  Item.Data := Highlighter.SymbolAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(467);
+  Item.Data := Highlighter.FunctionAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(468);
+  Item.Data := Highlighter.DataTypeAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(469);
+  Item.Data := Highlighter.VariableAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(735);
+  Item.Data := Highlighter.ConditionalCommentAttri;
+  Item := FStyles.Items.Add();
+  Item.Caption := Preferences.LoadStr(526);
+  Item.Data := LineNumbersAttri;
   FStyles.SortType := Comctrls.stText;
   FBold.Caption := Preferences.LoadStr(477);
   FItalic.Caption := Preferences.LoadStr(478);
@@ -841,12 +822,6 @@ begin
   FLogResult.Caption := Preferences.LoadStr(662);
   FLLogSize.Caption := Preferences.LoadStr(844) + ':';
   FL2LogSize.Caption := 'KB';
-
-  TSUpdates.Caption := Preferences.LoadStr(592);
-  GUpdates.Caption := Preferences.LoadStr(592);
-  FLUpdateCheck.Caption := Preferences.LoadStr(509) + ':';
-  FUpdateCheckNever.Caption := Preferences.LoadStr(638);
-  FUpdateCheckDaily.Caption := Preferences.LoadStr(640);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

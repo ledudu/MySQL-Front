@@ -375,7 +375,8 @@ begin
 
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
-    Assert(Assigned(Table));
+    Assert(Assigned(Table),
+      'Visible: ' + BoolToStr(Visible, True));
 
     if (ModifyTableOnly) then
       NewTable := Table

@@ -64,7 +64,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSTables
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -112,9 +112,11 @@ object DImport: TDImport
               item
                 Width = 304
               end>
+            DoubleBuffered = True
             HideSelection = False
             MultiSelect = True
             ReadOnly = True
+            ParentDoubleBuffered = False
             ShowColumnHeaders = False
             TabOrder = 0
             ViewStyle = vsList
@@ -614,6 +616,10 @@ object DImport: TDImport
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)

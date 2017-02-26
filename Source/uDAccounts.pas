@@ -476,7 +476,7 @@ end;
 
 procedure TDAccounts.ItemMenuPopup(Sender: TObject);
 begin
-  aOpen.Enabled := Assigned(FAccounts.Selected);
+  aOpen.Enabled := Open and Assigned(FAccounts.Selected);
   miIOpen.Default := Open;
   miIEdit.Default := not miIOpen.Default;
   ShowEnabledItems(ItemMenu.Items);

@@ -17,12 +17,6 @@ type
     Start: Int64;
   end;
 
-procedure ProfilingDisablePoint(const Index: Integer); overload;
-procedure ProfilingEnablePoint(const Index: Integer); overload;
-procedure ProfilingPoint(const Index: Integer); overload;
-function ProfilingReport(const Filename: string = ''): string; overload;
-procedure ProfilingReset(); overload;
-
 procedure CloseProfile(var Profile: TProfile);
 procedure CreateProfile(out Profile: TProfile; const DisableFreezeDetection: Boolean = True);
 procedure ProfilingDisablePoint(var Profile: TProfile; const Index: Integer); overload;
@@ -45,31 +39,6 @@ var
   Frequency: Int64;
   Profile: TProfile;
 
-procedure ProfilingDisablePoint(const Index: Integer);
-begin
-  ProfilingDisablePoint(Profile, Index);
-end;
-
-procedure ProfilingEnablePoint(const Index: Integer);
-begin
-  ProfilingEnablePoint(Profile, Index);
-end;
-
-procedure ProfilingPoint(const Index: Integer);
-begin
-  ProfilingPoint(Profile, Index);
-end;
-
-function ProfilingReport(const Filename: string = ''): string;
-begin
-  Result := ProfilingReport(Profile, Filename);
-end;
-
-procedure ProfilingReset();
-begin
-  ProfilingReset(Profile);
-end;
-
 procedure CloseProfile(var Profile: TProfile);
 begin
   {$IFDEF EurekaLog}
@@ -84,6 +53,8 @@ end;
 procedure CreateProfile(out Profile: TProfile; const DisableFreezeDetection: Boolean = True);
 begin
   Profile.CriticalSection := TCriticalSection.Create();
+  Assert(Assigned(Profile.CriticalSection));
+
   Profile.DisableFreezeDetection := DisableFreezeDetection;
   SetLength(Profile.Points, 0);
   ProfilingReset(Profile);

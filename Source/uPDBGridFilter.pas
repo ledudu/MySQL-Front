@@ -71,7 +71,6 @@ begin
   inherited;
 
   Params.Style := WS_POPUP or WS_BORDER;
-  Params.ExStyle := Params.ExStyle;
   Params.WindowClass.Style := Params.WindowClass.Style or CS_DROPSHADOW;
 
   if (Assigned(PopupParent)) then

@@ -1976,7 +1976,8 @@ begin
   begin
     // Debug 2017-01-03
     SendToDeveloper('Empty name for class: ' + ClassName + #13#10
-      + 'Version: ' + Session.Connection.ServerVersionStr);
+      + 'Version: ' + Session.Connection.ServerVersionStr + #13#10
+      + Session.Connection.DebugMonitor.CacheText);
 
     Result := False;
   end
@@ -2195,7 +2196,11 @@ begin
 
     if (FOriginalName <> '') then
     begin
-      Session.SendEvent(etItemRenamed, Self, Objects, Self);
+      if (Self is TSDBObject) then
+        Session.SendEvent(etItemRenamed, TSDBObject(Self).Database, Objects, Self)
+      else
+        Session.SendEvent(etItemRenamed, Session, Objects, Self);
+
       FOriginalName := AName;
     end;
   end;
@@ -3316,10 +3321,9 @@ end;
 
 procedure TSBaseField.SetName(const AName: string);
 begin
-  FName := AName;
+  Assert(AName <> '');
 
-  Session.SendEvent(etItemRenamed, Self, Fields, Self);
-  FOriginalName := AName;
+  FName := AName;
 end;
 
 { TSViewField *****************************************************************}
@@ -4667,10 +4671,9 @@ begin
               else
               begin
                 Field.Default := SQLParseValue(Parse);
-                if (not TryStrToInt(Field.Default, I)) then
-                  Field.Default := SQLEscape(Field.Default)
-                else if (SQLParseChar(Parse, '.')) then
+                if (TryStrToInt(Field.Default, I) and SQLParseChar(Parse, '.')) then
                   Field.Default := Field.Default + '.' + SQLParseValue(Parse);
+                Field.Default := SQLEscape(Field.Default);
               end;
             end
             else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
@@ -5518,6 +5521,13 @@ begin
     DeleteList.Assign(Self);
 
     if (not DataSet.IsEmpty()) then
+    begin
+      // Debug 2017-02-16
+      Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FindField('Table_Type')),
+        'SQL: ' + DataSet.CommandText + #13#10
+        + 'FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+        + 'Field[0]: ' + DataSet.Fields[0].DisplayName);
+
       repeat
         Name := DataSet.Fields[0].AsString;
 
@@ -5543,6 +5553,7 @@ begin
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
       until (not DataSet.FindNext());
+    end;
 
     if (not Filtered) then
       while (DeleteList.Count > 0) do
@@ -5568,7 +5579,13 @@ begin
         if (not UseInformationSchema) then
           Name := DataSet.FieldByName('Name').AsString
         else
+        begin
+          // Debug 2017-02-15
+          Assert(Assigned(DataSet.FindField('TABLE_NAME')),
+            'FieldName: ' + DataSet.Fields[0].DisplayName + #13#10
+            + DataSet.CommandText);
           Name := DataSet.FieldByName('TABLE_NAME').AsString;
+        end;
 
         if (InsertIndex(Name, Index)) then
         begin
@@ -5602,7 +5619,7 @@ begin
               TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
             TSBaseTable(Table[Index]).FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
             if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
-            TSBaseTable(Table[Index]).FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
+            if (not TryStrToInt64(DataSet.FieldByName('Avg_row_length').AsString, TSBaseTable(Table[Index]).FAvgRowLength)) then TSBaseTable(Table[Index]).FAvgRowLength := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, TSBaseTable(Table[Index]).FDataSize)) then TSBaseTable(Table[Index]).FDataSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, TSBaseTable(Table[Index]).FIndexSize)) then TSBaseTable(Table[Index]).FIndexSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, TSBaseTable(Table[Index]).FMaxDataSize)) then TSBaseTable(Table[Index]).FMaxDataSize := 0;
@@ -5816,10 +5833,21 @@ begin
 end;
 
 procedure TSTables.Delete(const AItem: TSItem);
+var
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
+  ProfilingPoint(Profile, 1);
+
   inherited;
+
+  if (ProfilingTime(Profile) > 1000) then
+    SendToDeveloper(ProfilingReport(Profile));
+
+  CloseProfile(Profile);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
@@ -6471,6 +6499,11 @@ begin
   DeleteList.Assign(Self);
 
   if (not DataSet.IsEmpty()) then
+  begin
+    // Debug 2017-02-16
+    Assert(not UseInformationSchema or Assigned(DataSet.FieldByName('ROUTINE_SCHEMA')),
+      DataSet.Fields[0].DisplayName);
+
     repeat
       RoutineType := rtUnknown;
       if (not UseInformationSchema) then
@@ -6529,6 +6562,7 @@ begin
       // But in MySQL 5.7.14 the ROUTINE_DEFINITION does not escape strings
       // correctly like "'\\'". It will be shown as "'\'" ... and is not usable.
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
+  end;
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
@@ -7351,6 +7385,7 @@ begin
   begin
     // Debug 2017-01-23
     SendToDeveloper('FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+      + 'Field: ' + DataSet.Fields[0].DisplayName + #13#10
       + 'MySQL: ' + Session.Connection.ServerVersionStr);
 
     Result := False;
@@ -11125,7 +11160,10 @@ begin
   begin
     // Debug 2017-02-09
     Assert(Assigned(Session));
+    Assert(Sessions.IndexOf(Session) >= 0);
+    Assert(TObject(Session) is TSSession);
     Assert(Assigned(Session.Connection));
+    Assert(TObject(Session.Connection) is TMySQLConnection);
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
@@ -11336,7 +11374,7 @@ begin
       SQL := SQL
         + ' ORDER BY ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ',' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + ';' + #13#10;
     end;
-  if (((Location is TSSession) or (Location is TSDatabase)) and (Fields or Triggers and (Session.Connection.MySQLVersion >= 50010))) then
+  if (((Location is TSSession) or (Location is TSDatabase) or (Location is TSTable)) and (Fields or Triggers and (Session.Connection.MySQLVersion >= 50010))) then
   begin
     SQL := SQL + 'SELECT ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('TABLE_NAME')
       + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
@@ -11511,6 +11549,9 @@ begin
       SQL := SQL
         + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ',' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + ';' + #13#10;
     end;
+
+  if (Count > 0) then
+    Session.SendEvent(etItemsValid, Self, Self);
 
   Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
 end;
@@ -11758,13 +11799,6 @@ begin
 
     Result := FUser.Build(DataSet);
 
-    // Debug 2017-02-11
-    if (FUser.Name = '') then
-      SendToDeveloper('Query: ' + #13#10
-        + DataSet.CommandText + #13#10#13#10
-        + 'Source: ' + #13#10
-        + FUser.Source);
-
     FUser.FOriginalName := FUser.Name;
 
     if (Users.InsertIndex(FUser.Name, Index)) then
@@ -12007,12 +12041,17 @@ begin
     if (TObject(List[I]) is TSDBObject) then
       for J := 0 to TSDBObject(List[I]).References.Count - 1 do
         for K := I - 1 downto 0 do
+        begin
+          // Debug 2017-02-19
+          Assert(not (TObject(List[K]) is TSDBObject) or Assigned(TSDBObject(List[I]).References[J]));
+
           if ((TObject(List[K]) is TSDBObject)
             and (TSDBObject(List[K]) = TSDBObject(List[I]).References[J].DBObject)) then
           begin
             List.Move(K, I);
             Dec(I);
           end;
+        end;
 
     Inc(I);
     Dec(CycleProtection);
@@ -12174,9 +12213,21 @@ end;
 procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   for I := 0 to Length(EventProcs) - 1 do
+  begin
+    ProfilingReset(Profile);
     EventProcs[I](AEvent);
+    if (ProfilingTime(Profile) > 1000) then
+      SendToDeveloper('Proc: ' + ProcAddrToStr(@EventProcs[I]) + #13#10
+        + 'EventType: ' + IntToStr(Ord(AEvent.EventType)) + #13#10
+        + ProfilingReport(Profile));
+  end;
+
+  CloseProfile(Profile);
 end;
 
 procedure TSSession.EmptyDatabases(const Databases: TList);
@@ -12427,11 +12478,7 @@ end;
 
 procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
-  ProfilingPoint(MonitorProfile, 15);
-
   SendEvent(etMonitor);
-
-  ProfilingPoint(MonitorProfile, 16);
 end;
 
 procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection;
@@ -12450,14 +12497,17 @@ var
   OldObjectName: string;
   Parse: TSQLParse;
   Process: TSProcess;
+  Profile: TProfile;
   Routine: TSRoutine;
-S: string; // Debug 2017-01-06
+  S: string;
   SQL: string;
   Table: TSTable;
   Trigger: TSTrigger;
   User: TSUser;
   Variable: TSVariable;
 begin
+  CreateProfile(Profile);
+
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
@@ -12477,7 +12527,7 @@ begin
           UnparsableSQL := UnparsableSQL
             + '# MonitorExecutedStmts()' + #13#10
             + '# Error: ' + SQLParser.ErrorMessage + #13#10
-            + Trim(SQL) + #13#10 + #13#10 + #13#10
+            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
         else
           UnparsableSQL := UnparsableSQL
             + '# MonitorExecutedStmts()' + #13#10
@@ -12488,11 +12538,15 @@ begin
     end;
   end;
 
+  ProfilingPoint(Profile, 1);
+
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
-    else if (SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
+    else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
+      ProfilingPoint(Profile, 2);
+
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
       if (DDLStmt.ObjectType = otTable) then
         DDLStmt.ObjectName := TableName(DDLStmt.ObjectName);
@@ -12541,10 +12595,17 @@ begin
                     Table := Database.TableByName(DDLStmt.ObjectName);
                     if (Assigned(Table)) then
                       Table.Invalidate()
-                    else if (DDLStmt.ObjectType = otTable) then
-                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName), True)
                     else
-                      Database.Tables.Add(TSView.Create(Database.Tables, DDLStmt.ObjectName), True);
+                    begin
+                      ProfilingPoint(Profile, 3);
+                      if (DDLStmt.ObjectType = otTable) then
+                        Table := TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName)
+                      else
+                        Table := TSView.Create(Database.Tables, DDLStmt.ObjectName);
+                      ProfilingPoint(Profile, 4);
+                      Database.Tables.Add(Table, True);
+                      ProfilingPoint(Profile, 5);
+                    end;
                   end;
                 dtRename:
                   if (SQLParseKeyword(Parse, 'RENAME')
@@ -12571,22 +12632,32 @@ begin
                 dtAlter,
                 dtAlterRename:
                   begin
+                    ProfilingPoint(Profile, 6);
                     Table := Database.TableByName(DDLStmt.ObjectName);
+                    ProfilingPoint(Profile, 7);
                     if (not Assigned(Table)) then
-                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
+                    begin
+                      ProfilingPoint(Profile, 8);
+                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName));
+                      ProfilingPoint(Profile, 9);
+                    end
                     else
                     begin
                       Table.Invalidate();
+                      ProfilingPoint(Profile, 10);
                       if (Table is TSBaseTable) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);
                       end;
+                      ProfilingPoint(Profile, 11);
 
                       if (DDLStmt.NewDatabaseName <> '') then
                         Table.SetDatabase(Database);
+                      ProfilingPoint(Profile, 12);
                       if (DDLStmt.NewObjectName <> '') then
                         Table.Name := DDLStmt.NewObjectName;
+                      ProfilingPoint(Profile, 13);
                     end;
                   end;
                 dtDrop:
@@ -12595,6 +12666,7 @@ begin
                     raise ERangeError.Create('SQL: ' + SQL)
                   else
                   begin
+                    ProfilingPoint(Profile, 14);
                     SQLParseKeyword(Parse, 'IF EXISTS');
                     First := True; Database := nil;
                     repeat
@@ -12616,12 +12688,18 @@ begin
                             and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                             // will be handled in the next Stmt
                           else
+                          begin
+                            ProfilingPoint(Profile, 15);
                             Database.Tables.Delete(Table);
+                            ProfilingPoint(Profile, 19);
+                          end;
                         end;
                       end;
                       First := False;
                     until (not SQLParseChar(Parse, ','));
+                    ProfilingPoint(Profile, 20);
                     SendEvent(etItemsValid, Database, Database.Tables);
+                    ProfilingPoint(Profile, 21);
                   end;
               end;
             otFunction,
@@ -12860,8 +12938,11 @@ begin
           Table := Database.TableByName(ObjectName);
           if (Assigned(Table)) then
           begin
+            ProfilingPoint(Profile, 22);
             Table.InvalidateData();
+            ProfilingPoint(Profile, 23);
             SendEvent(etItemValid, Database, Database.Tables, Table);
+            ProfilingPoint(Profile, 24);
           end;
         end;
       end;
@@ -12930,6 +13011,15 @@ begin
       if (Assigned(Process)) then
         Processes.Delete(Process);
     end;
+
+  if (ProfilingTime(Profile) > 1000) then
+  begin
+    SetString(S, Text, Len);
+    SendToDeveloper(ProfilingReport(Profile) + #13#10
+      + S);
+  end;
+
+  CloseProfile(Profile);
 end;
 
 function TSSession.PluginByName(const PluginName: string): TSPlugin;
@@ -12982,14 +13072,7 @@ end;
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
 begin
-  ProfilingPoint(MonitorProfile, 6);
-
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
-
   Event := TEvent.Create(Self);
   Event.EventType := EventType;
   Event.Sender := Sender;
@@ -12997,16 +13080,6 @@ begin
   Event.Item := Item;
   DoSendEvent(Event);
   Event.Free();
-
-  ProfilingPoint(MonitorProfile, 13);
-
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)
-    and ((Finish - Start) div Frequency > 10)) then
-    SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
-      + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
-      + 'Receiver: ' + IntToStr(Length(EventProcs)));
-
-  ProfilingPoint(MonitorProfile, 14);
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
@@ -13234,7 +13307,10 @@ begin
       end
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
-        if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
+        if (not DataSet.Active) then
+          Result := (ErrorCode = ER_NONEXISTING_GRANT) // There is no such grant defined for user
+            or (ErrorCode = ER_OPTION_PREVENTS_STATEMENT) // The MySQL server is running with the --skip-grant-tables option
+        else if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
           Result := BuildUser(DataSet)
         else
         begin

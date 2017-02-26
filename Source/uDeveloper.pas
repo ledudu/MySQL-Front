@@ -5,7 +5,11 @@ interface
 { ******************************************************************** }
 
 uses
-  Windows, Classes, SysUtils, WinInet;
+  Windows, Classes, SysUtils, WinInet
+  {$IFDEF EurekaLog}
+  , EClasses
+  {$ENDIF}
+  ;
 
 type
   THTTPThread = class(TThread)
@@ -18,11 +22,13 @@ type
     FHTTPMessage: string;
     FHTTPStatus: Integer;
     FOnProgress: TProgressEvent;
+    FURI: string;
     SendStream: TStream;
     Subject: string;
     ReceiveStream: TStream;
-    URI: string;
   public
+    DebugReceiveFileSize: Int64; // Debug 2017-02-18
+    DebugReceivedFileSize: Int64; // Debug 2017-02-18
     constructor Create(const AURI: string;
       const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
     procedure Execute(); override;
@@ -32,6 +38,7 @@ type
     property ErrorMessage: string read FErrorMessage;
     property HTTPMessage: string read FHTTPMessage;
     property HTTPStatus: Integer read FHTTPStatus;
+    property URI: string read FURI;
   end;
 
   TCheckOnlineVersionThread = class(THTTPThread)
@@ -47,13 +54,12 @@ function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
 function GetCompileTime(): TDateTime;
 function GetUTCTime(): TDateTime;
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+{$IFDEF EurekaLog}
+function LocationToStr(Location: TELLocationInfo): string;
+{$ENDIF}
+function ProcAddrToStr(const Proc: Pointer): string;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 1;
   const HideSource: Boolean = False);
-
-type
-  EImportEx = class(Exception)
-  end;
 
 const
   MailPattern = '(?:[a-z0-9!#$%&''*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&''*+/=?^_`{|}~'
@@ -67,13 +73,14 @@ var
   LastUpdateCheck: TDateTime;
   ObsoleteVersion: Integer;
   OnlineVersion: Integer;
-  OnlineRecommendedVersion: Integer;
   ProgramVersion: Integer;
   ProgramVersionBuild: Integer;
   ProgramVersionMajor: Integer;
   ProgramVersionMinor: Integer;
   ProgramVersionPatch: Integer;
   ProgramVersionStr: string;
+  RecommendedUpdateAvailable: Boolean;
+  UpdateAvailable: Boolean;
 
 implementation
 
@@ -83,9 +90,9 @@ uses
   XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils, IOUtils, Registry
 {$IFDEF EurekaLog}
   , Forms,
-  ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
+  ExceptionLog7, EExceptionManager, ECallStack, EStackTracing,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
-  EEvents, ELogBuilder, EFreeze,
+  EEvents, ELogBuilder, EFreeze, EDebugInfo,
   uSession,
   uBase,
   MySQLDB
@@ -107,6 +114,11 @@ begin
     raise EAssertionFailed.Create(Message) at ErrorAddr
   else
     raise EAssertionFailed.Create('Assertion failed') at ErrorAddr;
+end;
+
+function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
+begin
+  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
 end;
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
@@ -156,7 +168,7 @@ begin
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
       begin
-        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
+        UpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > ProgramVersion;
         VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' +
           IntToStr(Patch) + '.' + IntToStr(Build) + ')';
       end;
@@ -182,7 +194,10 @@ begin
           Build := StrToInt(Node.GetText());
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
-        OnlineRecommendedVersion := EncodeVersion(Major, Minor, Patch, Build);
+      begin
+        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
+        RecommendedUpdateAvailable := OnlineVersion > ProgramVersion;
+      end;
 
       Infos := PAD.ChildNodes.FindNode('Web_Info');
       if (Assigned(Node)) then
@@ -198,12 +213,7 @@ begin
     end;
   end;
 
-  Result := (OnlineVersion > 0) and (SetupProgramURI <> '');
-end;
-
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
-begin
-  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
+  Result := (VersionStr <> '') and (SetupProgramURI <> '');
 end;
 
 function GetCompileTime(): TDateTime;
@@ -222,8 +232,45 @@ begin
       EncodeTime(wHour, wMinute, wSecond, wMilliseconds);
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+{$IFDEF EurekaLog}
+function LocationToStr(Location: TELLocationInfo): string;
+begin
+  if ((Location.ClassName <> '') and
+    (Location.ProcedureName <> '')) then
+    Result := Location.ClassName + '.' +
+      Location.ProcedureName
+  else if (Location.ClassName <> '') then
+    Result := Location.ClassName
+  else if (Location.ProcedureName <> '') then
+    Result := Location.ProcedureName
+  else
+    Result := '';
+  Result := ExtractFileName(Location.ModuleName) + '|' +
+    Location.UnitName + '|' + Result + '|' +
+    IntToStr(Location.LineNumber) + '[' +
+    IntToStr(Location.ProcOffsetLine) + ']';
+end;
+{$ENDIF}
+
+function ProcAddrToStr(const Proc: Pointer): string;
+{$IFDEF EurekaLog}
+var
+  DebugInfo: TEurekaDebugInfo;
+{$ENDIF}
+begin
+  {$IFNDEF EurekaLog}
+    Result := '';
+  {$ELSE}
+    if (not GetSourceInfoByAddr(Proc, DebugInfo)) then
+      Result := ''
+    else
+      Result := LocationToStr(DebugInfo.Location);
+  {$ENDIF}
+end;
+
+procedure SendToDeveloper(const Text: string; const Days: Integer = 1;
   const HideSource: Boolean = False);
+{$IFNDEF Debug}
 {$IFDEF EurekaLog}
 var
   Buffer: TEurekaDebugInfo;
@@ -232,9 +279,7 @@ var
   Index: Integer;
   Item: PEurekaDebugInfo;
   StackItem: Integer;
-  Source: string;
 {$ENDIF}
-{$IFNDEF Debug}
 var
   Body: String;
   Flags: DWORD;
@@ -257,43 +302,22 @@ begin
         Item := nil;
         while ((Index < CallStack.Count) and (StackItem < 2)) do
         begin
-          Item := CallStack.GetItem(1, Buffer);
+          Item := CallStack.GetItem(Index, Buffer);
           if ((Item^.Location.DebugDetail = ddSourceCode) and
             ((ModuleFileName = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(ModuleFileName)) = 0))) then
             Inc(StackItem);
           Inc(Index);
         end;
         if (Assigned(Item) and (StackItem = 2)) then
-        begin
-          if ((Item^.Location.ClassName <> '') and
-            (Item^.Location.ProcedureName <> '')) then
-            Source := Item^.Location.ClassName + '.' +
-              Item^.Location.ProcedureName
-          else if (Item^.Location.ClassName <> '') then
-            Source := Item^.Location.ClassName
-          else if (Item^.Location.ProcedureName <> '') then
-            Source := Item^.Location.ProcedureName
-          else
-            Source := '';
-          Source := ExtractFileName(Item^.Location.ModuleName) + '|' +
-            Item^.Location.UnitName + '|' + Source + '|' +
-            IntToStr(Item^.Location.LineNumber) + '[' +
-            IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
-
-          Body := Source + Body;
-        end
+          Body := LocationToStr(CallStack.GetItem(StackItem - 1, Buffer)^.Location) + #13#10#13#10 + Body
         else
         begin
-          Body := Source + Body + #13#10
+          Body := Body + #13#10
             + 'StackItem: ' + IntToStr(StackItem) + ', '
             + 'Index:' + IntToStr(Index) + ', '
             + 'Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
           for I := 0 to CallStack.Count - 1 do
-            Body := Body
-              + ExtractFileName(Item^.Location.ModuleName) + '|' +
-                  Item^.Location.UnitName + '|' + Source + '|' +
-                  IntToStr(Item^.Location.LineNumber) + '[' +
-                  IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10;
+            Body := Body + LocationToStr(CallStack.GetItem(I, Buffer)^.Location) + #13#10;
         end;
       end;
     {$ENDIF}
@@ -324,7 +348,7 @@ constructor THTTPThread.Create(const AURI: string;
 begin
   inherited Create(True);
 
-  URI := AURI;
+  FURI := AURI;
   SendStream := ASendStream;
   ReceiveStream := AReceiveStream;
   Subject := ASubject;
@@ -338,7 +362,6 @@ var
   Body: RawByteString;
   Buffer: array [0 .. 32768 - 1] of Byte;
   Client: HInternet;
-  FileSize: Int64;
   Headers: string;
   Index: Cardinal;
   Internet: HInternet;
@@ -346,8 +369,8 @@ var
   Len: Integer;
   MessageBuffer: array [0 .. 2048 - 1] of Char;
   Method: PChar;
-  QueryIndex: DWORD;
   QueryInfo: array [0 .. 2048] of Char;
+  ReceiveFileSize: Int64;
   Request: HInternet;
   RequestTry: Integer;
   Size: Cardinal;
@@ -445,7 +468,7 @@ begin
         else
         begin
           repeat
-            FileSize := -1;
+            ReceiveFileSize := -1;
 
             // Debug 2017-01-23
             lpszHeaders := PChar(Headers);
@@ -463,7 +486,10 @@ begin
               Index := 0;
               if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_LENGTH, @Buffer,
                 Size, Index)) then
-                FileSize := StrToInt(PChar(@Buffer));
+              begin
+                ReceiveFileSize := StrToInt(PChar(@Buffer));
+                DebugReceiveFileSize := ReceiveFileSize;
+              end;
 
               if (Assigned(ReceiveStream)) then
                 repeat
@@ -473,30 +499,45 @@ begin
                     ReceiveStream.Write(Buffer, Size);
 
                   if (not Terminated and Assigned(OnProgress) and
-                    (ReceiveStream.Size < FileSize)) then
-                    OnProgress(Self, ReceiveStream.Size, FileSize);
+                    (ReceiveStream.Size < ReceiveFileSize)) then
+                    OnProgress(Self, ReceiveStream.Size, ReceiveFileSize);
                 until (Terminated or (Success and (Size = 0)));
 
-              Size := SizeOf(Buffer);
-              Index := 0;
               if (not Terminated) then
+              begin
+                Size := SizeOf(Buffer);
+                Index := 0;
                 if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @Buffer,
                   Size, Index)) then
                   FErrorCode := GetLastError()
                 else
                 begin
                   FHTTPStatus := StrToInt(PChar(@Buffer));
-                  QueryIndex := Length(QueryInfo);
+                  Index := 0;
+                  Size := SizeOf(Buffer);
                   if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo,
                     Size, Index)) then
-                    SetString(FHTTPMessage, PChar(@QueryInfo[0]), QueryIndex);
+                    SetString(FHTTPMessage, PChar(@QueryInfo[0]), Size div SizeOf(QueryInfo[0]));
                 end;
+              end;
             end;
 
             Inc(RequestTry);
           until (Terminated or (FErrorCode <> 0) or
             (FHTTPStatus = HTTP_STATUS_OK) or Assigned(ReceiveStream) and
             (ReceiveStream.Size = 0) or (RequestTry >= 3));
+
+          if ((FErrorCode = 0) and (FHTTPStatus = HTTP_STATUS_OK) and Assigned(ReceiveStream)
+            and (ReceiveFileSize > 0) and (ReceiveFileSize < ReceiveStream.Size)) then
+          begin
+            FErrorCode := 123456;
+            FErrorMessage := IntToStr(ReceiveStream.Size) + ' bytes of ' + IntToStr(ReceiveFileSize) + 'received only';
+          end;
+
+          if (not Assigned(ReceiveStream)) then
+            DebugReceiveFileSize := -1
+          else
+            DebugReceiveFileSize := ReceiveStream.Size;
         end;
         InternetCloseHandle(Request);
       end;
@@ -989,7 +1030,7 @@ begin
     end;
 end;
 
-{ ****************************************************************************** }
+{******************************************************************************}
 
 procedure CustomButtonClick(const Custom: Pointer;
   ExceptionInfo: TEurekaExceptionInfo; Dialog: TObject;
@@ -1044,11 +1085,11 @@ begin
   begin
     ShowDialog := False;
 
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 1, True);
   end
   else
   begin
-    ShowDialog := (ProgramVersion >= OnlineVersion);
+    ShowDialog := not UpdateAvailable;
 
     if (not ShowDialog) then
     begin
@@ -1056,7 +1097,7 @@ begin
         ExceptionInfo.ExceptionMessage), 'Error',
         MB_OK + MB_ICONERROR);
 
-      if ((OnlineVersion > ProgramVersion) and
+      if (UpdateAvailable and
         (OnlineVersion > ObsoleteVersion)) then
         PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
       if (ObsoleteVersion < ProgramVersion) then
@@ -1064,7 +1105,7 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 1, True);
 
       ExceptionInfo.Options.EMailSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +
@@ -1091,13 +1132,13 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-  if (GetUTCTime() < IncHour(GetCompileTime(), 12)) then
-  begin
-    FreezeThreadClass := TMainThreadFreezeDetectionThread;
-    CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
-    CurrentEurekaLogOptions().FreezeActivate := True;
-    InitCheckFreeze();
-  end;
+//  if (GetUTCTime() < IncHour(GetCompileTime(), 12)) then
+//  begin
+//    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+//    CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
+//    CurrentEurekaLogOptions().FreezeActivate := True;
+//    InitCheckFreeze();
+//  end;
   {$ENDIF}
 
   InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
@@ -1107,6 +1148,8 @@ initialization
   ObsoleteVersion := -1;
   OnlineVersion := -1;
   SendThreads := TList.Create();
+  RecommendedUpdateAvailable := False;
+  UpdateAvailable := False;
   UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
 
   BufferSize := GetFileVersionInfoSize(PChar(ModuleFileName), Handle);
@@ -1133,12 +1176,13 @@ initialization
   begin
     if (Reg.ValueExists('LastUpdateCheck')) then
       LastUpdateCheck := Reg.ReadDateTime('LastUpdateCheck');
-    if (Reg.ValueExists('ObsoleteVersion')) then
+    if (Reg.ValueExists('ObsoleteVersion') and (Reg.ReadInteger('ObsoleteVersion') >= ProgramVersion)) then
       ObsoleteVersion := Reg.ReadInteger('ObsoleteVersion');
+    if (Reg.ValueExists('UpdateAvailable')) then
+      UpdateAvailable := Reg.ReadBool('UpdateAvailable');
     Reg.CloseKey();
   end;
   Reg.Free();
-
 finalization
 
   while (SendThreads.Count > 0) do
@@ -1161,6 +1205,10 @@ finalization
       Reg.WriteInteger('ObsoleteVersion', ObsoleteVersion)
     else if (Reg.ValueExists('ObsoleteVersion')) then
       Reg.DeleteValue('ObsoleteVersion');
+    if (UpdateAvailable) then
+      Reg.WriteBool('UpdateAvailable', UpdateAvailable)
+    else if (Reg.ValueExists('UpdateAvailable')) then
+      Reg.DeleteValue('UpdateAvailable');
     Reg.CloseKey();
   end;
   Reg.Free();

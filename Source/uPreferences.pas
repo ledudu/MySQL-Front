@@ -346,7 +346,6 @@ type
 
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
-    TUpdateCheckType = (utNever, utDaily);
   private
     FImages: TImageList;
     FInternetAgent: string;
@@ -428,7 +427,6 @@ type
     View: TPView;
     Width: Integer;
     WindowState: TWindowState;
-    UpdateCheck: TUpdateCheckType;
     constructor Create();
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
@@ -849,22 +847,6 @@ begin
   if (foMatchCase in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'MatchCase'; end;
   if (foWholeValue in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'WholeValue'; end;
   if (foRegExpr in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
-end;
-
-function TryStrToUpdateCheck(const Str: string; var UpdateCheckType: TPPreferences.TUpdateCheckType): Boolean;
-begin
-  Result := True;
-  if (StrIComp(PChar(Str), 'Daily') = 0) then UpdateCheckType := utDaily
-  else if (StrIComp(PChar(Str), 'Never') = 0) then UpdateCheckType := utNever
-  else Result := False;
-end;
-
-function UpdateCheckToStr(const UpdateCheck: TPPreferences.TUpdateCheckType): string;
-begin
-  case (UpdateCheck) of
-    utDaily: Result := 'Daily';
-    else Result := 'Never';
-  end;
 end;
 
 function TryStrToRowType(const Str: string; var RowType: Integer): Boolean;
@@ -1982,12 +1964,13 @@ begin
   LanguageFilename := 'English.ini';
   TabsVisible := False;
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
-  UpdateCheck := utNever;
 
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  if (SysUtils.LoadStr(1002) = '') then
+  if (FileExists(IncludeTrailingPathDelimiter(GetCurrentDir()) + 'Desktop.xml')) then
+    FUserPath := IncludeTrailingPathDelimiter(GetCurrentDir())
+  else if (SysUtils.LoadStr(1002) = '') then
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + 'MySQL-Front')
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
@@ -2236,9 +2219,8 @@ end;
 
 procedure TPPreferences.LoadFromXML(const XML: IXMLNode);
 var
-  Visible: Boolean;
-var
   PixelsPerInch: Integer;
+  Visible: Boolean;
 begin
   inherited;
 
@@ -2327,7 +2309,6 @@ begin
   if (Assigned(XMLNode(XML, 'toolbar/objectsearch')) and TryStrToBool(XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjectSearch] else ToolbarTabs := ToolbarTabs - [ttObjectSearch];
   if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
   if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
@@ -2492,7 +2473,6 @@ begin
   XMLNode(XML, 'toolbar/editor3').Attributes['visible'] := ttEditor3 in ToolbarTabs;
   XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'] := ttObjectSearch in ToolbarTabs;
   XMLNode(XML, 'top').Text := IntToStr(Top);
-  XMLNode(XML, 'updates/check').Text := UpdateCheckToStr(UpdateCheck);
 
   XMLNode(XML, 'width').Text := IntToStr(Width);
 
@@ -3438,8 +3418,6 @@ begin
 end;
 
 procedure TPAccount.Save();
-var
-  Filename: TFileName;
 begin
   if (Assigned(XML)) then
   begin
@@ -3458,11 +3436,8 @@ begin
     begin
       if (DesktopXMLDocument.Modified) then
         if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
-        begin
-          Filename := DesktopFilename;
-          SetLastError(0); // Debug 2017-01-20
           try
-            DesktopXMLDocument.SaveToFile(Filename);
+            DesktopXMLDocument.SaveToFile(DesktopFilename);
           except
             on E: Exception do
               SendToDeveloper(E.Message);
@@ -3470,9 +3445,6 @@ begin
               SendToDeveloper(E.Message);
             // Do not inform user about problems while saving file
           end;
-          if (GetLastError() <> 0) then
-            SendToDeveloper('Error: ' + IntToStr(GetLastError()));
-        end;
         if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
           if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
             HistoryXMLDocument.SaveToFile(HistoryFilename);
@@ -3813,7 +3785,6 @@ end;
 procedure TPAccounts.Save();
 var
   I: Integer;
-  Profile: TProfile;
 begin
   XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 
@@ -3829,13 +3800,7 @@ begin
   try
     if (XMLDocument.Modified) then
       if (ForceDirectories(ExtractFilePath(Filename))) then
-      begin
-        CreateProfile(Profile);
         XMLDocument.SaveToFile(Filename);
-        if (ProfilingTime(Profile) > 200) then
-          SendToDeveloper('Time: ' + IntToStr(ProfilingTime(Profile)) + ' ms');
-        CloseProfile(Profile);
-      end;
   except
     on E: EOSError do
       MessageBox(Application.MainFormHandle, PChar(E.Message), 'Error', MB_OK or MB_ICONERROR);

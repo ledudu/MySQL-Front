@@ -786,10 +786,6 @@ object DTable: TDTable
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
       OnShow = TSDependenciesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
