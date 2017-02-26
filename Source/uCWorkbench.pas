@@ -2239,57 +2239,29 @@ begin
 end;
 
 procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
-var
-  TempPoint: TWLinkPoint;
 begin
   if (Point is TWLink) then
     raise ERangeError.Create('Point is TWLink');
-
-  // Debug 2017-01-07
-  if (not Assigned(Point.Link)) then
-    raise ERangeError.Create('Point is not a part of a Link');
-  // Debug 2017-01-17
-  LastPoint.Link;
 
   if (Line = Point.LineA) then
   begin
     if (Assigned(Point.ControlB)) then
       Point.LineA.PointA.ControlB := Point.ControlB;
-
-    TempPoint := Line.PointA;
-    Point.LineA := nil;
-    Line.PointA := nil;
-    TempPoint.LineB := Point.LineB;
+    if (Assigned(Line.PointB.LineB)) then
+      Line.PointB.LineB.PointA := Line.PointA;
   end
   else if (Line = Point.LineB) then
   begin
-    TempPoint := Line.PointB;
-    Point.LineB := nil;
-    Line.PointB := nil;
-    TempPoint.LineA := Point.LineA;
+    if (Assigned(Point.LineB.PointB)) then
+      Point.LineB.PointB.ControlA := Point.ControlA;
+    if (Assigned(Line.PointA.LineA)) then
+      Line.PointA.LineA.PointB := Line.PointB;
   end
   else
     raise ERangeError.Create('Line is not attached to a Point.');
 
   Line.Free();
   Point.Free();
-
-  // Debug 2017-01-07
-  if (not Assigned(TempPoint.Link)) then
-    raise ERangeError.Create('TempPoint is not a part of a Link');
-  // Debug 2017-02-08
-  if (not (TempPoint.Link is TWLink)) then
-    raise ERangeError.Create('ClassType: ' + TempPoint.Link.ClassName);
-
-  // Debug 2017-01-07
-  TempPoint := TempPoint.Link;
-  while (Assigned(TempPoint)) do
-    if (Workbench.LinkPoints.IndexOf(TempPoint) < 0) then
-      raise ERangeError.Create(SRangeError)
-    else if (Assigned(TempPoint.LineB)) then
-      TempPoint := TempPoint.LineB.PointB
-    else
-      TempPoint := nil;
 end;
 
 function TWLink.GetCaption(): TCaption;

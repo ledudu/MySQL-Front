@@ -641,13 +641,16 @@ procedure TDImport.FormHide(Sender: TObject);
 begin
   if (Assigned(Import)) then
   begin
-    SendToDeveloper('Import: True');
+    SendToDeveloper('Visible: ' + BoolToStr(Visible, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
 
     Import.WaitFor();
     Import.Free();
     Import := nil;
-
-    SendToDeveloper('Import: False');
   end;
 
   Progress := Progress + 'j';

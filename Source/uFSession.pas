@@ -2739,10 +2739,13 @@ begin
 
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
-    if (ActiveDBGrid.SelectedRows.Count = 0) then
+    if ((ActiveDBGrid.SelectedRows.Count = 0) and (ActiveDBGrid.SelectedFields.Count = 0)) then
       ActiveDBGrid.DataSource.DataSet.Delete()
     else
     begin
+      if (ActiveDBGrid.SelectedRows.Count = 0) then
+        ActiveDBGrid.SelectAll();
+
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
       for I := 0 to Length(Bookmarks) - 1 do
         Bookmarks[I] := ActiveDBGrid.SelectedRows.Items[I];
@@ -6037,7 +6040,7 @@ begin
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
     MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and (ActiveDBGrid.SelectedFields.Count = 0) and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -6661,6 +6664,7 @@ end;
 procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
+  Fields: string;
 begin
   DBGrid.DataSource.DataSet.AfterClose := DataSetAfterClose;
   DBGrid.DataSource.DataSet.AfterScroll := DataSetAfterScroll;
@@ -6676,7 +6680,12 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
-    if (Assigned(DBGrid.Columns[I].Field)) then
+    if (not Assigned(DBGrid.Columns[I].Field)) then
+    begin
+      if (Fields <> '') then Fields := Fields + ',';
+      Fields := Fields + IntToStr(I);
+    end
+    else
     begin
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style + [fsBold];
@@ -6697,6 +6706,11 @@ begin
   DBGrid.Columns.EndUpdate();
 
   SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PSynMemo.Visible);
+
+  if (Fields <> '') then
+    SendToDeveloper('Version: ' + Session.Connection.ServerVersionStr + #13#10
+      + 'Fields: ' + Fields + #13#10
+      + TMySQLDataSet(DBGrid.DataSource.DataSet).CommandText);
 end;
 
 procedure TFSession.DBGridKeyDown(Sender: TObject; var Key: Word;
@@ -14434,80 +14448,85 @@ var
   Trigger: TSTrigger;
   User: TSUser;
 begin
-  if (SItem is TSTable) then
-  begin
-    Table := TSTable(SItem);
-
-    Result := Table.Database.RenameTable(Table, NewName);
-  end
-  else if (SItem is TSTrigger) then
-  begin
-    Trigger := TSTrigger(SItem);
-
-    NewTrigger := TSTrigger.Create(Trigger.Database.Triggers);
-    NewTrigger.Assign(Trigger);
-    NewTrigger.Name := NewName;
-    Result := Trigger.Database.UpdateTrigger(Trigger, NewTrigger);
-    NewTrigger.Free();
-  end
-  else if (SItem is TSEvent) then
-  begin
-    Event := TSEvent(SItem);
-
-    NewEvent := TSEvent.Create(Event.Database.Events);
-    NewEvent.Assign(Event);
-    NewEvent.Name := NewName;
-    Result := Event.Database.UpdateEvent(Event, NewEvent);
-    NewEvent.Free();
-  end
-  else if (SItem is TSKey) then
-  begin
-    BaseTable := TSBaseField(SItem).Table;
-
-    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
-    NewBaseTable.Assign(BaseTable);
-    NewBaseTable.KeyByCaption(SItem.Caption).Name := NewName;
-    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
-    NewBaseTable.Free();
-  end
-  else if (SItem is TSBaseField) then
-  begin
-    BaseTable := TSBaseField(SItem).Table;
-
-    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
-    NewBaseTable.Assign(BaseTable);
-    NewBaseTable.FieldByName(SItem.Name).Name := NewName;
-    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
-    NewBaseTable.Free();
-  end
-  else if (SItem is TSForeignKey) then
-  begin
-    BaseTable := TSForeignKey(SItem).Table;
-
-    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
-    NewBaseTable.Assign(BaseTable);
-    NewBaseTable.ForeignKeyByName(SItem.Name).Name := NewName;
-    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
-    NewBaseTable.Free();
-  end
-  else if (SItem is TSUser) then
-  begin
-    User := TSUser(SItem);
-
-    NewUser := TSUser.Create(Session.Users);
-    NewUser.Assign(User);
-    if (NewName = '<' + Preferences.LoadStr(287) + '>') then
-      NewUser.Name := ''
-    else
-      NewUser.Name := NewName;
-    Result := Session.UpdateUser(User, NewUser);
-    NewUser.Free();
-  end
+  if (NewName = '') then
+    Result := False
   else
-    Result := False;
+  begin
+    if (SItem is TSTable) then
+    begin
+      Table := TSTable(SItem);
 
-  if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and Result) then
-    ActiveDBGrid.DataSource.DataSet.Close();
+      Result := Table.Database.RenameTable(Table, NewName);
+    end
+    else if (SItem is TSTrigger) then
+    begin
+      Trigger := TSTrigger(SItem);
+
+      NewTrigger := TSTrigger.Create(Trigger.Database.Triggers);
+      NewTrigger.Assign(Trigger);
+      NewTrigger.Name := NewName;
+      Result := Trigger.Database.UpdateTrigger(Trigger, NewTrigger);
+      NewTrigger.Free();
+    end
+    else if (SItem is TSEvent) then
+    begin
+      Event := TSEvent(SItem);
+
+      NewEvent := TSEvent.Create(Event.Database.Events);
+      NewEvent.Assign(Event);
+      NewEvent.Name := NewName;
+      Result := Event.Database.UpdateEvent(Event, NewEvent);
+      NewEvent.Free();
+    end
+    else if (SItem is TSKey) then
+    begin
+      BaseTable := TSBaseField(SItem).Table;
+
+      NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
+      NewBaseTable.Assign(BaseTable);
+      NewBaseTable.KeyByCaption(SItem.Caption).Name := NewName;
+      Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
+      NewBaseTable.Free();
+    end
+    else if (SItem is TSBaseField) then
+    begin
+      BaseTable := TSBaseField(SItem).Table;
+
+      NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
+      NewBaseTable.Assign(BaseTable);
+      NewBaseTable.FieldByName(SItem.Name).Name := NewName;
+      Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
+      NewBaseTable.Free();
+    end
+    else if (SItem is TSForeignKey) then
+    begin
+      BaseTable := TSForeignKey(SItem).Table;
+
+      NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
+      NewBaseTable.Assign(BaseTable);
+      NewBaseTable.ForeignKeyByName(SItem.Name).Name := NewName;
+      Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
+      NewBaseTable.Free();
+    end
+    else if (SItem is TSUser) then
+    begin
+      User := TSUser(SItem);
+
+      NewUser := TSUser.Create(Session.Users);
+      NewUser.Assign(User);
+      if (NewName = '<' + Preferences.LoadStr(287) + '>') then
+        NewUser.Name := ''
+      else
+        NewUser.Name := NewName;
+      Result := Session.UpdateUser(User, NewUser);
+      NewUser.Free();
+    end
+    else
+      Result := False;
+
+    if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and Result) then
+      ActiveDBGrid.DataSource.DataSet.Close();
+  end;
 end;
 
 procedure TFSession.SaveDiagram(Sender: TObject);

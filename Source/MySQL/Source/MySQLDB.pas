@@ -2579,7 +2579,9 @@ begin
     Terminate();
 
   if (not Assigned(SyncThread)) then
-    FSyncThread := TSyncThread.Create(Self);
+    FSyncThread := TSyncThread.Create(Self)
+  else
+    Assert(not SyncThread.Terminated);
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
@@ -2611,7 +2613,8 @@ begin
 
   // Debug 2017-02-04
   Assert(TerminatedThreads.IndexOf(SyncThread) < 0);
-  Assert(Assigned(SyncThread.StmtLengths) and (TObject(SyncThread.StmtLengths) is TList));
+  Assert(Assigned(SyncThread.StmtLengths));
+  Assert(TObject(SyncThread.StmtLengths) is TList);
 
   SQLIndex := 1;
   StmtLength := 1; // ... to make sure, the first SQLStmtLength will be executed
@@ -2629,11 +2632,6 @@ begin
 
     if (StmtLength > 0) then
     begin
-      // Debug 2017-02-16
-      Assert(Assigned(SyncThread));
-      Assert(not SyncThread.Terminated);
-      Assert(Assigned(SyncThread.StmtLengths));
-
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
       Inc(SQLIndex, StmtLength);
     end;
@@ -3679,16 +3677,16 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
-  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
-    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
-    + 'LibLength: ' + IntToStr(LibLength) + #13#10
-    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
-    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
-    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
-
+//  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+//    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+//    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+//    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
+//    + 'LibLength: ' + IntToStr(LibLength) + #13#10
+//    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
+//    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
+//    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
+//    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
+//
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
     if (not NeedReconnect) then
@@ -6479,8 +6477,7 @@ begin
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
-    if (BufferCount > 0) then
-      PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
+    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
 end;
 
