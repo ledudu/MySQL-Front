@@ -38,7 +38,7 @@ object DStatement: TDStatement
     Top = 8
     Width = 321
     Height = 255
-    ActivePage = TSInformation
+    ActivePage = TSSource
     Anchors = [akLeft, akTop, akRight, akBottom]
     MultiLine = True
     TabOrder = 0
@@ -239,30 +239,118 @@ object DStatement: TDStatement
       DesignSize = (
         313
         227)
-      object FSource: TSynMemo
+      object FSource: TBCEditor
         Left = 8
         Top = 8
         Width = 297
         Height = 203
+        Cursor = crIBeam
+        ActiveLine.Indicator.Visible = False
+        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
+        Caret.Options = []
+        CodeFolding.Hint.Font.Charset = DEFAULT_CHARSET
+        CodeFolding.Hint.Font.Color = clWindowText
+        CodeFolding.Hint.Font.Height = -12
+        CodeFolding.Hint.Font.Name = 'Courier New'
+        CodeFolding.Hint.Font.Style = []
+        CodeFolding.Hint.Indicator.Glyph.Visible = False
+        CodeFolding.Width = 16
+        CompletionProposal.CloseChars = '()[]. '
+        CompletionProposal.Columns = <
+          item
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clWindowText
+            Font.Height = -12
+            Font.Name = 'Courier New'
+            Font.Style = []
+            Items = <>
+            Title.Font.Charset = DEFAULT_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -12
+            Title.Font.Name = 'Courier New'
+            Title.Font.Style = []
+          end>
+        CompletionProposal.SecondaryShortCut = 0
+        CompletionProposal.ShortCut = 16416
+        CompletionProposal.Trigger.Chars = '.'
+        CompletionProposal.Trigger.Enabled = False
+        Directories.Colors = 'Colors'
+        Directories.Highlighters = 'Highlighters'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
         Font.Name = 'Courier New'
         Font.Style = []
-        PopupMenu = MSource
-        TabOrder = 0
-        Gutter.Font.Charset = DEFAULT_CHARSET
-        Gutter.Font.Color = clWindowText
-        Gutter.Font.Height = -11
-        Gutter.Font.Name = 'Courier New'
-        Gutter.Font.Style = []
-        Gutter.Width = 0
-        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces]
+        LeftMargin.Bookmarks.Visible = False
+        LeftMargin.Font.Charset = DEFAULT_CHARSET
+        LeftMargin.Font.Color = 13408665
+        LeftMargin.Font.Height = -12
+        LeftMargin.Font.Name = 'Courier New'
+        LeftMargin.Font.Style = []
+        LeftMargin.LineNumbers.DigitCount = 2
+        LeftMargin.LineState.Enabled = False
+        LeftMargin.Marks.Visible = False
+        LeftMargin.MarksPanel.Visible = False
+        LeftMargin.Width = 21
+        Lines.Strings = (
+          'FSource')
+        LineSpacing = 0
+        MatchingPair.Enabled = True
+        Minimap.Font.Charset = DEFAULT_CHARSET
+        Minimap.Font.Color = clWindowText
+        Minimap.Font.Height = -1
+        Minimap.Font.Name = 'Courier New'
+        Minimap.Font.Style = []
         ReadOnly = True
-        RightEdgeColor = clWindow
-        ScrollHintFormat = shfTopToBottom
-        FontSmoothing = fsmNone
+        RightMargin.Visible = False
+        Scroll.Options = [soPastEndOfLine, soWheelClickMove]
+        SpecialChars.Style = scsDot
+        SyncEdit.Enabled = False
+        SyncEdit.ShortCut = 24650
+        TabOrder = 0
+        TokenInfo.Font.Charset = DEFAULT_CHARSET
+        TokenInfo.Font.Color = clWindowText
+        TokenInfo.Font.Height = -12
+        TokenInfo.Font.Name = 'Courier New'
+        TokenInfo.Font.Style = []
+        TokenInfo.Title.Font.Charset = DEFAULT_CHARSET
+        TokenInfo.Title.Font.Color = clWindowText
+        TokenInfo.Title.Font.Height = -12
+        TokenInfo.Title.Font.Name = 'Courier New'
+        TokenInfo.Title.Font.Style = []
+        UndoOptions = [uoGroupUndo]
+        WordWrap.Indicator.Bitmap.Data = {
+          7E030000424D7E0300000000000036000000280000000F0000000E0000000100
+          2000000000004803000000000000000000000000000000000000FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF000000
+          000000000000000000000000000000000000FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF0080000000FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF0000000000000000000000
+          0000FF00FF00FF00FF00FF00FF00FF00FF008000000080000000FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF008000000080000000800000008000000080000000FF00
+          FF00FF00FF00FF00FF00FF00FF00000000000000000000000000FF00FF00FF00
+          FF00FF00FF00FF00FF008000000080000000FF00FF00FF00FF0080000000FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF0080000000FF00FF00FF00FF0080000000FF00FF00FF00
+          FF00FF00FF000000000000000000000000000000000000000000FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF0080000000FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF0080000000FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00800000008000000080000000800000008000
+          00008000000080000000FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00
+          FF00}
+        WordWrap.Indicator.MaskColor = clFuchsia
       end
     end
   end

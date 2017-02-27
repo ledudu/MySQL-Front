@@ -6,8 +6,8 @@ uses
   SysUtils, Classes, Windows, SyncObjs,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
+  BCEditor.Editor, BCEditor.Highlighter,
   SQLUtils, MySQLDB, MySQLConsts, SQLParser,
-uProfiling,
   uPreferences;
 
 type
@@ -1588,6 +1588,7 @@ type
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
     function ApplyIdentifierName(const AIdentifierName: string): string;
+    procedure ApplyToBCEditor(const ABCEditor: TBCEditor);
     procedure GridCanEditShow(Sender: TObject);
     function CharsetByName(const CharsetName: string): TSCharset;
     function CharsetByCollation(const Collation: string): TSCharset;
@@ -1688,6 +1689,7 @@ uses
   Variants, SysConst, WinInet, DBConsts, RTLConsts, Math, DateUtils, ShLwAPI,
   Consts, DBCommon, StrUtils,
   DBGrids,
+  BCEditor.Types,
   CSVUtils, HTTPTunnel, MySQLDBGrid,
   uURI, uDeveloper;
 
@@ -1979,6 +1981,7 @@ begin
       + 'Version: ' + Session.Connection.ServerVersionStr + #13#10
       + Session.Connection.DebugMonitor.CacheText);
 
+    Index := -1;
     Result := False;
   end
   else if ((TList(Self).Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
@@ -5833,21 +5836,10 @@ begin
 end;
 
 procedure TSTables.Delete(const AItem: TSItem);
-var
-  Profile: TProfile;
 begin
-  CreateProfile(Profile);
-
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
-  ProfilingPoint(Profile, 1);
-
   inherited;
-
-  if (ProfilingTime(Profile) > 1000) then
-    SendToDeveloper(ProfilingReport(Profile));
-
-  CloseProfile(Profile);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
@@ -11160,7 +11152,7 @@ begin
   begin
     // Debug 2017-02-09
     Assert(Assigned(Session));
-    Assert(Sessions.IndexOf(Session) >= 0);
+    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27
     Assert(TObject(Session) is TSSession);
     Assert(Assigned(Session.Connection));
     Assert(TObject(Session.Connection) is TMySQLConnection);
@@ -11660,6 +11652,21 @@ begin
   end;
 end;
 
+procedure TSSession.ApplyToBCEditor(const ABCEditor: TBCEditor);
+var
+  I: Integer;
+begin
+  for I := 0 to ABCEditor.Highlighter.MainRules.RangeCount - 1 do
+    if ((ABCEditor.Highlighter.MainRules.Ranges[I].TokenType = BCEditor.Types.ttString)
+      and (ABCEditor.Highlighter.MainRules.Ranges[I].OpenToken.Symbols[0] = '"')
+      and (ABCEditor.Highlighter.MainRules.Ranges[I].CloseToken.Symbols[0] = '"')) then
+      if (Connection.AnsiQuotes) then
+        ABCEditor.Highlighter.MainRules.Ranges[I].Attribute.Element := 'Identifier'
+      else
+        ABCEditor.Highlighter.MainRules.Ranges[I].Attribute.Element := 'String';
+  ABCEditor.Invalidate();
+end;
+
 function TSSession.BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Database: TSDatabase;
@@ -11793,6 +11800,8 @@ begin
 
   if (Connection.ErrorCode = ER_OPTION_PREVENTS_STATEMENT) then
     Result := True
+  else if (DataSet.IsEmpty()) then
+    Result := False
   else
   begin
     FUser := TSUser.Create(Users);
@@ -12213,21 +12222,9 @@ end;
 procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
-  Profile: TProfile;
 begin
-  CreateProfile(Profile);
-
   for I := 0 to Length(EventProcs) - 1 do
-  begin
-    ProfilingReset(Profile);
     EventProcs[I](AEvent);
-    if (ProfilingTime(Profile) > 1000) then
-      SendToDeveloper('Proc: ' + ProcAddrToStr(@EventProcs[I]) + #13#10
-        + 'EventType: ' + IntToStr(Ord(AEvent.EventType)) + #13#10
-        + ProfilingReport(Profile));
-  end;
-
-  CloseProfile(Profile);
 end;
 
 procedure TSSession.EmptyDatabases(const Databases: TList);
@@ -12497,7 +12494,6 @@ var
   OldObjectName: string;
   Parse: TSQLParse;
   Process: TSProcess;
-  Profile: TProfile;
   Routine: TSRoutine;
   S: string;
   SQL: string;
@@ -12506,8 +12502,6 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-  CreateProfile(Profile);
-
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
@@ -12538,15 +12532,11 @@ begin
     end;
   end;
 
-  ProfilingPoint(Profile, 1);
-
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
     else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
-      ProfilingPoint(Profile, 2);
-
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
       if (DDLStmt.ObjectType = otTable) then
         DDLStmt.ObjectName := TableName(DDLStmt.ObjectName);
@@ -12597,14 +12587,11 @@ begin
                       Table.Invalidate()
                     else
                     begin
-                      ProfilingPoint(Profile, 3);
                       if (DDLStmt.ObjectType = otTable) then
                         Table := TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName)
                       else
                         Table := TSView.Create(Database.Tables, DDLStmt.ObjectName);
-                      ProfilingPoint(Profile, 4);
                       Database.Tables.Add(Table, True);
-                      ProfilingPoint(Profile, 5);
                     end;
                   end;
                 dtRename:
@@ -12632,32 +12619,22 @@ begin
                 dtAlter,
                 dtAlterRename:
                   begin
-                    ProfilingPoint(Profile, 6);
                     Table := Database.TableByName(DDLStmt.ObjectName);
-                    ProfilingPoint(Profile, 7);
                     if (not Assigned(Table)) then
-                    begin
-                      ProfilingPoint(Profile, 8);
-                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName));
-                      ProfilingPoint(Profile, 9);
-                    end
+                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
                     else
                     begin
                       Table.Invalidate();
-                      ProfilingPoint(Profile, 10);
                       if (Table is TSBaseTable) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);
                       end;
-                      ProfilingPoint(Profile, 11);
 
                       if (DDLStmt.NewDatabaseName <> '') then
                         Table.SetDatabase(Database);
-                      ProfilingPoint(Profile, 12);
                       if (DDLStmt.NewObjectName <> '') then
                         Table.Name := DDLStmt.NewObjectName;
-                      ProfilingPoint(Profile, 13);
                     end;
                   end;
                 dtDrop:
@@ -12666,7 +12643,6 @@ begin
                     raise ERangeError.Create('SQL: ' + SQL)
                   else
                   begin
-                    ProfilingPoint(Profile, 14);
                     SQLParseKeyword(Parse, 'IF EXISTS');
                     First := True; Database := nil;
                     repeat
@@ -12688,18 +12664,12 @@ begin
                             and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                             // will be handled in the next Stmt
                           else
-                          begin
-                            ProfilingPoint(Profile, 15);
                             Database.Tables.Delete(Table);
-                            ProfilingPoint(Profile, 19);
-                          end;
                         end;
                       end;
                       First := False;
                     until (not SQLParseChar(Parse, ','));
-                    ProfilingPoint(Profile, 20);
                     SendEvent(etItemsValid, Database, Database.Tables);
-                    ProfilingPoint(Profile, 21);
                   end;
               end;
             otFunction,
@@ -12938,11 +12908,8 @@ begin
           Table := Database.TableByName(ObjectName);
           if (Assigned(Table)) then
           begin
-            ProfilingPoint(Profile, 22);
             Table.InvalidateData();
-            ProfilingPoint(Profile, 23);
             SendEvent(etItemValid, Database, Database.Tables, Table);
-            ProfilingPoint(Profile, 24);
           end;
         end;
       end;
@@ -13011,15 +12978,6 @@ begin
       if (Assigned(Process)) then
         Processes.Delete(Process);
     end;
-
-  if (ProfilingTime(Profile) > 1000) then
-  begin
-    SetString(S, Text, Len);
-    SendToDeveloper(ProfilingReport(Profile) + #13#10
-      + S);
-  end;
-
-  CloseProfile(Profile);
 end;
 
 function TSSession.PluginByName(const PluginName: string): TSPlugin;

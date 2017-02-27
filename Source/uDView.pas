@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, StdCtrls_Ext,
   uSession,
   uBase;
@@ -31,8 +31,8 @@ type
     FName: TEdit;
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
-    FSource: TSynMemo;
-    FStmt: TSynMemo;
+    FSource: TBCEditor;
+    FStatement: TBCEditor;
     GBasics: TGroupBox_Ext;
     GDefiner: TGroupBox_Ext;
     msCopy: TMenuItem;
@@ -66,11 +66,10 @@ type
     procedure FormShow(Sender: TObject);
     procedure FSecurityClick(Sender: TObject);
     procedure FSecurityKeyPress(Sender: TObject; var Key: Char);
-    procedure FSourceStatusChange(Sender: TObject;
-      Changes: TSynStatusChanges);
-    procedure FStmtChange(Sender: TObject);
-    procedure FSourceChange(Sender: TObject);
+    procedure FSourceSelectionChanged(Sender: TObject);
     procedure TSDependenciesShow(Sender: TObject);
+    procedure FStatementChange(Sender: TObject);
+    procedure FSourceChange(Sender: TObject);
   private
     RecordCount: Integer;
     SessionState: (ssCreate, ssInit, ssDependencies, ssValid, ssAlter);
@@ -136,7 +135,7 @@ begin
   FCheckOptionCascade.Checked := View.CheckOption = voCascaded;
   FCheckOptionLocal.Checked := View.CheckOption = voLocal;
 
-  FStmt.Lines.Text := View.Stmt;
+  FStatement.Text := View.Stmt;
 
   FDefiner.Caption := View.Definer;
 
@@ -164,7 +163,7 @@ begin
   end;
   FFields.Items.EndUpdate();
 
-  FSource.Lines.Text := View.Source + #13#10;
+  FSource.Lines.Text := View.Source;
 
   TSSource.TabVisible := Assigned(View) and (View.Source <> '');
 end;
@@ -265,7 +264,7 @@ var
 begin
   FBOk.Enabled := PageControl.Visible
     and (FName.Text <> '')
-    and SQLSingleStmt(FStmt.Text) and SQLCreateParse(Parse, PChar(FStmt.Text), Length(FStmt.Text), Database.Session.Connection.MySQLVersion) and SQLParseKeyword(Parse, 'SELECT');
+    and SQLSingleStmt(FStatement.Text) and SQLCreateParse(Parse, PChar(FStatement.Text), Length(FStatement.Text), Database.Session.Connection.MySQLVersion) and SQLParseKeyword(Parse, 'SELECT');
   for I := 0 to Database.Tables.Count - 1 do
     if (Database.Session.TableNameCmp(FName.Text, Database.Tables[I].Name) = 0) and not (not Assigned(View) or (Database.Session.TableNameCmp(FName.Text, View.Name) = 0)) then
       FBOk.Enabled := False;
@@ -357,7 +356,7 @@ begin
       NewView.CheckOption := voLocal
     else
       NewView.CheckOption := voDefault;
-    NewView.Stmt := Trim(FStmt.Lines.Text);
+    NewView.Stmt := Trim(FStatement.Text);
 
     SessionState := ssAlter;
 
@@ -378,9 +377,11 @@ procedure TDView.FormCreate(Sender: TObject);
 begin
   FFields.SmallImages := Preferences.Images;
 
-  FStmt.Highlighter := MainHighlighter;
+  FStatement.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FStatement.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
   FDependencies.SmallImages := Preferences.Images;
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -406,7 +407,7 @@ begin
   Preferences.View.Width := Width;
   Preferences.View.Height := Height;
 
-  FStmt.Lines.Clear();
+  FStatement.Lines.Clear();
 
   FFields.Items.BeginUpdate();
   FFields.Items.Clear();
@@ -485,6 +486,11 @@ begin
     HelpContext := 1098;
   end;
 
+  FStatement.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FStatement);
+  FSource.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FSource);
+
   if (not Assigned(View) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
   else
@@ -519,7 +525,7 @@ begin
     FCheckOptionCascade.Checked := False;
     FCheckOptionLocal.Checked := False;
 
-    FStmt.Lines.Text := 'SELECT 1;';
+    FStatement.Lines.Text := 'SELECT 1;';
 
     TSSource.TabVisible := False;
   end
@@ -561,13 +567,12 @@ begin
   TSFields.TabVisible := False;
 end;
 
-procedure TDView.FSourceStatusChange(Sender: TObject;
-  Changes: TSynStatusChanges);
+procedure TDView.FSourceSelectionChanged(Sender: TObject);
 begin
   MainAction('aECopyToFile').Enabled := FSource.SelText <> '';
 end;
 
-procedure TDView.FStmtChange(Sender: TObject);
+procedure TDView.FStatementChange(Sender: TObject);
 begin
   FBOkCheckEnabled(Sender);
   TSFields.TabVisible := False;
@@ -616,23 +621,7 @@ begin
   FCheckOptionLocal.Caption := Preferences.LoadStr(746);
   FLStmt.Caption := Preferences.LoadStr(307) + ':';
 
-  FStmt.Font.Name := Preferences.SQLFontName;
-  FStmt.Font.Color := Preferences.SQLFontColor;
-  FStmt.Font.Size := Preferences.SQLFontSize;
-  FStmt.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FStmt.Gutter.Font.Color := clWindowText
-  else
-    FStmt.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FStmt.Gutter.Color := clBtnFace
-  else
-    FStmt.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FStmt.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FStmt.ActiveLineColor := clNone
-  else
-    FStmt.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  Preferences.ApplyToBCEditor(FStatement);
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
@@ -651,19 +640,7 @@ begin
   FDependencies.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

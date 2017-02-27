@@ -4,12 +4,12 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
-  SynEdit, SynMemo,
+  Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls, Actions,
+  BCEditor.Editor, BCEditor.Editor.Base,
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
   uSession,
-  uBase, System.Actions;
+  uBase;
 
 type
   TDTable = class (TForm_Ext)
@@ -33,9 +33,65 @@ type
     aPEditTrigger: TAction;
     aPUp: TAction;
     aPUp1: TMenuItem;
+    FAutoIncrement: TEdit;
     FBCancel: TButton;
+    FBCheck: TButton;
+    FBFlush: TButton;
     FBHelp: TButton;
     FBOk: TButton;
+    FBOptimize: TButton;
+    FCharset: TComboBox_Ext;
+    FChecked: TLabel;
+    FCollation: TComboBox_Ext;
+    FComment: TEdit;
+    FCreated: TLabel;
+    FDataSize: TLabel;
+    FDependencies: TListView;
+    FEngine: TComboBox_Ext;
+    FFields: TListView;
+    FForeignKeys: TListView;
+    FIndexSize: TLabel;
+    FKeys: TListView;
+    FLAutoIncrement: TLabel;
+    FLCharset: TLabel;
+    FLChecked: TLabel;
+    FLCollation: TLabel;
+    FLComment: TLabel;
+    FLCreated: TLabel;
+    FLDataSize: TLabel;
+    FLEngine: TLabel;
+    FLIndexSize: TLabel;
+    FLinear: TCheckBox;
+    FLName: TLabel;
+    FLPartitionExpr: TLabel;
+    FLPartitions: TLabel;
+    FLPartitionsNumber: TLabel;
+    FLPartitionType: TLabel;
+    FLRecordCount: TLabel;
+    FLRowType: TLabel;
+    FLUnusedSize: TLabel;
+    FLUpdated: TLabel;
+    FName: TEdit;
+    FPartitionExpr: TEdit;
+    FPartitions: TListView_Ext;
+    FPartitionsNumber: TEdit;
+    FPartitionType: TComboBox_Ext;
+    FRecordCount: TLabel;
+    FRowType: TComboBox_Ext;
+    FSource: TBCEditor;
+    FTriggers: TListView;
+    FUDPartitionsNumber: TUpDown;
+    FUnusedSize: TLabel;
+    FUpdated: TLabel;
+    GBasics: TGroupBox_Ext;
+    GCheck: TGroupBox_Ext;
+    GDates: TGroupBox_Ext;
+    GFlush: TGroupBox_Ext;
+    GOptimize: TGroupBox_Ext;
+    GPartitions: TGroupBox_Ext;
+    GRecordCount: TGroupBox_Ext;
+    GRecords: TGroupBox_Ext;
+    GSize: TGroupBox_Ext;
     mlDCreate: TMenuItem;
     mlDDelete: TMenuItem;
     mlDProperties: TMenuItem;
@@ -45,90 +101,34 @@ type
     msSelectAll: TMenuItem;
     N1: TMenuItem;
     N2: TMenuItem;
-    PSQLWait: TPanel;
     PageControl: TPageControl;
-    TSBasics: TTabSheet;
-    GRecords: TGroupBox_Ext;
-    FLRowType: TLabel;
-    FLAutoIncrement: TLabel;
-    FRowType: TComboBox_Ext;
-    FAutoIncrement: TEdit;
-    GBasics: TGroupBox_Ext;
-    FLName: TLabel;
-    FLEngine: TLabel;
-    FLComment: TLabel;
-    FLCharset: TLabel;
-    FLCollation: TLabel;
-    FName: TEdit;
-    FEngine: TComboBox_Ext;
-    FCharset: TComboBox_Ext;
-    FComment: TEdit;
-    FCollation: TComboBox_Ext;
-    TSInformation: TTabSheet;
-    GDates: TGroupBox_Ext;
-    FLCreated: TLabel;
-    FLUpdated: TLabel;
-    FCreated: TLabel;
-    FUpdated: TLabel;
-    GSize: TGroupBox_Ext;
-    FLIndexSize: TLabel;
-    FLDataSize: TLabel;
-    FIndexSize: TLabel;
-    FDataSize: TLabel;
-    GRecordCount: TGroupBox_Ext;
-    FLRecordCount: TLabel;
-    FRecordCount: TLabel;
-    TSKeys: TTabSheet;
-    FKeys: TListView;
-    TBIndices: TToolBar;
-    tbCreateKey: TToolButton;
-    tbDeleteKey: TToolButton;
-    tbPropertiesKey: TToolButton;
-    TSFields: TTabSheet;
-    FFields: TListView;
-    TBFields: TToolBar;
-    tbCreateField: TToolButton;
-    tbDeleteField: TToolButton;
-    tbPropertiesField: TToolButton;
-    tbSeparator: TToolButton;
-    tbFieldUp: TToolButton;
-    tbFieldDown: TToolButton;
-    TSForeignKeys: TTabSheet;
-    FForeignKeys: TListView;
-    TBForeignKeys: TToolBar;
-    tbCreateForeignKey: TToolButton;
-    tbDeleteForeignKey: TToolButton;
-    tbPropertiesForeignKey: TToolButton;
-    TSTriggers: TTabSheet;
-    FTriggers: TListView;
-    TSDependencies: TTabSheet;
-    FDependencies: TListView;
-    TSPartitions: TTabSheet;
-    GPartitions: TGroupBox_Ext;
-    FLPartitionType: TLabel;
-    FLPartitionsNumber: TLabel;
-    FLPartitions: TLabel;
-    FLPartitionExpr: TLabel;
-    FPartitionType: TComboBox_Ext;
-    FPartitionsNumber: TEdit;
-    FUDPartitionsNumber: TUpDown;
-    FPartitionExpr: TEdit;
-    FLinear: TCheckBox;
     PPartitions: TPanel_Ext;
-    FPartitions: TListView_Ext;
+    PSQLWait: TPanel;
+    tbCreateField: TToolButton;
+    tbCreateForeignKey: TToolButton;
+    tbCreateKey: TToolButton;
+    tbDeleteField: TToolButton;
+    tbDeleteForeignKey: TToolButton;
+    tbDeleteKey: TToolButton;
+    tbFieldDown: TToolButton;
+    TBFields: TToolBar;
+    tbFieldUp: TToolButton;
+    TBForeignKeys: TToolBar;
+    TBIndices: TToolBar;
+    tbPropertiesField: TToolButton;
+    tbPropertiesForeignKey: TToolButton;
+    tbPropertiesKey: TToolButton;
+    tbSeparator: TToolButton;
+    TSBasics: TTabSheet;
+    TSDependencies: TTabSheet;
     TSExtras: TTabSheet;
-    GOptimize: TGroupBox_Ext;
-    FLUnusedSize: TLabel;
-    FUnusedSize: TLabel;
-    FBOptimize: TButton;
-    GCheck: TGroupBox_Ext;
-    FLChecked: TLabel;
-    FChecked: TLabel;
-    FBCheck: TButton;
-    GFlush: TGroupBox_Ext;
-    FBFlush: TButton;
+    TSFields: TTabSheet;
+    TSForeignKeys: TTabSheet;
+    TSInformation: TTabSheet;
+    TSKeys: TTabSheet;
+    TSPartitions: TTabSheet;
     TSSource: TTabSheet;
-    FSource: TSynMemo;
+    TSTriggers: TTabSheet;
     procedure aPCreateFieldExecute(Sender: TObject);
     procedure aPCreateForeignKeyExecute(Sender: TObject);
     procedure aPCreateKeyExecute(Sender: TObject);
@@ -151,6 +151,7 @@ type
     procedure FBOptimizeClick(Sender: TObject);
     procedure FCharsetChange(Sender: TObject);
     procedure FCharsetExit(Sender: TObject);
+    procedure FCollationChange(Sender: TObject);
     procedure FEngineChange(Sender: TObject);
     procedure FFieldsChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
@@ -179,16 +180,15 @@ type
       Change: TItemChange);
     procedure FTriggersEnter(Sender: TObject);
     procedure msCopyClick(Sender: TObject);
+    procedure TSDependenciesShow(Sender: TObject);
     procedure TSExtrasShow(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
     procedure TSForeignKeysShow(Sender: TObject);
     procedure TSKeysShow(Sender: TObject);
     procedure TSInformationShow(Sender: TObject);
     procedure TSPartitionsShow(Sender: TObject);
-    procedure TSDependenciesShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
     procedure TSTriggersShow(Sender: TObject);
-    procedure FCollationChange(Sender: TObject);
   private
     FCreatedName: string;
     NewTable: TSBaseTable;
@@ -1048,7 +1048,8 @@ begin
   TBForeignKeys.Images := Preferences.Images;
 //  TBPartitions.Images := Preferences.SmallImages;
 
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -1182,6 +1183,9 @@ begin
     Caption := Preferences.LoadStr(842, Table.Name);
     HelpContext := 1054;
   end;
+
+  FSource.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Table) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
@@ -1674,7 +1678,7 @@ procedure TDTable.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
     if (Assigned(NewTable)) then
-      FSource.Lines.Text := NewTable.Source + #13#10;
+      FSource.Lines.Text := NewTable.Source;
 end;
 
 procedure TDTable.TSTriggersShow(Sender: TObject);
@@ -1821,19 +1825,7 @@ begin
   FBFlush.Caption := Preferences.LoadStr(329);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   aPCreateKey.Caption := Preferences.LoadStr(26) + '...';
   aPDeleteKey.Caption := Preferences.LoadStr(28);

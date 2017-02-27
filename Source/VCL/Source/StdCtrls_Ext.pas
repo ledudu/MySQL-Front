@@ -99,6 +99,8 @@ begin
     try
       ClipboardData := GetClipboardData(CF_UNICODETEXT);
       SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+      if ((Length(S) > 0) and (S[Length(S)] = #0)) then
+        SetLength(S, Length(S) - 1);
       GlobalUnlock(ClipboardData);
     finally
       CloseClipboard();

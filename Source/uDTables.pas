@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
   uSession,
@@ -14,67 +14,67 @@ uses
 type
   TDTables = class (TForm_Ext)
     FBCancel: TButton;
+    FBCheck: TButton;
+    FBFlush: TButton;
     FBHelp: TButton;
     FBOk: TButton;
+    FBOptimize: TButton;
+    FChecked: TLabel;
+    FCollation: TComboBox_Ext;
+    FCreated: TLabel;
+    FDatabase: TEdit;
+    FDataSize: TLabel;
+    FDefaultCharset: TComboBox_Ext;
+    FEngine: TComboBox_Ext;
+    FIndexSize: TLabel;
+    FLChecked: TLabel;
+    FLCollation: TLabel;
+    FLCreated: TLabel;
+    FLDatabase: TLabel;
+    FLDataSize: TLabel;
+    FLDefaultCharset: TLabel;
+    FLEngine: TLabel;
+    FLIndexSize: TLabel;
+    FLRecordCount: TLabel;
+    FLRowType: TLabel;
+    FLTablesCount: TLabel;
+    FLUnusedSize: TLabel;
+    FLUpdated: TLabel;
+    FRecordCount: TLabel;
+    FRowType: TComboBox_Ext;
+    FSource: TBCEditor;
+    FTablesCount: TLabel;
+    FUnusedSize: TLabel;
+    FUpdated: TLabel;
+    GBasics: TGroupBox_Ext;
+    GCheck: TGroupBox_Ext;
+    GDates: TGroupBox_Ext;
+    GFlush: TGroupBox_Ext;
+    GOptimize: TGroupBox_Ext;
+    GRecordCount: TGroupBox_Ext;
+    GRecords: TGroupBox_Ext;
+    GSize: TGroupBox_Ext;
     msCopy: TMenuItem;
     MSource: TPopupMenu;
     msSelectAll: TMenuItem;
     N1: TMenuItem;
-    PSQLWait: TPanel;
     PageControl: TPageControl;
+    PSQLWait: TPanel;
     TSBasics: TTabSheet;
-    GBasics: TGroupBox_Ext;
-    FLDatabase: TLabel;
-    FLEngine: TLabel;
-    FLTablesCount: TLabel;
-    FTablesCount: TLabel;
-    FLDefaultCharset: TLabel;
-    FLCollation: TLabel;
-    FEngine: TComboBox_Ext;
-    FDefaultCharset: TComboBox_Ext;
-    FCollation: TComboBox_Ext;
-    FDatabase: TEdit;
-    GRecords: TGroupBox_Ext;
-    FLRowType: TLabel;
-    FRowType: TComboBox_Ext;
-    TSInformation: TTabSheet;
-    GDates: TGroupBox_Ext;
-    FLCreated: TLabel;
-    FLUpdated: TLabel;
-    FCreated: TLabel;
-    FUpdated: TLabel;
-    GSize: TGroupBox_Ext;
-    FLIndexSize: TLabel;
-    FLDataSize: TLabel;
-    FIndexSize: TLabel;
-    FDataSize: TLabel;
-    GRecordCount: TGroupBox_Ext;
-    FLRecordCount: TLabel;
-    FRecordCount: TLabel;
     TSExtras: TTabSheet;
-    GOptimize: TGroupBox_Ext;
-    FLUnusedSize: TLabel;
-    FUnusedSize: TLabel;
-    FBOptimize: TButton;
-    GCheck: TGroupBox_Ext;
-    FLChecked: TLabel;
-    FChecked: TLabel;
-    FBCheck: TButton;
-    GFlush: TGroupBox_Ext;
-    FBFlush: TButton;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
-    FSource: TSynMemo;
     procedure FBCheckClick(Sender: TObject);
     procedure FBFlushClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FBOptimizeClick(Sender: TObject);
+    procedure FCharsetChange(Sender: TObject);
     procedure FDefaultCharsetChange(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FCharsetChange(Sender: TObject);
     procedure msCopyClick(Sender: TObject);
     procedure TSExtrasShow(Sender: TObject);
     procedure TSInformationShow(Sender: TObject);
@@ -242,7 +242,8 @@ procedure TDTables.FormCreate(Sender: TObject);
 begin
   Tables := nil;
 
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -317,6 +318,9 @@ begin
 
   RecordCount := -1;
   WaitingForClose := False;
+
+  FSource.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FSource);
 
   FTablesCount.Caption := IntToStr(Tables.Count);
 
@@ -458,7 +462,7 @@ begin
     for I := 0 to Tables.Count - 1 do
     begin
       if (I > 0) then FSource.Lines.Text := FSource.Lines.Text + #13#10;
-      FSource.Lines.Text := FSource.Lines.Text + TSBaseTable(Tables[I]).Source + #13#10;
+      FSource.Lines.Text := FSource.Lines.Text + TSBaseTable(Tables[I]).Source;
     end;
 end;
 
@@ -501,19 +505,7 @@ begin
   FBFlush.Caption := Preferences.LoadStr(329);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   msCopy.Action := MainAction('aECopy');
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;

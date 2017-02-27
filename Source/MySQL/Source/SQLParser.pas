@@ -7188,6 +7188,7 @@ type
 function AddDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string): string;
 function ExpandSelectStmtWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
 function GetOrderFromSelectStmt(const Stmt: TSQLParser.PStmt; out FieldNames, DescFieldNames: string): Boolean;
+function GetWhereClauseFromSelectStmt(const Stmt: TSQLParser.PStmt; out WhereClause: string): Boolean;
 function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
 function RemoveTableName(const Stmt: TSQLParser.PStmt; const TableName: string; const CaseSensitive: Boolean = False): string; overload;
 function ReplaceSelectStmtLimit(const Stmt: TSQLParser.PStmt; const Offset, RowCount: Integer): string;
@@ -7218,7 +7219,6 @@ implementation {***************************************************************}
 uses
   Windows,
   Classes, SysUtils, StrUtils, SysConst, Math,
-uDeveloper, uProfiling,
   SQLUtils;
 
 resourcestring
@@ -7433,9 +7433,6 @@ const
     'UNIQUE,UNLOCK,UNSIGNED,UPDATE,USAGE,USE,USING,UTC_DATE,UTC_TIME,' +
     'UTC_TIMESTAMP,VALUES,VARBINARY,VARCHAR,VARCHARACTER,VARYING,VIRTUAL,' +
     'WHEN,WHERE,WHILE,WITH,WRITE,XOR,YEAR_MONTH,ZEROFILL';
-
-var
-  Profile: TProfile;
 
 function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
 label
@@ -19733,6 +19730,8 @@ begin
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
                 and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+              else if (NodeIndex + 1 = Nodes.Count) then
+                SetError(PE_IncompleteStmt)
               else if (NodeIndex + 2 = Nodes.Count) then
               begin
                 CompletionList.AddTag(kiAND);
@@ -19897,7 +19896,7 @@ begin
           end;
     end;
 
-  if (not ErrorFound and EndOfStmt(CurrentToken)) then
+  if ((not ErrorFound or (Error.Code = PE_IncompleteStmt)) and EndOfStmt(CurrentToken)) then
     if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
     begin // Add operands
       AddOperandsToCompletionList();
@@ -21836,14 +21835,7 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
-  CreateProfile(Profile);
-
   StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
-
-  if (ProfilingTime(Profile) > 1000) then
-    SendToDeveloper(ProfilingReport(Profile) + #13#10#13#10
-      + Parse.SQL);
-  CloseProfile(Profile);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -27748,6 +27740,17 @@ begin
 
     Result := True;
   end;
+end;
+
+function GetWhereClauseFromSelectStmt(const Stmt: TSQLParser.PStmt; out WhereClause: string): Boolean;
+begin
+  Result := (Assigned(Stmt) and (Stmt^.StmtType = stSelect));
+  if (Result) then
+    if ((TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Tag > 0)
+    and (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr > 0)) then
+      WhereClause := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr)^.Text
+    else
+      WhereClause := '';
 end;
 
 function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;

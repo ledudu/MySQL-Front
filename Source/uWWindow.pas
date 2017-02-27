@@ -6,7 +6,6 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Types,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin, Actions,
-  SynEditHighlighter, SynHighlighterSQL,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
   uSession, uPreferences, uDeveloper,
@@ -131,7 +130,6 @@ type
     aVSQLHistory: TAction;
     aVSQLLog: TAction;
     CToolBar: TCoolBar;
-    Highlighter: TSynSQLSyn;
     MainMenu: TMainMenu;
     miDatabase: TMenuItem;
     miDCancelRecord: TMenuItem;
@@ -452,7 +450,6 @@ uses
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
-uProfiling,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate, uDMail;
 
@@ -979,7 +976,6 @@ begin
   Sessions.OnSQLError := SQLError;
 
   MainActionList := ActionList;
-  MainHighlighter := Highlighter;
 
 
   TabControl.Images := Preferences.Images;
@@ -1453,10 +1449,6 @@ begin
     FSession := TFSession.Create(Self, PWorkSpace, DAccounts.Session, PChar(Message.LParam));
     FSession.Visible := True;
 
-    // Debug 2017-01-23
-    if (FSession.ClassName = '') then
-      SendToDeveloper('Unknown ClassName');
-
     Inc(UniqueTabNameCounter);
     FSession.Name := FSession.ClassName + '_0_' + IntToStr(UniqueTabNameCounter);
 
@@ -1640,40 +1632,6 @@ begin
   SetToolBarHints(TBTabControl);
 
 
-  Highlighter.CommentAttri.Foreground := Preferences.Editor.CommentForeground;
-  Highlighter.CommentAttri.Background := Preferences.Editor.CommentBackground;
-  Highlighter.CommentAttri.Style := Preferences.Editor.CommentStyle;
-  Highlighter.ConditionalCommentAttri.Foreground := Preferences.Editor.ConditionalCommentForeground;
-  Highlighter.ConditionalCommentAttri.Background := Preferences.Editor.ConditionalCommentBackground;
-  Highlighter.ConditionalCommentAttri.Style := Preferences.Editor.ConditionalCommentStyle;
-  Highlighter.DataTypeAttri.Foreground := Preferences.Editor.DataTypeForeground;
-  Highlighter.DataTypeAttri.Background := Preferences.Editor.DataTypeBackground;
-  Highlighter.DataTypeAttri.Style := Preferences.Editor.DataTypeStyle;
-  Highlighter.DelimitedIdentifierAttri.Foreground := Preferences.Editor.IdentifierForeground;
-  Highlighter.DelimitedIdentifierAttri.Background := Preferences.Editor.IdentifierBackground;
-  Highlighter.DelimitedIdentifierAttri.Style := Preferences.Editor.IdentifierStyle;
-  Highlighter.FunctionAttri.Foreground := Preferences.Editor.FunctionForeground;
-  Highlighter.FunctionAttri.Background := Preferences.Editor.FunctionBackground;
-  Highlighter.FunctionAttri.Style := Preferences.Editor.FunctionStyle;
-  Highlighter.IdentifierAttri.Foreground := Preferences.Editor.IdentifierForeground;
-  Highlighter.IdentifierAttri.Background := Preferences.Editor.IdentifierBackground;
-  Highlighter.IdentifierAttri.Style := Preferences.Editor.IdentifierStyle;
-  Highlighter.KeyAttri.Foreground := Preferences.Editor.KeywordForeground;
-  Highlighter.KeyAttri.Background := Preferences.Editor.KeywordBackground;
-  Highlighter.KeyAttri.Style := Preferences.Editor.KeywordStyle;
-  Highlighter.NumberAttri.Foreground := Preferences.Editor.NumberForeground;
-  Highlighter.NumberAttri.Background := Preferences.Editor.NumberBackground;
-  Highlighter.NumberAttri.Style := Preferences.Editor.NumberStyle;
-  Highlighter.PLSQLAttri.Foreground := Preferences.Editor.KeywordForeground;
-  Highlighter.PLSQLAttri.Background := Preferences.Editor.KeywordBackground;
-  Highlighter.PLSQLAttri.Style := Preferences.Editor.KeywordStyle;
-  Highlighter.StringAttri.Foreground := Preferences.Editor.StringForeground;
-  Highlighter.StringAttri.Background := Preferences.Editor.StringBackground;
-  Highlighter.StringAttri.Style := Preferences.Editor.StringStyle;
-  Highlighter.VariableAttri.Foreground := Preferences.Editor.VariableForeground;
-  Highlighter.VariableAttri.Background := Preferences.Editor.VariableBackground;
-  Highlighter.VariableAttri.Style := Preferences.Editor.VariableStyle;
-
   try
     acQBLanguageManager.CurrentLanguageIndex := -1;
     for I := 0 to acQBLanguageManager.LanguagesCount - 1 do
@@ -1697,19 +1655,9 @@ begin
     for I := 0 to FSessions.Count - 1 do
       try TFSession(FSessions[I]).CrashRescue(); except end;
 
-    try
-      Accounts.Save();
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
+    try Accounts.Save(); except end;
 
-    try
-      Preferences.Save();
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
+    try Preferences.Save(); except end;
   end;
 end;
 

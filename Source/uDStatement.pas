@@ -5,9 +5,9 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, Menus, ComCtrls, StdCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, StdCtrls_Ext,
-  uBase;
+  uBase, uSession;
 
 type
   TDStatementViewType = (vtQuery, vtStatement, vtProcess);
@@ -32,7 +32,7 @@ type
     FLUser: TLabel;
     FQueryTime: TLabel;
     FRowsAffected: TLabel;
-    FSource: TSynMemo;
+    FSource: TBCEditor;
     FStatementTime: TLabel;
     FUser: TLabel;
     GBasics: TGroupBox_Ext;
@@ -58,6 +58,7 @@ type
     Id: Int64;
     Info: string;
     RowsAffected: Integer;
+    Session: TSSession;
     SQL: string;
     StatementTime: TDateTime;
     UserName: string;
@@ -99,7 +100,8 @@ end;
 
 procedure TDStatement.FormCreate(Sender: TObject);
 begin
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -141,6 +143,9 @@ begin
         Caption := Preferences.LoadStr(562);
       end;
   end;
+
+  FSource.Lines.Clear();
+  Session.ApplyToBCEditor(FSource);
 
   if (DateTime = MySQLZeroDate) then
     FExecutionTime.Caption := '???'
@@ -204,19 +209,7 @@ begin
   FLHost.Caption := Preferences.LoadStr(271) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   FBClose.Caption := Preferences.LoadStr(231);
 end;

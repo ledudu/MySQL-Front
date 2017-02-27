@@ -5,8 +5,8 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Menus, ComCtrls, ExtCtrls,
-  SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext,
+  BCEditor.Editor, BCEditor.Editor.Base,
   uSession, uBase;
 
 type
@@ -33,7 +33,7 @@ type
     FLUnusedSize: TLabel;
     FLUpdated: TLabel;
     FName: TEdit;
-    FSource: TSynMemo;
+    FSource: TBCEditor;
     FUnusedSize: TLabel;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
@@ -52,8 +52,11 @@ type
     TSExtras: TTabSheet;
     TSInformation: TTabSheet;
     TSSource: TTabSheet;
+    procedure FBCheckClick(Sender: TObject);
+    procedure FBFlushClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
+    procedure FBOptimizeClick(Sender: TObject);
     procedure FCharsetChange(Sender: TObject);
     procedure FCharsetExit(Sender: TObject);
     procedure FCollationChange(Sender: TObject);
@@ -65,12 +68,9 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
+    procedure TSExtrasShow(Sender: TObject);
     procedure TSInformationShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
-    procedure FBOptimizeClick(Sender: TObject);
-    procedure TSExtrasShow(Sender: TObject);
-    procedure FBCheckClick(Sender: TObject);
-    procedure FBFlushClick(Sender: TObject);
   private
     SessionState: (ssCreate, ssInit, ssStatus, ssValid, ssAlter);
     procedure Built();
@@ -118,7 +118,7 @@ begin
   FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset); FCharsetChange(nil);
   FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
 
-  FSource.Lines.Text := Database.Source + #13#10;
+  FSource.Lines.Text := Database.Source;
 
   TSSource.TabVisible := Database.Source <> '';
 end;
@@ -294,7 +294,8 @@ begin
 
   BorderStyle := bsSizeable;
 
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -390,6 +391,9 @@ begin
     HelpContext := 1044
   else
     HelpContext := 1095;
+
+  FSource.Lines.Clear();
+  Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Database) and (Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
@@ -540,19 +544,7 @@ begin
   FBFlush.Caption := Preferences.LoadStr(329);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   msCopy.Action := MainAction('aECopy');
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;

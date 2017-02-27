@@ -8,7 +8,6 @@ uses
   Windows, XMLDoc, XMLIntf, DBGrids, WinSpool,
   SysUtils, DB, Classes, Graphics, SyncObjs,
   ODBCAPI,
-  SynEditHighlighter,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
   uSession, uPreferences;
@@ -5288,22 +5287,6 @@ procedure TTExportHTML.ExecuteHeader();
       Result[6] := Digits[RGBValue shr  4];
       Result[7] := Digits[RGBValue and 15];
     end;
-  end;
-
-  function AttriToCSS(Attri: TSynHighlighterAttributes): string;
-  begin
-    Result := '{';
-    if Attri.Foreground <> clNone then
-      Result := Result + 'color: ' + ColorToHTML(Attri.Foreground) + '; ';
-    if fsBold in Attri.Style then
-      Result := Result + 'font-weight: bold; ';
-    if fsItalic in Attri.Style then
-      Result := Result + 'font-style: italic; ';
-    if fsUnderline in Attri.Style then
-      Result := Result + 'text-decoration: underline; ';
-    if fsStrikeOut in Attri.Style then
-      Result := Result + 'text-decoration: line-through; ';
-    Result := Trim(Result) + '}';
   end;
 
 var

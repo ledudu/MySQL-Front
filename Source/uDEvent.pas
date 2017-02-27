@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
   uSession,
   uBase;
@@ -52,11 +52,11 @@ type
     FName: TEdit;
     FPreserve: TCheckBox;
     FSingleExecution: TRadioButton;
-    FSource: TSynMemo;
+    FSource: TBCEditor;
     FStartDate: TDateTimePicker;
     FStartEnabled: TCheckBox;
     FStartTime: TDateTimePicker;
-    FStatement: TSynMemo;
+    FStatement: TBCEditor;
     FUDIntervalDay: TUpDown;
     FUDIntervalHour: TUpDown;
     FUDIntervalMinute: TUpDown;
@@ -351,8 +351,10 @@ end;
 
 procedure TDEvent.FormCreate(Sender: TObject);
 begin
-  FStatement.Highlighter := MainHighlighter;
-  FSource.Highlighter := MainHighlighter;
+  FStatement.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FStatement.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -403,6 +405,11 @@ begin
     HelpContext := 1114
   else
     HelpContext := 1113;
+
+  FStatement.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FStatement);
+  FSource.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Event)) then
     SessionState := ssCreate
@@ -483,7 +490,7 @@ end;
 procedure TDEvent.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
-    FSource.Lines.Text := Event.Source + #13#10
+    FSource.Lines.Text := Event.Source
 end;
 
 procedure TDEvent.UMChangePreferences(var Message: TMessage);
@@ -512,23 +519,7 @@ begin
   FLComment.Caption := Preferences.LoadStr(111) + ':';
   FLStatement.Caption := Preferences.LoadStr(794) + ':';
 
-  FStatement.Font.Name := Preferences.SQLFontName;
-  FStatement.Font.Color := Preferences.SQLFontColor;
-  FStatement.Font.Size := Preferences.SQLFontSize;
-  FStatement.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FStatement.Gutter.Font.Color := clWindowText
-  else
-    FStatement.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FStatement.Gutter.Color := clBtnFace
-  else
-    FStatement.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FStatement.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FStatement.ActiveLineColor := clNone
-  else
-    FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  Preferences.ApplyToBCEditor(FStatement);
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
@@ -538,10 +529,7 @@ begin
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
+  Preferences.ApplyToBCEditor(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
   uSession,
   uBase;
@@ -28,8 +28,8 @@ type
     FLTiming: TLabel;
     FName: TEdit;
     FSize: TLabel;
-    FSource: TSynMemo;
-    FStatement: TSynMemo;
+    FSource: TBCEditor;
+    FStatement: TBCEditor;
     FUpdate: TRadioButton;
     GBasics: TGroupBox_Ext;
     GDefiner: TGroupBox_Ext;
@@ -237,8 +237,10 @@ end;
 
 procedure TDTrigger.FormCreate(Sender: TObject);
 begin
-  FStatement.Highlighter := MainHighlighter;
-  FSource.Highlighter := MainHighlighter;
+  FStatement.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FStatement.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -288,6 +290,11 @@ begin
     Caption := Preferences.LoadStr(842, Trigger.Name);
     HelpContext := 1104;
   end;
+
+  FStatement.Lines.Clear();
+  Table.Session.ApplyToBCEditor(FStatement);
+  FSource.Lines.Clear();
+  Table.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Trigger)) then
     SessionState := ssCreate
@@ -382,14 +389,7 @@ begin
   FUpdate.Font.Name := Preferences.SQLFontName;
   FDelete.Font.Name := Preferences.SQLFontName;
 
-  FStatement.Font.Name := Preferences.SQLFontName;
-  FStatement.Font.Color := Preferences.SQLFontColor;
-  FStatement.Font.Size := Preferences.SQLFontSize;
-  FStatement.Font.Charset := Preferences.SQLFontCharset;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FStatement.ActiveLineColor := clNone
-  else
-    FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  Preferences.ApplyToBCEditor(FStatement);
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
@@ -398,10 +398,7 @@ begin
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
+  Preferences.ApplyToBCEditor(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

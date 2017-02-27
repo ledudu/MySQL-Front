@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, StdCtrls_Ext, ComCtrls_Ext,
   uSession,
   uBase;
@@ -31,7 +31,7 @@ type
     FPassword: TEdit;
     FQueriesPerHour: TEdit;
     FRights: TListView;
-    FSource: TSynMemo;
+    FSource: TBCEditor;
     FUDConnectionsPerHour: TUpDown;
     FUDQueriesPerHour: TUpDown;
     FUDUpdatesPerHour: TUpDown;
@@ -281,7 +281,8 @@ begin
 
   FRights.SmallImages := Preferences.Images;
 
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -315,6 +316,9 @@ begin
     Width := Preferences.User.Width;
     Height := Preferences.User.Height;
   end;
+
+  FSource.Lines.Clear();
+  Session.ApplyToBCEditor(FSource);
 
   NewUser := TSUser.Create(Session.Users);
 
@@ -542,19 +546,7 @@ begin
   FLUserConnections.Caption := Preferences.LoadStr(871) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;

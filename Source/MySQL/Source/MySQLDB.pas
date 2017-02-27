@@ -542,6 +542,7 @@ type
       property RecordReceived: TEvent read FRecordReceived;
     end;
   strict private
+    DeleteByWhereClause: Boolean;
     FCachedUpdates: Boolean;
     FCanModify: Boolean;
     FCursorOpen: Boolean;
@@ -618,6 +619,7 @@ type
     constructor Create(AOwner: TComponent); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
     procedure Delete(const Bookmarks: array of TBookmark); overload;
+    procedure DeleteAll();
     destructor Destroy(); override;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
@@ -924,7 +926,6 @@ uses
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
   MySQLClient,
-uDeveloper,
   SQLUtils, CSVUtils, HTTPTunnel;
 
 resourcestring
@@ -3578,11 +3579,7 @@ begin
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
         // Debug 2016-12-23
         if (SyncThread.CommandText <> '') then
-        begin
-          Log := 'Query has not been handled: ' + SyncThread.CommandText
-            + 'Proc: ' + ProcAddrToStr(@SyncThread.OnResult) + #13#10;
-          raise Exception.Create(Log);
-        end
+          raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
         else
         begin
           if (SyncThread.ErrorCode <> 0) then
@@ -3602,13 +3599,7 @@ begin
           if (Assigned(DataSet) and DataSet.Active) then
             Log := Log + 'FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
               + 'Field[0]: ' + DataSet.Fields[0].DisplayName + #13#10;
-          Log := Log
-            + 'Proc: ' + ProcAddrToStr(@SyncThread.OnResult) + #13#10
-            + 'SQL:' + #13#10
-            + SQLEscapeBin(SyncThread.SQL, True) + #13#10;
           raise Exception.Create(Log);
-
-          // 2017-01-17 : Statement #4 of 3 has not been handed. ... but in the SQL log, there is one stmt after the time only.
         end;
     finally
       InOnResult := False;
@@ -5994,6 +5985,7 @@ constructor TMySQLDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+  DeleteByWhereClause := False;
   FCanModify := False;
   FCommandType := ctQuery;
   FCursorOpen := False;
@@ -6054,6 +6046,16 @@ begin
   Delete();
 
   SetLength(DeleteBookmarks, 0);
+end;
+
+procedure TMySQLDataSet.DeleteAll();
+begin
+  DeleteByWhereClause := True;
+  try
+    Delete();
+  finally
+    DeleteByWhereClause := False;
+  end;
 end;
 
 destructor TMySQLDataSet.Destroy();
@@ -6458,7 +6460,15 @@ begin
       raise EDatabasePostError.Create(SRecordChanged);
 
     InternRecordBuffers.CriticalSection.Enter();
-    if (Length(DeleteBookmarks) = 0) then
+    if (DeleteByWhereClause) then
+    begin
+      InternRecordBuffers.Clear();
+      if (BufferCount >= 0) then
+        InternalInitRecord(ActiveBuffer());
+      for I := 0 to BufferCount - 1 do
+        InternalInitRecord(Buffers[I]);
+    end
+    else if (Length(DeleteBookmarks) = 0) then
     begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
@@ -6475,14 +6485,15 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      if (BufferCount > 0) then
+      if (BufferCount >= 0) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
+    if (BufferCount >= 0) then
+      PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
 end;
 
@@ -6501,6 +6512,7 @@ begin
   // SELECT * FROM `db_database28`.`tb_gysinfo` ORDER BY `name` LIMIT 100;
   // 2017-02-13
   // INSERT INTO
+  // 2017-02-27: UPDATE bfCurrent, dsBrowse, Index: 0
 
   inherited;
 end;
@@ -6893,7 +6905,6 @@ end;
 function TMySQLDataSet.InternalPostEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
-  Bookmark: TBookmark;
   DataSet: TMySQLQuery;
   EqualFieldNames: Boolean;
   I: Integer;
@@ -7547,12 +7558,29 @@ var
   InternRecordBuffer: PInternRecordBuffer;
   J: Integer;
   NullValue: Boolean;
+  SQL: string;
   ValueHandled: Boolean;
   Values: string;
+  WhereClause: string;
   WhereField: TField;
   WhereFieldCount: Integer;
 begin
-  if (Length(DeleteBookmarks) = 0) then
+  if (DeleteByWhereClause) then
+  begin
+    if (not (Self is TMySQLTable)) then
+      SQL := CommandText
+    else
+      SQL := TMySQLTable(Self).SQLSelect();
+    if (not Connection.SQLParser.ParseSQL(SQL)
+      or not GetWhereClauseFromSelectStmt(Connection.SQLParser.FirstStmt, WhereClause)) then
+      Result := ''
+    else if (WhereClause = '') then
+      Result := 'DELETE FROM ' + SQLTableClause()
+    else
+      Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + WhereClause;
+    Connection.SQLParser.Clear();
+  end
+  else if (Length(DeleteBookmarks) = 0) then
     Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + SQLWhereClause()
   else
   begin
@@ -7571,17 +7599,6 @@ begin
       Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
-        // Debug 2017-01-03
-        Index := InternRecordBuffers.IndexOf(DeleteBookmarks[I]);
-
-        if ((Index < 0) or (InternRecordBuffers.Count <= Index)) then
-          raise ERangeError.Create('Index: ' + IntToStr(Index) + #13#10
-            + 'InternRecordBuffers.Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-            + 'Length(DeleteBookmarks): ' + IntToStr(Length(DeleteBookmarks)));
-        // Debug 2017-01-16
-        if (not Assigned(InternRecordBuffers[Index]^.OldData)) then
-          raise ERangeError.Create(SRangeError);
-
         InternRecordBuffer := InternRecordBuffers[Index];
         if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True

@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   uSession,
   uBase;
 
@@ -30,7 +30,7 @@ type
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
     FSize: TLabel;
-    FSource: TSynMemo;
+    FSource: TBCEditor;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
     GDates: TGroupBox_Ext;
@@ -304,7 +304,8 @@ end;
 procedure TDRoutine.FormCreate(Sender: TObject);
 begin
   FDependencies.SmallImages := Preferences.Images;
-  FSource.Highlighter := MainHighlighter;
+  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -407,6 +408,9 @@ begin
     Preferences.Images.GetIcon(iiFunction, Icon);
     HelpContext := 1099;
   end;
+
+  FSource.Lines.Clear();
+  Database.Session.ApplyToBCEditor(FSource);
 
   FName.Enabled := False; FLName.Enabled := FName.Enabled;
   FComment.Enabled := True; FLComment.Enabled := FComment.Enabled;
@@ -559,23 +563,7 @@ begin
   FDependencies.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FSource.ActiveLineColor := clNone
-  else
-    FSource.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FSource);
 
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;

@@ -130,7 +130,7 @@ type
       X, Y: Integer); override;
     function PasteFromClipboard(): Boolean;
     function PasteText(const Text: string): Boolean;
-    procedure SelectAll(); virtual;
+    procedure SelectAll();
     function UpdateAction(Action: TBasicAction): Boolean; override;
     procedure UpdateHeader(); virtual;
     property CurrentRow: Boolean read GetCurrentRow;
@@ -1361,6 +1361,8 @@ begin
       try
         Global := GetClipboardData(CF_UNICODETEXT);
         SetString(Text, PChar(GlobalLock(Global)), GlobalSize(Global) div SizeOf(Text[1]));
+        if ((Length(Text) > 0) and (Text[Length(Text)] = #0)) then
+          SetLength(Text, Length(Text) - 1);
         GlobalUnlock(Global);
       finally
         CloseClipboard();
@@ -1503,12 +1505,10 @@ begin
   DataLink.DataSet.DisableControls();
   EditorMode := False;
 
-  if ((SelectedRows.Count > 0) and (SelectedRows.Count <> DataLink.DataSet.RecordCount)) then
-    SelectedRows.Clear();
-
   if ((DataLink.DataSet is TMySQLTable) and TMySQLTable(DataLink.DataSet).LimitedDataReceived) then
     TMySQLTable(DataLink.DataSet).LoadNextRecords(True);
 
+  SelectedRows.Clear();
   for I := 0 to Columns.Count - 1 do
     SelectedFields.Add(Columns[I].Field);
 

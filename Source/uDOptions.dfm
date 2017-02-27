@@ -14,8 +14,6 @@ object DOptions: TDOptions
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
-  OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106
@@ -45,13 +43,17 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSView
+    ActivePage = TSLog
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
       OnResize = TSViewResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -553,163 +555,6 @@ object DOptions: TDOptions
         end
       end
     end
-    object TSHighlighter: TTabSheet
-      Caption = 'TSHighlighter'
-      OnShow = TSHighlighterShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object GColors: TGroupBox_Ext
-        Left = 4
-        Top = 4
-        Width = 345
-        Height = 289
-        Caption = 'GColors'
-        TabOrder = 0
-        object FBackground: TCheckBox
-          Left = 144
-          Top = 119
-          Width = 89
-          Height = 17
-          Caption = 'FBackground'
-          TabOrder = 6
-          OnClick = FBackgroundClick
-          OnKeyPress = FBackgroundKeyPress
-        end
-        object PQuery: TPanel_Ext
-          Left = 8
-          Top = 172
-          Width = 329
-          Height = 109
-          BevelOuter = bvLowered
-          Caption = 'PQuery'
-          ParentBackground = False
-          TabOrder = 8
-          object FPreview: TSynMemo
-            Left = 1
-            Top = 1
-            Width = 327
-            Height = 107
-            Align = alClient
-            Enabled = False
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clWindowText
-            Font.Height = -11
-            Font.Name = 'Courier New'
-            Font.Style = []
-            TabOrder = 0
-            TabStop = False
-            BorderStyle = bsNone
-            Gutter.AutoSize = True
-            Gutter.DigitCount = 2
-            Gutter.Font.Charset = DEFAULT_CHARSET
-            Gutter.Font.Color = clWindowText
-            Gutter.Font.Height = -11
-            Gutter.Font.Name = 'Courier New'
-            Gutter.Font.Style = []
-            Gutter.LeftOffset = 0
-            Gutter.ShowLineNumbers = True
-            Gutter.Width = 0
-            Highlighter = Highlighter
-            Lines.Strings = (
-              '# Create new table here'
-              'CREATE TABLE `NewTable` ('
-              '  `name` char(64) binary NULL'
-              ') ENGINE=MyISAM COMMENT='#39'Test'#39';'
-              '/*!40100 SET NAMES latin1;*/'
-              'SELECT Upper(@TestVar);')
-            Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
-            ReadOnly = True
-            RightEdge = -1
-            ScrollHintFormat = shfTopToBottom
-            FontSmoothing = fsmNone
-          end
-        end
-        object FStyles: TListView
-          Left = 8
-          Top = 16
-          Width = 125
-          Height = 145
-          Columns = <
-            item
-              Width = -1
-              WidthType = (
-                -1)
-            end>
-          HideSelection = False
-          ReadOnly = True
-          RowSelect = True
-          ShowColumnHeaders = False
-          TabOrder = 0
-          ViewStyle = vsReport
-          OnSelectItem = FStylesSelectItem
-        end
-        object FBForeground: TButton
-          Left = 233
-          Top = 88
-          Width = 21
-          Height = 21
-          Caption = #183#183#183
-          TabOrder = 5
-          OnClick = FBForegroundClick
-        end
-        object FBBackground: TButton
-          Left = 233
-          Top = 116
-          Width = 21
-          Height = 21
-          Caption = #183#183#183
-          TabOrder = 7
-          OnClick = FBBackgroundClick
-        end
-        object FBold: TCheckBox
-          Left = 144
-          Top = 16
-          Width = 177
-          Height = 17
-          Caption = 'FBold'
-          TabOrder = 1
-          OnClick = FBoldClick
-        end
-        object FItalic: TCheckBox
-          Left = 144
-          Top = 36
-          Width = 177
-          Height = 17
-          Caption = 'FItalic'
-          TabOrder = 2
-          OnClick = FItalicClick
-        end
-        object FUnderline: TCheckBox
-          Left = 144
-          Top = 56
-          Width = 177
-          Height = 17
-          Caption = 'FUnderline'
-          TabOrder = 3
-          OnClick = FUnderlineClick
-        end
-        object FForeground: TCheckBox
-          Left = 144
-          Top = 91
-          Width = 89
-          Height = 17
-          Caption = 'FForeground'
-          TabOrder = 4
-          OnClick = FForegroundClick
-          OnKeyPress = FForegroundKeyPress
-        end
-        object Sizer: TCheckBox
-          Left = 144
-          Top = 144
-          Width = 17
-          Height = 17
-          TabOrder = 9
-          Visible = False
-        end
-      end
-    end
   end
   object FBHelp: TButton
     Left = 7
@@ -728,14 +573,6 @@ object DOptions: TDOptions
     Font.Style = []
     Options = [fdForceFontExist, fdNoOEMFonts]
     Left = 87
-    Top = 368
-  end
-  object Highlighter: TSynSQLSyn
-    Options.AutoDetectEnabled = False
-    Options.AutoDetectLineLimit = 0
-    Options.Visible = False
-    SQLDialect = sqlMySQL
-    Left = 151
     Top = 368
   end
   object ColorDialog: TColorDialog

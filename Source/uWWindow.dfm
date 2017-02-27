@@ -1679,14 +1679,6 @@ object WWindow: TWWindow
       end
     end
   end
-  object Highlighter: TSynSQLSyn
-    Options.AutoDetectEnabled = False
-    Options.AutoDetectLineLimit = 0
-    Options.Visible = False
-    SQLDialect = sqlMySQL
-    Left = 152
-    Top = 240
-  end
   object MTabControl: TPopupMenu
     Left = 113
     Top = 112

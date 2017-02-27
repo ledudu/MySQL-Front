@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, Menus,  ExtCtrls,
-  SynEdit, SynMemo,
+  BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   uSession,
   uBase;
@@ -26,7 +26,7 @@ type
     FLUser: TLabel;
     FLVersion: TLabel;
     FPlugins: TListView;
-    FStartup: TSynMemo;
+    FStartup: TBCEditor;
     FThreadId: TLabel;
     FUser: TLabel;
     FVersion: TLabel;
@@ -134,7 +134,8 @@ procedure TDServer.FormCreate(Sender: TObject);
 begin
   Preferences.Images.GetIcon(iiServer, Icon);
 
-  FStartup.Highlighter := MainHighlighter;
+  FStartup.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FStartup.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
   FPlugins.SmallImages := Preferences.Images;
 
   Constraints.MinWidth := Width;
@@ -168,6 +169,9 @@ begin
     Width := Preferences.Server.Width;
     Height := Preferences.Server.Height;
   end;
+
+  FStartup.Lines.Clear();
+  Session.ApplyToBCEditor(FStartup);
 
   Caption := Preferences.LoadStr(842, Session.Caption);
 
@@ -366,19 +370,7 @@ begin
   FLThreadId.Caption := Preferences.LoadStr(269) + ':';
 
   TSStartup.Caption := Preferences.LoadStr(805);
-  FStartup.Font.Name := Preferences.SQLFontName;
-  FStartup.Font.Color := Preferences.SQLFontColor;
-  FStartup.Font.Size := Preferences.SQLFontSize;
-  FStartup.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FStartup.Gutter.Font.Color := clWindowText
-  else
-    FStartup.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FStartup.Gutter.Color := clBtnFace
-  else
-    FStartup.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FStartup.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  Preferences.ApplyToBCEditor(FStartup);
 
   TSPlugins.Caption := Preferences.LoadStr(811);
   FPlugins.Columns[0].Caption := Preferences.LoadStr(35);

@@ -942,7 +942,6 @@ type
     procedure aVRefreshExecute(Sender: TObject);
     procedure aVSideBarExecute(Sender: TObject);
     procedure aVSQLLogExecute(Sender: TObject);
-    procedure BCEditorApplyPreferences(const BCEditor: TBCEditor);
     procedure BCEditorCaretChanged(Sender: TObject; X, Y: Integer);
     procedure BCEditorChange(Sender: TObject);
     procedure BCEditorCompletionProposalCanceled(Sender: TObject);
@@ -1116,7 +1115,6 @@ type
     Session: TSSession;
     StatusBar: TStatusBar;
     ToolBarData: TToolBarData;
-    TimeMonitor: TMySQLMonitor;
     constructor Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string); reintroduce;
     destructor Destroy(); override;
     function AddressToCaption(const AAddress: string): string;
@@ -1144,11 +1142,10 @@ uses
   MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
   XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit, UITypes,
   ShLwApi, Consts, ComObj,
-  BCEditor.Types, BCEditor.Editor.KeyCommands,
+  BCEditor.Types, BCEditor.Editor.KeyCommands, BCEditor.Lines,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
-uProfiling,
   uDeveloper,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
   uDUser, uDQuickFilter, uWSQLHelp, uDTransfer, uDSearch, uDServer,
@@ -2735,11 +2732,10 @@ begin
   begin
     if ((ActiveDBGrid.SelectedRows.Count = 0) and (ActiveDBGrid.SelectedFields.Count = 0)) then
       ActiveDBGrid.DataSource.DataSet.Delete()
+    else if (ActiveDBGrid.SelectedRows.Count = 0) then
+      TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).DeleteAll()
     else
     begin
-      if (ActiveDBGrid.SelectedRows.Count = 0) then
-        ActiveDBGrid.SelectAll();
-
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
       for I := 0 to Length(Bookmarks) - 1 do
         Bookmarks[I] := ActiveDBGrid.SelectedRows.Items[I];
@@ -3183,7 +3179,8 @@ procedure TFSession.aDNextExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  ActiveDBGrid.DataSource.DataSet.MoveBy(ActiveDBGrid.RowCount - 1);
+  if (ActiveDBGrid.DataSource.DataSet.Active) then
+    ActiveDBGrid.DataSource.DataSet.MoveBy(ActiveDBGrid.RowCount - 1);
 end;
 
 procedure TFSession.aDPostObjectExecute(Sender: TObject);
@@ -3197,7 +3194,8 @@ procedure TFSession.aDPrevExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  ActiveDBGrid.DataSource.DataSet.MoveBy(- (ActiveDBGrid.RowCount - 1));
+  if (ActiveDBGrid.DataSource.DataSet.Active) then
+    ActiveDBGrid.DataSource.DataSet.MoveBy(- (ActiveDBGrid.RowCount - 1));
 end;
 
 procedure TFSession.aDPropertiesExecute(Sender: TObject);
@@ -3313,6 +3311,7 @@ begin
       DStatement.DateTime := Session.Connection.ServerDateTime - Process.Time;
       DStatement.Host := Process.Host;
       DStatement.Id := Process.ThreadId;
+      DStatement.Session := Session;
       DStatement.StatementTime := Process.Time;
       if (UpperCase(Process.Command) <> 'QUERY') then
         DStatement.SQL := ''
@@ -4308,9 +4307,7 @@ begin
             SQL := Trim(SQL);
           end;
       end;
-      // Using SelectAll / SelText to have the option using the Undo feature of BCEditor
-      ActiveBCEditor.SelectAll();
-      ActiveBCEditor.SelText := SQL;
+      ActiveBCEditor.TextBetween[ActiveBCEditor.TextBeginPosition, ActiveBCEditor.TextEndPosition] := SQL;
     end;
   end;
 
@@ -5103,9 +5100,6 @@ begin
   PanelMouseDownPoint := Point(-1, -1);
   SynCompletionPending.Active := False;
 
-  TimeMonitor := TMySQLMonitor.Create(nil);
-  TimeMonitor.CacheSize := 10000;
-
 
   TBSideBar.Images := Preferences.Images;
   ToolBar.Images := Preferences.Images;
@@ -5502,14 +5496,6 @@ begin
   FHexEditor.Font.Name := Preferences.SQLFontName;
   FHexEditor.Font.Color := Preferences.SQLFontColor;
   FHexEditor.Font.Size := Preferences.SQLFontSize;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FHexEditor.Colors.Offset := clWindowText
-  else
-    FHexEditor.Colors.Offset := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FHexEditor.Colors.OffsetBackground := clBtnFace
-  else
-    FHexEditor.Colors.OffsetBackground := Preferences.Editor.LineNumbersBackground;
 
   PQueryBuilderBCEditor.Constraints.MinHeight :=
     (FQueryBuilderBCEditor.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderBCEditor.Top + 2 * BevelWidth
@@ -5545,9 +5531,8 @@ begin
     - [cpoParseItemsFromText, cpoAddHighlighterKeywords] + [cpoResizeable];
   Result.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
   Result.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
-  Result.LeftMargin.Autosize := True;
   Result.LeftMargin.Bookmarks.Visible := False;
-  Result.LeftMargin.LineNumbers.DigitCount := 1;
+  Result.LeftMargin.LineNumbers.DigitCount := 2;
   Result.LeftMargin.LineState.Enabled := False;
   Result.LeftMargin.Marks.Visible := False;
   Result.LeftMargin.MarksPanel.Visible := False;
@@ -5568,7 +5553,9 @@ begin
 
   Result.Parent := PBCEditor;
 
-  BCEditorApplyPreferences(Result);
+  Preferences.ApplyToBCEditor(Result);
+  Session.ApplyToBCEditor(Result);
+  Result.WordWrap.Enabled := Preferences.Editor.WordWrap;
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -6903,10 +6890,6 @@ begin
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
-  if (TimeMonitor.CacheText <> '') then
-    SendToDeveloper(TimeMonitor.CacheText);
-  TimeMonitor.Free();
-
   FNavigatorChanging(nil, nil, TempB);
 
   if (Assigned(PObjectSearch)) then PObjectSearch.Free();
@@ -6942,14 +6925,6 @@ begin
     URI := TUURI.Create(CurrentAddress);
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
-
-    // Debug 2017-02-18
-    if ((URI.Param['view'] = 'objectsearch') and (URI.Param['text'] = Null)) then
-    begin
-      URI.Param['view'] := Null;
-      SendToDeveloper(URI.Address);
-    end;
-
     Session.Account.Desktop.Address := URI.Address;
     URI.Free();
   end;
@@ -8369,7 +8344,6 @@ end;
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 var
   LastChild: TTreeNode;
-  Profile: TProfile;
 
   procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
   var
@@ -8411,8 +8385,6 @@ var
     Node: TTreeNode;
     Text: string;
   begin
-    ProfilingPoint(Profile, 3);
-
     Node := TTreeNode.Create(Parent.Owner);
     Node.Data := Data;
     Node.ImageIndex := ImageIndexByData(Data);
@@ -8422,8 +8394,6 @@ var
       Result := LastChild.GetNextSibling()
     else
     begin
-      ProfilingPoint(Profile, 4);
-
       Result := Parent.getFirstChild();
       while (Assigned(Result)) do
       begin
@@ -8431,8 +8401,6 @@ var
           break;
         Result := Result.getNextSibling();
       end;
-
-      ProfilingPoint(Profile, 5);
     end;
 
     Node.Free();
@@ -8468,8 +8436,6 @@ var
 
     if (Assigned(Result)) then
       SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
-
-    ProfilingPoint(Profile, 6);
   end;
 
   function AddChild(const Parent: TTreeNode; const Data: TObject): TTreeNode;
@@ -8487,10 +8453,7 @@ var
     else
       raise ERangeError.Create(SRangeError);
 
-    ProfilingPoint(Profile, 7);
     Result := FNavigator.Items.AddChild(Parent, Text);
-
-    ProfilingPoint(Profile, 8);
 
     Result.Data := Data;
     Result.ImageIndex := ImageIndexByData(Data);
@@ -8498,12 +8461,8 @@ var
     if (Result.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
       Result.HasChildren := True;
 
-    ProfilingPoint(Profile, 9);
-
     if (Assigned(Result)) then
       SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
-
-    ProfilingPoint(Profile, 10);
   end;
 
   procedure DeleteChild(const Child: TTreeNode);
@@ -8535,8 +8494,6 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
-          ProfilingPoint(Profile, 1);
-
           Child := Parent.getFirstChild();
           while (Assigned(Child)) do
             if ((GroupIDByImageIndex(Child.ImageIndex) <> GroupID) or (Items.IndexOf(Child.Data) >= 0)) then
@@ -8550,24 +8507,13 @@ var
               DeleteChild(Node);
             end;
 
-          ProfilingPoint(Profile, 1);
-
           Add := not Assigned(Parent.getFirstChild());
           for I := 0 to Items.Count - 1 do
             if (not (Items is TSTriggers) or (TSTriggers(Items)[I].Table = Parent.Data)) then
-            begin
-              // Debug 2017-01-20
-              if (not Assigned(Items[I])) then
-                raise ERangeError.Create('Items = Event.Items: ' + BoolToStr(Items = Event.Items, True) + #13#10
-                  + 'ClassType: ' + Event.Items.ClassName);
-
               if (not Add) then
                 LastChild := InsertOrUpdateChild(Parent, Items[I])
               else
                 LastChild := AddChild(Parent, Items[I]);
-            end;
-
-          ProfilingPoint(Profile, 11);
         end;
       etItemCreated:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
@@ -8640,10 +8586,8 @@ var
   ExpandingEvent: TTVExpandingEvent;
   Node: TTreeNode;
   OldSelected: TTreeNode;
-  S: string;
   Table: TSTable;
 begin
-  CreateProfile(Profile);
   OldSelected := FNavigator.Selected;
 
   ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
@@ -8743,17 +8687,11 @@ begin
     end;
   end;
 
-  ProfilingPoint(Profile, 12);
-
   FNavigator.OnChanging := ChangingEvent;
   FNavigator.OnChange := ChangeEvent;
 
-  ProfilingPoint(Profile, 13);
-
   if (FNavigator.Selected <> OldSelected) then
     SetTimer(Self.Handle, tiNavigator, 1, nil); // We're inside a Monitor call. So we can't call FNavigatorNodeChange2 directly
-
-  ProfilingPoint(Profile, 14);
 
 
   // Debug 2017-02-24
@@ -8774,23 +8712,6 @@ begin
     FNavigatorNodeToExpand := nil;
     FNavigator.OnExpanding := ExpandingEvent;
   end;
-
-  if (ProfilingTime(Profile) > 1000) then
-  begin
-    S := 'FNavigatorUpdate - '
-      + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
-      + 'Sender: ' + Event.Sender.ClassName + ', ';
-    if (Assigned(Event.Items)) then
-      S := S
-        + 'Items: ' + Event.Items.ClassName + ', '
-        + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-    if (Event.Item is TSTable) then
-      S := S
-        + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-    S := S + ProfilingReport(Profile) + #13#10;
-    TimeMonitor.Append(S, ttDebug);
-  end;
-  CloseProfile(Profile);
 end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
@@ -9079,11 +9000,7 @@ begin
 end;
 
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
-var
-  Profile: TProfile;
 begin
-  CreateProfile(Profile);
-
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -9101,12 +9018,6 @@ begin
       etError:
         Wanted.Clear();
     end;
-
-  if (ProfilingTime(Profile) > 1000) then
-    SendToDeveloper('EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
-      + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-      + ProfilingReport(Profile));
-  CloseProfile(Profile);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -9332,7 +9243,7 @@ begin
       FQueryBuilderBCEditor.Lines.Text := SQLBuilder.SQL
     else
     begin
-      FQueryBuilderBCEditor.Lines.Text := Session.SQLParser.FormatSQL();
+      FQueryBuilderBCEditor.TextBetween[FQueryBuilderBCEditor.TextBeginPosition, FQueryBuilderBCEditor.TextEndPosition] := Session.SQLParser.FormatSQL();
 
       Session.SQLParser.Clear();
     end;
@@ -9447,16 +9358,7 @@ begin
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
   ListView.Items.EndUpdate();
-  try
-    ListView.Free();
-  except
-    // Without this, sometimes there is a #5 Access Denied error...
-
-    // Was this a problem of Delphi XE2?
-    // 2017-01-27
-    on E: Exception do
-      SendToDeveloper(E.Message, 7);
-  end;
+  ListView.Free();
 end;
 
 procedure TFSession.FRTFChange(Sender: TObject);
@@ -11366,9 +11268,7 @@ end;
 
 procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 var
-  Changes: Integer; // Debug 2017-02-04
   LastItem: TListItem;
-  Profile: TProfile;
   ReorderGroupIndex: Integer;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
@@ -11384,28 +11284,10 @@ var
   begin
     Assert(Item.Data = Data);
 
-    ProfilingPoint(Profile, 9);
-
     Item.SubItems.BeginUpdate();
-
-    // 0.8 seconds, EventType: 1, Items: 105
-    // 1.0 seconds, EventType: 0, Items: 5
-    // 1.1 seconds, EventType: 2, Items: 76
-
-    ProfilingPoint(Profile, 10);
     Item.SubItems.Clear();
-    ProfilingPoint(Profile, 11);
-
     Item.GroupID := GroupID;
-
-    // 3.2 seconds for 329 items
-
-    ProfilingPoint(Profile, 12);
     Item.ImageIndex := ImageIndexByData(Data);
-
-    // 3.8 seconds for 329 items
-
-    ProfilingPoint(Profile, 13);
 
     if ((TObject(ListView.Tag) is TSItemSearch)
         and not (Data is TSProcess)
@@ -11781,23 +11663,7 @@ var
       end;
     end;
 
-    // 2.3 seconds for 301 items
-    // 7.0 seconds for 329 items
-    // 1.2 seconds for 7 items
-    // 2.4 seconds for 39 items
-    // 1.4 seconds for 17 items
-    // 11.7 seconds for 7 items
-    // 3.5 seconds for 70 items
-    // 1.4 seconds for 61 items, TSTables
-
-    // Event.Items.ClassType ???
-
-    ProfilingPoint(Profile, 14);
-
     Item.SubItems.EndUpdate();
-
-    ProfilingPoint(Profile, 15);
-    Inc(Changes);
   end;
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; GroupID: Integer; const Data: TObject): TListItem;
@@ -11808,8 +11674,6 @@ var
     Mid: Integer;
     Right: Integer;
   begin
-    ProfilingPoint(Profile, 4);
-
     if (Assigned(LastItem) and (LastItem.Index + 1 < ListView.Items.Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
       Index := LastItem.Index + 1
     else
@@ -11834,8 +11698,6 @@ var
       Item.Free();
     end;
 
-    ProfilingPoint(Profile, 5);
-
     if (Index = ListView.Items.Count) then
     begin
       Result := ListView.Items.Add();
@@ -11859,19 +11721,15 @@ var
         else
           ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
-    ProfilingPoint(Profile, 6);
 
     UpdateItem(Result, GroupID, Data);
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    ProfilingPoint(Profile, 7);
     Result := ListView.Items.Add();
 
     Result.Data := Data;
-
-    ProfilingPoint(Profile, 8);
 
     UpdateItem(Result, GroupID, Data);
   end;
@@ -11969,8 +11827,6 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
-          ProfilingPoint(Profile, 2);
-
           Count := ListView.Items.Count;
           for I := 0 to ListView.Columns.Count - 1 do
             if (Count = 0) then
@@ -11981,8 +11837,6 @@ var
           for I := ListView.Items.Count - 1 downto 0 do
             if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
               ListView.Items.Delete(I);
-
-          ProfilingPoint(Profile, 3);
 
           Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].ColumnIndex = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to SItems.Count - 1 do
@@ -12053,23 +11907,13 @@ var
         end;
       etItemDeleted:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
-        begin
-          ProfilingPoint(Profile, 17);
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
-              ProfilingPoint(Profile, 18);
               ListView.Items.Delete(I);
-              ProfilingPoint(Profile, 19);
-              Inc(Changes);
               break;
             end;
-
-          ProfilingPoint(Profile, 20);
-        end;
     end;
-
-    ProfilingPoint(Profile, 21);
 
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
@@ -12083,8 +11927,6 @@ var
           ListView.Items[I].GroupID := GroupID;
         end;
     end;
-
-    ProfilingPoint(Profile, 22);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDeleted]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -12130,8 +11972,6 @@ var
           giVariables:
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
-
-    ProfilingPoint(Profile, 23);
   end;
 
   procedure UpdateQuickAccess();
@@ -12237,15 +12077,11 @@ var
   Count: Integer;
   I: Integer;
   Kind: TPAccount.TDesktop.TListViewKind;
-  S: string;
 begin
   if (Assigned(ListView)
     and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
-    CreateProfile(Profile);
-
     LastItem := nil;
-    Changes := 0;
 
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
@@ -12254,8 +12090,6 @@ begin
     ListView.DisableAlign();
 
     Kind := ColumnWidthKindByListView(ListView);
-
-    ProfilingPoint(Profile, 1);
 
     if (TObject(ListView.Tag) is TSSession) then
     begin
@@ -12319,37 +12153,10 @@ begin
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
     ListView.EnableAlign();
-
-    ProfilingPoint(Profile, 24);
-
     ListView.Items.EndUpdate();
-
-    // 0.7 seconds, EventType: 0, Items: 0
-    // 1.0 seconds, EventType: 0, Items: 49
-
-    ProfilingPoint(Profile, 25);
-
     ListView.OnChanging := ChangingEvent;
 
     ListViewHeaderUpdate(ListView);
-
-    if (ProfilingTime(Profile) > 1000) then
-    begin
-      S := 'ListViewUpdate - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-      if (Assigned(Event.Items)) then
-        S := S
-          + 'Items: ' + Event.Items.ClassName + ', '
-          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-      if (Event.Item is TSTable) then
-        S := S
-          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Changes: ' + IntToStr(Changes) + #13#10;
-      S := S + ProfilingReport(Profile) + #13#10;
-      TimeMonitor.Append(S, ttDebug);
-    end;
-
-    CloseProfile(Profile);
   end;
 
   Inc(ListViewUpdateCount);
@@ -12855,6 +12662,7 @@ begin
     DStatement.RowsAffected := -1
   else
     DStatement.RowsAffected := SysUtils.StrToInt(XMLNode(Node, 'rows_affected').Text);
+  DStatement.Session := Session;
   if (not Assigned(XMLNode(Node, 'execution_time'))) then
     DStatement.StatementTime := MySQLZeroDate
   else
@@ -14732,7 +14540,6 @@ var
   Table: TSTable;
   TempActiveControl: TWinControl;
   URI: TUURI;
-  Profile: TProfile;
 begin
   LeftMousePressed := False;
 
@@ -14742,8 +14549,6 @@ begin
 
   if (Assigned(Event)) then
   begin
-    CreateProfile(Profile);
-
     if (Event.EventType = etItemDeleted) then
     begin
       if (Assigned(FNavigatorMenuNode) and (Event.Item = TObject(FNavigatorMenuNode.Data))) then
@@ -14797,28 +14602,14 @@ begin
       end;
     end;
 
-    ProfilingPoint(Profile, 2);
-
     if (Event.Items is TSItemSearch) then
-    begin
-      ProfilingPoint(Profile, 3);
-      ListViewUpdate(Event, ObjectSearchListView);
-      ProfilingPoint(Profile, 4);
-    end
+      ListViewUpdate(Event, ObjectSearchListView)
     else if (Event.Items is TSQuickAccess) then
-    begin
-      ProfilingPoint(Profile, 5);
-      ListViewUpdate(Event, QuickAccessListView);
-      ProfilingPoint(Profile, 6);
-    end
+      ListViewUpdate(Event, QuickAccessListView)
     else
     begin
-      ProfilingPoint(Profile, 7);
-
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
-
-      ProfilingPoint(Profile, 8);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
       begin
@@ -14875,12 +14666,8 @@ begin
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
-      ProfilingPoint(Profile, 9);
-
       if ((Event.EventType = etItemValid)) then
       begin
-        ProfilingPoint(Profile, 11);
-
         if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).BCEditor)) then
           Desktop(TSView(Event.Item)).BCEditor.Text := TSView(Event.Item).Stmt + #13#10
         else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateBCEditor())) then
@@ -14907,26 +14694,6 @@ begin
           PContentChange(nil);
       end;
     end;
-
-    ProfilingPoint(Profile, 10);
-
-    if (ProfilingTime(Profile) > 1000) then
-    begin
-      S := 'SessionUpdate - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType));
-      if (Assigned(Event.Items)) then
-        S := S
-          + ', Items: ' + Event.Items.ClassName
-          + ', Count: ' + IntToStr(Event.Items.Count);
-      if (Event.Item is TSTable) then
-        S := S
-          + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
-      S := S
-        + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
-        + ProfilingReport(Profile);
-      TimeMonitor.Append(S, ttDebug);
-    end;
-    CloseProfile(Profile);
   end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
@@ -15308,82 +15075,6 @@ begin
     else
       StatusBar.Panels[sbSummarize].Text := '';
   end;
-end;
-
-procedure TFSession.BCEditorApplyPreferences(const BCEditor: TBCEditor);
-begin
-  BCEditor.ActiveLine.Visible := Preferences.Editor.CurrRowBGColorEnabled;
-  BCEditor.Font.Name := Preferences.SQLFontName;
-  BCEditor.Font.Charset := Preferences.SQLFontCharset;
-  BCEditor.Font.Color := Preferences.SQLFontColor;
-  BCEditor.Font.Size := Preferences.SQLFontSize;
-  BCEditor.LeftMargin.Font := BCEditor.Font;
-  BCEditor.WordWrap.Enabled := Preferences.Editor.WordWrap;
-
-  if (Preferences.Editor.CurrRowBGColor <> clNone) then
-    BCEditor.ActiveLine.Color := Preferences.Editor.CurrRowBGColor;
-  if (Preferences.Editor.LineNumbersForeground <> clNone) then
-    BCEditor.LeftMargin.Font.Color := Preferences.Editor.LineNumbersForeground;
-  BCEditor.LeftMargin.Font.Style := Preferences.Editor.LineNumbersStyle;
-  if (Preferences.Editor.LineNumbersBackground <> clNone) then
-    BCEditor.LeftMargin.Colors.Background := Preferences.Editor.LineNumbersBackground;
-  if (Preferences.Editor.LineNumbersBackground <> clNone) then
-    BCEditor.LeftMargin.Colors.ActiveLineBackground := Preferences.Editor.LineNumbersBackground;
-  if (Preferences.Editor.CommentForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Comment').Foreground := Preferences.Editor.CommentForeground;
-  if (Preferences.Editor.CommentBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Comment').Background := Preferences.Editor.CommentBackground;
-  BCEditor.Highlighter.Colors.GetElement('Comment').FontStyles := Preferences.Editor.CommentStyle;
-  if (Preferences.Editor.NumberForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Constante').Foreground := Preferences.Editor.NumberForeground;
-  if (Preferences.Editor.NumberBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Constante').Background := Preferences.Editor.NumberBackground;
-  BCEditor.Highlighter.Colors.GetElement('Constante').FontStyles := Preferences.Editor.NumberStyle;
-  if (Preferences.Editor.ConditionalCommentForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Conditional').Foreground := Preferences.Editor.ConditionalCommentForeground;
-  if (Preferences.Editor.ConditionalCommentBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Conditional').Background := Preferences.Editor.ConditionalCommentBackground;
-  BCEditor.Highlighter.Colors.GetElement('Conditional').FontStyles := Preferences.Editor.ConditionalCommentStyle;
-  BCEditor.Highlighter.Colors.GetElement('Identifier').Foreground := BCEditor.Font.Color;
-  BCEditor.Highlighter.Colors.GetElement('Identifier').Background := BCEditor.BackgroundColor;
-  BCEditor.Highlighter.Colors.GetElement('Identifier').FontStyles := BCEditor.Font.Style;
-  if (Preferences.Editor.KeywordForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Keyword').Foreground := Preferences.Editor.KeywordForeground;
-  if (Preferences.Editor.KeywordBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Keyword').Background := Preferences.Editor.KeywordBackground;
-  BCEditor.Highlighter.Colors.GetElement('Keyword').FontStyles := Preferences.Editor.KeywordStyle;
-  if (Preferences.Editor.FunctionForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Method').Foreground := Preferences.Editor.FunctionForeground;
-  if (Preferences.Editor.FunctionBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Method').Background := Preferences.Editor.FunctionBackground;
-  BCEditor.Highlighter.Colors.GetElement('Method').FontStyles := Preferences.Editor.FunctionStyle;
-  if (Preferences.Editor.NumberForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Number').Foreground := Preferences.Editor.NumberForeground;
-  if (Preferences.Editor.NumberBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Number').Background := Preferences.Editor.NumberBackground;
-  BCEditor.Highlighter.Colors.GetElement('Number').FontStyles := Preferences.Editor.NumberStyle;
-  if (Preferences.Editor.StringForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('String').Foreground := Preferences.Editor.StringForeground;
-  if (Preferences.Editor.StringBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('String').Background := Preferences.Editor.StringBackground;
-  BCEditor.Highlighter.Colors.GetElement('String').FontStyles := Preferences.Editor.StringStyle;
-  if (Preferences.Editor.SymbolBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Symbol').Foreground := Preferences.Editor.SymbolForeground;
-  if (Preferences.Editor.SymbolBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Symbol').Background := Preferences.Editor.SymbolBackground;
-  BCEditor.Highlighter.Colors.GetElement('Symbol').FontStyles := Preferences.Editor.SymbolStyle;
-  if (Preferences.Editor.DataTypeForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Type').Foreground := Preferences.Editor.DataTypeForeground;
-  if (Preferences.Editor.DataTypeBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Type').Background := Preferences.Editor.DataTypeBackground;
-  BCEditor.Highlighter.Colors.GetElement('Type').FontStyles := Preferences.Editor.DataTypeStyle;
-  if (Preferences.Editor.VariableForeground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Variable').Foreground := Preferences.Editor.VariableForeground;
-  if (Preferences.Editor.VariableBackground <> clNone) then
-    BCEditor.Highlighter.Colors.GetElement('Variable').Background := Preferences.Editor.VariableBackground;
-  BCEditor.Highlighter.Colors.GetElement('Variable').FontStyles := Preferences.Editor.VariableStyle;
-
-  BCEditor.Highlighter.UpdateColors();
 end;
 
 procedure TFSession.BCEditorBeforeCompletionProposalExecute(Sender: TObject;
@@ -16347,9 +16038,13 @@ begin
 
   for I := 0 to PBCEditor.ControlCount - 1 do
     if (PBCEditor.Controls[I] is TBCEditor) then
-      BCEditorApplyPreferences(TBCEditor(PBCEditor.Controls[I]));
+    begin
+      Preferences.ApplyToBCEditor(TBCEditor(PBCEditor.Controls[I]));
+      TBCEditor(PBCEditor.Controls[I]).WordWrap.Enabled := Preferences.Editor.WordWrap;
+    end;
 
-  BCEditorApplyPreferences(FQueryBuilderBCEditor);
+  Preferences.ApplyToBCEditor(FQueryBuilderBCEditor);
+  FQueryBuilderBCEditor.WordWrap.Enabled := Preferences.Editor.WordWrap;
 
   smEEmpty.Caption := Preferences.LoadStr(181);
 
