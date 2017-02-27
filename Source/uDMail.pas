@@ -3,7 +3,8 @@ unit uDMail;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes,
+  Windows, Messages,
+  SysUtils, Variants, Classes,
   Graphics, Controls, Forms, Dialogs,
   uBase,
   Forms_Ext, Vcl.StdCtrls, Vcl.ComCtrls;
@@ -34,7 +35,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  RegularExpressions, WinInet, CommCtrl,
+  WinInet, CommCtrl,
+  RegularExpressions,
   uPreferences, uDeveloper;
 
 var

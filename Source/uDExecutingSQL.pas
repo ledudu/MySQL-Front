@@ -3,8 +3,9 @@ unit uDExecutingSQL;
 interface {********************************************************************}
 
 uses
-  Messages, Classes,
-  Forms, Controls,StdCtrls,
+  Messages,
+  Classes,
+  Forms, Controls, StdCtrls,
   Forms_Ext,
   uSession,
   uBase;

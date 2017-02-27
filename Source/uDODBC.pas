@@ -3,8 +3,10 @@ unit uDODBC;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, WinCred,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  WinCred,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   ODBCAPI,
   Forms_Ext, StdCtrls_Ext,
   uSession,

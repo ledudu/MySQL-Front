@@ -3,8 +3,9 @@ unit uBase;
 interface {********************************************************************}
 
 uses
-  ComCtrls, Forms, Menus, ActnList, Classes, Controls, Windows, ExtCtrls,
-  SysUtils, Messages, Dialogs, Graphics,
+  Windows,
+  Classes, SysUtils, Messages,
+  ComCtrls, Forms, Menus, ActnList, Controls, ExtCtrls, Dialogs, Graphics,
   MySQLDB, MySQLDBGrid,
   uPreferences;
 
@@ -100,8 +101,10 @@ var
 implementation {***************************************************************}
 
 uses
-  ShlObj, ActiveX, CommCtrl, RichEdit, UITypes,
-  StdActns, DB, StrUtils, StdCtrls, Math, Registry, DBCommon, DBCommonTypes,
+  ShlObj, ActiveX, CommCtrl, RichEdit,
+  UITypes, StrUtils, Math, Registry,
+  DB, DBCommon, DBCommonTypes,
+  StdActns, StdCtrls,
   uSession;
 
 var

@@ -60,6 +60,10 @@ object DTransfer: TDTransfer
       TabVisible = False
       OnResize = TSSelectResize
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -158,6 +162,10 @@ object DTransfer: TDTransfer
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -203,6 +211,10 @@ object DTransfer: TDTransfer
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         436
         271)

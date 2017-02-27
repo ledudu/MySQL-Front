@@ -3,8 +3,9 @@ unit uDEvent;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Menus, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   BCEditor.Editor, BCEditor.Editor.Base,
   StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
   uSession,

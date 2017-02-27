@@ -3,8 +3,9 @@ unit uDOptions;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, StdCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, ExtCtrls, ComCtrls, StdCtrls,
   ExtCtrls_Ext, StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
   BCEditor.Editor, BCEditor.Editor.Base,
   uPreferences, uSession,
@@ -119,8 +120,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  IniFiles, UITypes, DateUtils,
-  StrUtils,
+  IniFiles, UITypes, DateUtils, StrUtils,
   uDeveloper,
   uDLanguage;
 

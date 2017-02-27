@@ -3,8 +3,9 @@ unit uDForeignKey;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, StdCtrls, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, ComCtrls, StdCtrls, ExtCtrls,
   StdCtrls_Ext, Forms_Ext,
   uSession,
   uBase;

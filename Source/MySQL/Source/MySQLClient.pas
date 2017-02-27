@@ -3,8 +3,8 @@
 interface {********************************************************************}
 
 uses
-  Windows, SyncObjs, WinSock, Classes,
-  SysUtils,
+  Windows, WinSock,
+  SysUtils, SyncObjs, Classes,
   MySQLConsts;
 
 type
@@ -293,8 +293,7 @@ const
 implementation {***************************************************************}
 
 uses
-  ZLib, StrUtils, SysConst, AnsiStrings,
-  SQLUtils; // Debug 2017-01-01
+  ZLib, StrUtils, SysConst, AnsiStrings;
 
 const
   AF_INET6 = 23;
@@ -1592,21 +1591,13 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                   try
                     ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
                   except
-//                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
-                    on E: Exception do
-                      raise ERangeError.Create('CompressedBuffer.Size: ' + IntToStr(CompressedBuffer.Size) + #13#10
-                        + 'Version: ' + string(MYSQL(Self).fserver_info) + #13#10
-                        + E.Message);
+                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
                   end;
                 end;
 
                 if (Result) then
                   if (DecompressedSize <> Integer(UncompressedSize)) then
-                  begin
-                    // Debug 2016-11-10
-                    raise ERangeError.CreateFMT('Range Error: %d <> %d, Version: %s', [DecompressedSize, UncompressedSize, string(MYSQL(Self).fserver_info)]);
-                    Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0;
-                  end
+                    Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0
                   else
                   begin
                     DecompressedBuffer.Offset := 0;
@@ -2698,13 +2689,8 @@ begin
   begin
     if (state_type = SESSION_TRACK_SYSTEM_VARIABLES) then
     begin
-      // Debug 2017-01-01
-      try
-        Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
-        data := PAnsiChar(@StateInfo.Data[StateInfo.Index]);
-      except
-        raise ERangeError.Create(SQLEscapeBin(PAnsiChar(StateInfo.Data), System.Length(StateInfo.Data), True));
-      end;
+      Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
+      data := PAnsiChar(@StateInfo.Data[StateInfo.Index]);
       length := Len;
       Inc(StateInfo.Index, Len);
       StateInfo.VariablenValue := False;

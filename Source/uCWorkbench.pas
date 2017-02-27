@@ -3,8 +3,10 @@ unit uCWorkbench;
 interface
 
 uses
-  SysUtils, Classes, Controls, Types, Graphics, Messages, Forms,
-  Windows, XMLDoc, XMLIntf, Variants,
+  Messages, Windows,
+  SysUtils, Classes, Types, Variants,
+  XMLDoc, XMLIntf,
+  Controls, Graphics, Forms,
   uSession;
 
 const
@@ -388,7 +390,8 @@ type
 implementation {***************************************************************}
 
 uses
-  ExtCtrls, Math, Dialogs, StdActns, Consts, UITypes, SysConst,
+  Math, Consts, UITypes, SysConst,
+  ExtCtrls, Dialogs, StdActns,
   uPreferences;
 
 var

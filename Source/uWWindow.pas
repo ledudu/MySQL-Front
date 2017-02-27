@@ -3,9 +3,10 @@ unit uWWindow;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Types,
-  Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
-  ActnCtrls, StdCtrls, ToolWin, Actions,
+  Windows, Messages,
+  SysUtils, Classes, Types, Actions,
+  Graphics, Controls, Forms, Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls,
+  ImgList, Menus, StdActns, ActnCtrls, StdCtrls, ToolWin,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
   uSession, uPreferences, uDeveloper,
@@ -441,8 +442,10 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
-  Variants, WinINet, SysConst, Math, Zip, DateUtils,
+  ShellApi, ShlObj, CommCtrl, ShLwApi, WinINet,
+  SysConst, StrUtils, IniFiles, Variants, Math, Zip, DateUtils,
+  DBConsts,
+  Themes,
   ODBCAPI,
   {$IFDEF EurekaLog}
   ESysInfo,

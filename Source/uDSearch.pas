@@ -3,8 +3,10 @@ unit uDSearch;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
-  Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls, RichEdit,
+  Windows, Messages, RichEdit,
+  SysUtils, Classes,
+  DB,
+  Graphics, Controls, Forms, Menus, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   uSession, uPreferences, uTools,
   uBase, uFSession;
@@ -129,7 +131,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Consts, StrUtils, CommCtrl, SysConst,
+  CommCtrl,
+  Consts, StrUtils, SysConst,
   SQLUtils,
   uURI,
   uDConnecting;

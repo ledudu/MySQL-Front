@@ -3,7 +3,8 @@ unit MySQLDB;
 interface {********************************************************************}
 
 uses
-  Classes, SysUtils, Windows, SyncObjs,
+  Windows,
+  SyncObjs, Classes, SysUtils,
   DB, DBCommon, SqlTimSt,
   SQLParser, MySQLConsts;
 
@@ -920,8 +921,9 @@ var
 implementation {***************************************************************}
 
 uses
-  DBConsts, Forms, Variants,
-  RTLConsts, Consts, SysConst, Math, StrUtils, AnsiStrings,
+  Variants, RTLConsts, SysConst, Math, StrUtils, AnsiStrings,
+  DBConsts,
+  Forms, Consts,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
@@ -6463,7 +6465,7 @@ begin
     if (DeleteByWhereClause) then
     begin
       InternRecordBuffers.Clear();
-      if (BufferCount >= 0) then
+      if ((BufferCount >= 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
@@ -6485,14 +6487,14 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      if (BufferCount >= 0) then
+      if ((BufferCount >= 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
-    if (BufferCount >= 0) then
+    if ((BufferCount >= 0) and (ActiveBuffer() > 0)) then
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
 end;
@@ -7554,7 +7556,6 @@ end;
 function TMySQLDataSet.SQLDelete(): string;
 var
   I: Integer;
-  Index: Integer; // Debug 2017-01-03
   InternRecordBuffer: PInternRecordBuffer;
   J: Integer;
   NullValue: Boolean;
@@ -7599,7 +7600,7 @@ begin
       Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
-        InternRecordBuffer := InternRecordBuffers[Index];
+        InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks[I])];
         if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True
         else

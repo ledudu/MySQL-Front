@@ -3,8 +3,9 @@ unit uDAccounts;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, ImgList, ToolWin,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, ImgList, ToolWin,
   StdCtrls_Ext, ComCtrls_Ext, ExtCtrls_Ext, Forms_Ext,
   uSession, uPreferences, uBase, System.Actions;
 
@@ -80,7 +81,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl, Math, StrUtils, SysConst,
+  CommCtrl,
+  Math, StrUtils, SysConst,
   CommCtrl_Ext,
   MySQLConsts,
   uDAccount, uDConnecting;

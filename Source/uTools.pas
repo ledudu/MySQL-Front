@@ -5,8 +5,11 @@ interface {********************************************************************}
 // ODBC Excel Driver: http://www.microsoft.com/en-us/download/details.aspx?id=13255
 
 uses
-  Windows, XMLDoc, XMLIntf, DBGrids, WinSpool,
-  SysUtils, DB, Classes, Graphics, SyncObjs,
+  Windows, WinSpool,
+  SysUtils, Classes, SyncObjs,
+  XMLDoc, XMLIntf,
+  DB,
+  DBGrids, Graphics,
   ODBCAPI,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
@@ -721,9 +724,10 @@ var
 implementation {***************************************************************}
 
 uses
-  ActiveX, SysConst, Shlwapi, UITypes, Types,
-  RegularExpressionsCore, Math, Variants,
-  Forms, DBConsts, Registry, DBCommon, StrUtils,
+  ActiveX, Shlwapi,
+  SysConst, UITypes, Types, RegularExpressionsCore, Math, Variants, Registry, StrUtils,
+  DBCommon, DBConsts,
+  Forms,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}

@@ -3,7 +3,9 @@ unit StdCtrls_Ext;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Controls, StdCtrls, Messages, Windows, ActnList;
+  Messages, Windows,
+  SysUtils, Classes,
+  Controls, StdCtrls, ActnList;
 
 type
   TComboBox_Ext = class(TComboBox)
@@ -35,7 +37,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  StdActns, Clipbrd, StrUtils;
+  StrUtils,
+  StdActns, Clipbrd;
 
 procedure Register();
 begin

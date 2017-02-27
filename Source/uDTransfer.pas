@@ -3,8 +3,10 @@ unit uDTransfer;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, Menus, RichEdit,
+  Windows, Messages, RichEdit,
+  SysUtils, Classes,
+  DB,
+  Graphics, Controls, Forms, Dialogs, ComCtrls, ExtCtrls, StdCtrls, Menus,
   ComCtrls_Ext, Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
   MySQLDB,
   uSession, uTools,
@@ -106,7 +108,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, CommCtrl, Consts, SysConst,
+  CommCtrl,
+  StrUtils, Consts, SysConst,
   SQLUtils,
   uPreferences,
   uDConnecting, uDExecutingSQL;

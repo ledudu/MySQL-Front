@@ -3,8 +3,9 @@ unit uDConnecting;
 interface {********************************************************************}
 
 uses
-  Messages, Classes,
-  Forms, Controls,StdCtrls,
+  Messages,
+  Classes,
+  Forms, Controls, StdCtrls,
   Forms_Ext,
   uSession, uBase,
   MySQLDB;
@@ -38,7 +39,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Windows, SysUtils, 
+  Windows,
+  SysUtils,
   MySQLConsts,
   uPreferences, uDAccount;
 

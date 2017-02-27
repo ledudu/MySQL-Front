@@ -3,8 +3,9 @@ unit uDUserRight;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls,
   StdCtrls_Ext, Forms_Ext,
   uSession,
   uBase;

@@ -3,8 +3,9 @@ unit uWSQLHelp;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ToolWin, ExtCtrls, Menus,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ToolWin, ExtCtrls, Menus,
   Forms_Ext, ExtCtrls_Ext,
   MySQLDB,
   uSession,
@@ -62,8 +63,9 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  ShellAPI, RichEdit, CommCtrl, Math,
-  StrUtils, DB,
+  ShellAPI, RichEdit, CommCtrl,
+  Math, StrUtils,
+  DB,
   SQLUtils,
   uPreferences,
   uDSelection;

@@ -3,8 +3,9 @@ unit uDVariable;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
   uSession,
   uBase;

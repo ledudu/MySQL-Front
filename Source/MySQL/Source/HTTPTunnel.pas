@@ -3,7 +3,8 @@ unit HTTPTunnel;
 interface {********************************************************************}
 
 uses
-  Windows, SyncObjs, WinInet,
+  Windows, WinInet,
+  SyncObjs,
   MySQLClient, MySQLConsts;
 
 const
@@ -62,7 +63,8 @@ function mysql_init(mysql: MYSQL): MYSQL; stdcall;
 implementation {***************************************************************}
 
 uses
-  SysUtils, Forms, StrUtils, AnsiStrings,
+  SysUtils, StrUtils, AnsiStrings,
+  Forms,
   SQLUtils;
 
 const

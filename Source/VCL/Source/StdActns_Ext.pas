@@ -3,7 +3,8 @@ unit StdActns_Ext;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, ActnList, StdActns, Dialogs, StrUtils, Consts, StdCtrls;
+  SysUtils, Classes, StrUtils,
+  ActnList, StdActns, Dialogs, Consts, StdCtrls;
 
 type
   TSearchFind_Ext = class(TSearchFind)

@@ -3,8 +3,10 @@ unit uDImport;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, RichEdit,
-  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBTables, Consts, Contnrs,
+  Windows, Messages, RichEdit,
+  SysUtils, Classes, Contnrs,
+  DB,
+  Graphics, Controls, Forms, Dialogs, ComCtrls, ExtCtrls, StdCtrls, Consts,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
   uSession, uTools, uPreferences,
@@ -197,7 +199,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommDlg, Dlgs, Math, StrUtils, SysConst,
+  CommDlg, Dlgs,
+  Math, StrUtils, SysConst,
   SQLUtils, CSVUtils,
 uDeveloper,
   uDLogin, uDODBC;

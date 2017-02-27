@@ -3,8 +3,9 @@ unit uDUser;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls,
   BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, StdCtrls_Ext, ComCtrls_Ext,
   uSession,
@@ -90,7 +91,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl, Math, StrUtils, SysConst,
+  CommCtrl,
+  Math, StrUtils, SysConst,
   CommCtrl_Ext,
   SQLUtils, MySQLDB,
   uPreferences,

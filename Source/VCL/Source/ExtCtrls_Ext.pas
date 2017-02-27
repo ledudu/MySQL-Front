@@ -3,7 +3,9 @@ unit ExtCtrls_Ext;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Controls, ExtCtrls, Messages, Graphics;
+  Messages,
+  SysUtils, Classes,
+  Controls, ExtCtrls, Graphics;
 
 type
   TPanel_Ext = class(TPanel)
@@ -40,7 +42,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  Windows, CommCtrl, Themes;
+  Windows, CommCtrl,
+  Themes;
 
 procedure Register();
 begin

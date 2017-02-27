@@ -5,7 +5,8 @@ interface
 { ******************************************************************** }
 
 uses
-  Windows, Classes, SysUtils, WinInet
+  Windows, WinInet,
+  Classes, SysUtils
   {$IFDEF EurekaLog}
   , EClasses
   {$ENDIF}
@@ -87,7 +88,9 @@ implementation
 { *************************************************************** }
 
 uses
-  XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils, IOUtils, Registry
+  ActiveX,
+  SyncObjs, DateUtils, IOUtils, Registry,
+  XMLIntf, XMLDoc
 {$IFDEF EurekaLog}
   , Forms,
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing,

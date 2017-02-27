@@ -3,10 +3,14 @@
 interface {********************************************************************}
 
 uses
-  Forms, Windows, Messages, SysUtils, Classes, Graphics, Controls, ActiveX,
-  Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls, DB, DBGrids, Grids,
-  DBCtrls, DBActns, StdActns, ImgList, XMLIntf, Actions,
-  ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
+  Windows, Messages, ActiveX, CommCtrl,
+  Forms, SysUtils, Classes,
+  DB,
+  XMLIntf,
+  ShDocVw,
+  Graphics, Controls, Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls,
+  DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
+  PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
   BCEditor.Editor, BCEditor.Editor.CompletionProposal,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
@@ -1139,9 +1143,11 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
-  XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit, UITypes,
-  ShLwApi, Consts, ComObj,
+  MMSystem, ShellAPI, UxTheme, RichEdit, ShLwApi,
+  Math, Variants, Types, StrUtils, SysConst, UITypes, ComObj,
+  DBConsts, DBCommon,
+  XMLDoc,
+  Clipbrd, Themes, FileCtrl, Consts,
   BCEditor.Types, BCEditor.Editor.KeyCommands, BCEditor.Lines,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,

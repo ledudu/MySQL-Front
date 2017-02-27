@@ -3,8 +3,9 @@ unit uDView;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
   BCEditor.Editor, BCEditor.Editor.Base,
   Forms_Ext, StdCtrls_Ext,
   uSession,

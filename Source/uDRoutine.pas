@@ -3,8 +3,9 @@ unit uDRoutine;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Menus, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
   BCEditor.Editor, BCEditor.Editor.Base,
   uSession,

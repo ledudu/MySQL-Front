@@ -72,7 +72,7 @@ object DAccount: TDAccount
       Width = 157
       Height = 21
       Anchors = [akLeft, akTop, akRight]
-      MaxLength = 50
+      MaxLength = 100
       TabOrder = 0
       Text = 'FName'
     end

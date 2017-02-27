@@ -3,8 +3,9 @@ unit uDPartition;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls,
+  Windows, Messages,
+  SysUtils, Variants, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls,
   Forms_Ext, ComCtrls_Ext, StdCtrls_Ext,
   uSession,
   uBase;

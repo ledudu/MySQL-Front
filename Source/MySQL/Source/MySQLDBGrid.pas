@@ -3,8 +3,10 @@ unit MySQLDBGrid;
 interface {********************************************************************}
 
 uses
-  Windows, Classes, Controls, Types, Grids, Messages, DB, Graphics, DBGrids,
-  StdActns, DBCtrls, ComCtrls,
+  Windows, Messages,
+  Classes, Types,
+  DB,
+  Controls, Grids, DBGrids, StdActns, DBCtrls, ComCtrls, Graphics,
   StdActns_Ext;
 
 type
@@ -159,8 +161,9 @@ const
 implementation {***************************************************************}
 
 uses
-  Forms, Themes, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl, UITypes,
-  DBActns, StrUtils, Math, Variants, SysConst,
+  CommCtrl,
+  SysUtils, StrUtils, Math, Variants, SysConst, UITypes,
+  Forms, Themes, Dialogs, Clipbrd, Consts, DBActns,
   MySQLDB, CSVUtils, SQLUtils;
 
 { TMySQLDBGrid.TDBMySQLGridColumns ********************************************}

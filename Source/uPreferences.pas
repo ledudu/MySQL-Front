@@ -3,8 +3,10 @@ unit uPreferences;
 interface {********************************************************************}
 
 uses
-  Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf, Classes, SysUtils,
-  Registry, IniFiles, ComCtrls,
+  Windows,
+  Classes, SysUtils, Registry, IniFiles,
+  XMLDoc, XMLIntf,
+  Controls, Forms, ComCtrls, Graphics,
   BCEditor.Editor;
 
 type
@@ -667,8 +669,9 @@ var
 implementation {***************************************************************}
 
 uses
-  Consts, CommCtrl, SHFolder, WinInet, ShellAPI, ImgList, ShlObj, StrUtils,
-  Variants, Math, SysConst, ActiveX, RTLConsts, GDIPAPI, GDIPObj, IOUtils,
+  CommCtrl, SHFolder, WinInet, ShellAPI, ShlObj, ActiveX, GDIPAPI, GDIPObj,
+  Math, SysConst, IOUtils, Variants, RTLConsts, StrUtils,
+  Consts, ImgList,
   MySQLConsts,
   CSVUtils,
   uURI;

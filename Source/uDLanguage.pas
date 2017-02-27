@@ -3,8 +3,9 @@ unit uDLanguage;
 interface {********************************************************************}
 
 uses
-  Messages, Classes, IniFiles, ToolWin,
-  Forms, Controls, StdCtrls, Grids, ComCtrls,
+  Messages,
+  Classes, IniFiles,
+  ToolWin, Forms, Controls, StdCtrls, Grids, ComCtrls,
   Forms_Ext,
   uBase;
 

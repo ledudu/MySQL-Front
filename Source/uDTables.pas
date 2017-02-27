@@ -3,8 +3,9 @@ unit uDTables;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
   BCEditor.Editor, BCEditor.Editor.Base,
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
@@ -98,7 +99,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Clipbrd, StrUtils,
+  StrUtils,
+  Clipbrd,
   SQLUtils,
   uPreferences;
 

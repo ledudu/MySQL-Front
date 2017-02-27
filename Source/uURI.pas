@@ -51,7 +51,8 @@ function ExtractURIHost(const AURI: string): string;
 implementation {***************************************************************}
 
 uses
-  RTLConsts, Variants, ShLwApi, Windows, Classes, StrUtils,
+  ShLwApi, Windows,
+  RTLConsts, Variants, Classes, StrUtils,
   MySQLConsts;
 
 function PathToURI(const APath: TFileName): string;

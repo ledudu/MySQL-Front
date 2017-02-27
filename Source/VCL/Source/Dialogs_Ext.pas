@@ -3,8 +3,9 @@ unit Dialogs_Ext;
 interface {********************************************************************}
 
 uses
-  Windows, SysUtils, Classes, Dialogs, ExtCtrls, Messages, Controls, StdCtrls,
-  ExtDlgs, ShlObj,
+  Windows, Messages, ShlObj,
+  SysUtils, Classes,
+  Dialogs, ExtCtrls, Controls, StdCtrls, ExtDlgs,
   StdCtrls_Ext;
 
 type
@@ -87,8 +88,9 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  Forms, CommDlg, Consts, RTLConsts, Dlgs, ActiveX, StrUtils, ComObj,
-  WinSpool, SysConst;
+  CommDlg, Dlgs, ActiveX, WinSpool,
+  RTLConsts, StrUtils, SysConst, ComObj,
+  Forms, Consts;
 
 const
   CP_UNICODE = 1200;

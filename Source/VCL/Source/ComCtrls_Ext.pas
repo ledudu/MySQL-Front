@@ -3,7 +3,9 @@ unit ComCtrls_Ext;
 interface {********************************************************************}
 
 uses
-  Windows, SysUtils, Classes, Controls, ComCtrls, Messages, CommCtrl;
+  Windows, Messages, CommCtrl,
+  SysUtils, Classes,
+  Controls, ComCtrls;
 
 type
   TLVColumnResizeEvent = procedure(Sender: TObject; Column: TListColumn) of object;
@@ -35,7 +37,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  Types, StdActns, StdCtrls, Math;
+  Types, Math,
+  StdActns, StdCtrls;
 
 procedure Register();
 begin

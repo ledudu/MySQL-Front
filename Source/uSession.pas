@@ -3,7 +3,8 @@ unit uSession;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Windows, SyncObjs,
+  Windows,
+  SysUtils, Classes, SyncObjs,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
   BCEditor.Editor, BCEditor.Highlighter,
@@ -1686,9 +1687,10 @@ var
 implementation {***************************************************************}
 
 uses
-  Variants, SysConst, WinInet, DBConsts, RTLConsts, Math, DateUtils, ShLwAPI,
-  Consts, DBCommon, StrUtils,
-  DBGrids,
+  WinInet, ShLwAPI,
+  Variants, SysConst, RTLConsts, Math, DateUtils, StrUtils,
+  DBConsts, DBCommon,
+  Consts, DBGrids,
   BCEditor.Types,
   CSVUtils, HTTPTunnel, MySQLDBGrid,
   uURI, uDeveloper;

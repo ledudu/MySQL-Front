@@ -3,8 +3,9 @@ unit uDAccount;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   uPreferences, uBase, uSession;
 
@@ -74,8 +75,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  WinINet, UITypes, IOUtils, Shlwapi,
-  StrUtils, RegularExpressions,
+  WinINet, Shlwapi,
+  UITypes, IOUtils, StrUtils, RegularExpressions,
   MySQLConsts, MySQLDB,
   uDDatabases, uDConnecting;
 

@@ -3,7 +3,8 @@ unit uDInfo;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, Classes, SysUtils,
+  Windows, Messages,
+  Classes, SysUtils,
   ExtCtrls, Controls, StdCtrls, Graphics, Forms,
   ExtCtrls_Ext, Forms_Ext,
   uPreferences,

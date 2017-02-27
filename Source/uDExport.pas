@@ -3,8 +3,10 @@ unit uDExport;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, RichEdit,
-  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
+  Windows, Messages, RichEdit,
+  SysUtils, Classes,
+  DB,
+  Graphics, Controls, Forms, Dialogs, ComCtrls, ExtCtrls, StdCtrls, DBGrids,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB, MySQLDBGrid,
   uSession, uPreferences, uTools,

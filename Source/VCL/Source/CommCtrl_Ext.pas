@@ -9,7 +9,8 @@ var
 implementation {***************************************************************}
 
 uses
-  SysUtils, ShLwApi, Windows;
+  ShLwApi, Windows,
+  SysUtils;
 
 function PACKVERSION(const Major, Minor: Word): DWord;
 begin

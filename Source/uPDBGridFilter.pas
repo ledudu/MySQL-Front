@@ -3,7 +3,8 @@ unit uPDBGridFilter;
 interface
 
 uses
-  Messages, Classes,
+  Messages,
+  Classes,
   Controls, StdCtrls, Forms, DBGrids,
   uBase, uSession, Vcl.ComCtrls;
 

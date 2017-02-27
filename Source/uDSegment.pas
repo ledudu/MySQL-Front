@@ -3,8 +3,9 @@ unit uDSegment;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Variants, Classes, Graphics,
+  Controls, Forms, Dialogs, StdCtrls, ExtCtrls,
   Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
   uBase, uCWorkbench;
 

@@ -3,7 +3,8 @@ unit Forms_Ext;
 interface {********************************************************************}
 
 uses
-  Windows, SysUtils, Classes, Messages, Controls, Graphics, Forms;
+  Windows, Messages,
+  SysUtils, Classes, Controls, Graphics, Forms;
 
 type
   TForm_Ext = class(TForm)

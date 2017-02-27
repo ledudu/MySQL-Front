@@ -3,8 +3,9 @@ unit uDKey;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, Buttons, ComCtrls, StdCtrls, ToolWin, ExtCtrls,
+  Windows, Messages,
+  SysUtils, Classes,
+  Graphics, Controls, Forms, Dialogs, Buttons, ComCtrls, StdCtrls, ToolWin, ExtCtrls,
   Forms_Ext, ComCtrls_Ext, StdCtrls_Ext,
   uSession, uPreferences,
   uBase;

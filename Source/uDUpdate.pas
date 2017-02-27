@@ -3,8 +3,9 @@ unit uDUpdate;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, Classes, Controls, SysUtils,
-  Dialogs, StdCtrls, ComCtrls, Forms,
+  Windows, Messages,
+  Classes, SysUtils, StdCtrls,
+  Controls, Dialogs, ComCtrls, Forms,
   Forms_Ext, StdCtrls_Ext,
   uDeveloper,
   uBase;
@@ -52,7 +53,8 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, WinInet, SysConst,
+  WinInet,
+  StrUtils, SysConst,
   uPreferences;
 
 var
