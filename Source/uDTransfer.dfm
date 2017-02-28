@@ -211,10 +211,6 @@ object DTransfer: TDTransfer
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)

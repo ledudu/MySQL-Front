@@ -15795,9 +15795,14 @@ begin
       Nodes.ForceTag := ParseTag(kiFORCE);
       Specifications.Add(Nodes.ForceTag);
     end
-    else if ((Nodes.ImportTablespaceTag = 0) and IsTag(kiDISCARD, kiTABLESPACE)) then
+    else if ((Nodes.DiscardTablespaceTag = 0) and IsTag(kiDISCARD, kiTABLESPACE)) then
     begin
-      Nodes.ImportTablespaceTag := ParseTag(kiDISCARD, kiTABLESPACE);
+      Nodes.DiscardTablespaceTag := ParseTag(kiDISCARD, kiTABLESPACE);
+      Specifications.Add(Nodes.DiscardTablespaceTag);
+    end
+    else if ((Nodes.ImportTablespaceTag = 0) and IsTag(kiIMPORT, kiTABLESPACE)) then
+    begin
+      Nodes.ImportTablespaceTag := ParseTag(kiIMPORT, kiTABLESPACE);
       Specifications.Add(Nodes.ImportTablespaceTag);
     end
     else if ((Nodes.LockValue = 0) and IsTag(kiLOCK)) then

@@ -717,8 +717,15 @@ begin
         if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Events) < 0) then
           List.Add(TSDatabase(FDestination.Selected.Data).Events);
     end;
-    if (not DestinationSession.Update(List)) then
-      Wanted.Page := TSExecute;
+    try
+      if (not DestinationSession.Update(List)) then
+        Wanted.Page := TSExecute;
+    except
+      on E: Exception do
+        raise EAssertionFailed.Create(E.Message + #13#10
+          + 'Source.ImageIndex: ' + IntToStr(FSource.Selected.ImageIndex) + #13#10
+          + 'Destination.ImageIndex: ' + IntToStr(FDestination.Selected.ImageIndex));
+    end;
     List.Free();
   end;
 

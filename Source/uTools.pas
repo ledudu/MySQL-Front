@@ -2635,9 +2635,16 @@ begin
         end;
 
         // Debug 2017-01-17
-        // There were a crash in shte CSVUnescape call ... but try ... except didn't work :-(
+        // There was a crash in the CSVUnescape call ... but try ... except didn't work :-(
         Text := CSVValues[CSVColumns[I]].Text;
         L := CSVValues[CSVColumns[I]].Length;
+        try
+          SetString(S, Text, L);
+        except
+          on E: Exception do
+            raise EAssertionFailed.Create(E.Message + #13#10
+              + 'L: ' + IntToStr(L));
+        end;
         Len := CSVUnescape(Text, L, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
       end;
 

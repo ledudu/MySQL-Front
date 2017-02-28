@@ -3458,9 +3458,6 @@ begin
   Inc(FWarningCount, SyncThread.WarningCount);
   FThreadId := SyncThread.LibThreadId;
 
-  // Debug 2017-02-22
-  DebugMonitor.Append('SyncExecuted - start', ttDebug);
-
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
@@ -3532,9 +3529,6 @@ begin
     end;
   end;
 
-  // Debug 2017-02-24
-  DebugMonitor.Append('SyncExecuted - 2:' + SyncThread.CommandText, ttDebug);
-
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
     if (KillThreadId > 0) then
@@ -3560,14 +3554,19 @@ begin
   end
   else
   begin
-    SyncThread.State := ssResult;
 
     InOnResult := True;
     try
       if (SyncThread.ErrorCode <> 0) then
-        DataHandle := nil
+      begin
+        DataHandle := nil;
+        SyncThread.State := ssReady;
+      end
       else
+      begin
         DataHandle := SyncThread;
+        SyncThread.State := ssResult;
+      end;
 
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
         SyncThread.CommandText, DataHandle, Assigned(SyncThread.ResHandle))
@@ -3785,13 +3784,6 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
 
-  DebugMonitor.Append('SyncHandledResult -'
-    + ' State: ' + IntToStr(Ord(SyncThread.State))
-    + ' ErrorCode: ' + IntToStr(SyncThread.ErrorCode)
-    + ' Multi: ' + BoolToStr(MultiStatements, True)
-    + ' LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
-    + ' More: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
-
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
   else if (SyncThread.ErrorCode = CR_SERVER_GONE_ERROR) then
@@ -3895,7 +3887,7 @@ procedure TMySQLConnection.SyncTerminate(const SyncThread: TSyncThread);
 begin
   Assert(GetCurrentThreadId() = MainThreadID);
 
-  KillThreadId := SyncThread.ThreadId;
+  KillThreadId := SyncThread.LibThreadId;
 
   {$IFDEF Debug}
     MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
@@ -6465,7 +6457,7 @@ begin
     if (DeleteByWhereClause) then
     begin
       InternRecordBuffers.Clear();
-      if ((BufferCount >= 0) and (ActiveBuffer() > 0)) then
+      if ((ActiveRecord >= 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
@@ -6487,14 +6479,14 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      if ((BufferCount >= 0) and (ActiveBuffer() > 0)) then
+      if ((ActiveRecord >= 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
-    if ((BufferCount >= 0) and (ActiveBuffer() > 0)) then
+    if ((ActiveRecord >= 0) and (ActiveBuffer() > 0)) then
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
 end;

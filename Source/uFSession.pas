@@ -7631,6 +7631,13 @@ begin
   else
     raise ERangeError.Create(SRangeError);
 
+  // Debug 2017-02-28
+  Assert(URI.Scheme <> 'http',
+    'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+    + 'Text: ' + Node.Text + #13#10
+    + 'Data: ' + BoolToStr(Assigned(Node.Data)));
+
+
   URI.Param['view'] := ViewToParam(View);
 
   if ((ParamToView(URI.Param['view']) in [vBrowser]) and not (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
