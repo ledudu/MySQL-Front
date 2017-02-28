@@ -1450,7 +1450,8 @@ type
     function GetDataFileAllowed(): Boolean; override;
     function GetMaxAllowedServerPacket(): Integer; override;
     procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); override;
-    procedure SetCharset(const ACharset: string); override;
+    procedure SetCharsetClient(const ACharset: string); override;
+    procedure SetCharsetResult(const ACharset: string); override;
   public
     constructor Create(const ASession: TSSession); reintroduce; virtual;
     procedure Connect(); overload;
@@ -2109,9 +2110,9 @@ begin
   begin
     // In MySQL 4.1, SHOW CREATE TABLE / DATABASE will be answered in a binary field
     RBS := Field.AsAnsiString;
-    Len := AnsiCharToWideChar(Session.Connection.CodePage, PAnsiChar(RBS), Length(RBS), nil, 0);
+    Len := AnsiCharToWideChar(Session.Connection.CodePageResult, PAnsiChar(RBS), Length(RBS), nil, 0);
     SetLength(SQL, Len);
-    AnsiCharToWideChar(Session.Connection.CodePage, PAnsiChar(RBS), Length(RBS), PChar(SQL), Len);
+    AnsiCharToWideChar(Session.Connection.CodePageResult, PAnsiChar(RBS), Length(RBS), PChar(SQL), Len);
   end
   else
     SQL := Field.AsString;
@@ -8239,6 +8240,10 @@ begin
       end;
       if (not Found) then
       begin
+        // Debug 2017-02-18
+        for J := 0 to NewTable.Fields.Count - 1 do
+          Assert(NewTable.Fields[J].Name <> OldField.Name);
+
         if (SQL <> '') then SQL := SQL + ',' + #13#10;
         SQL := SQL + '  DROP COLUMN ' + Session.Connection.EscapeIdentifier(OldField.Name);
       end;
@@ -9216,9 +9221,6 @@ begin
 
       if (Assigned(ItemSearch)) then
         ItemSearch.Add(Item);
-
-      if (Filtered) then
-        Session.SendEvent(etItemValid, Session, Self, Variable[Index]);
     until (not DataSet.FindNext());
 
   if (Count > 0) then
@@ -9226,14 +9228,14 @@ begin
     if (Assigned(Session.VariableByName('character_set'))) then
     begin
       Session.Charsets.Build(nil, False);
-      Session.Connection.Charset := Session.VariableByName('character_set').Value;
+      Session.Connection.CharsetClient := Session.VariableByName('character_set').Value;
     end
-    else if (Assigned(Session.VariableByName('character_set_client'))) then
+    else
     begin
-      if (StrIComp(PChar(Session.VariableByName('character_set_client').Value), PChar(Session.VariableByName('character_set_results').Value)) <> 0) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': character_set_client (%s) <> character_set_results (%s)', ['Charset', Session.VariableByName('character_set_client').Value, Session.VariableByName('character_set_results').Value])
-      else
-        Session.Connection.Charset := Session.VariableByName('character_set_client').Value;
+      if (Assigned(Session.VariableByName('character_set_client'))) then
+        Session.Connection.CharsetClient := Session.VariableByName('character_set_client').Value;
+      if (Assigned(Session.VariableByName('character_set_results'))) then
+        Session.Connection.CharsetResult := Session.VariableByName('character_set_results').Value;
     end;
 
     if (Session.Connection.MySQLVersion < 40102) then
@@ -10898,19 +10900,23 @@ begin
   Session.SQLParser.AnsiQuotes := AnsiQuotes;
 end;
 
-procedure TSConnection.SetCharset(const ACharset: string);
+procedure TSConnection.SetCharsetClient(const ACharset: string);
 begin
   inherited;
 
   if (Assigned(Session.Variables) and Session.Variables.Valid) then
     if (Assigned(Session.VariableByName('character_set'))) then
-      Session.VariableByName('character_set').Value := Charset
+      Session.VariableByName('character_set').Value := CharsetClient
     else
-    begin
-      Session.VariableByName('character_set_client').Value := Charset;
-      Session.VariableByName('character_set_connection').Value := Charset;
-      Session.VariableByName('character_set_results').Value := Charset;
-    end;
+      Session.VariableByName('character_set_client').Value := CharsetClient;
+end;
+
+procedure TSConnection.SetCharsetResult(const ACharset: string);
+begin
+  inherited;
+
+  if (Assigned(Session.Variables) and Session.Variables.Valid) then
+    Session.VariableByName('character_set_results').Value := CharsetResult;
 end;
 
 function TSConnection.SQLUse(const DatabaseName: string): string;
@@ -12847,7 +12853,12 @@ begin
     else if (SQLParseKeyword(Parse, 'SET')) then
     begin
       repeat
-        if ((SQLParseKeyword(Parse, 'GLOBAL') or SQLParseKeyword(Parse, 'SESSION')) and not SQLParseChar(Parse, '@', False)) then
+        if (SQLParseKeyword(Parse, 'NAMES') or SQLParseKeyword(Parse, 'CHARACTER SET') or SQLParseKeyword(Parse, 'CHARSET')) then
+        begin
+          Connection.CharsetClient := SQLParseValue(Parse);
+          Connection.CharsetResult := Connection.CharsetClient;
+        end
+        else if ((SQLParseKeyword(Parse, 'GLOBAL') or SQLParseKeyword(Parse, 'SESSION')) and not SQLParseChar(Parse, '@', False)) then
         begin
           Variable := VariableByName(SQLParseValue(Parse));
           if (Assigned(Variable) and SQLParseChar(Parse, '=')) then

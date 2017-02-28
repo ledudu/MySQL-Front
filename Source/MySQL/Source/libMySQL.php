@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 26;
+	$MF_VERSION = 27;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -278,11 +278,44 @@
 			SendPacket($Packet);
 		}
 
-		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && (mysqli_get_server_version($mysqli) >= 40101))
-			if ((version_compare(phpversion(), '5.2.3') < 0) || (mysqli_get_server_version($mysqli) < 50007))
-				mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
-			else
-				mysqli_set_charset($mysqli, $_SESSION['charset']);
+		if (! mysqli_connect_errno($mysqli)) {
+			if (! isset($_SESSION['server_version'])) {
+				$_SESSION['server_version'] = mysqli_get_server_version($mysqli);
+				$_SESSION['server_info'] = mysqli_get_server_info($mysqli);
+
+				if (($_SESSION['server_version'] >= 100000) && preg_match("/\-MariaDB/i", $server_info)) {
+					$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+					if (! socket_connect($socket, $_SESSION['host'], $_SESSION['port'])) {
+						socket_close($socket);
+						$socket = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
+						if (! socket_connect($socket, $_SESSION['host'], $_SESSION['port'])) {
+							socket_close($socket);
+							$socket = FALSE;
+						}
+					}
+					if ($socket) {
+						if (socket_recv($socket, $buffer, 4, MSG_WAITALL)) {
+							$a = unpack('V', substr($buffer, 0, 3) . "\x00"); $size = $a[1];
+							$a = unpack('C', substr($buffer, 3, 1)); $nr = $a[1];
+							if (($nr == 0)
+								&& socket_recv($socket, $buffer, $size, MSG_WAITALL)
+								&& preg_match('/\x0a([^\x00]*)/', $buffer, $info)
+								&& preg_match('/^([0-9]*)\.([0-9]*)\.([0-9]*)/', $info[1], $version)) {
+								$_SESSION['server_version'] = $version[1] * 10000 + $version[2] * 100 + $version[3];
+								$_SESSION['server_info'] = $info[1];
+							}
+						}
+						socket_close($socket);
+					}
+				}
+			}
+
+			if ($_SESSION['charset'] && ($_SESSION['server_version'] >= 40101))
+				if ((version_compare(phpversion(), '5.2.3') < 0) || ($_SESSION['server_version'] < 50007))
+					mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
+				else
+					mysqli_set_charset($mysqli, $_SESSION['charset']);
+		}
 
 		if (mysqli_errno($mysqli)) {
 			$Packet = "\xFF";
@@ -290,12 +323,12 @@
 			$Packet .= mysqli_error($mysqli) . "\x00";
 			SendPacket($Packet);
 		} else if ($Connect) {
-			if (mysqli_get_server_version($mysqli) < 40101) {
+			if ($_SESSION['server_version'] < 40101) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);
 				if ($Row = mysqli_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
 				mysqli_free_result($result);
-			} else if ((version_compare(phpversion(), '5.2.3') < 0) || (mysqli_get_server_version($mysqli) < 50007)) {
+			} else if ((version_compare(phpversion(), '5.2.3') < 0) || ($_SESSION['server_version'] < 50007)) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set_client';", MYSQLI_USE_RESULT);
 				if ($Row = mysqli_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
@@ -303,9 +336,9 @@
 			} else
 				$_SESSION['charset'] = mysqli_character_set_name($mysqli);
 
-			if (mysqli_get_server_version($mysqli) < 40101) {
+			if ($_SESSION['server_version'] < 40101) {
 				$CharsetNr = $Charsets[$_SESSION['charset']];
-			} else if (mysqli_get_server_version($mysqli) < 50000) {
+			} else if ($_SESSION['server_version'] < 50000) {
 				$result = mysqli_query($mysqli, 'SHOW COLLATION;', MYSQLI_USE_RESULT);
 				while ($Row = mysqli_fetch_array($result))
 					if ($Row['Charset'] == $_SESSION['charset'] && $Row['Default'] == 'Yes')
@@ -320,7 +353,7 @@
 
 			$Packet = '';
 			$Packet .= pack('C', 10); // Protocol
-			$Packet .= mysqli_get_server_info($mysqli) . "\x00";
+			$Packet .= $_SESSION['server_info'] . "\x00";
 			$Packet .= pack('V', 0); // Thread Id
 			$Packet .= "00000000\x00"; // Salt
 			if (function_exists('gzcompress'))
@@ -358,7 +391,7 @@
 						SendPacket($Packet);
 						FlushPackets();
 						break;
-					} else if (preg_match("/^USE[| |\t|\n|\r][| |\t|\n|\r]*/", $Query) || preg_match("/^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]/", $Query)) {
+					} else if (preg_match("/^USE[| |\t|\n|\r][| |\t|\n|\r]*/i", $Query) || preg_match("/^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]/i", $Query)) {
 						// on some PHP versions mysqli_use_result just ignores "USE Database;"
 						// statements. So it has to be handled separately:
 						$Packet = '';
@@ -375,9 +408,9 @@
 						SendPacket($Packet);
 						FlushPackets();
 
-						if (preg_match("/^USE[| |\t|\n|\r]*/", $Query))
+						if (preg_match("/^USE[| |\t|\n|\r]*/i", $Query))
 							$_SESSION['database'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^USE[| |\t|\n|\r]*/i', '', $Query));
-						else if (preg_match("/^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]/", $Query))
+						else if (preg_match("/^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]/i", $Query))
 							$_SESSION['charset'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^NAMES[| |\t|\n|\r]*/i', '', preg_replace('/^SET[| |\t|\n|\r]*/i', '', $Query)));
 					} else {
 						do {
@@ -586,9 +619,9 @@
 						SendPacket($Packet);
 						FlushPackets();
 
-						if (preg_match("/^USE[| |\t|\n|\r]/", $Query))
+						if (preg_match("/^USE[| |\t|\n|\r]/i", $Query))
 							$_SESSION['database'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^USE[| |\t|\n|\r]*/i', '', $Query));
-						else if (preg_match("/^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]/", $Query)) {
+						else if (preg_match("/^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]/i", $Query)) {
 							$_SESSION['charset'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^NAMES[| |\t|\n|\r]*/i', '', preg_replace('/^SET[| |\t|\n|\r]*/i', '', $Query)));
 							SetCharsetNr($mysql);
 						}

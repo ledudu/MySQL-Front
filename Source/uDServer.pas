@@ -15,10 +15,8 @@ type
   TDServer = class (TForm_Ext)
     FBCancel: TButton;
     FBHelp: TButton;
-    FCharacterSet: TLabel;
     FComment: TLabel;
     FHost: TLabel;
-    FLCharacterSet: TLabel;
     FLComment: TLabel;
     FLHost: TLabel;
     FLibVersion: TLabel;
@@ -191,7 +189,6 @@ begin
     FUser.Caption := '???'
   else
     FUser.Caption := Session.CurrentUser;
-  FCharacterSet.Caption := Session.Connection.Charset;
   FThreadId.Visible := Session.Connection.ThreadId > 0;
   FLThreadId.Visible := FThreadId.Visible;
   FThreadId.Caption := IntToStr(Session.Connection.ThreadId);
@@ -368,7 +365,6 @@ begin
   FLHost.Caption := Preferences.LoadStr(305) + ':';
   FLLibVersion.Caption := Preferences.LoadStr(568) + ':';
   FLUser.Caption := Preferences.LoadStr(561) + ':';
-  FLCharacterSet.Caption := Preferences.LoadStr(682) + ':';
   FLThreadId.Caption := Preferences.LoadStr(269) + ':';
 
   TSStartup.Caption := Preferences.LoadStr(805);

@@ -194,7 +194,7 @@ begin
   PSQLWait.Visible := not GroupBox.Visible;
   FBOk.Enabled := False;
 
-  ActiveControl := FBCancel;
+  FValue.SelectAll();
   ActiveControl := FValue;
 end;
 

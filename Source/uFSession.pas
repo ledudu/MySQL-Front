@@ -3854,7 +3854,7 @@ begin
     OpenDialog.DefaultExt := 'txt';
     OpenDialog.Filter := FilterDescription('txt') + ' (*.txt)|*.txt|' + FilterDescription('*') + ' (*.*)|*.*';
     OpenDialog.Encodings.Text := EncodingCaptions();
-    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePage));
+    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePageClient));
   end
   else if (ActiveDBGrid.SelectedField.DataType = ftBlob) then
   begin
@@ -6262,7 +6262,7 @@ begin
     SaveDialog.DefaultExt := 'txt';
     SaveDialog.Filter := FilterDescription('txt') + ' (*.txt)|*.txt' + '|' + FilterDescription('*') + ' (*.*)|*.*';
     SaveDialog.Encodings.Text := EncodingCaptions();
-    SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePage));
+    SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePageClient));
   end
   else if (ActiveDBGrid.SelectedField.DataType = ftBlob) then
   begin
@@ -8611,6 +8611,9 @@ begin
     Node := FNavigator.Items.getFirstNode();
     while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
       Node := Node.getNextSibling();
+
+    // Debug 2017-02-28
+    Assert(Assigned(Node));
 
     FNavigator.Items.BeginUpdate();
 
@@ -11882,12 +11885,7 @@ var
               InsertOrUpdateItem(Kind, GroupID, Event.Item);
           end
           else
-          begin
-            Count := ListView.Items.Count; // Cache for speeding
-            for I := 0 to Count - 1 do
-              if (ListView.Items[I].Data = Event.Item) then
-                UpdateItem(ListView.Items[I], GroupID, Event.Item);
-          end;
+            InsertOrUpdateItem(Kind, GroupID, Event.Item);
         end;
       etItemCreated:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
@@ -12823,7 +12821,7 @@ procedure TFSession.MSQLEditorPopup(Sender: TObject);
 var
   I: Integer;
 begin
-  BCEditorChange(Sender);
+  BCEditorChange(ActiveBCEditor);
   ShowEnabledItems(MSQLEditor.Items);
 
   for I := 0 to MSQLEditor.Items.Count - 1 do
@@ -13078,7 +13076,7 @@ begin
   if (CodePage <> 0) then
     OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(CodePage))
   else
-    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePage));
+    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePageClient));
 
   if ((OpenDialog.FileName <> '') or OpenDialog.Execute()) then
   begin
@@ -14337,7 +14335,7 @@ begin
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := EncodingCaptions();
-  SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePage));
+  SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePageClient));
   if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
   begin
     if (SQLEditors[View].Filename = '') then
@@ -15398,7 +15396,7 @@ begin
 
   SynCompletionPending.Active := False;
 
-  SelSQL := ActiveBCEditor.SelText; // Cache for speeding
+  SelSQL := TBCEditor(Sender).SelText; // Cache for speeding
   if (View <> vIDE) then
   begin
     SQL := '';
@@ -15406,18 +15404,18 @@ begin
   end
   else
   begin
-    SQL := ActiveBCEditor.Text; // Cache for speeding
+    SQL := TBCEditor(Sender).Text; // Cache for speeding
     ClassIndex := CurrentClassIndex; // Cache for speeding
   end;
-  Empty := ((ActiveBCEditor.Lines.Count <= 1) and (ActiveBCEditor.Text = '')); // Cache for speeding
+  Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
 
   MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
   MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
-  MainAction('aERedo').Enabled := ActiveBCEditor.CanRedo;
+  MainAction('aERedo').Enabled := TBCEditor(Sender).CanRedo;
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
   MainAction('aDPostObject').Enabled := (View = vIDE)
-    and ActiveBCEditor.Modified
+    and TBCEditor(Sender).Modified
     and SQLSingleStmt(SQL)
     and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
       or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
@@ -15436,14 +15434,14 @@ end;
 procedure TFSession.BCEditorCompletionProposalSelected(Sender: TObject;
   var ASelectedItem: string);
 begin
-  ActiveBCEditor.CompletionProposal.Columns[0].Items.Clear();
-  ActiveBCEditor.CompletionProposal.Columns[1].Items.Clear();
+  TBCEditorCompletionProposal(Sender).Columns[0].Items.Clear();
+  TBCEditorCompletionProposal(Sender).Columns[1].Items.Clear();
 end;
 
 procedure TFSession.BCEditorCompletionProposalCanceled(Sender: TObject);
 begin
-  ActiveBCEditor.CompletionProposal.Columns[0].Items.Clear();
-  ActiveBCEditor.CompletionProposal.Columns[1].Items.Clear();
+  TBCEditorCompletionProposal(Sender).Columns[0].Items.Clear();
+  TBCEditorCompletionProposal(Sender).Columns[1].Items.Clear();
 end;
 
 procedure TFSession.BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);

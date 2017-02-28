@@ -1101,6 +1101,7 @@ begin
     Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
     Import.Start();
+    Progress := Progress + 'k';
   end;
 
   CheckActivePageChange(TSExecute);

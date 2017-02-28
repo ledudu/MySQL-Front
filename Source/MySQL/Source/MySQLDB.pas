@@ -11,9 +11,8 @@ uses
 const
   DS_ASYNCHRON     = -1;
   DS_MIN_ERROR     = 2300;
-  DS_SET_NAMES     = 2300;
-  DS_SERVER_OLD    = 2301;
-  DS_OUT_OF_MEMORY = 2302;
+  DS_SERVER_OLD    = 2300;
+  DS_OUT_OF_MEMORY = 2301;
 
 type
   TMySQLMonitor = class;
@@ -230,9 +229,10 @@ type
     FAnsiQuotes: Boolean;
     FAsynchron: Boolean;
     FBeforeExecuteSQL: TNotifyEvent;
-    FCharset: string;
-    FCharsetNr: Byte;
-    FCodePage: Cardinal;
+    FCharsetClient: string;
+    FCharsetResult: string;
+    FCodePageClient: Cardinal;
+    FCodePageResult: Cardinal;
     FConnected: Boolean;
     FDebugMonitor: TMySQLMonitor;
     FErrorCode: Integer;
@@ -315,7 +315,8 @@ type
     function local_infile_read(const local_infile: Plocal_infile; buf: my_char; const buf_len: my_uint): my_int; virtual;
     procedure RegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); virtual;
-    procedure SetCharset(const ACharset: string); virtual;
+    procedure SetCharsetClient(const ACharset: string); virtual;
+    procedure SetCharsetResult(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;
     function SQLUse(const DatabaseName: string): string; virtual;
     procedure Sync(const SyncThread: TSyncThread);
@@ -335,14 +336,13 @@ type
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
     procedure SyncTerminate(const SyncThread: TSyncThread);
-    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
-    function LibEncode(const Value: string): RawByteString; virtual;
+    function LibDecode(const CodePage: Cardinal; const Text: my_char; const Length: my_int = -1): string; virtual;
+    function LibEncode(const CodePage: Cardinal; const Value: string): RawByteString; virtual;
     function LibPack(const Value: string): RawByteString; virtual;
     function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
-    property CharsetNr: Byte read FCharsetNr;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
@@ -371,7 +371,8 @@ type
     function SendSQL(const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
     procedure Terminate(); virtual;
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
-    property CodePage: Cardinal read FCodePage;
+    property CodePageClient: Cardinal read FCodePageClient;
+    property CodePageResult: Cardinal read FCodePageResult;
     property DataFileAllowed: Boolean read GetDataFileAllowed;
     property DebugMonitor: TMySQLMonitor read FDebugMonitor;
     property HostInfo: string read FHostInfo;
@@ -402,7 +403,8 @@ type
     property Asynchron: Boolean read FAsynchron write FAsynchron default False;
     property AfterExecuteSQL: TNotifyEvent read FAfterExecuteSQL write FAfterExecuteSQL;
     property BeforeExecuteSQL: TNotifyEvent read FBeforeExecuteSQL write FBeforeExecuteSQL;
-    property Charset: string read FCharset write SetCharset;
+    property CharsetClient: string read FCharsetClient write SetCharsetClient;
+    property CharsetResult: string read FCharsetResult write SetCharsetResult;
     property DatabaseName: string read FDatabaseName write SetDatabaseName;
     property Host: string read FHost write SetHost;
     property InsertId: my_ulonglong read GetInsertId;
@@ -895,6 +897,7 @@ const
   ftDateTimeField   = $200000;
 
 function BitField(const Field: TField): Boolean;
+function FieldCodePage(const Field: TField): Cardinal; inline;
 function DateTimeToStr(const DateTime: TDateTime; const FormatSettings: TFormatSettings): string; overload;
 function DateToStr(const Date: TDateTime; const FormatSettings: TFormatSettings): string; overload;
 function ExecutionTimeToStr(const Time: TDateTime; const Digits: Byte = 2): string;
@@ -934,10 +937,9 @@ resourcestring
   SLibraryNotAvailable = 'Library can not be loaded ("%s")';
 
 const
-  DATASET_ERRORS: array [0..2] of PChar = (
-    'SET NAMES / SET CHARACTER SET / SET CHARSET statements are not supported', {0}
-    'Require MySQL Server 3.23.20 or higher',                                   {1}
-    'DataSet run out of memory');                                               {2}
+  DATASET_ERRORS: array [0..1] of PChar = (
+    'Require MySQL Server 3.23.20 or higher',                                   {0}
+    'DataSet run out of memory');                                               {1}
 
 const
   // Field mappings needed for filtering. (What field type should be compared with what internal type?)
@@ -1025,6 +1027,11 @@ var
 function BitField(const Field: TField): Boolean;
 begin
   Result := Assigned(Field) and (Field.Tag and ftBitField <> 0);
+end;
+
+function FieldCodePage(const Field: TField): Cardinal;
+begin
+  Result := Field.Tag and $FFFF;
 end;
 
 function DateTimeToStr(const DateTime: TDateTime;
@@ -2201,9 +2208,10 @@ begin
   FAnsiQuotes := False;
   FAsynchron := False;
   FBeforeExecuteSQL := nil;
-  FCharset := 'utf8';
-  FCharsetNr := 33;
-  FCodePage := CP_UTF8;
+  FCharsetClient := 'utf8';
+  FCharsetResult := 'utf8';
+  FCodePageClient := CharsetToCodePage(FCharsetClient);
+  FCodePageResult := CharsetToCodePage(FCharsetResult);
   FConnected := False;
   FDatabaseName := '';
   FExecutionTime := 0;
@@ -2491,7 +2499,7 @@ var
 begin
   RBS := Lib.mysql_error(AHandle);
   try
-    Result := LibDecode(my_char(RBS));
+    Result := LibDecode(CodePageResult, my_char(RBS));
   except
     Result := string(RBS);
   end;
@@ -2527,7 +2535,7 @@ begin
   begin
     Info := Lib.mysql_info(Handle);
     try
-      Result := '--> ' + LibDecode(Info);
+      Result := '--> ' + LibDecode(CodePageResult, Info);
     except
       Result := '--> ' + string(Info);
     end;
@@ -2567,7 +2575,6 @@ var
   CLStmt: TSQLCLStmt;
   P: PChar;
   S: string; // Debug 2017-02-14
-  SetNames: Boolean;
   SQLIndex: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
@@ -2603,9 +2610,9 @@ begin
   if (KillThreadId = 0) then
     SyncThread.SQL := SQL
   else if (MySQLVersion < 50000) then
-    SyncThread.SQL := 'KILL ' + IntToStr(ThreadId) + ';' + #13#10 + SQL
+    SyncThread.SQL := 'KILL ' + IntToStr(KillThreadId) + ';' + #13#10 + SQL
   else
-    SyncThread.SQL := 'KILL CONNECTION ' + IntToStr(ThreadId) + ';' + #13#10 + SQL;
+    SyncThread.SQL := 'KILL CONNECTION ' + IntToStr(KillThreadId) + ';' + #13#10 + SQL;
 
 
   FErrorCode := DS_ASYNCHRON;
@@ -2655,26 +2662,19 @@ begin
   end;
 
   SetLength(SyncThread.CLStmts, SyncThread.StmtLengths.Count);
-  SQLIndex := 1; SetNames := False;
+  SQLIndex := 1;
   for StmtIndex := 0 to SyncThread.StmtLengths.Count - 1 do
-    if (not SetNames) then
-    begin
-      StmtLength := Integer(SyncThread.StmtLengths[StmtIndex]);
-      SyncThread.CLStmts[StmtIndex] := SQLParseCLStmt(CLStmt, @SyncThread.SQL[SQLIndex], StmtLength, MySQLVersion);
-      SetNames := SyncThread.CLStmts[StmtIndex] and (CLStmt.CommandType in [ctSetNames, ctSetCharacterSet, ctSetCharset]);
-      Inc(SQLIndex, StmtLength);
-    end;
+  begin
+    StmtLength := Integer(SyncThread.StmtLengths[StmtIndex]);
+    SyncThread.CLStmts[StmtIndex] := SQLParseCLStmt(CLStmt, @SyncThread.SQL[SQLIndex], StmtLength, MySQLVersion);
+    Inc(SQLIndex, StmtLength);
+  end;
 
   SyncThread.RequestThreadID := GetCurrentThreadId();
   if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
   else if (SyncThread.StmtLengths.Count = 0) then
     Result := False
-  else if (SetNames) then
-  begin
-    DoError(DS_SET_NAMES, StrPas(DATASET_ERRORS[DS_SET_NAMES - DS_MIN_ERROR]));
-    Result := False;
-  end
   else if (SynchronCount > 0) then
   begin
     repeat
@@ -2684,6 +2684,8 @@ begin
         MySQLConnectionOnSynchronize(SyncThread);
       if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
+      if ((SyncThread.State in [ssExecutingFirst, ssExecutingNext]) and (SyncThread.ErrorCode > 0)) then
+        SyncThread.State := ssReady;
     until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
   end
@@ -2704,7 +2706,7 @@ begin
   TerminateCS.Leave();
 end;
 
-function TMySQLConnection.LibDecode(const Text: my_char; const Length: my_int = -1): string;
+function TMySQLConnection.LibDecode(const CodePage: Cardinal; const Text: my_char; const Length: my_int = -1): string;
 label
   StringL;
 var
@@ -2724,7 +2726,7 @@ begin
   end;
 end;
 
-function TMySQLConnection.LibEncode(const Value: string): RawByteString;
+function TMySQLConnection.LibEncode(const CodePage: Cardinal; const Value: string): RawByteString;
 var
   Len: Integer;
 begin
@@ -2832,7 +2834,7 @@ begin
   Len := FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, nil, local_infile^.LastError, 0, @Buffer, 0, nil);
   if (Len > 0) then
   begin
-    Len := WideCharToAnsiChar(CodePage, Buffer, Len, error_msg, error_msg_len);
+    Len := WideCharToAnsiChar(CodePageClient, Buffer, Len, error_msg, error_msg_len);
     error_msg[Len] := #0;
     LocalFree(HLOCAL(Buffer));
   end
@@ -2849,7 +2851,7 @@ begin
   local_infile^.Connection := Self;
   local_infile^.Position := 0;
 
-  if ((AnsiCharToWideChar(CodePage, filename, lstrlenA(filename), @local_infile^.Filename, Length(local_infile^.Filename)) = 0) and (GetLastError() <> 0)) then
+  if ((AnsiCharToWideChar(CodePageClient, filename, lstrlenA(filename), @local_infile^.Filename, Length(local_infile^.Filename)) = 0) and (GetLastError() <> 0)) then
   begin
     local_infile^.ErrorCode := EE_FILENOTFOUND;
     local_infile^.LastError := GetLastError();
@@ -2943,16 +2945,24 @@ begin
     FIdentifierQuoter := '`';
 end;
 
-procedure TMySQLConnection.SetCharset(const ACharset: string);
+procedure TMySQLConnection.SetCharsetClient(const ACharset: string);
 begin
-  if ((ACharset <> '') and (ACharset <> Charset)) then
+  if ((ACharset <> '') and (ACharset <> CharsetClient)) then
   begin
-    FCharset := LowerCase(ACharset);
-    FCharsetNr := CharsetToCharsetNr(FCharset);
-    FCodePage := CharsetToCodePage(FCharset);
+    FCharsetClient := LowerCase(ACharset);
+    FCodePageClient := CharsetToCodePage(FCharsetClient);
 
     if (Connected and Assigned(Lib.mysql_options) and Assigned(SyncThread)) then
-      Lib.mysql_options(Handle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharset)));
+      Lib.mysql_options(Handle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharsetClient)));
+  end;
+end;
+
+procedure TMySQLConnection.SetCharsetResult(const ACharset: string);
+begin
+  if ((ACharset <> '') and (ACharset <> CharsetResult)) then
+  begin
+    FCharsetResult := LowerCase(ACharset);
+    FCodePageResult := CharsetToCodePage(FCharsetResult);
   end;
 end;
 
@@ -3227,28 +3237,28 @@ begin
 
     Lib.mysql_options(SyncThread.LibHandle, MYSQL_OPT_READ_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
     Lib.mysql_options(SyncThread.LibHandle, MYSQL_OPT_WRITE_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
-    Lib.mysql_options(SyncThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(Charset)));
+    Lib.mysql_options(SyncThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(CharsetClient)));
     if (UseCompression()) then
       Lib.mysql_options(SyncThread.LibHandle, MYSQL_OPT_COMPRESS, nil);
     if (LibraryType = ltHTTP) then
     begin
-      Lib.mysql_options(SyncThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_URL), my_char(LibEncode(LibraryName)));
+      Lib.mysql_options(SyncThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_URL), my_char(LibEncode(CodePageClient, LibraryName)));
       if (HTTPAgent <> '') then
-        Lib.mysql_options(SyncThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_AGENT), my_char(LibEncode(HTTPAgent)));
+        Lib.mysql_options(SyncThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_AGENT), my_char(LibEncode(CodePageClient, HTTPAgent)));
     end;
 
     if (Host <> LOCAL_HOST_NAMEDPIPE) then
       Lib.mysql_real_connect(SyncThread.LibHandle,
-        my_char(LibEncode(Host)),
-        my_char(LibEncode(Username)), my_char(LibEncode(Password)),
-        my_char(LibEncode(DatabaseName)), Port, '', ClientFlag)
+        my_char(LibEncode(CodePageClient, Host)),
+        my_char(LibEncode(CodePageClient, Username)), my_char(LibEncode(CodePageClient, Password)),
+        my_char(LibEncode(CodePageClient, DatabaseName)), Port, '', ClientFlag)
     else
     begin
       Lib.mysql_options(SyncThread.LibHandle, enum_mysql_option(MYSQL_OPT_NAMED_PIPE), nil);
       Lib.mysql_real_connect(SyncThread.LibHandle,
         my_char(LOCAL_HOST),
-        my_char(LibEncode(Username)), my_char(LibEncode(Password)),
-        my_char(LibEncode(DatabaseName)), Port, MYSQL_NAMEDPIPE, ClientFlag);
+        my_char(LibEncode(CodePageClient, Username)), my_char(LibEncode(CodePageClient, Password)),
+        my_char(LibEncode(CodePageClient, DatabaseName)), Port, MYSQL_NAMEDPIPE, ClientFlag);
     end;
 
     // Debug 2017-01-04
@@ -3358,18 +3368,14 @@ begin
     else
     begin
       if ((MySQLVersion < 40101) or not Assigned(Lib.mysql_character_set_name)) then
-      begin
-        FCharset := 'latin1';
-        FCharsetNr := 0;
-      end
+        FCharsetClient := 'latin1'
       else
-      begin
-        FCharset := string(Lib.mysql_character_set_name(SyncThread.LibHandle));
-        FCharsetNr := CharsetToCharsetNr(Charset);
-      end;
-      FCodePage := CharsetToCodePage(Charset);
+        FCharsetClient := string(Lib.mysql_character_set_name(SyncThread.LibHandle));
+      FCodePageClient := CharsetToCodePage(FCharsetClient);
+      FCharsetResult := FCharsetClient;
+      FCodePageResult := FCodePageResult;
 
-      FHostInfo := LibDecode(Lib.mysql_get_host_info(SyncThread.LibHandle));
+      FHostInfo := LibDecode(CodePageResult, Lib.mysql_get_host_info(SyncThread.LibHandle));
       FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((MySQLVersion > 40100) or (Lib.LibraryType = ltHTTP)) and not ((50000 <= MySQLVersion) and (MySQLVersion < 50007));
     end;
   end;
@@ -3442,7 +3448,6 @@ var
   DataSet: TMySQLQuery; // Debug 2017-02-16
   DataHandle: TDataHandle;
   Info: my_char;
-  Len: Integer;
   Log: string;
   Name: string;
   Size: size_t;
@@ -3473,14 +3478,10 @@ begin
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
         repeat
-          Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
-          SetLength(Name, Len);
-          AnsiCharToWideChar(CodePage, Data, Size, PChar(Name), Len);
+          Name := LibDecode(CodePageResult, Data, Size);
           if (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
           begin
-            Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
-            SetLength(Value, Len);
-            AnsiCharToWideChar(CodePage, Data, Size, PChar(Value), Len);
+            Value := LibDecode(CodePageResult, Data, Size);
             DoVariableChange(Name, Value);
           end;
         until (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) <> 0);
@@ -3516,7 +3517,7 @@ begin
       begin
         Info := Lib.mysql_info(SyncThread.LibHandle);
         try
-          S := '--> ' + LibDecode(Info);
+          S := '--> ' + LibDecode(CodePageResult, Info);
         except
           S := '--> ' + string(AnsiStrings.StrPas(Info));
         end;
@@ -3650,7 +3651,7 @@ begin
     else if ((StmtLength = 9) and (StrLIComp(SQL, 'SHUTDOWN;', 9) = 0) and (MySQLVersion < 50709)) then
       PacketComplete := pcExclusiveStmt
     else if ((SizeOf(COM_QUERY) + SQLIndex - 1 + StmtLength > MaxAllowedServerPacket)
-      and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SQLIndex]), StmtLength, nil, 0) > MaxAllowedServerPacket)) then
+      and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePageClient, PChar(@SyncThread.SQL[SQLIndex]), StmtLength, nil, 0) > MaxAllowedServerPacket)) then
       PacketComplete := pcExclusiveStmt
     else if (not MultiStatements or (SQLIndex - 1 + StmtLength = Length(SyncThread.SQL))) then
       PacketComplete := pcInclusiveStmt
@@ -3666,9 +3667,9 @@ begin
     Inc(SQLIndex, StmtLength);
   end;
 
-  LibLength := WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, nil, 0);
+  LibLength := WideCharToAnsiChar(CodePageClient, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, nil, 0);
   SetLength(LibSQL, LibLength);
-  WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, PAnsiChar(LibSQL), LibLength);
+  WideCharToAnsiChar(CodePageClient, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, PAnsiChar(LibSQL), LibLength);
 
   if (not MultiStatements) then
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
@@ -3682,7 +3683,11 @@ begin
     + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
     + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
     + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-    + 'StmtIndex: ' + IntToStr(StmtIndex), ttDebug);
+    + 'StmtIndex: ' + IntToStr(StmtIndex) + #13#10
+    + 'KillThreadId: ' + IntToStr(KillThreadId) + #13#10
+    + '----' + #13#10
+    + SyncThread.SQL
+    + '----', ttDebug);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -3709,7 +3714,7 @@ begin
 
       if (Lib.mysql_errno(SyncThread.LibHandle) = ER_MUST_CHANGE_PASSWORD) then
       begin
-        Stmt := LibEncode('SET PASSWORD=Password(' + SQLEscape(Password) + ')');
+        Stmt := LibEncode(CodePageClient, 'SET PASSWORD=Password(' + SQLEscape(Password) + ')');
         ResetPassword := Lib.mysql_real_query(SyncThread.LibHandle, my_char(Stmt), Length(Stmt)) = 0;
       end
       else
@@ -4618,7 +4623,7 @@ begin
   LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
 
   try
-    Result := TMySQLQuery(Field.DataSet).Connection.LibDecode(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
+    Result := TMySQLQuery(Field.DataSet).Connection.LibDecode(FieldCodePage(Field), LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
   except
     SetString(Data, LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
     if (Field.DataSet is TMySQLTable) then
@@ -4631,8 +4636,7 @@ begin
       + 'Field: ' + Field.FieldName + #10
       + 'Raw data: ' + Data + #10
       + 'Hex data: ' + SQLEscapeBin(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1], True) + #10
-      + 'Character set: ' + TMySQLQuery(Field.DataSet).Connection.Charset + #10
-      + 'Windows codepage: '  + IntToStr(TMySQLQuery(Field.DataSet).Connection.CodePage) + #10
+      + 'Character set: ' + TMySQLQuery(Field.DataSet).Connection.CharsetResult + #10
       + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(Field.DataSet).Connection.LibraryType)) + #10;
 
     WhereClause := '';
@@ -4684,15 +4688,18 @@ begin
         Msg := Msg + #10
           + 'Query: ' + SQL;
 
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
-        DataSet.CommandText := SQL;
-        DataSet.Open();
-        if (DataSet.IsEmpty()) then
-          Msg := Msg + 'Result: <empty>' + #13#10
-        else
-          Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
-        DataSet.Free();
+        try
+          DataSet := TMySQLQuery.Create(nil);
+          DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
+          DataSet.CommandText := SQL;
+          DataSet.Open();
+          if (DataSet.IsEmpty()) then
+            Msg := Msg + 'Result: <empty>' + #13#10
+          else
+            Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
+          DataSet.Free();
+        except
+        end;
       end;
     end;
 
@@ -4795,10 +4802,10 @@ begin
       end;
     ftWideMemo:
       begin
-        SetSize(AnsiCharToWideChar(TMySQLConnection(TMySQLQuery(AField.DataSet).Connection).CodePage,
+        SetSize(AnsiCharToWideChar(FieldCodePage(AField),
           TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibRow^[AField.FieldNo - 1],
           TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibLengths^[AField.FieldNo - 1], nil, 0) * SizeOf(WideChar));
-        AnsiCharToWideChar(TMySQLConnection(TMySQLQuery(AField.DataSet).Connection).CodePage,
+        AnsiCharToWideChar(FieldCodePage(AField),
           TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibRow^[AField.FieldNo - 1],
           TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibLengths^[AField.FieldNo - 1],
           Memory,
@@ -4938,7 +4945,7 @@ begin
           ftTimeStamp: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); PSQLTimeStamp(Buffer)^ := StrToMySQLTimeStamp(S, TMySQLTimeStampField(Field).SQLFormat); end;
           ftBlob: MoveMemory(Buffer, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
           ftWideString:
-            AnsiCharToWideChar(Connection.CodePage,
+            AnsiCharToWideChar(FieldCodePage(Field),
               Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1],
               Buffer, Field.Size div SizeOf(Char));
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
@@ -5061,6 +5068,8 @@ end;
 procedure TMySQLQuery.InternalInitFieldDefs();
 var
   Binary: Boolean;
+  CharsetNr: Byte;
+  CodePage: Word;
   CreateField: Boolean;
   Decimals: Word;
   DName: string;
@@ -5095,6 +5104,7 @@ begin
         // Debug 2017-02-19
         Assert(Assigned(Handle));
 
+        CodePage := 0;
         RawField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field(Handle));
 
         if (Assigned(RawField)) then
@@ -5110,10 +5120,12 @@ begin
               Len := LibField.length
             else
             begin
-              if (MySQL_Character_Sets[Connection.CharsetNr].MaxLen = 0) then
-                raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[Connection.CharsetNr].CharsetName])
+              CharsetNr := Connection.CharsetToCharsetNr(Connection.CharsetResult);
+              CodePage := Connection.CharsetToCodePage(Connection.CharsetResult);
+              if (MySQL_Character_Sets[CharsetNr].MaxLen = 0) then
+                raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[CharsetNr].CharsetName])
               else
-                Len := LibField.length div MySQL_Character_Sets[Connection.CharsetNr].MaxLen;
+                Len := LibField.length div MySQL_Character_Sets[CharsetNr].MaxLen;
             end;
           end
           else
@@ -5121,14 +5133,17 @@ begin
             Binary := LibField.charsetnr = 63;
             Len := LibField.length;
             if (not Binary and (Connection.MySQLVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed.
+            begin
               for I := 0 to Length(MySQL_Collations) - 1 do
                 if (MySQL_Collations[I].CharsetNr = LibField.charsetnr) then
                 begin
+                  CodePage := MySQL_Collations[I].CodePage;
                   if (MySQL_Collations[I].MaxLen = 0) then
                     raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
                   else
                     Len := LibField.length div MySQL_Collations[I].MaxLen;
                 end;
+            end;
           end;
           Binary := Binary or (LibField.field_type = MYSQL_TYPE_IPV6);
           Len := Len and $7FFFFFFF;
@@ -5262,8 +5277,9 @@ begin
                 begin TWordField(Field).MinValue := 1901; TWordField(Field).MaxValue := 2155; end
           end;
 
+          Field.Tag := CodePage;
           try
-            Field.FieldName := Connection.LibDecode(LibField.name);
+            Field.FieldName := Connection.LibDecode(Connection.CodePageResult, LibField.name);
           except
             Field.FieldName := Connection.LibUnpack(LibField.name);
           end;
@@ -5285,26 +5301,26 @@ begin
           if (CreateField) then
           begin
             if ((Connection.Lib.Version >= 40100) and (LibField.org_name_length > 0)) then
-              Field.Origin := '"' + Connection.LibDecode(LibField.org_name) + '"'
+              Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.org_name) + '"'
             else if (LibField.name_length > 0) then
-              Field.Origin := '"' + Connection.LibDecode(LibField.name) + '"'
+              Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.name) + '"'
             else
               Field.Origin := '';
             if (Field.Origin <> '') then
               if ((Connection.Lib.Version >= 40000) and (LibField.org_table_length > 0)) then
               begin
-                Field.Origin := '"' + Connection.LibDecode(LibField.org_table) + '".' + Field.Origin;
+                Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.org_table) + '".' + Field.Origin;
                 if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
-                  Field.Origin := '"' + Connection.LibDecode(LibField.db) + '".' + Field.Origin;
+                  Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.db) + '".' + Field.Origin;
               end
               else if (LibField.table_length > 0) then
-                Field.Origin := '"' + Connection.LibDecode(LibField.table) + '".' + Field.Origin;
+                Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.table) + '".' + Field.Origin;
             Field.ReadOnly := LibField.table = '';
             if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
               if (DName = '') then
-                DName := Connection.LibDecode(LibField.db)
+                DName := Connection.LibDecode(Connection.CodePageResult, LibField.db)
               else
-                UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(LibField.db) = DName);
+                UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(Connection.CodePageResult, LibField.db) = DName);
 
             if (LibField.flags and AUTO_INCREMENT_FLAG <> 0) then
             begin
@@ -5364,7 +5380,7 @@ begin
 
             if (Assigned(Handle)) then
             begin
-              Field.DisplayLabel := Connection.LibDecode(LibField.name);
+              Field.DisplayLabel := Connection.LibDecode(Connection.CodePageResult, LibField.name);
               case (Field.DataType) of
                 ftBlob: Field.DisplayWidth := 7;
                 ftWideMemo: Field.DisplayWidth := 8;
@@ -5416,13 +5432,6 @@ begin
 
       if (UniqueDatabaseName and (DName <> '')) then
         FDatabaseName := DName;
-
-      // Debug 2016-12-12
-      Assert(my_uint(FieldCount) = Connection.Lib.mysql_num_fields(Handle),
-        'mysql_num_fields: ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)) + #13#10
-        + 'FieldDefs.Count: ' + IntToStr(FieldDefs.Count) + #13#10
-        + 'FieldCount: ' + IntToStr(FieldCount)
-        + 'mysql_fetch_field_direct: ' + BoolToStr(Assigned(Connection.Lib.mysql_fetch_field_direct(Handle, FieldCount - 1))));
     end;
   end;
 end;
@@ -5566,8 +5575,8 @@ begin
       ftWideString,
       ftWideMemo:
         begin
-          StringA := Connection.LibDecode(A^.LibRow^[Field.FieldNo - 1], A^.LibLengths^[Field.FieldNo - 1]);
-          StringB := Connection.LibDecode(B^.LibRow^[Field.FieldNo - 1], B^.LibLengths^[Field.FieldNo - 1]);
+          StringA := Connection.LibDecode(FieldCodePage(Field), A^.LibRow^[Field.FieldNo - 1], A^.LibLengths^[Field.FieldNo - 1]);
+          StringB := Connection.LibDecode(FieldCodePage(Field), B^.LibRow^[Field.FieldNo - 1], B^.LibLengths^[Field.FieldNo - 1]);
           Result := AnsiCompareStr(StringA, StringB);
         end;
       ftBlob: Result := AnsiStrings.StrComp(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
@@ -5684,7 +5693,7 @@ begin
       ftTimeStamp: Connection.LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
       ftBlob: Result := SQLEscapeBin(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1], Connection.MySQLVersion <= 40000);
       ftWideString,
-      ftWideMemo: Result := SQLEscape(Connection.LibDecode(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
+      ftWideMemo: Result := SQLEscape(Connection.LibDecode(FieldCodePage(Field), Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;
 end;
@@ -5724,12 +5733,12 @@ begin
       else if (Field.DataType = ftWideMemo) then
       begin
         SetSize(
-          AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
+          AnsiCharToWideChar(FieldCodePage(Field),
             TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
             TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
             nil,
             0) * SizeOf(Char));
-        AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
+        AnsiCharToWideChar(FieldCodePage(Field),
           TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
           TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
           Memory,
@@ -6171,7 +6180,7 @@ begin
       Result := Max(Result, TextWidth(Connection.LibUnpack(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])))
   else
     for I := 0 to InternRecordBuffers.Count - 1 do
-      Result := Max(Result, TextWidth(Connection.LibDecode(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
+      Result := Max(Result, TextWidth(Connection.LibDecode(FieldCodePage(Field), InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
   InternRecordBuffers.CriticalSection.Leave();
 end;
 
@@ -6589,7 +6598,7 @@ begin
   for I := 0 to FieldCount - 1 do
     if (Fields[I].DefaultExpression <> '') then
     begin
-      RBS := Connection.LibEncode(SQLUnescape(Fields[I].DefaultExpression));
+      RBS := Connection.LibEncode(FieldCodePage(Fields[I]), SQLUnescape(Fields[I].DefaultExpression));
       SetFieldData(Fields[I], @RBS[1], Length(RBS));
     end
     else if (Fields[I].Required and (Fields[I].DataType in BinaryDataTypes * TextDataTypes)) then
@@ -7143,14 +7152,14 @@ begin
         end
         else if (loCaseInsensitive in Options) then
           if (loPartialKey in Options) then
-            Result := Result and (Pos(Values[I], LowerCase(Connection.LibDecode(InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) > 0)
+            Result := Result and (Pos(Values[I], LowerCase(Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) > 0)
           else
-            Result := Result and (lstrcmpi(PChar(Values[I]), PChar(Connection.LibDecode(InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0)
+            Result := Result and (lstrcmpi(PChar(Values[I]), PChar(Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0)
         else
           if (loPartialKey in Options) then
-            Result := Result and (Pos(Values[I], Connection.LibDecode(InternRecordBuffers[Index]^.NewData^.LibRow^[I], InternRecordBuffers[Fields[I].FieldNo - 1]^.NewData^.LibLengths^[Fields[I].FieldNo - 1])) > 0)
+            Result := Result and (Pos(Values[I], Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[I], InternRecordBuffers[Fields[I].FieldNo - 1]^.NewData^.LibLengths^[Fields[I].FieldNo - 1])) > 0)
           else
-            Result := Result and (lstrcmp(PChar(Values[I]), PChar(Connection.LibDecode(InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0);
+            Result := Result and (lstrcmp(PChar(Values[I]), PChar(Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0);
 
       if (not Result) then
         Inc(Index);
@@ -7290,13 +7299,13 @@ begin
         ftBlob: SetString(RBS, PAnsiChar(@Buffer[0]), Length(Buffer));
         ftWideMemo:
           begin
-            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), Length(Buffer) div SizeOf(Char), nil, 0));
-            WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
+            SetLength(RBS, WideCharToAnsiChar(FieldCodePage(Field), PChar(@Buffer[0]), Length(Buffer) div SizeOf(Char), nil, 0));
+            WideCharToAnsiChar(FieldCodePage(Field), PChar(@Buffer[0]), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
           end;
         ftWideString:
           begin
-            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), StrLen(PChar(@Buffer[0])), nil, 0));
-            WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), StrLen(PChar(@Buffer[0])), PAnsiChar(RBS), Length(RBS));
+            SetLength(RBS, WideCharToAnsiChar(FieldCodePage(Field), PChar(@Buffer[0]), StrLen(PChar(@Buffer[0])), nil, 0));
+            WideCharToAnsiChar(FieldCodePage(Field), PChar(@Buffer[0]), StrLen(PChar(@Buffer[0])), PAnsiChar(RBS), Length(RBS));
           end;
         else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
       end;
@@ -7913,7 +7922,7 @@ function TMySQLDataSet.VisibleInFilter(const InternRecordBuffer: PInternRecordBu
             else if (BitField(Fields[Node^.Field2.FieldNo - 1])) then
               Result := Fields[Node^.Field2.FieldNo - 1].AsLargeInt
             else if (Fields[Node^.Field2.FieldNo - 1].DataType in [ftWideString, ftWideMemo]) then
-              Result := Connection.LibDecode(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1])
+              Result := Connection.LibDecode(FieldCodePage(Fields[Node^.Field2.FieldNo - 1]), InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1])
             else
               Result := Connection.LibUnpack(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1]);
           else raise EDatabaseError.CreateFmt('coOp not supported (%d)', [Ord(Node^.coOp)]);

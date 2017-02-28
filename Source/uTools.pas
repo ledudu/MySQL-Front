@@ -893,7 +893,7 @@ begin
 
   if (((Session.Connection.MySQLVersion < 50038) or (50100 <= Session.Connection.MySQLVersion)) and (Session.Connection.MySQLVersion < 50117) and (FileCharset <> '')) then
     if ((Session.Connection.MySQLVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
-      Session.Connection.Charset := FileCharset
+      Session.Connection.CharsetClient := FileCharset
     else if ((Session.VariableByName('character_set_database').Value <> FileCharset) and (Session.Connection.LibraryType <> MySQLDB.ltHTTP)) then
       Result :=
         'SET SESSION character_set_database=' + SQLEscape(FileCharset) + ';' + #13#10
@@ -1029,7 +1029,13 @@ begin
       if (TTool.TItem(Item1) is TTExport.TDBGridItem) then
         Result := Sign(TTExport.TDBGridItem(Item1).Index - TTExport.TDBGridItem(Item2).Index)
       else
+      begin
+        // Debug 2017-02-28
+        Assert(TObject(Item1) is TTExport.TDBObjectItem);
+        Assert(TObject(Item2) is TTExport.TDBObjectItem);
+
         Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
+      end;
   end;
 end;
 
@@ -1797,13 +1803,13 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Connection.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
+        SQL := SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Connection.CharsetClient, Database.Name, Table.Name, EscapedDestinationFieldNames);
 
         Session.Connection.SendSQL(SQL, SQLExecuted);
 
         if (ConnectNamedPipe(Pipe, nil)) then
         begin
-          DataFileBuffer := TDataFileBuffer.Create(Session.Connection.CodePage);
+          DataFileBuffer := TDataFileBuffer.Create(Session.Connection.CodePageClient);
 
           Item.RecordsDone := 0;
           while ((Success = daSuccess) and NextRecord(Item)) do
@@ -4814,7 +4820,7 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(FieldCodePage(Field), DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
         SQLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -4978,7 +4984,7 @@ begin
         ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
         ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
       end;
-      Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+      Len := AnsiCharToWideChar(FieldCodePage(Field), DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
       LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, QuoteValues <> qtNone);
       CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
@@ -5625,7 +5631,7 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(FieldCodePage(Field), DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := HTMLEscape(ValueBuffer.Mem, Len, nil, 0);
         HTMLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -6022,7 +6028,7 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(FieldCodePage(Field), DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := XMLEscape(ValueBuffer.Mem, Len, nil, 0);
         XMLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -6420,9 +6426,9 @@ begin
         ftWideString,
         ftWideMemo:
           begin
-            Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
+            Size := AnsiCharToWideChar(FieldCodePage(Fields[I]), DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
             if (Size < Parameter[I].MemSize) then
-              Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize) * SizeOf(Char)
+              Parameter[I].Size := AnsiCharToWideChar(FieldCodePage(Fields[I]), DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize) * SizeOf(Char)
             else
               Parameter[I].Size := SQL_DATA_AT_EXEC;
           end;
@@ -7995,7 +8001,7 @@ begin
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
           if (DestinationDatabase.Name <> DestinationSession.Connection.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Connection.Charset, DestinationDatabase.Name, DestinationTable.Name, []);
+          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Connection.CharsetClient, DestinationDatabase.Name, DestinationTable.Name, []);
           if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
           if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
@@ -8005,7 +8011,7 @@ begin
 
           if (ConnectNamedPipe(Pipe, nil)) then
           begin
-            DataFileBuffer := TDataFileBuffer.Create(DestinationSession.Connection.CodePage);
+            DataFileBuffer := TDataFileBuffer.Create(DestinationSession.Connection.CodePageClient);
 
             repeat
               LibLengths := DataSet.LibLengths;
@@ -8023,7 +8029,7 @@ begin
                 else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
                   DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
                 else if (DestinationField.FieldType in TextFieldTypes) then
-                  DataFileBuffer.WriteText(LibRow^[I], LibLengths^[I], Session.Connection.CodePage)
+                  DataFileBuffer.WriteText(LibRow^[I], LibLengths^[I], FieldCodePage(DataSet.Fields[I]))
                 else
                   DataFileBuffer.Write(LibRow^[I], LibLengths^[I], not (DestinationField.FieldType in NotQuotedFieldTypes));
               end;
@@ -8130,7 +8136,7 @@ begin
                 ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
                 ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
               end;
-              Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+              Len := AnsiCharToWideChar(FieldCodePage(Fields[I]), DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
 
               LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
               SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);

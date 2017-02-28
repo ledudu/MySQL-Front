@@ -46,10 +46,6 @@ object DServer: TDServer
     TabOrder = 0
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         293)
@@ -101,13 +97,13 @@ object DServer: TDServer
         Left = 8
         Top = 84
         Width = 297
-        Height = 141
+        Height = 117
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GConnection'
         TabOrder = 1
         DesignSize = (
           297
-          141)
+          117)
         object FLUser: TLabel
           Left = 8
           Top = 68
@@ -128,13 +124,6 @@ object DServer: TDServer
           Width = 34
           Height = 13
           Caption = 'FLHost'
-        end
-        object FLCharacterSet: TLabel
-          Left = 8
-          Top = 92
-          Width = 74
-          Height = 13
-          Caption = 'FLCharacterSet'
         end
         object FUser: TLabel
           Left = 120
@@ -163,25 +152,16 @@ object DServer: TDServer
           AutoSize = False
           Caption = 'FHost'
         end
-        object FCharacterSet: TLabel
-          Left = 120
-          Top = 92
-          Width = 165
-          Height = 13
-          Anchors = [akLeft, akTop, akRight]
-          AutoSize = False
-          Caption = 'FCharacterSet'
-        end
         object FLThreadId: TLabel
           Left = 8
-          Top = 116
+          Top = 92
           Width = 55
           Height = 13
           Caption = 'FLThreadId'
         end
         object FThreadId: TLabel
           Left = 120
-          Top = 116
+          Top = 92
           Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
@@ -193,10 +173,6 @@ object DServer: TDServer
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         293)
@@ -317,10 +293,6 @@ object DServer: TDServer
     object TSPlugins: TTabSheet
       Caption = 'TSPlugins'
       OnShow = TSPluginsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         293)

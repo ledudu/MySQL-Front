@@ -374,11 +374,9 @@ var
 begin
   FLengthExit(Sender);
 
-  if ((ModalResult = mrOk) and GBasics.Visible) then
+  // Debug 2017-02-28: Why is the >Visible< sometimes needed???
+  if ((ModalResult = mrOk) and GBasics.Visible and Visible) then
   begin
-    Assert(Assigned(Table),
-      'Visible: ' + BoolToStr(Visible, True));
-
     if (ModifyTableOnly) then
       NewTable := Table
     else

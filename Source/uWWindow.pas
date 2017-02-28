@@ -1185,7 +1185,6 @@ begin
     CR_HTTPTUNNEL_SERVER_ERROR: Msg := Preferences.LoadStr(860, Preferences.LoadStr(859), Copy(ErrorMessage, 1, Pos(' ', ErrorMessage) - 1)) + ':' + #10#10 + ErrorMessage  + #10#10 + ' (' + Connection.LibraryName + ')';
     CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE,
     CR_IPSOCK_ERROR: Msg := ErrorMessage;
-    DS_SET_NAMES: Msg := Preferences.LoadStr(878, ErrorMessage);
     DS_SERVER_OLD: Msg := Preferences.LoadStr(696, '3.23.20');
     DS_OUT_OF_MEMORY: Msg := Preferences.LoadStr(733);
     else
