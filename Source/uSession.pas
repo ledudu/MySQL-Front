@@ -8242,7 +8242,11 @@ begin
       begin
         // Debug 2017-02-18
         for J := 0 to NewTable.Fields.Count - 1 do
-          Assert(NewTable.Fields[J].Name <> OldField.Name);
+          Assert(NewTable.Fields[J].Name <> OldField.Name,
+            'OldField.Name: ' + OldField.Name + #13#10
+            + 'NewTable.Fields[J].Name: ' + NewTable.Fields[J].Name + #13#10
+            + 'NewTable.Fields[J].OriginalName: ' + NewTable.Fields[J].OriginalName + #13#10
+            + SQL);
 
         if (SQL <> '') then SQL := SQL + ',' + #13#10;
         SQL := SQL + '  DROP COLUMN ' + Session.Connection.EscapeIdentifier(OldField.Name);

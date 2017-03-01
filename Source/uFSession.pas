@@ -15392,6 +15392,10 @@ var
   SelSQL: string; // Cache for speeding
   SQL: string; // Cache for speeding
 begin
+  // Debug 2017-03-01
+  Assert(Sender is TBCEditor,
+    'ClassType: ' + Sender.ClassName);
+
   KillTimer(Handle, tiShowSynCompletion);
 
   SynCompletionPending.Active := False;

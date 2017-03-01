@@ -2586,7 +2586,13 @@ begin
   begin
     Selected := Link[I].Points[0].Selected;
     for J := 1 to Link[I].PointCount - 1 do
+    begin
+      // Debug 2017-03-01
+      Assert(Assigned(Link[I].Points[J]));
+      Assert(Assigned(Link[I].Points[J].LineA));
+
       Selected := Selected and Link[I].Points[J].LineA.Selected and Link[I].Points[J].Selected;
+    end;
     if (Selected) then
       Inc(Result);
   end;

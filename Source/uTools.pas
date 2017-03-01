@@ -4143,9 +4143,9 @@ begin
                 // Debug 2017-02-16
                 Assert(not DataTable
                   or not Assigned(ResultHandle.SyncThread)
-                  or (ResultHandle.SyncThread.DebugState <> ssResult),
+                  or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
                   'Success: ' + IntToStr(Ord(Success)) + #13#10
-                  + 'DataTable:' + BoolToStr(DataTable, True) + #13#10
+                  + 'DataTable: ' + BoolToStr(DataTable, True) + #13#10
                   + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
               end;
             end;
@@ -4320,13 +4320,11 @@ begin
     end;
   end;
 
-  if (Success <> daAbort) then
+  if (Success = daSuccess) then
   begin
-    Success := daSuccess;
-
     ExecuteTableHeader(Table, Fields, DataSet);
 
-    if ((Success <> daAbort) and Assigned(DataSet) and not DataSet.IsEmpty()) then
+    if ((Success = daSuccess) and Assigned(DataSet) and not DataSet.IsEmpty()) then
       repeat
         ExecuteTableRecord(Table, Fields, DataSet);
 
@@ -4339,9 +4337,7 @@ begin
       until ((Success = daAbort) or not DataSet.FindNext());
 
     if (Success <> daAbort) then
-      Success := daSuccess;
-
-    ExecuteTableFooter(Table, Fields, DataSet);
+      ExecuteTableFooter(Table, Fields, DataSet);
   end;
 
   if (Success = daSuccess) then

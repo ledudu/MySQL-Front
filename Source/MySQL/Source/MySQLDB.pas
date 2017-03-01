@@ -2210,8 +2210,8 @@ begin
   FBeforeExecuteSQL := nil;
   FCharsetClient := 'utf8';
   FCharsetResult := 'utf8';
-  FCodePageClient := CharsetToCodePage(FCharsetClient);
-  FCodePageResult := CharsetToCodePage(FCharsetResult);
+  FCodePageClient := CP_UTF8;
+  FCodePageResult := CP_UTF8;
   FConnected := False;
   FDatabaseName := '';
   FExecutionTime := 0;
@@ -2684,7 +2684,7 @@ begin
         MySQLConnectionOnSynchronize(SyncThread);
       if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
-      if ((SyncThread.State in [ssExecutingFirst, ssExecutingNext]) and (SyncThread.ErrorCode > 0)) then
+      if (Assigned(SyncThread) and (SyncThread.State in [ssExecutingFirst, ssExecutingNext]) and (SyncThread.ErrorCode > 0)) then
         SyncThread.State := ssReady;
     until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
@@ -3437,7 +3437,7 @@ begin
   case (SyncThread.State) of
     ssFirst: SyncThread.State := ssExecutingFirst;
     ssNext: SyncThread.State := ssExecutingNext;
-    else raise ERangeError.Create(SRangeError);
+    else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
   end;
 end;
 
@@ -3788,6 +3788,8 @@ begin
     if (SyncThread.ErrorCode = 0) then
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
+
+  DebugMonitor.Append('SyncHandledResult - StmtIndex: ' + IntToStr(SyncThread.StmtIndex) + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count), ttDebug);
 
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
@@ -6466,7 +6468,7 @@ begin
     if (DeleteByWhereClause) then
     begin
       InternRecordBuffers.Clear();
-      if ((ActiveRecord >= 0) and (ActiveBuffer() > 0)) then
+      if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
@@ -6488,14 +6490,14 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      if ((ActiveRecord >= 0) and (ActiveBuffer() > 0)) then
+      if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
-    if ((ActiveRecord >= 0) and (ActiveBuffer() > 0)) then
+    if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
 end;

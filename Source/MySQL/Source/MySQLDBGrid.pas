@@ -379,13 +379,22 @@ begin
     Buffer.Write(SelectedField.AsString)
   else if (SelectedRows.Count = 0) then
   begin
-    FirstColumn := True;
-    for J := 0 to Columns.Count - 1 do
-      if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
-      begin
-        if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(#9);
-        Buffer.Write(Columns[J].Field.AsString);
-      end;
+    OldRecNo := DataLink.DataSet.RecNo;
+
+    if (DataLink.DataSet.FindFirst()) then
+      repeat
+        FirstColumn := True;
+        for J := 0 to Columns.Count - 1 do
+          if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
+          begin
+            if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(#9);
+            Buffer.Write(Columns[J].Field.AsString);
+          end;
+        if (DataLink.DataSet.RecNo < DataLink.DataSet.RecordCount - 1) then
+          Buffer.Write(#13#10);
+      until (not DataLink.DataSet.FindNext());
+
+    DataLink.DataSet.RecNo := OldRecNo;
   end
   else
   begin
@@ -446,15 +455,24 @@ begin
   end
   else if (SelectedRows.Count = 0) then
   begin
-    Buffer.WriteChar('(');
-    FirstColumn := True;
-    for J := 0 to Columns.Count - 1 do
-      if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
-      begin
-        if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(',');
-        Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(Columns[J].Field));
-      end;
-    Buffer.WriteChar(')');
+    OldRecNo := DataLink.DataSet.RecNo;
+
+    if (DataLink.DataSet.FindFirst()) then
+      repeat
+        Buffer.WriteChar('(');
+        FirstColumn := True;
+        for J := 0 to Columns.Count - 1 do
+          if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
+          begin
+            if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(',');
+            Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(Columns[J].Field));
+          end;
+        Buffer.WriteChar(')');
+        if (DataLink.DataSet.RecNo < DataLink.DataSet.RecordCount - 1) then
+          Buffer.Write(',' + #13#10);
+      until (not DataLink.DataSet.FindNext());
+
+    DataLink.DataSet.RecNo := OldRecNo;
   end
   else
   begin
@@ -528,39 +546,63 @@ end;
 
 procedure TMySQLDBGrid.CopyToClipboard();
 var
-  ClipboardData: HGLOBAL;
-  Content: string;
+  ClipboardData: Pointer;
   FormatSettings: TFormatSettings;
+  Global: HGLOBAL;
+  Opened: Boolean;
+  Retry: Integer;
+  Text: string;
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
   if (Assigned(InplaceEditor) and InplaceEditor.Visible) then
     InplaceEditor.CopyToClipboard()
-  else if (OpenClipboard(Handle)) then
-    try
-      EmptyClipboard();
+  else
+  begin
+    Retry := 0;
+    repeat
+      Opened := OpenClipboard(Handle);
+      if (not Opened) then
+      begin
+        Sleep(50);
+        Inc(Retry);
+      end;
+    until (Opened or (Retry = 10));
 
-      DataLink.DataSet.DisableControls();
+    if (Opened) then
+      try
+        EmptyClipboard();
 
-      Content := CalcSelText();
+        DataLink.DataSet.DisableControls();
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
+        Text := CalcSelText();
+
+        Global := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Text) + 1) * SizeOf(Char));
+        ClipboardData := GlobalLock(Global);
+        if (Assigned(ClipboardData)) then
+        begin
+          StrPCopy(ClipboardData, Text);
+          SetClipboardData(CF_UNICODETEXT, Global);
+        end;
+        GlobalUnlock(Global);
 
 
-      Content := CalcSQLData();
+        Text := CalcSQLData();
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
-      SetClipboardData(CF_MYSQLSQLDATA, ClipboardData);
-      GlobalUnlock(ClipboardData);
+        Global := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Text) + 1) * SizeOf(Char));
+        ClipboardData := GlobalLock(Global);
+        if (Assigned(ClipboardData)) then
+        begin
+          StrPCopy(ClipboardData, Text);
+          SetClipboardData(CF_UNICODETEXT, Global);
+        end;
+        GlobalUnlock(Global);
 
-      DataLink.DataSet.EnableControls();
-    finally
-      CloseClipboard();
-    end;
+        DataLink.DataSet.EnableControls();
+      finally
+        CloseClipboard();
+      end;
+  end;
 end;
 
 procedure TMySQLDBGrid.ColEnter();
@@ -968,12 +1010,14 @@ begin
   end
   else if ((Key = VK_LEFT) and (ssShift in Shift)) then
   begin
-    if (Col > 0) then
+    SelectedFields.Clear();
+    if (Col >= ShiftDownAnchor.Col) then
+      InvalidateCol(Col);
+    if (Col = 0) then
+      SelectedFields.Add(Columns[Col].Field)
+    else
     begin
-      if (Col > ShiftDownAnchor.Col) then
-        InvalidateCol(Col);
       Col := Col - 1;
-      SelectedFields.Clear();
       for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
         SelectedFields.Add(Columns[I].Field);
       if (Col < ShiftDownAnchor.Col) then
@@ -982,12 +1026,14 @@ begin
   end
   else if ((Key = VK_RIGHT) and (ssShift in Shift)) then
   begin
-    if (Col < Columns.Count - 2) then
+    SelectedFields.Clear();
+    if (Col <= ShiftDownAnchor.Col) then
+      InvalidateCol(Col);
+    if (Col = Columns.Count - 1) then
+      SelectedFields.Add(Columns[Col].Field)
+    else
     begin
-      if (Col < ShiftDownAnchor.Col) then
-        InvalidateCol(Col);
       Col := Col + 1;
-      SelectedFields.Clear();
       for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
         SelectedFields.Add(Columns[I].Field);
       if (Col > ShiftDownAnchor.Col) then
@@ -1346,7 +1392,10 @@ end;
 
 function TMySQLDBGrid.PasteFromClipboard(): Boolean;
 var
+  ClipboardData: Pointer;
   Global: HGLOBAL;
+  Opened: Boolean;
+  Retry: Integer;
   Text: string;
 begin
   Result := not ReadOnly;
@@ -1357,20 +1406,42 @@ begin
       InplaceEditor.PasteFromClipboard();
       Result := True;
     end
-    else if ((DataLink.DataSet is TMySQLDataSet) and IsClipboardFormatAvailable(CF_UNICODETEXT)
-      and OpenClipboard(Handle)) then
+    else if (not IsClipboardFormatAvailable(CF_UNICODETEXT)) then
+      Result := False
+    else
     begin
-      Text := '';
-      try
-        Global := GetClipboardData(CF_UNICODETEXT);
-        SetString(Text, PChar(GlobalLock(Global)), GlobalSize(Global) div SizeOf(Text[1]));
-        if ((Length(Text) > 0) and (Text[Length(Text)] = #0)) then
-          SetLength(Text, Length(Text) - 1);
-        GlobalUnlock(Global);
-      finally
-        CloseClipboard();
-      end;
-      Result := (Text <> '') and PasteText(Text);
+      Retry := 0;
+      repeat
+        Opened := OpenClipboard(Handle);
+        if (not Opened) then
+        begin
+          Sleep(50);
+          Inc(Retry);
+        end;
+      until (Opened or (Retry = 10));
+
+      if (not Opened) then
+        Result := False
+      else
+        try
+          Text := '';
+          Global := GetClipboardData(CF_UNICODETEXT);
+          if (Global <> 0) then
+          begin
+            ClipboardData := GlobalLock(Global);
+            if (not Assigned(ClipboardData)) then
+              Result := False
+            else
+            begin
+              SetString(Text, PChar(ClipboardData), GlobalSize(Global) div SizeOf(Text[1]));
+              if ((Length(Text) > 0) and (Text[Length(Text)] = #0)) then
+                SetLength(Text, Length(Text) - 1);
+              Result := (Text <> '') and PasteText(Text);
+            end;
+          end;
+        finally
+          CloseClipboard();
+        end;
     end;
 end;
 

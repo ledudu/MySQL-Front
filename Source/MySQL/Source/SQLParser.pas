@@ -636,6 +636,7 @@ type
         ditCollation,
         ditDatatype,
         ditVariable,
+        ditWrapper,
         ditRoutineParam,
         ditCompoundVariable,
         ditCursor,
@@ -1151,6 +1152,7 @@ type
         'ditCollation',
         'ditDatatype',
         'ditVariable',
+        'ditWrapper',
         'ditRoutineParam',
         'ditCompoundVariable',
         'ditCursor',
@@ -2578,7 +2580,8 @@ type
           CreateTag: TOffset;
           ServerTag: TOffset;
           Ident: TOffset;
-          ForeignDataWrapperValue: TOffset;
+          ForeignDataWrapperTag: TOffset;
+          WrapperIdent: TOffset;
           Options: packed record
             Tag: TOffset;
             List: TOffset;
@@ -12546,7 +12549,8 @@ begin
   FormatNode(Nodes.ServerTag, stSpaceBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ForeignDataWrapperValue, stReturnBefore);
+  FormatNode(Nodes.ForeignDataWrapperTag, stReturnBefore);
+  FormatNode(Nodes.WrapperIdent, stSpaceBefore);
   FormatNode(Nodes.Options.Tag, stReturnBefore);
   FormatNode(Nodes.Options.List, stSpaceBefore);
   Commands.DecreaseIndent();
@@ -16954,7 +16958,10 @@ begin
     Nodes.Ident := ParseDbIdent();
 
   if (not ErrorFound) then
-    Nodes.ForeignDataWrapperValue := ParseValue(WordIndices(kiFOREIGN, kiDATA, kiWRAPPER), vaNo, ParseString);
+    Nodes.ForeignDataWrapperTag := ParseTag(kiFOREIGN, kiDATA, kiWRAPPER);
+
+  if (not ErrorFound) then
+    Nodes.WrapperIdent := ParseDbIdent(ditWrapper, False);
 
   if (not ErrorFound) then
     Nodes.Options.Tag := ParseTag(kiOPTIONS);
@@ -18548,7 +18555,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
           or (ADbIdentType in [ditVariable, ditConstante]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
-      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
+      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation, ditWrapper])
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
@@ -19905,7 +19912,8 @@ begin
     if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
     begin // Add operands
       AddOperandsToCompletionList();
-      SetError(PE_IncompleteStmt);
+      if (not ErrorFound) then
+        SetError(PE_IncompleteStmt);
     end
     else
     begin // Add operators

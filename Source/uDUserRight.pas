@@ -372,6 +372,7 @@ begin
 
     // Debug 2017-02-20
     Assert(Assigned(User)); // User can be a new created user - not inside Session.Users
+    Assert(TObject(User) is TSUser);
 
     if (not Assigned(UserRight)) then
       User.AddRight(NewUserRight)
