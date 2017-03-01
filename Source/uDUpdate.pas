@@ -231,8 +231,6 @@ begin
 
   Preferences.SetupProgram := SetupPrgFilename;
 
-  MessageBox(0, PChar('Datei " + SetupPrgFilename + " sollte geschrieben worden sein.'), 'Debug für Reinhard', MB_OK);
-
   ModalResult := mrOk;
 end;
 

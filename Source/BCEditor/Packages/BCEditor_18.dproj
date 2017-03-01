@@ -85,7 +85,6 @@
         <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.PopupWindow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Undo.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.UnknownChars.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.WordWrap.pas"/>
         <DCCReference Include="..\Source\BCEditor.Export.HTML.pas"/>
         <DCCReference Include="..\Source\BCEditor.Highlighter.pas"/>
