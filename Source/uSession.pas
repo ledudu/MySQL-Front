@@ -4612,6 +4612,9 @@ begin
 
       Field := TSBaseField(FFields[Index]);
 
+      // Debug 2017-03-01
+      Assert(Field.OriginalName <> '');
+
       if (Index = 0) then
         Field.FieldBefore := nil
       else
@@ -8233,11 +8236,8 @@ begin
       OldField := TSBaseField(Table.Fields[I]);
       Found := False;
       for J := 0 to NewTable.Fields.Count - 1 do
-      begin
-        NewField := TSBaseField(NewTable.Fields[J]);
-        if (lstrcmpi(PChar(NewField.OriginalName), PChar(OldField.Name)) = 0) then
+        if (Session.TableNameCmp(TSBaseField(NewTable.Fields[J]).OriginalName, OldField.Name) = 0) then
           Found := True;
-      end;
       if (not Found) then
       begin
         // Debug 2017-02-18
@@ -12449,7 +12449,8 @@ begin
 
     for I := 0 to Grid.Columns.Count - 1 do
     begin
-      if (GetFieldInfo(Grid.Columns[I].Field.Origin, FieldInfo)) then
+      if (Assigned(Grid.Columns[I].Field)
+        and GetFieldInfo(Grid.Columns[I].Field.Origin, FieldInfo)) then
       begin
         Database := DatabaseByName(FieldInfo.DatabaseName);
         if (Assigned(Database)) then

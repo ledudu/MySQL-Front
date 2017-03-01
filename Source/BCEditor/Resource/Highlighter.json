@@ -386,7 +386,6 @@
                      "max_statement_time",
                      "max_updates_per_hour",
                      "max_user_connections",
-                     "maxvalue",
                      "medium",
                      "message_text",
                      "migrate",

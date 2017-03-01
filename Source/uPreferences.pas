@@ -1861,6 +1861,7 @@ end;
 procedure TPPreferences.ApplyToBCEditor(const BCEditor: TBCEditor);
 begin
   BCEditor.ActiveLine.Visible := Editor.CurrRowBGColorEnabled;
+  BCEditor.ActiveLine.Color := Editor.CurrRowBGColor;
   BCEditor.Font.Name := SQLFontName;
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
@@ -1868,9 +1869,6 @@ begin
   BCEditor.LeftMargin.Font.Name := BCEditor.Font.Name;
   BCEditor.LeftMargin.Font.Charset := BCEditor.Font.Charset;
   BCEditor.LeftMargin.Font.Size := BCEditor.Font.Size;
-
-  if (Editor.CurrRowBGColor <> clNone) then
-    BCEditor.ActiveLine.Color := Editor.CurrRowBGColor;
 end;
 
 constructor TPPreferences.Create();

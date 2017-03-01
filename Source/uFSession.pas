@@ -2736,6 +2736,9 @@ begin
 
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
+    // Debug 2017-03-01
+    Assert(Assigned(ActiveDBGrid.DataSource.DataSet));
+
     if ((ActiveDBGrid.SelectedRows.Count = 0) and (ActiveDBGrid.SelectedFields.Count = 0)) then
       ActiveDBGrid.DataSource.DataSet.Delete()
     else if (ActiveDBGrid.SelectedRows.Count = 0) then

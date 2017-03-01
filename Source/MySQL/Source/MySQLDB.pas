@@ -511,8 +511,9 @@ type
     TTextWidth = function (const Text: string): Integer of object;
     PInternRecordBuffer = ^TInternRecordBuffer;
     TInternRecordBuffer = record
+      Identifer: Integer;
       NewData: TMySQLQuery.PRecordBufferData;
-      OldData: TMySQLQuery.PRecordBufferData;
+      xOldData: TMySQLQuery.PRecordBufferData;
       VisibleInFilter: Boolean;
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
@@ -3423,7 +3424,7 @@ begin
   Assert(SyncThread.State in [ssFirst, ssNext]);
 
   // Debug 2017-02-22
-  WriteMonitor('SyncExecute', ttDebug);
+  WriteMonitor('SyncExecute - SyncThread.State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
   if (SyncThread.State = ssFirst) then
     WriteMonitor('# ' + SysUtils.DateTimeToStr(GetServerTime(), FormatSettings), ttTime);
@@ -3676,18 +3677,11 @@ begin
       Dec(LibLength);
 
   DebugMonitor.Append('SyncExecutingFirst -' + #13#10
-    + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-    + 'Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+    + 'Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+    + 'SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
     + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
     + 'LibLength: ' + IntToStr(LibLength) + #13#10
-    + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
-    + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])) + #13#10
-    + 'SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-    + 'StmtIndex: ' + IntToStr(StmtIndex) + #13#10
-    + 'KillThreadId: ' + IntToStr(KillThreadId) + #13#10
-    + '----' + #13#10
-    + SyncThread.SQL
-    + '----', ttDebug);
+    + 'SyncThread.StmtIndex: ' + IntToStr(SyncThread.StmtIndex), ttDebug);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -5950,8 +5944,9 @@ begin
 
   if (Assigned(Result)) then
   begin
+    Result^.Identifer := 123;
     Result^.NewData := nil;
-    Result^.OldData := nil;
+    Result^.xOldData := nil;
     Result^.VisibleInFilter := True;
   end;
 end;
@@ -6101,10 +6096,10 @@ end;
 
 procedure TMySQLDataSet.FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
 begin
-  if (Assigned(InternRecordBuffer^.NewData) and (InternRecordBuffer^.NewData <> InternRecordBuffer^.OldData)) then
+  if (Assigned(InternRecordBuffer^.NewData) and (InternRecordBuffer^.NewData <> InternRecordBuffer^.xOldData)) then
     FreeMem(InternRecordBuffer^.NewData);
-  if (Assigned(InternRecordBuffer^.OldData)) then
-    FreeMem(InternRecordBuffer^.OldData);
+  if (Assigned(InternRecordBuffer^.xOldData)) then
+    FreeMem(InternRecordBuffer^.xOldData);
 
   FreeMem(InternRecordBuffer);
 end;
@@ -6138,7 +6133,7 @@ begin
     and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
   if (Result and (Length(Buffer) > 0)) then
     if (State = dsOldValue) then
-      Result := GetFieldData(Field, @Buffer[0], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)
+      Result := GetFieldData(Field, @Buffer[0], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData)
     else
       Result := GetFieldData(Field, @Buffer[0], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
 end;
@@ -6363,12 +6358,16 @@ begin
       Data.LibLengths := LibLengths;
       Data.LibRow := LibRow;
 
-      Result := MoveRecordBufferData(InternRecordBuffer^.OldData, @Data);
+      InternRecordBuffer^.Identifer := 234;
+      Result := MoveRecordBufferData(InternRecordBuffer^.xOldData, @Data);
       if (not Result) then
         FreeInternRecordBuffer(InternRecordBuffer)
       else
       begin
-        InternRecordBuffer^.NewData := InternRecordBuffer^.OldData;
+        // Debug 2017-03-01
+        Assert(Assigned(InternRecordBuffer^.xOldData));
+
+        InternRecordBuffer^.NewData := InternRecordBuffer^.xOldData;
         InternRecordBuffer^.VisibleInFilter := not Filtered or VisibleInFilter(InternRecordBuffer);
 
         for I := 0 to FieldCount - 1 do
@@ -6413,10 +6412,10 @@ begin
         InternalInitRecord(ActiveBuffer());
       end;
     bfCurrent:
-      if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
+      if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData) then
       begin
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData;
       end;
     bfInserted:
       begin
@@ -6505,10 +6504,11 @@ end;
 procedure TMySQLDataSet.InternalEdit();
 begin
   // Debug 2017-01-24
-  Assert(CachedUpdates or Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData),
-    'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
-      + 'State: ' + IntToStr(Ord(State)));
+  Assert(CachedUpdates or Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData),
+    'Identifier: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifer) + #13#10
+    + 'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+    + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
+    + 'State: ' + IntToStr(Ord(State)));
 
   // 2017-01-31 was in the log:
   // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
@@ -6518,6 +6518,7 @@ begin
   // 2017-02-13
   // INSERT INTO
   // 2017-02-27: UPDATE bfCurrent, dsBrowse, Index: 0
+  // 2017-02-27: INSERT bfCurrent, dsBrowse, Index: 0
 
   inherited;
 end;
@@ -6944,12 +6945,14 @@ begin
           PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Count - 1;
         end;
 
-        if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
-          FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+        if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
+          FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData);
+
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifer := 345;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
         // Debug 2017-02-13
-        Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData));
+        Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData));
       end;
     end
     else if ((ErrorCode = 0) and SQLParseKeyword(Parse, 'SELECT')) then
@@ -7394,7 +7397,7 @@ begin
 
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer()
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
+  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData) then
     FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
   PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := NewData;
 end;
@@ -7604,12 +7607,12 @@ begin
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
         InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks[I])];
-        if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
+        if (not Assigned(InternRecordBuffer^.xOldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True
         else
         begin
           if (Values <> '') then Values := Values + ',';
-          Values := Values + SQLFieldValue(WhereField, InternRecordBuffer^.OldData);
+          Values := Values + SQLFieldValue(WhereField, InternRecordBuffer^.xOldData);
         end;
       end;
 
@@ -7636,15 +7639,15 @@ begin
             if (ValueHandled) then Result := Result + ' AND ';
 
             // Debug 2017-01-22
-            if (not Assigned(InternRecordBuffer^.OldData)) then
+            if (not Assigned(InternRecordBuffer^.xOldData)) then
               raise ERangeError.Create(SRangeError);
-            if (not Assigned(InternRecordBuffer^.OldData^.LibRow)) then
+            if (not Assigned(InternRecordBuffer^.xOldData^.LibRow)) then
               raise ERangeError.Create(SRangeError);
 
-            if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[Fields[J].FieldNo - 1])) then
+            if (not Assigned(InternRecordBuffer^.xOldData^.LibRow^[Fields[J].FieldNo - 1])) then
               Result := Result + Connection.EscapeIdentifier(Fields[J].FieldName) + ' IS NULL'
             else
-              Result := Result + '(' + Connection.EscapeIdentifier(Fields[J].FieldName) + '=' + SQLFieldValue(Fields[J], InternRecordBuffer^.OldData) + ')';
+              Result := Result + '(' + Connection.EscapeIdentifier(Fields[J].FieldName) + '=' + SQLFieldValue(Fields[J], InternRecordBuffer^.xOldData) + ')';
             ValueHandled := True;
           end;
         Result := Result + ')';
@@ -7709,7 +7712,7 @@ begin
   Result := '';
 
   if (not NewData) then
-    Data := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData
+    Data := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData
   else
     Data := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
   ValueHandled := False;
@@ -7734,7 +7737,7 @@ var
   ValueHandled: Boolean;
 begin
   // Debug 2017-01-24
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData)) then
     raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
@@ -7743,9 +7746,9 @@ begin
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do
     if ((pfInUpdate in Fields[I].ProviderFlags)
-      and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
-        or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
-        or (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])))) then
+      and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData^.LibLengths^[Fields[I].FieldNo - 1])
+        or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData^.LibRow^[Fields[I].FieldNo - 1]))
+        or (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData^.LibLengths^[Fields[I].FieldNo - 1])))) then
     begin
       if (ValueHandled) then Result := Result + ',';
       Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Pointer(ActiveBuffer()));

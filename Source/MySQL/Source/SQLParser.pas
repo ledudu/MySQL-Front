@@ -6437,7 +6437,6 @@ type
     kiMAX_STATEMENT_TIME,
     kiMAX_UPDATES_PER_HOUR,
     kiMAX_USER_CONNECTIONS,
-    kiMAXVALUE,
     kiMEDIUM,
     kiMEMORY,
     kiMERGE,
@@ -6996,7 +6995,6 @@ type
     function ParseLockStmtItem(): TOffset;
     function ParseLoopStmt(const BeginLabel: TOffset = 0): TOffset;
     function ParseMatchFunc(): TOffset;
-    function ParseMaxValue(): TOffset;
     function ParseOpenStmt(): TOffset;
     function ParseOptimizeTableStmt(): TOffset;
     function ParsePartitionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -7247,8 +7245,8 @@ const
 
   MySQLConstants =
     'CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,DEFAULT,FALSE,' +
-    'LOCALTIME,LOCALTIMESTAMP,NULL,OFF,ON,TRUE,UNKNOWN,UTC_DATE,UTC_TIME,' +
-    'UTC_TIMESTAMP';
+    'LOCALTIME,LOCALTIMESTAMP,MAXVALUE,NULL,OFF,ON,TRUE,UNKNOWN,UTC_DATE,' +
+    'UTC_TIME,UTC_TIMESTAMP';
 
   MySQLDatatypes =
     'BIGINT,BINARY,BIT,BLOB,BOOL,BOOLEAN,BYTE,CHAR,CHARACTER,DEC,DECIMAL,' +
@@ -7378,7 +7376,7 @@ const
     'MASTER_SSL_KEY,MASTER_SSL_VERIFY_SERVER_CERT,MASTER_TLS_VERSION,' +
     'MASTER_USER,MATCH,MAX_QUERIES_PER_HOUR,MAX_ROWS,' +
     'MAX_CONNECTIONS_PER_HOUR,MAX_STATEMENT_TIME,MAX_UPDATES_PER_HOUR,' +
-    'MAX_USER_CONNECTIONS,MAXVALUE,MEDIUM,MEMORY,MERGE,MESSAGE_TEXT,' +
+    'MAX_USER_CONNECTIONS,MEDIUM,MEMORY,MERGE,MESSAGE_TEXT,' +
     'MICROSECOND,MIGRATE,MIN_ROWS,MINUTE,MINUTE_MICROSECOND,MINUTE_SECOND,' +
     'MOD,MODE,MODIFIES,MODIFY,MONTH,MUTEX,MYSQL_ERRNO,NAME,NAMES,NATIONAL,' +
     'NATURAL,NEVER,NEXT,NO,NONE,NOT,NULL,NO_WRITE_TO_BINLOG,NUMBER,OFFSET,' +
@@ -17841,14 +17839,12 @@ begin
       Nodes.Values.Tag := ParseTag(kiVALUES);
 
       if (not ErrorFound) then
-        if (IsTag(kiLESS, kiTHAN, kiMAXVALUE)) then
-          Nodes.Values.Value := ParseTag(kiLESS, kiTHAN, kiMAXVALUE)
-        else if (IsTag(kiLESS, kiTHAN)) then
+        if (IsTag(kiLESS, kiTHAN)) then
         begin
           FillChar(ValueNodes, SizeOf(ValueNodes), 0);
           ValueNodes.Ident := ParseTag(kiLESS, kiTHAN);
-          if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiMAXVALUE)) then
-            ValueNodes.Expr := ParseSubArea(ParseMaxValue)
+          if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.FLength = 8) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'MAXVALUE', 8) = 0)) then
+            ValueNodes.Expr := ParseExpr()
           else
             ValueNodes.Expr := ParseList(True, ParseExpr);
           Nodes.Values.Value := TValue.Create(Self, ValueNodes);
@@ -21335,11 +21331,6 @@ end;
 function TSQLParser.ParseProcedureIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditProcedure);
-end;
-
-function TSQLParser.ParseMaxValue(): TOffset;
-begin
-  Result := ParseTag(kiMAXVALUE);
 end;
 
 function TSQLParser.ParseOpenStmt(): TOffset;
@@ -27266,7 +27257,6 @@ begin
     kiMAX_STATEMENT_TIME            := IndexOf('MAX_STATEMENT_TIME');
     kiMAX_UPDATES_PER_HOUR          := IndexOf('MAX_UPDATES_PER_HOUR');
     kiMAX_USER_CONNECTIONS          := IndexOf('MAX_USER_CONNECTIONS');
-    kiMAXVALUE                      := IndexOf('MAXVALUE');
     kiMEDIUM                        := IndexOf('MEDIUM');
     kiMEMORY                        := IndexOf('MEMORY');
     kiMERGE                         := IndexOf('MERGE');
