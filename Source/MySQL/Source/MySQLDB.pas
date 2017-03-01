@@ -3783,7 +3783,7 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
 
-  DebugMonitor.Append('SyncHandledResult - StmtIndex: ' + IntToStr(SyncThread.StmtIndex) + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count), ttDebug);
+  DebugMonitor.Append('SyncHandledResult - 1 StmtIndex: ' + IntToStr(SyncThread.StmtIndex) + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count) + ', State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
@@ -3795,6 +3795,8 @@ begin
     SyncThread.State := ssFirst
   else
     SyncThread.State := ssReady;
+
+  DebugMonitor.Append('SyncHandledResult - 2 StmtIndex: ' + IntToStr(SyncThread.StmtIndex) + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count) + ', State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
@@ -5772,11 +5774,9 @@ procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
 begin
-  Assert(Assigned(DataSet));
-
   CriticalSection.Enter();
   if ((DataSet.State = dsBrowse)
-    and Assigned(Pointer(DataSet.ActiveBuffer()))
+    and (DataSet.BufferCount > 0) and Assigned(Pointer(DataSet.ActiveBuffer()))
     and Assigned(PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer)) then
     PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer := nil;
   for I := 0 to Count - 1 do

@@ -3328,6 +3328,7 @@ end;
 procedure TSBaseField.SetName(const AName: string);
 begin
   Assert(AName <> '');
+  Assert(FOriginalName <> '');
 
   FName := AName;
 end;
@@ -10911,7 +10912,7 @@ begin
   if (Assigned(Session.Variables) and Session.Variables.Valid) then
     if (Assigned(Session.VariableByName('character_set'))) then
       Session.VariableByName('character_set').Value := CharsetClient
-    else
+    else if (Assigned(Session.VariableByName('character_set_client'))) then
       Session.VariableByName('character_set_client').Value := CharsetClient;
 end;
 
@@ -10920,7 +10921,8 @@ begin
   inherited;
 
   if (Assigned(Session.Variables) and Session.Variables.Valid) then
-    Session.VariableByName('character_set_results').Value := CharsetResult;
+    if (Assigned(Session.VariableByName('character_set_results'))) then
+      Session.VariableByName('character_set_results').Value := CharsetResult;
 end;
 
 function TSConnection.SQLUse(const DatabaseName: string): string;

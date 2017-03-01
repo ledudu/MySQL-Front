@@ -4316,7 +4316,7 @@ begin
             SQL := Trim(SQL);
           end;
       end;
-      ActiveBCEditor.TextBetween[ActiveBCEditor.TextBeginPosition, ActiveBCEditor.TextEndPosition] := SQL;
+      ActiveBCEditor.TextBetween[ActiveBCEditor.TextBOFPosition, ActiveBCEditor.TextEOFPosition] := SQL;
     end;
   end;
 
@@ -9262,7 +9262,7 @@ begin
       FQueryBuilderBCEditor.Lines.Text := SQLBuilder.SQL
     else
     begin
-      FQueryBuilderBCEditor.TextBetween[FQueryBuilderBCEditor.TextBeginPosition, FQueryBuilderBCEditor.TextEndPosition] := Session.SQLParser.FormatSQL();
+      FQueryBuilderBCEditor.TextBetween[FQueryBuilderBCEditor.TextBOFPosition, FQueryBuilderBCEditor.TextEOFPosition] := Session.SQLParser.FormatSQL();
 
       Session.SQLParser.Clear();
     end;
