@@ -5212,7 +5212,7 @@ begin
                 if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
                   Field := TMySQLDateTimeField.Create(Self)
                 else
-                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
+                  begin Field := TMySQLStringField.Create(Self); Field.Size := Len; end;
                 if (LibField.field_type = MYSQL_TYPE_DATETIME) then
                   Field.Tag := Field.Tag or ftDateTimeField;
               end;
@@ -5285,7 +5285,7 @@ begin
                 begin TWordField(Field).MinValue := 1901; TWordField(Field).MaxValue := 2155; end
           end;
 
-          Field.Tag := CodePage;
+          Field.Tag := Field.Tag or CodePage;
           try
             Field.FieldName := Connection.LibDecode(Connection.CodePageResult, LibField.name);
           except
@@ -5393,11 +5393,10 @@ begin
                 ftBlob: Field.DisplayWidth := 7;
                 ftWideMemo: Field.DisplayWidth := 8;
                 else
-                  case (Field.Tag) of
-                    ftBitField: Field.DisplayWidth := Len;
-                    ftGeometryField: Field.DisplayWidth := 7;
-                    else Field.DisplayWidth := Len;
-                  end;
+                  if (Field.Tag and ftGeometryField <> 0) then
+                    Field.DisplayWidth := 7
+                  else
+                    Field.DisplayWidth := Len;
               end;
             end;
 
