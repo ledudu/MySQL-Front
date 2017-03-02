@@ -133,10 +133,10 @@ type
       property SObject: TSObject read FSObject;
     end;
   private
-    FOriginalName: string;
     function GetObjects(): TSObjects; inline;
   protected
     FDesktop: TDesktop;
+    FOriginalName: string;
     FSource: string;
     FValidSource: Boolean;
     function Build(const DataSet: TMySQLQuery): Boolean; overload; virtual; abstract;
@@ -415,7 +415,6 @@ type
   protected
     FOriginalName: string;
     function GetIndex(): Integer; override;
-    procedure SetName(const AName: string); override;
   public
     Moved: Boolean;
     OnUpdate: string;
@@ -456,6 +455,7 @@ type
   private
     function GetField(Index: Integer): TSBaseField; inline;
   public
+    procedure Assign(const Source: TSTableFields); override;
     procedure MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField); virtual;
     property Field[Index: Integer]: TSBaseField read GetField; default;
   end;
@@ -3292,7 +3292,6 @@ begin
     OnUpdateSize := TSBaseField(TSTableField(Source)).OnUpdateSize;
   end;
 
-  FOriginalName := TSBaseField(TSTableField(Source)).OriginalName;
   Moved := TSBaseField(TSTableField(Source)).Moved;
 end;
 
@@ -3323,17 +3322,6 @@ begin
   Assert(Fields.Table is TSBaseTable);
 
   Result := TSBaseTable(Fields.Table);
-end;
-
-procedure TSBaseField.SetName(const AName: string);
-begin
-  if (AName <> FName) then
-  begin
-    Assert(AName <> '');
-    Assert((FName = '') or (FOriginalName <> '') or (AName = 'Id'));
-
-    FName := AName;
-  end;
 end;
 
 { TSViewField *****************************************************************}
@@ -3473,6 +3461,16 @@ end;
 
 { TSBaseTableFields ***********************************************************}
 
+procedure TSBaseFields.Assign(const Source: TSTableFields);
+var
+  I: Integer;
+begin
+  inherited;
+
+  for I := 0 to Count - 1 do
+    Field[I].FOriginalName := TSBaseFields(Source).Field[I].OriginalName;
+end;
+
 function TSBaseFields.GetField(Index: Integer): TSBaseField;
 begin
   Result := TSBaseField(Items[Index]);
@@ -3512,8 +3510,6 @@ var
   I: Integer;
 begin
   inherited Assign(Source);
-
-  FOriginalName := Source.OriginalName;
 
   Created := Source.Created;
   SetLength(Fields, Length(Source.Fields));
@@ -3955,7 +3951,6 @@ begin
 
   Comment := Source.Comment;
   Engine := Source.Engine;
-  FOriginalName := Source.OriginalName;
   MaxRows := Source.MaxRows;
   MinRows := Source.MinRows;
   ValuesExpr := Source.ValuesExpr;

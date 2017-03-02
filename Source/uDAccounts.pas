@@ -138,7 +138,10 @@ begin
   if (DAccount.Execute()) then
   begin
     Accounts.Save();
+    FAccounts.Items.BeginUpdate();
+    FAccounts.Items.Clear();
     SetFAccounts(Accounts.AccountByName(DAccount.AccountName));
+    FAccounts.Items.EndUpdate();
     FBCancel.Caption := Preferences.LoadStr(231);
   end;
 

@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 27;
+	$MF_VERSION = 28;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -283,7 +283,7 @@
 				$_SESSION['server_version'] = mysqli_get_server_version($mysqli);
 				$_SESSION['server_info'] = mysqli_get_server_info($mysqli);
 
-				if (($_SESSION['server_version'] >= 100000) && preg_match("/\-MariaDB/i", $server_info)) {
+				if (($_SESSION['server_version'] >= 100000) && preg_match("/\-MariaDB/i", $_SESSION['server_info'])) {
 					$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 					if (! socket_connect($socket, $_SESSION['host'], $_SESSION['port'])) {
 						socket_close($socket);
