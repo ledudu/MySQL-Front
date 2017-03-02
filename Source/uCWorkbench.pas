@@ -2589,7 +2589,9 @@ begin
     begin
       // Debug 2017-03-01
       Assert(Assigned(Link[I].Points[J]));
-      Assert(Assigned(Link[I].Points[J].LineA));
+      Assert(Assigned(Link[I].Points[J].LineA),
+        'J: ' + IntToStr(J) + #13#10
+        + 'Link[I].PointCount: ' + IntToStr(Link[I].PointCount));
 
       Selected := Selected and Link[I].Points[J].LineA.Selected and Link[I].Points[J].Selected;
     end;

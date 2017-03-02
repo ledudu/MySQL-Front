@@ -190,7 +190,6 @@ type
       LibThreadId: my_uint;
       Mode: TMode;
       OnResult: TResultEvent;
-      RequestThreadID: TThreadID;
       ResHandle: MYSQL_RES;
       SQL: string;
       SQLIndex: Integer;
@@ -2327,7 +2326,6 @@ begin
   if (not Assigned(FSyncThread)) then
     FSyncThread := TSyncThread.Create(Self);
 
-  SyncThread.RequestThreadID := GetCurrentThreadId();
   SyncThread.State := ssConnect;
   repeat
     Sync(SyncThread);
@@ -2374,7 +2372,6 @@ begin
   else if (not SyncThread.Terminated) then
   begin
     BeginSynchron();
-    SyncThread.RequestThreadID := GetCurrentThreadId();
     SyncThread.State := ssDisconnect;
     Sync(SyncThread);
     SyncThreadExecuted.WaitFor(INFINITE);
@@ -2579,6 +2576,7 @@ var
   SQLIndex: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
+  P2: Pointer; // Debug 2017-03-02
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
@@ -2645,7 +2643,12 @@ begin
 
     if (StmtLength > 0) then
     begin
-      SyncThread.StmtLengths.Add(Pointer(StmtLength));
+      // Debug 2017-03-02
+      Assert(SyncThread.StmtLengths.Count >= 0);
+      Assert(SyncThread.StmtLengths.Count <= SyncThread.StmtLengths.Capacity);
+      P2 := Pointer(StmtLength);
+
+      SyncThread.StmtLengths.Add(P2);
       Inc(SQLIndex, StmtLength);
     end;
   end;
@@ -2671,7 +2674,9 @@ begin
     Inc(SQLIndex, StmtLength);
   end;
 
-  SyncThread.RequestThreadID := GetCurrentThreadId();
+  // Debug 2017-03-02
+  WriteMonitor('InternExecuteSQL - SyncThread.State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
+
   if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
   else if (SyncThread.StmtLengths.Count = 0) then
@@ -3424,7 +3429,7 @@ begin
   Assert(SyncThread.State in [ssFirst, ssNext]);
 
   // Debug 2017-02-22
-  WriteMonitor('SyncExecute - SyncThread.State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
+  WriteMonitor('SyncExecute - 1 SyncThread.State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
   if (SyncThread.State = ssFirst) then
     WriteMonitor('# ' + SysUtils.DateTimeToStr(GetServerTime(), FormatSettings), ttTime);
@@ -3440,6 +3445,9 @@ begin
     ssNext: SyncThread.State := ssExecutingNext;
     else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
   end;
+
+  // Debug 2017-03-02
+  WriteMonitor('SyncExecute - 2 SyncThread.State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
@@ -4616,6 +4624,8 @@ begin
   // Debug 2017-02-18
   Assert(Assigned(Field));
   Assert(Field.FieldNo > 0);
+  Assert(FieldCodePage(Field) > 0,
+    'FieldType: ' + IntToStr(Ord(Field.DataType)));
 
   LibRow := TMySQLQuery(Field.DataSet).LibRow;
   LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
@@ -6050,9 +6060,19 @@ end;
 
 procedure TMySQLDataSet.DeleteAll();
 begin
+  // Debug 2017-03-02
+  Assert(Assigned(Self));
+
   DeleteByWhereClause := True;
   try
-    Delete();
+    try
+      Delete();
+    except
+      // Debug 2017-03-02
+      on E: Exception do
+        EAssertionFailed.Create(E.Message + #13#10
+          + 'BufferCount: ' + IntToStr(BufferCount));
+    end;
   finally
     DeleteByWhereClause := False;
   end;
@@ -6416,12 +6436,14 @@ begin
       begin
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifer := 3001;
       end;
     bfInserted:
       begin
         Index := PExternRecordBuffer(ActiveBuffer())^.Index;
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
+        InternalInitRecord(ActiveBuffer());
       end;
   end;
 end;
@@ -6519,6 +6541,7 @@ begin
   // INSERT INTO
   // 2017-02-27: UPDATE bfCurrent, dsBrowse, Index: 0
   // 2017-02-27: INSERT bfCurrent, dsBrowse, Index: 0
+  // 2017-03-02: Identifier: 123
 
   inherited;
 end;
@@ -6583,6 +6606,7 @@ begin
       begin
         PExternRecordBuffer(ActiveBuffer())^.Index := -1;
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifer := 1001;
       end;
     bfInserted:
       begin
@@ -6590,6 +6614,7 @@ begin
         InternRecordBuffers.Insert(Index, AllocInternRecordBuffer());
         PExternRecordBuffer(ActiveBuffer())^.Index := Index;
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifer := 1002;
       end;
     else
       raise ERangeError.Create(SRangeError);
@@ -7396,7 +7421,10 @@ begin
   end;
 
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer()
+  begin
+    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
+    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifer := 2001;
+  end
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xOldData) then
     FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
   PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := NewData;

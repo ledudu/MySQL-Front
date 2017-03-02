@@ -2644,12 +2644,15 @@ begin
         // There was a crash in the CSVUnescape call ... but try ... except didn't work :-(
         Text := CSVValues[CSVColumns[I]].Text;
         L := CSVValues[CSVColumns[I]].Length;
+        S := '';
         try
           SetString(S, Text, L);
         except
           on E: Exception do
             raise EAssertionFailed.Create(E.Message + #13#10
-              + 'L: ' + IntToStr(L));
+              + 'L: ' + IntToStr(L) + #13#10
+              + 'EOF: ' + BoolToStr(EOF, True) + #13#10
+              + 'Text: ' + BoolToStr((@FileContent.Str[1] <= Text) and (Text <= @FileContent.Str[Length(FileContent.Str)]), True));
         end;
         Len := CSVUnescape(Text, L, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
       end;
@@ -4350,6 +4353,14 @@ begin
     for I := 0 to TSBaseTable(Table).TriggerCount - 1 do
       if (Success = daSuccess) then
         ExecuteTrigger(TSBaseTable(Table).Triggers[I]);
+
+  // Debug 2017-03-02
+  Assert(not Data
+    or not Assigned(ResultHandle.SyncThread)
+    or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
+    'Success: ' + IntToStr(Ord(Success)) + #13#10
+    + 'Data: ' + BoolToStr(Data, True) + #13#10
+    + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
 end;
 
 procedure TTExport.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -4604,9 +4615,6 @@ begin
   Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.Connection.FormatSettings) + #13#10;
   Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + ProgramVersionStr + #13#10;
   Content := Content + #13#10;
-
-  if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.MySQLVersion >= 40101)) then
-    Content := Content + '/*!40101 SET NAMES ' + Session.Connection.CodePageToCharset(CodePage) + ' */;' + #13#10;
 
   if (CrossReferencedObjects) then
   begin

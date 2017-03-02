@@ -1048,7 +1048,7 @@ begin
   TBFields.Images := Preferences.Images;
   TBIndices.Images := Preferences.Images;
   TBForeignKeys.Images := Preferences.Images;
-//  TBPartitions.Images := Preferences.SmallImages;
+//  TBPartitions.Images := Preferences.Images;
 
   FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
   FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
@@ -1065,7 +1065,7 @@ begin
   FDependencies.RowSelect := CheckWin32Version(6);
   FPartitions.RowSelect := CheckWin32Version(6);
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDTable.FormDestroy(Sender: TObject);
@@ -1101,7 +1101,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
@@ -1307,6 +1307,7 @@ begin
   FBOk.Enabled := PageControl.Visible and not Assigned(Table);
   FBCancel.Caption := Preferences.LoadStr(30);
 
+  PageControl.ActivePage := TSBasics;
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
   begin

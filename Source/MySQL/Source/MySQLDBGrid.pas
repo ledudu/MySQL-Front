@@ -569,7 +569,9 @@ begin
       end;
     until (Opened or (Retry = 10));
 
-    if (Opened) then
+    if (not Opened) then
+      raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+    else
       try
         EmptyClipboard();
 
@@ -594,7 +596,7 @@ begin
         if (Assigned(ClipboardData)) then
         begin
           StrPCopy(ClipboardData, Text);
-          SetClipboardData(CF_UNICODETEXT, Global);
+          SetClipboardData(CF_MYSQLSQLDATA, Global);
         end;
         GlobalUnlock(Global);
 
@@ -1421,27 +1423,24 @@ begin
       until (Opened or (Retry = 10));
 
       if (not Opened) then
-        Result := False
+        raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
       else
         try
-          Text := '';
           Global := GetClipboardData(CF_UNICODETEXT);
           if (Global <> 0) then
           begin
             ClipboardData := GlobalLock(Global);
-            if (not Assigned(ClipboardData)) then
-              Result := False
-            else
+            if (Assigned(ClipboardData)) then
             begin
               SetString(Text, PChar(ClipboardData), GlobalSize(Global) div SizeOf(Text[1]));
               if ((Length(Text) > 0) and (Text[Length(Text)] = #0)) then
                 SetLength(Text, Length(Text) - 1);
-              Result := (Text <> '') and PasteText(Text);
             end;
           end;
         finally
           CloseClipboard();
         end;
+        Result := (Text <> '') and PasteText(Text);
     end;
 end;
 
@@ -1656,7 +1655,7 @@ begin
       else if (Action is TEditCopy) then
         TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
       else if (Action is TEditPaste) then
-        TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and (EditorMode and IsClipboardFormatAvailable(CF_UNICODETEXT) or not EditorMode and IsClipboardFormatAvailable(CF_UNICODETEXT))
+        TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and IsClipboardFormatAvailable(CF_UNICODETEXT)
       else if (Action is TEditDelete) then
         TEditDelete(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (SelectedRows.Count = 0) and (SelectedFields.Count = 0) and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditSelectAll) then

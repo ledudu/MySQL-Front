@@ -108,7 +108,6 @@ type
     procedure FDelimiterKeyPress(Sender: TObject; var Key: Char);
     procedure FDestinationFieldChange(Sender: TObject);
     procedure FFieldExit(Sender: TObject);
-    procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -536,11 +535,6 @@ begin
   for I := 0 to Length(FDestinationFields) - 1 do
     if ((Sender is TComboBox) and (FDestinationFields[I] <> Sender) and (FDestinationFields[I].ItemIndex = TComboBox(Sender).ItemIndex)) then
       FDestinationFields[I].ItemIndex := 0;
-end;
-
-procedure TDImport.FormClose(Sender: TObject; var Action: TCloseAction);
-begin
-  PageControl.ActivePage := nil;
 end;
 
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);

@@ -9712,7 +9712,14 @@ begin
           ciView: Result := Desktop(TSView(CurrentData)).CreateBCEditor();
           ciProcedure,
           ciFunction: Result := Desktop(TSRoutine(CurrentData)).CreateBCEditor();
-          ciTrigger: Result := Desktop(TSTrigger(CurrentData)).CreateBCEditor();
+          ciTrigger:
+            begin
+              // Debug 2017-03-02
+              Assert(Assigned(CurrentData),
+                'CurrentAddress: ' + CurrentAddress);
+
+              Result := Desktop(TSTrigger(CurrentData)).CreateBCEditor();
+            end;
           ciEvent: Result := Desktop(TSEvent(CurrentData)).CreateBCEditor();
           else Result := nil;
         end;
@@ -15421,6 +15428,11 @@ begin
   MainAction('aERedo').Enabled := TBCEditor(Sender).CanRedo;
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
+
+  // Debug 2017-03-02
+  Assert(Assigned(Session));
+  Assert(Assigned(Session.Connection));
+
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified
     and SQLSingleStmt(SQL)

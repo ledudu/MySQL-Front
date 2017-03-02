@@ -677,7 +677,7 @@ begin
 
       if (CanClose) then
       begin
-        NewField := TSBaseField.Create(NewTable.Fields);
+        NewField := TSBaseField.Create(NewTable.Fields, Trim(FName.Text));
         if (Assigned(Field)) then
           NewField.Assign(Field);
 

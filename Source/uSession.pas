@@ -3327,10 +3327,13 @@ end;
 
 procedure TSBaseField.SetName(const AName: string);
 begin
-  Assert(AName <> '');
-  Assert(FOriginalName <> '');
+  if (AName <> FName) then
+  begin
+    Assert(AName <> '');
+    Assert((FName = '') or (FOriginalName <> '') or (AName = 'Id'));
 
-  FName := AName;
+    FName := AName;
+  end;
 end;
 
 { TSViewField *****************************************************************}
@@ -9300,7 +9303,7 @@ begin
     end;
   DeleteList.Free();
 
-  Result := inherited;
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE);
 
   if (DataSet.RecordCount = 1) then
     Session.SendEvent(etItemValid, Session, Self, Item)
