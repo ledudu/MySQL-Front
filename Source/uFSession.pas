@@ -1077,7 +1077,7 @@ type
     procedure UMActivateFText(var Msg: TMessage); message UM_ACTIVATEFTEXT;
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCloseFrame(var Msg: TMessage); message UM_CLOSE_FRAME;
-    procedure UMCloseTabQuery(var Msg: TMessage); message UM_CLOSE_TAB_QUERY;
+    procedure UMCloseFrameQuery(var Msg: TMessage); message UM_CLOSE_FRAME_QUERY;
     procedure UMFrameActivate(var Msg: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Msg: TMessage); message UM_DEACTIVATEFRAME;
     procedure UMPostBuilderQueryChange(var Msg: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
@@ -4208,7 +4208,7 @@ begin
 
   if (View = vDiagram) then
     OpenDiagram()
-  else if (Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
+  else if (Boolean(Perform(UM_CLOSE_FRAME_QUERY, 0, 0))) then
     OpenSQLFile('');
 end;
 
@@ -12515,7 +12515,7 @@ begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
 
-    if (Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
+    if (Boolean(Perform(UM_CLOSE_FRAME_QUERY, 0, 0))) then
       OpenSQLFile(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption);
   end
   else
@@ -12658,7 +12658,7 @@ begin
   Wanted.Clear();
 
   if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])
-    and Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
+    and Boolean(Perform(UM_CLOSE_FRAME_QUERY, 0, 0))) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
@@ -14701,15 +14701,20 @@ begin
       if ((Event.EventType = etItemValid)) then
       begin
         if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).BCEditor)) then
-          Desktop(TSView(Event.Item)).BCEditor.Text := TSView(Event.Item).Stmt + #13#10
+        begin
+          Desktop(TSView(Event.Item)).BCEditor.Text := TSView(Event.Item).Stmt + #13#10;
+          Desktop(TSView(Event.Item)).BCEditor.Modified := False;
+        end
         else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateBCEditor())) then
         begin
           Desktop(TSRoutine(Event.Item)).BCEditor.Text := TSRoutine(Event.Item).Source;
+          Desktop(TSRoutine(Event.Item)).BCEditor.Modified := False;
           PContentChange(nil);
         end
         else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateBCEditor())) then
         begin
           Desktop(TSTrigger(Event.Item)).BCEditor.Text := TSTrigger(Event.Item).Stmt;
+          Desktop(TSTrigger(Event.Item)).BCEditor.Modified := False;
           PContentChange(nil);
         end
         else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateBCEditor())) then
@@ -16123,7 +16128,7 @@ begin
   MainAction('aFClose').Execute();
 end;
 
-procedure TFSession.UMCloseTabQuery(var Msg: TMessage);
+procedure TFSession.UMCloseFrameQuery(var Msg: TMessage);
 var
   CanClose: Boolean;
   I: Integer;

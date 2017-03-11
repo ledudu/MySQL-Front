@@ -6517,7 +6517,8 @@ end;
 
 procedure TMySQLDataSet.InternalEdit();
 begin
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
+  if (not CachedUpdates and
+    not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
     raise EAssertionFailed.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
@@ -7341,22 +7342,6 @@ var
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
 begin
-  // Debug 2017-01-23
-  if (ActiveBuffer() = 0) then
-    raise ERangeError.Create('State: ' + IntToStr(Ord(State)) + #13#10
-      + 'Count: ' + IntToStr(InternRecordBuffers.Count));
-
-  // Debug 2017-02-04
-  Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer),
-    'Field.Name: ' + Field.DisplayName + #13#10
-    + 'Field.DataType: ' + IntToStr(Ord(Field.DataType)) + #13#10
-    + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
-    + 'State: ' + IntToStr(Ord(State)));
-  // 2017-02-08: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
-  // Why is dsBrowse set while CloseUp???
-  // 2017-02-13: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp, Last SQL: SELECT
-  // 2017-02-14: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp, Last SQL: SELECT
-
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
   MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));

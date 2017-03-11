@@ -507,7 +507,7 @@ end;
 
 procedure TWWindow.aFCloseExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and Boolean(SendMessage(ActiveTab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
+  if (Assigned(ActiveTab) and Boolean(SendMessage(ActiveTab.Handle, UM_CLOSE_FRAME_QUERY, 0, 0))) then
     CloseTab(ActiveTab);
 end;
 
@@ -792,7 +792,7 @@ begin
   Result := True;
   for I := FSessions.Count - 1 downto 0 do
   begin
-    Result := Result and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_TAB_QUERY, 0, 0) = 1);
+    Result := Result and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_FRAME_QUERY, 0, 0) = 1);
     if (Result) then
       CloseTab(TFSession(FSessions[I]));
   end;

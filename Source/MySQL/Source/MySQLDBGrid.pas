@@ -34,7 +34,6 @@ type
       // Without this, there is Access Violation while freeing TMySQLDBGrid,
       // if the InplaceEditor has been used in Delphi XE4
     protected
-      procedure CloseUp(Accept: Boolean); override;
       procedure DoEditButtonClick(); override;
       procedure DropDown(); override;
       procedure KeyPress(var Key: Char); override;
@@ -222,18 +221,6 @@ begin
 end;
 
 { TMySQLDBGrid.TDBMySQLInplaceEdit ********************************************}
-
-procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.CloseUp(Accept: Boolean);
-begin
-  inherited;
-
-  if (Accept and Modified) then
-  begin
-    TMySQLDBGrid(Grid).SelectedField.AsString := Text;
-    TMySQLDBGrid(Grid).DataLink.Modified();
-    TMySQLDBGrid(Grid).DataSource.DataSet.Edit();
-  end;
-end;
 
 constructor TMySQLDBGrid.TMySQLDBGridInplaceEdit.Create(Owner: TComponent);
 begin

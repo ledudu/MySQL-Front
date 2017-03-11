@@ -7,7 +7,7 @@ uses
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, ExtCtrls, ComCtrls, StdCtrls,
   ExtCtrls_Ext, StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
-  BCEditor.Editor, BCEditor.Editor.Base,
+  BCEditor.Editor,
   uPreferences, uSession,
   uBase;
 
