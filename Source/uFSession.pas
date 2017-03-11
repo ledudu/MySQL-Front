@@ -12,7 +12,7 @@ uses
   DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
   PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
-  BCEditor.Editor, BCEditor.Editor.CompletionProposal,
+  BCEditor.Editor, BCEditor.Editor.CompletionProposal, BCEditor.Editor.KeyCommands,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -646,10 +646,12 @@ type
     private
       FSession: TFSession;
       FBCEditor: TBCEditor;
+      FBCEditorLog: TMySQLMonitor;
       PDBGrid: TPanel_Ext;
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
+      procedure ProcessCommand(ASender: TObject; var ACommand: TBCEditorCommand; const AChar: Char; AData: Pointer);
       procedure TCResultChange(Sender: TObject);
     protected
       procedure DataSetAfterOpen(DataSet: TDataSet);
@@ -663,6 +665,7 @@ type
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
       property BCEditor: TBCEditor read FBCEditor;
+      property BCEditorLog: TMySQLMonitor read FBCEditorLog;
     end;
 
     TSObjectDesktop = class(TSObject.TDesktop)
@@ -1149,7 +1152,7 @@ uses
   DBConsts, DBCommon,
   XMLDoc,
   Clipbrd, Themes, FileCtrl, Consts,
-  BCEditor.Types, BCEditor.Editor.KeyCommands, BCEditor.Lines,
+  BCEditor.Types, BCEditor.Lines,
   acQBLocalizer, acQBStrings,
   StdActns_Ext,
   MySQLConsts, SQLUtils,
@@ -1397,6 +1400,10 @@ begin
   PDBGrid := APDBGrid;
   Results := nil;
   TCResult := nil;
+
+  FBCEditorLog := TMySQLMonitor.Create(nil);
+  FBCEditorLog.CacheSize := 1000;
+  FBCEditor.OnProcessCommand := ProcessCommand;
 end;
 
 procedure TFSession.TSQLEditor.DataSetAfterOpen(DataSet: TDataSet);
@@ -1409,6 +1416,7 @@ begin
   CloseResult();
   if (Assigned(Results)) then
     Results.Free();
+  FBCEditorLog.Free();
   if (PDBGrid <> FSession.PSQLEditorDBGrid) then
     PDBGrid.Free();
 
@@ -1423,6 +1431,14 @@ begin
     Result := TResult(Results[0]^).DBGrid
   else
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
+end;
+
+procedure TFSession.TSQLEditor.ProcessCommand(ASender: TObject; var ACommand: TBCEditorCommand; const AChar: Char; AData: Pointer);
+var
+  Ident: string;
+begin
+  EditorCommandToIdent(ACommand, Ident);
+  FBCEditorLog.Append(Ident + ', ' + AChar + ', Data: ' + BoolToStr(Assigned(AData), True) + ', Lines: ' + IntToStr(TCustomBCEditor(ASender).Lines.Count), ttDebug);
 end;
 
 function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -15616,6 +15632,9 @@ end;
 
 procedure TFSession.BCEditorEnter(Sender: TObject);
 begin
+  if ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].BCEditor = Sender)) then
+    ActiveBCEditorLog := SQLEditors[View].BCEditorLog;
+
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
   MainAction('aEPasteFromFile').OnExecute := aEPasteFromExecute;
 
@@ -15638,6 +15657,8 @@ begin
   MainAction('aHSQL').ShortCut := 0;
 
   SynCompletionPending.Active := False;
+
+  ActiveBCEditorLog := nil;
 end;
 
 procedure TFSession.BCEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);

@@ -3119,10 +3119,11 @@ begin
                   Assert(SynchronCount > 0,
                     'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
                     + 'ErrorMessage: ' + SyncThread.ErrorMessage + #13#10
-                    + 'State: ' + IntToStr(Ord(SyncThread.State)));
+                    + 'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
+                    + 'LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True));
 
-                // 2017-02-20
-                // ErrorCode: 0, TTool.DoError, no Result for SELECT query
+                // 2017-02-20 ErrorCode: 0, TTool.DoError, no Result for SELECT query
+                // 2017-03-11 ErrorCode: 0, TTExportExcel is running in TSQLParser.ParseChecksumTableStmt, no result for SELECT query
 
                 SyncThreadExecuted.SetEvent();
               end;
@@ -3793,7 +3794,12 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
 
-  DebugMonitor.Append('SyncHandledResult - 1 StmtIndex: ' + IntToStr(SyncThread.StmtIndex) + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count) + ', State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
+  DebugMonitor.Append('SyncHandledResult - 1 StmtIndex: ' + IntToStr(SyncThread.StmtIndex)
+    + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count)
+    + ', State: ' + IntToStr(Ord(SyncThread.State))
+    + ', MultiStatements: ' + BoolToStr(MultiStatements, True)
+    + ', LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
+    + ', mysql_more_results: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
 
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
@@ -6302,11 +6308,13 @@ begin
 
   if (Result = grOk) then
   begin
-    // Debug 2017-01-22
+    // Debug 2017-03-11
     if ((NewIndex < 0) or (InternRecordBuffers.Count <= NewIndex)) then
-      raise ERangeError.Create('Index: ' + IntToStr(NewIndex) + #13#10
+      raise ERangeError.Create('NewIndex: ' + IntToStr(NewIndex) + #13#10
+        + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
         + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
         + 'GetMode: ' + IntToStr(Ord(GetMode)));
+    // 2017-03-11 CallStack: TMySQLTable.Sort, NewIndex = -1, Count = 0, grOk
 
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;

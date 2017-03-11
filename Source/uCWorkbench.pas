@@ -1434,6 +1434,7 @@ procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; 
       and Assigned(NextPoint) and (Point.Position.X = NextPoint.Position.X) and (Point.Position.Y = NextPoint.Position.Y)
       and (MoveState <> msAutomatic)) then
     begin
+      Link.Check();
       Link.FreeSegment(Point, NextLine);
       Link.Check();
     end;
