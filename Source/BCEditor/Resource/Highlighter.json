@@ -53,7 +53,7 @@
                   }
                },
                {
-                  "Type": "BlockComment",
+                  "Type": "Conditional",
                   "Attributes": {
                      "Element": "Conditional"
                   },

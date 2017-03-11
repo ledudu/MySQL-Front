@@ -34,7 +34,6 @@ contains
   Dialogs_Ext in '..\Source\Dialogs_Ext.pas',
   ComCtrls_Ext in '..\Source\ComCtrls_Ext.pas',
   Forms_Ext in '..\Source\Forms_Ext.pas',
-  CommCtrl_Ext in '..\Source\CommCtrl_Ext.pas',
   StdActns_Ext in '..\Source\StdActns_Ext.pas';
 
 end.

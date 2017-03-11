@@ -168,6 +168,7 @@ type
     procedure SetTable(Index: Integer; ATable: TWTable);
   protected
     procedure Cleanup(const Sender: TWControl); virtual;
+    procedure Check(); // Debug 2017-03-02
     function CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWLinkPoint; const CreateBefore: Boolean = True): TWLinkPoint; virtual;
     procedure FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine); virtual;
     function GetCaption(): TCaption; virtual;
@@ -1331,8 +1332,11 @@ procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; 
 
   procedure MovePointTo(const Point: TWLinkPoint);
   var
-    Control, AntiControl: TWControl;
-    Line, NextLine, AntiLine: TWLinkLine;
+    AntiControl: TWControl;
+    AntiLine: TWLinkLine;
+    Control: TWControl;
+    Line: TWLinkLine;
+    NextLine: TWLinkLine;
     NextPoint: TWLinkPoint;
   begin
     if (Assigned(LineA) and (Point = LineA.PointA)) then
@@ -1429,7 +1433,10 @@ procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; 
       and Assigned(Link.ParentTable)
       and Assigned(NextPoint) and (Point.Position.X = NextPoint.Position.X) and (Point.Position.Y = NextPoint.Position.Y)
       and (MoveState <> msAutomatic)) then
+    begin
       Link.FreeSegment(Point, NextLine);
+      Link.Check();
+    end;
   end;
 
 var
@@ -2114,11 +2121,15 @@ begin
           TempTable := Point.TableB;
           Point := NextPoint;
           FreeSegment(Point.LineA.PointA, Point.LineA);
+          Check();
           if (Assigned(TempTable)) then
             Point.TableB := TempTable;
         end
         else
+        begin
           FreeSegment(Point.LineB.PointB, Point.LineB);
+          Check();
+        end;
       end;
     end;
 
@@ -2156,6 +2167,15 @@ begin
   FCaption := '';
 
   Workbench.Links.Add(Self);
+end;
+
+procedure TWLink.Check();
+var
+  I: Integer;
+begin
+  for I := 0 to PointCount - 1 do
+    if (Workbench.LinkPoints.IndexOf(Points[I]) < 0) then
+      raise EAssertionFailed.Create('Freed Point found!');
 end;
 
 function TWLink.CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWLinkPoint; const CreateBefore: Boolean = True): TWLinkPoint;
@@ -2261,7 +2281,7 @@ begin
       Line.PointA.LineA.PointB := Line.PointB;
   end
   else
-    raise ERangeError.Create('Line is not attached to a Point.');
+    raise ERangeError.Create('Line is not attached to the Point.');
 
   Line.Free();
   Point.Free();

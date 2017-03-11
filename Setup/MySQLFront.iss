@@ -54,6 +54,7 @@ Name: DesktopIcon; Description: "&Desktop Icon"; GroupDescription: "Icons:";
 [Registry]
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: string; ValueName: "LanguageFile"; ValueData: "{language}.ini"; Flags: createvalueifdoesntexist uninsdeletevalue
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "SetupProgramInstalled"; ValueData: 1
+Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "UpdateAvailable"; ValueData: "0"; Flags: deletevalue
 Root: HKCR; Subkey: "mysql"; ValueType: string; ValueName: ""; ValueData: "URL:mysql (MySQL Protocol)"; Flags: uninsdeletevalue
 Root: HKCR; Subkey: "mysql"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
 Root: HKCR; Subkey: "mysql\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{BuildName}.exe,0"; Flags: createvalueifdoesntexist uninsdeletevalue

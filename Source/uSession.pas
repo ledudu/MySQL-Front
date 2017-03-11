@@ -4507,7 +4507,10 @@ begin
 
         Field := FieldByName(OldFieldName);
         if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
+        begin
           Field.Name := NewFieldName;
+          Field.FOriginalName := NewFieldName;
+        end;
       end;
 
       while (not SQLParseChar(Parse, ',') and not SQLParseEnd(Parse)) do
@@ -8769,23 +8772,7 @@ begin
   SQL := SQL + Routines.SQLGetItems();
   SQL := SQL + NewRoutine.SQLGetSource();
 
-  Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
-
-  // MySQL server bug: If the CREATE / ALTER PROCEDURE / FUNCTION statement fails,
-  // the server looses the multi statement state.
-  // This bug is fixed in MySQL 5.0.67 - also earlier?
-  if (not Result
-    and (Session.Connection.MySQLVersion < 50067)
-    and Session.Connection.MultiStatements
-    and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
-    Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-
-  if (not Result and Assigned(Routine) and (Routine.Source <> '')) then
-  begin
-    Session.StmtMonitor.OnMonitor := nil;
-    Session.Connection.ExecuteSQL(Routine.Source);
-    Session.StmtMonitor.OnMonitor := Session.MonitorExecutedStmts;
-  end;
+  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean;
@@ -8805,23 +8792,7 @@ begin
   SQL := SQL + Triggers.SQLGetItems();
   SQL := SQL + NewTrigger.SQLGetSource();
 
-  Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
-
-  // MySQL server bug: If the CREATE / ALTER TRIGGER statement fails,
-  // the server looses the multi statement state.
-  // This bug is fixed in MySQL 5.0.67 - also earlier?
-  if (Result
-    and (Session.Connection.MySQLVersion < 50067)
-    and Session.Connection.MultiStatements
-    and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
-    Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-
-  if (not Result and Assigned(Trigger) and (Trigger.Source <> '')) then
-  begin
-    Session.StmtMonitor.OnMonitor := nil;
-    Session.Connection.ExecuteSQL(Trigger.Source);
-    Session.StmtMonitor.OnMonitor := Session.MonitorExecutedStmts;
-  end;
+  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateView(const View, NewView: TSView): Boolean;
@@ -12370,7 +12341,7 @@ begin
       Result := FieldTypeByMySQLFieldType(mfInt);
 
   if (not Assigned(Result)) then
-    raise Exception.CreateFMT(SUnknownFieldType + ' (%d known field types)', [Text, FieldTypes.Count]);
+    raise Exception.CreateFMT('Unknown field type "%s"  (%d known field types)', [Text, FieldTypes.Count]);
 end;
 
 function TSSession.FieldTypeByMySQLFieldType(const MySQLFieldType: TSField.TFieldType): TSFieldType;
@@ -12728,8 +12699,16 @@ begin
                     if (SQLParseDDLStmt(NextDDLStmt, PChar(NextSQL), Length(NextSQL), Connection.MySQLVersion)
                       and (NextDDLStmt.ObjectType = DDLStmt.ObjectType)
                       and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
-                      and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
-                      // will be handled in the next Stmt
+                      and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))) then
+                    begin
+                      if (DDLStmt.ObjectType = otProcedure) then
+                        Routine := Database.ProcedureByName(DDLStmt.ObjectName)
+                      else
+                        Routine := Database.FunctionByName(DDLStmt.ObjectName);
+                      if ((NextDDLStmt.ObjectName <> DDLStmt.ObjectName) and Assigned(Routine)) then
+                        Routine.Name := NextDDLStmt.ObjectName;
+                      // The DROP will be ignored, since it will be re-created in the next statement...
+                    end
                     else
                     begin
                       if (DDLStmt.ObjectType = otProcedure) then
@@ -12771,9 +12750,13 @@ begin
                     NextSQL := Connection.NextCommandText;
                     if (SQLParseDDLStmt(NextDDLStmt, PChar(NextSQL), Length(NextSQL), Connection.MySQLVersion)
                       and (NextDDLStmt.ObjectType = DDLStmt.ObjectType)
-                      and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
-                      and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
-                      // will be handled in the next Stmt
+                      and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))) then
+                    begin
+                      Trigger := Database.TriggerByName(DDLStmt.ObjectName);
+                      if ((NextDDLStmt.ObjectName <> DDLStmt.ObjectName) and Assigned(Trigger)) then
+                        Trigger.Name := NextDDLStmt.ObjectName;
+                      // The DROP will be ignored, since it will be re-created in the next statement...
+                    end
                     else
                     begin
                       Trigger := Database.TriggerByName(DDLStmt.ObjectName);
@@ -13060,6 +13043,9 @@ end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
 begin
+  // Debug 2017-03-10
+  Assert(Assigned(Connection));
+
   if (GetCurrentThreadId() = MainThreadId) then
     Result := Connection.SendSQL(SQL, OnResult)
   else

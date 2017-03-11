@@ -226,11 +226,8 @@ begin
 
     NewTrigger.Free();
 
-// UpdateTrigger uses ExecuteSQL (not SendSQL). Because of this,
-// FormSessionEvent will be called inside UpdateTrigger - and this code
-// whould hide PageControl permanentely
-//    PageControl.Visible := False;
-//    PSQLWait.Visible := not PageControl.Visible;
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
 
     FBOk.Enabled := False;
   end;

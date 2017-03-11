@@ -399,7 +399,7 @@ begin
 
     FErrorCode := 0;
     FErrorMessage := '';
-    FHTTPStatus := HTTP_STATUS_OK;
+    FHTTPStatus := 0;
     FHTTPMessage := '';
     RequestTry := 0;
 
@@ -596,7 +596,7 @@ var
 begin
   inherited;
 
-  if (HTTPStatus = HTTP_STATUS_OK) then
+  if ((ErrorCode = 0) and (HTTPStatus = HTTP_STATUS_OK)) then
   begin
     CoInitialize(nil);
     if (CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI)) then

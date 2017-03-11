@@ -8,11 +8,11 @@ SET CleanRootPath=%CD%
 SET CleanImagesPath=%CleanRootPath%\Images
 SET CleanImagesPureFlatPath=%CleanImagesPath%\PureFlat
 SET CleanSourcePath=%CleanRootPath%\Source
+SET ClearSourceBCEditorPath=%CleanSourcePath%\BCEditor
 SET ClearSourceFastMMPath=%CleanSourcePath%\FastMM
 SET ClearSourceMySQLPath=%CleanSourcePath%\MySQL
 SET ClearSourceQueryBuilderPath=%CleanSourcePath%\QueryBuilder
 SET ClearSourceShellBrowserPath=%CleanSourcePath%\ShellBrowser
-SET ClearSourceSynEditPath=%CleanSourcePath%\SynEdit
 SET ClearSourceSynopsePDFPath=%CleanSourcePath%\SynopsePDF
 SET ClearSourceVCLPath=%CleanSourcePath%\VCL
 SET ClearSourceWin32Path=%CleanSourcePath%\Win32
@@ -31,6 +31,9 @@ if exist "%CleanTempPath%" RMDIR /S /Q "%CleanTempPath%"
 if not exist "%CleanImagesPureFlatPath%" MKDIR "%CleanImagesPureFlatPath%"
 if not exist "%ClearSourceFastMMPath%\Bin" MKDIR "%ClearSourceFastMMPath%\Bin"
 if not exist "%ClearSourceMySQLPath%\Source" MKDIR "%ClearSourceMySQLPath%\Source"
+if not exist "%ClearSourceBCEditorPath%\Source" MKDIR "%ClearSourceBCEditorPath%\Source"
+if not exist "%ClearSourceBCEditorPath%\Resource" MKDIR "%ClearSourceBCEditorPath%\Resource"
+if not exist "%ClearSourceBCEditorPath%\Bin" MKDIR "%ClearSourceBCEditorPath%\Bin"
 if not exist "%ClearSourceQueryBuilderPath%\Source" MKDIR "%ClearSourceQueryBuilderPath%\Source"
 if not exist "%ClearSourceQueryBuilderPath%\Resource" MKDIR "%ClearSourceQueryBuilderPath%\Resource"
 if not exist "%ClearSourceQueryBuilderPath%\Bin" MKDIR "%ClearSourceQueryBuilderPath%\Bin"

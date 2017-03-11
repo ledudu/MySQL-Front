@@ -479,6 +479,9 @@ type
     procedure FOffsetChange(Sender: TObject);
     procedure FOffsetKeyPress(Sender: TObject; var Key: Char);
     procedure FormResize(Sender: TObject);
+    procedure FQueryBuilderBCEditorChange(Sender: TObject);
+    procedure FQueryBuilderBCEditorEnter(Sender: TObject);
+    procedure FQueryBuilderBCEditorExit(Sender: TObject);
     procedure FQueryBuilderDragDrop(Sender, Source: TObject; X,
       Y: Integer);
     procedure FQueryBuilderDragOver(Sender, Source: TObject; X, Y: Integer;
@@ -487,9 +490,6 @@ type
     procedure FQueryBuilderExit(Sender: TObject);
     procedure FQueryBuilderResize(Sender: TObject);
     procedure FQueryBuilderSQLUpdated(Sender: TObject);
-    procedure FQueryBuilderBCEditorChange(Sender: TObject);
-    procedure FQueryBuilderBCEditorEnter(Sender: TObject);
-    procedure FQueryBuilderBCEditorExit(Sender: TObject);
     procedure FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
       AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
       APopupMenu: TPopupMenu);
@@ -1150,7 +1150,7 @@ uses
   Clipbrd, Themes, FileCtrl, Consts,
   BCEditor.Types, BCEditor.Editor.KeyCommands, BCEditor.Lines,
   acQBLocalizer, acQBStrings,
-  CommCtrl_Ext, StdActns_Ext,
+  StdActns_Ext,
   MySQLConsts, SQLUtils,
   uDeveloper,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
@@ -4316,7 +4316,9 @@ begin
             SQL := Trim(SQL);
           end;
       end;
-      ActiveBCEditor.TextBetween[ActiveBCEditor.TextBOFPosition, ActiveBCEditor.TextEOFPosition] := SQL;
+      ActiveBCEditor.UndoOptions := ActiveBCEditor.UndoOptions + [uoUndoAfterLoad];
+      ActiveBCEditor.Text := SQL;
+      ActiveBCEditor.UndoOptions := ActiveBCEditor.UndoOptions - [uoUndoAfterLoad];
     end;
   end;
 
@@ -5299,6 +5301,8 @@ begin
   SetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
 
   FQueryBuilderBCEditor := CreateBCEditor(nil);
+  FQueryBuilderBCEditor.OnEnter := FQueryBuilderBCEditorEnter;
+  FQueryBuilderBCEditor.OnExit := FQueryBuilderBCEditorExit;
   FQueryBuilderBCEditor.Parent := PQueryBuilderBCEditor;
 
 
@@ -5625,8 +5629,7 @@ begin
     FFolders.Visible := True;
     FFolders.OnChange := FFoldersChange;
 
-    if ((ComCtl32MajorVersion > 4) or (ComCtl32MinorVersion >= 71)) then
-      SendMessage(FFolders.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CYEDGE), 0);
+    SendMessage(FFolders.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CYEDGE), 0);
     if (CheckWin32Version(6)) then
     begin
       FFolders.Indent := GetSystemMetrics(SM_CXSMICON) div 2 + GetSystemMetrics(SM_CXEDGE);
@@ -7657,6 +7660,13 @@ begin
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
 
+  // Debug 2017-03-10
+  Assert((URI.Param['view'] <> 'browser') or (URI.Table <> ''),
+    'URI: ' + URI.Address + #13#10
+    + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+    + 'Text: ' + Node.Text + #13#10
+    + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True));
+
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
@@ -9138,6 +9148,27 @@ begin
   end;
 end;
 
+procedure TFSession.FQueryBuilderBCEditorChange(Sender: TObject);
+begin
+  try
+    FQueryBuilder.SQL := FQueryBuilderBCEditor.Text;
+    PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
+  except
+  end;
+end;
+
+procedure TFSession.FQueryBuilderBCEditorEnter(Sender: TObject);
+begin
+  FQueryBuilderBCEditor.OnChange := FQueryBuilderBCEditorChange;
+  BCEditorEnter(Sender);
+end;
+
+procedure TFSession.FQueryBuilderBCEditorExit(Sender: TObject);
+begin
+  BCEditorExit(Sender);
+  FQueryBuilderBCEditor.OnChange := nil;
+end;
+
 procedure TFSession.FQueryBuilderDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   SQLQualifiedName: TSQLQualifiedName;
@@ -9204,14 +9235,14 @@ end;
 
 procedure TFSession.FQueryBuilderEnter(Sender: TObject);
 begin
-  FQueryBuilderBCEditor.OnChange := nil;
+  SQLBuilder.OnSQLUpdated := FQueryBuilderSQLUpdated;
 
   StatusBarRefresh();
 end;
 
 procedure TFSession.FQueryBuilderExit(Sender: TObject);
 begin
-  FQueryBuilderBCEditor.OnChange := FQueryBuilderBCEditorChange;
+  SQLBuilder.OnSQLUpdated := nil;
 end;
 
 procedure TFSession.FQueryBuilderResize(Sender: TObject);
@@ -9259,37 +9290,16 @@ begin
     if ((SQLBuilder.SQL = '')
       or not Assigned(Session)
       or Session.SQLParser.ParseSQL(SQLBuilder.SQL)) then
-      FQueryBuilderBCEditor.Lines.Text := SQLBuilder.SQL
+      FQueryBuilderBCEditor.Text := SQLBuilder.SQL
     else
     begin
-      FQueryBuilderBCEditor.TextBetween[FQueryBuilderBCEditor.TextBOFPosition, FQueryBuilderBCEditor.TextEOFPosition] := Session.SQLParser.FormatSQL();
+      FQueryBuilderBCEditor.UndoOptions := FQueryBuilderBCEditor.UndoOptions + [uoUndoAfterLoad];
+      FQueryBuilderBCEditor.Text := Session.SQLParser.FormatSQL();
+      FQueryBuilderBCEditor.UndoOptions := FQueryBuilderBCEditor.UndoOptions - [uoUndoAfterLoad];
 
       Session.SQLParser.Clear();
     end;
   end;
-end;
-
-procedure TFSession.FQueryBuilderBCEditorChange(Sender: TObject);
-begin
-  try
-    FQueryBuilder.SQL := FQueryBuilderBCEditor.Lines.Text;
-    PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
-  except
-  end;
-end;
-
-procedure TFSession.FQueryBuilderBCEditorEnter(Sender: TObject);
-begin
-  SQLBuilder.OnSQLUpdated := nil;
-
-  BCEditorEnter(Sender);
-end;
-
-procedure TFSession.FQueryBuilderBCEditorExit(Sender: TObject);
-begin
-  BCEditorExit(Sender);
-
-  SQLBuilder.OnSQLUpdated := FQueryBuilderSQLUpdated;
 end;
 
 procedure TFSession.FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
@@ -10799,10 +10809,6 @@ end;
 procedure TFSession.ListViewEdited(Sender: TObject; Item: TListItem;
   var S: string);
 begin
-  // Debug 2016-11-27
-  if (not Assigned(Item)) then
-    raise ERangeError.Create(SRangeError);
-
   if (not RenameSItem(Item.Data, S)) then
     S := Item.Caption;
 end;
@@ -11115,12 +11121,6 @@ begin
         HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN;
       SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
     end;
-
-  if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
-    if (ListViewSortData[Kind].Order = 0) then
-      SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, -1, 0)
-    else
-      SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, ListViewSortData[Kind].ColumnIndex, 0);
 end;
 
 procedure TFSession.ListViewKeyDown(Sender: TObject; var Key: Word;
@@ -11545,7 +11545,9 @@ var
           Item.SubItems.Add('fulltext')
         else
           Item.SubItems.Add('');
-        if (Session.Connection.MySQLVersion >= 50503) then
+        if (Session.Connection.MySQLVersion < 50503) then
+          Item.SubItems.Add('')
+        else
           Item.SubItems.Add(TSKey(Data).Comment);
       end
       else if (Data is TSBaseField) then
@@ -11578,7 +11580,9 @@ var
             end;
           end;
           Item.SubItems.Add(S);
-          if (Session.Connection.MySQLVersion >= 40100) then
+          if (Session.Connection.MySQLVersion < 40100) then
+            Item.SubItems.Add('')
+          else
             Item.SubItems.Add(TSBaseField(Data).Comment);
         end
         else if (TSBaseField(Data).FieldKind = mkVirtual) then
@@ -15436,7 +15440,7 @@ begin
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified
     and SQLSingleStmt(SQL)
-    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
       or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
       or (ClassIndex in [ciEvent, ciTrigger]));
   MainAction('aDRun').Enabled :=

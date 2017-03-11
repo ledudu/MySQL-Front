@@ -38,8 +38,7 @@ implementation {***************************************************************}
 
 uses
   CommCtrl, Consts, Themes, UxTheme, Buttons, SysConst, Types,
-  ComCtrls, ExtCtrls, Grids, StdCtrls,
-  CommCtrl_Ext;
+  ComCtrls, ExtCtrls, Grids, StdCtrls;
 
 const tiMouseMove = 1;
 
@@ -98,8 +97,7 @@ begin
   end
   else if (Control is TTreeView) then
   begin
-    if ((ComCtl32MajorVersion > 4) or (ComCtl32MinorVersion >= 71)) then
-      SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CXEDGE), 0);
+    SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CXEDGE), 0);
     if (CheckWin32Version(6)) then
     begin
       TTreeView(Control).Indent := GetSystemMetrics(SM_CXSMICON) div 2 + GetSystemMetrics(SM_CXEDGE);

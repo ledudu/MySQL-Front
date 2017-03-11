@@ -406,6 +406,7 @@ end;
 
 procedure TDImport.FCSVPreviewUpdate(Sender: TObject);
 var
+  Column: TListColumn;
   I: Integer;
   Item: TListItem;
   MissingFieldname: Boolean;
@@ -437,8 +438,9 @@ begin
       MissingFieldname := False;
       for I := 0 to TTImportText(Import).HeadlineNameCount - 1 do
       begin
-        FCSVPreview.Columns.Add().Caption := TTImportText(Import).HeadlineNames[I];
-        if (not MissingFieldname and (FCSVPreview.Columns.Add().Caption = '')) then
+        Column := FCSVPreview.Columns.Add();
+        Column.Caption := TTImportText(Import).HeadlineNames[I];
+        if (not MissingFieldname and (Column.Caption = '')) then
         begin
           MsgBox(Preferences.LoadStr(942, IntToStr(I + 1)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
           MissingFieldname := True;

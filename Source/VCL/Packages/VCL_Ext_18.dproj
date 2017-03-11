@@ -61,7 +61,6 @@
         <DCCReference Include="..\Source\Dialogs_Ext.pas"/>
         <DCCReference Include="..\Source\ComCtrls_Ext.pas"/>
         <DCCReference Include="..\Source\Forms_Ext.pas"/>
-        <DCCReference Include="..\Source\CommCtrl_Ext.pas"/>
         <DCCReference Include="..\Source\StdActns_Ext.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>

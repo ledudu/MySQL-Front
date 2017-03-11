@@ -292,11 +292,8 @@ begin
       NewRoutine.Free();
     end;
 
-// UpdateRoutine uses ExecuteSQL (not SendSQL). Because of this,
-// FormSessionEvent will be called inside UpdateRoutine - and this code
-// whould hide PageControl permanentely
-//    PageControl.Visible := False;
-//    PSQLWait.Visible := not PageControl.Visible;
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
 
     FBOk.Enabled := False;
   end;

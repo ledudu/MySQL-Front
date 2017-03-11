@@ -78,7 +78,6 @@ uses
   CommCtrl,
   Math, StrUtils,
   MySQLConsts,
-  CommCtrl_Ext,
   MySQLDB, SQLUtils,
   uPreferences,
   uDVariable, uDUser;
@@ -277,12 +276,9 @@ end;
 
 procedure TDServer.ListViewShowSortDirection(const ListView: TListView);
 var
-  Column: TListColumn;
   HDItem: THDItem;
   I: Integer;
 begin
-  Column := ListView.Columns[ListView.Tag];
-
   HDItem.Mask := HDI_FORMAT;
   for I := 0 to ListView.Columns.Count - 1 do
     if (BOOL(SendMessage(ListView_GetHeader(ListView.Handle), HDM_GETITEM, I, LParam(@HDItem)))) then
@@ -294,9 +290,6 @@ begin
       end;
       SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
     end;
-
-  if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
-    SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Column.Index, 0);
 end;
 
 function TDServer.SessionUpdate(): Boolean;

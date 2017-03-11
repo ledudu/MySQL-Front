@@ -93,7 +93,6 @@ implementation {***************************************************************}
 uses
   CommCtrl,
   Math, StrUtils, SysConst,
-  CommCtrl_Ext,
   SQLUtils, MySQLDB,
   uPreferences,
   uDUserRight;
@@ -496,12 +495,9 @@ end;
 
 procedure TDUser.ListViewShowSortDirection(const ListView: TListView);
 var
-  Column: TListColumn;
   HDItem: THDItem;
   I: Integer;
 begin
-  Column := ListView.Column[ListView.Tag];
-
   HDItem.Mask := HDI_FORMAT;
   for I := 0 to ListView.Columns.Count - 1 do
     if (BOOL(SendMessage(ListView_GetHeader(ListView.Handle), HDM_GETITEM, I, LPARAM(@HDItem)))) then
@@ -513,9 +509,6 @@ begin
       end;
       SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LPARAM(@HDItem));
     end;
-
-  if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
-    SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Column.Index, 0);
 end;
 
 procedure TDUser.TSRightsShow(Sender: TObject);

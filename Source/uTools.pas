@@ -4356,6 +4356,7 @@ begin
 
   // Debug 2017-03-02
   Assert(not Data
+    or not Assigned(ResultHandle)
     or not Assigned(ResultHandle.SyncThread)
     or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10

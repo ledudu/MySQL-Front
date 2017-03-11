@@ -1148,8 +1148,10 @@ end;
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
-  if (RecommendedUpdateAvailable
-    or (ObsoleteVersion > 0) and UpdateAvailable) then
+  if ((Sender is TCheckOnlineVersionThread)
+    and (TCheckOnlineVersionThread(Sender).ErrorCode = 0)
+    and (TCheckOnlineVersionThread(Sender).HTTPStatus = HTTP_STATUS_OK)
+    and (RecommendedUpdateAvailable or (ObsoleteVersion > 0) and UpdateAvailable)) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
 

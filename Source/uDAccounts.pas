@@ -83,7 +83,6 @@ implementation {***************************************************************}
 uses
   CommCtrl,
   Math, StrUtils, SysConst,
-  CommCtrl_Ext,
   MySQLConsts,
   uDAccount, uDConnecting;
 
