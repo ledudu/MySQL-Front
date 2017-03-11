@@ -870,6 +870,7 @@ type
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
     FHTML: TWebBrowser;
+    FHTMLFiles: array of TFileName;
     FilterMRU: TPPreferences.TMRUList;
     FNavigatorDragDisabled: Boolean;
     FNavigatorHotTrackDisabled: Boolean;
@@ -6986,6 +6987,13 @@ begin
   except
   end;
 
+  if (Assigned(FHTML)) then
+  begin
+    FHTML.Free();
+    for I := 0 to Length(FHTMLFiles) - 1 do
+      DeleteFile(PChar(FHTMLFiles[I]));
+  end;
+
   FLog.Lines.Clear();
 
   FreeAndNil(CloseButtonNormal);
@@ -7449,8 +7457,6 @@ end;
 
 procedure TFSession.FHTMLHide(Sender: TObject);
 begin
-  if (Assigned(FHTML)) then
-    FreeAndNil(FHTML);
 end;
 
 procedure TFSession.FHTMLShow(Sender: TObject);
@@ -7486,7 +7492,8 @@ begin
 
         FHTML.Navigate(FilenameP);
 
-        DeleteFile(string(FilenameP));
+        SetLength(FHTMLFiles, Length(FHTMLFiles) + 1);
+        FHTMLFiles[Length(FHTMLFiles) - 1] := StrPas(PChar(@FilenameP));
       end;
 
       Stream.Free();
@@ -15436,6 +15443,8 @@ begin
   // Debug 2017-03-02
   Assert(Assigned(Session));
   Assert(Assigned(Session.Connection));
+  // Debug 2017-03-11
+  MainAction('aDPostObject');
 
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified

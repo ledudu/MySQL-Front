@@ -588,6 +588,7 @@ type
     procedure InternalCancel(); override;
     procedure InternalClose(); override;
     procedure InternalDelete(); override;
+    procedure InternalEdit(); override;
     procedure InternalFirst(); override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalInitFieldDefs(); override;
@@ -3910,7 +3911,7 @@ begin
   SyncThread.Terminate();
 
   if (GetCurrentThreadId() = MainThreadID) then
-    WriteMonitor('--> Connection terminated!', ttInfo);
+    WriteMonitor('--> Connection terminated! (' + IntToStr(SyncThread.LibThreadId) + ')', ttInfo);
 
   {$IFDEF EurekaLog}
     SetEurekaLogStateInThread(SyncThread.ThreadID, False);
@@ -6514,6 +6515,16 @@ begin
   end;
 end;
 
+procedure TMySQLDataSet.InternalEdit();
+begin
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
+    raise EAssertionFailed.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
+      + 'State: ' + IntToStr(Ord(State)));
+
+  inherited;
+end;
+
 procedure TMySQLDataSet.InternalFirst();
 begin
   InternRecordBuffers.Index := -1;
@@ -7736,7 +7747,7 @@ var
 begin
   // Debug 2017-01-24
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
-    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+    raise EAssertionFailed.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
 
