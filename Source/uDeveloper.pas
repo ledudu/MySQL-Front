@@ -1035,8 +1035,8 @@ begin
 
     if (Assigned(ActiveBCEditorLog)) then
     begin
-      Result := Result + #13#10;
-      Result := Result + 'BCEditor';
+      Result := Result + #13#10#13#10;
+      Result := Result + 'BCEditor' + #13#10;
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + ActiveBCEditorLog.CacheText;
     end;

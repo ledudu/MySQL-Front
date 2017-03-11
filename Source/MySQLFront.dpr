@@ -31,7 +31,6 @@ uses
   StdActns_Ext in 'VCL\Source\StdActns_Ext.pas',
   Dialogs_Ext in 'VCL\Source\Dialogs_Ext.pas',
   ComCtrls_Ext in 'VCL\Source\ComCtrls_Ext.pas',
-  CommCtrl_Ext in 'VCL\Source\CommCtrl_Ext.pas',
   Forms_Ext in 'VCL\Source\Forms_Ext.pas',
   uDeveloper in 'uDeveloper.pas',
   uPreferences in 'uPreferences.pas',

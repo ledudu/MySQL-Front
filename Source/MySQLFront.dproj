@@ -59,7 +59,6 @@
         <DCCReference Include="VCL\Source\StdActns_Ext.pas"/>
         <DCCReference Include="VCL\Source\Dialogs_Ext.pas"/>
         <DCCReference Include="VCL\Source\ComCtrls_Ext.pas"/>
-        <DCCReference Include="VCL\Source\CommCtrl_Ext.pas"/>
         <DCCReference Include="VCL\Source\Forms_Ext.pas"/>
         <DCCReference Include="uDeveloper.pas"/>
         <DCCReference Include="uPreferences.pas"/>
