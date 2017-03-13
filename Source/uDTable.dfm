@@ -927,10 +927,6 @@ object DTable: TDTable
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -988,8 +984,6 @@ object DTable: TDTable
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
-        Lines.Strings = (
-          'FSource')
         LineSpacing = 0
         MatchingPair.Enabled = True
         Minimap.Font.Charset = DEFAULT_CHARSET
@@ -1004,6 +998,7 @@ object DTable: TDTable
         SyncEdit.Enabled = False
         SyncEdit.ShortCut = 24650
         TabOrder = 0
+        Text = 'FSource'
         TokenInfo.Font.Charset = DEFAULT_CHARSET
         TokenInfo.Font.Color = clWindowText
         TokenInfo.Font.Height = -12

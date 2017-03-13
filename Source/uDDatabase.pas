@@ -8,7 +8,7 @@ uses
   Graphics, Controls, Forms, Dialogs, StdCtrls, Menus, ComCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
   BCEditor.Editor,
-  uSession, uBase;
+  uSession, uBase, BCEditor.Highlighter;
 
 type
   TDDatabase = class (TForm_Ext)
@@ -119,7 +119,7 @@ begin
   FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset); FCharsetChange(nil);
   FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
 
-  FSource.Lines.Text := Database.Source;
+  FSource.Text := Database.Source;
 
   TSSource.TabVisible := Database.Source <> '';
 end;
@@ -511,7 +511,7 @@ end;
 procedure TDDatabase.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
-    FSource.Lines.Text := Database.Source + #13#10;
+    FSource.Text := Database.Source + #13#10;
 end;
 
 procedure TDDatabase.UMChangePreferences(var Message: TMessage);

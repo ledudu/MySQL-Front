@@ -9,7 +9,7 @@ uses
   BCEditor.Editor,
   StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDEvent = class(TForm_Ext)
@@ -172,7 +172,7 @@ begin
   FEnabled.Checked := Event.Enabled;
   FPreserve.Checked := Event.Preserve;
   FComment.Text := SQLUnwrapStmt(Event.Comment, Database.Session.Connection.MySQLVersion);
-  FStatement.Lines.Text := Event.Stmt;
+  FStatement.Text := Event.Stmt;
 
   FDefiner.Caption := Event.Definer;
   FCreated.Caption := SysUtils.DateTimeToStr(Event.Created, LocaleFormatSettings);
@@ -334,7 +334,7 @@ begin
     NewEvent.Preserve := FPreserve.Checked;
     if (not Assigned(Event) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewEvent.Comment, Database.Session.Connection.MySQLVersion))) then
       NewEvent.Comment := Trim(FComment.Text);
-    NewEvent.Stmt := FStatement.Lines.Text;
+    NewEvent.Stmt := FStatement.Text;
 
     SessionState := ssAlter;
     if (not Assigned(Event)) then
@@ -491,7 +491,7 @@ end;
 procedure TDEvent.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
-    FSource.Lines.Text := Event.Source
+    FSource.Text := Event.Source
 end;
 
 procedure TDEvent.UMChangePreferences(var Message: TMessage);

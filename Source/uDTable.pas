@@ -10,7 +10,7 @@ uses
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDTable = class (TForm_Ext)
@@ -1681,7 +1681,7 @@ procedure TDTable.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
     if (Assigned(NewTable)) then
-      FSource.Lines.Text := NewTable.Source;
+      FSource.Text := NewTable.Source;
 end;
 
 procedure TDTable.TSTriggersShow(Sender: TObject);

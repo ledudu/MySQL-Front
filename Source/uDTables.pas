@@ -10,7 +10,7 @@ uses
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDTables = class (TForm_Ext)
@@ -463,8 +463,8 @@ begin
   if (FSource.Lines.Count = 0) then
     for I := 0 to Tables.Count - 1 do
     begin
-      if (I > 0) then FSource.Lines.Text := FSource.Lines.Text + #13#10;
-      FSource.Lines.Text := FSource.Lines.Text + TSBaseTable(Tables[I]).Source;
+      if (I > 0) then FSource.Text := FSource.Text + #13#10;
+      FSource.Text := FSource.Text + TSBaseTable(Tables[I]).Source;
     end;
 end;
 

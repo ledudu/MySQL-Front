@@ -816,7 +816,7 @@ begin
   else if (Assigned(Database)) then
     Filename := Database.Name
   else if (Assigned(Session)) then
-    Filename := Session.Caption
+    Filename := Session.Account.Connection.Host
   else
     Filename := '';
 

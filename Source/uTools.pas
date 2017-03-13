@@ -4349,6 +4349,16 @@ begin
   if (Assigned(DataSet)) then
     DataSet.Free();
 
+  // Debug 2017-03-02
+  Assert(not Data
+    or not Assigned(ResultHandle)
+    or not Assigned(ResultHandle.SyncThread)
+    or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
+    'Success: ' + IntToStr(Ord(Success)) + #13#10
+    + 'Data: ' + BoolToStr(Data, True) + #13#10
+    + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
+    + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+
   if ((Table is TSBaseTable) and not (Self is TTExportSQL)) then
     for I := 0 to TSBaseTable(Table).TriggerCount - 1 do
       if (Success = daSuccess) then
@@ -4361,6 +4371,7 @@ begin
     or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
+    + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
     + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
 end;
 

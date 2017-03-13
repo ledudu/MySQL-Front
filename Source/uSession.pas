@@ -2890,7 +2890,8 @@ begin
   for I := 0 to Source.Count - 1 do
   begin
     AddKey(Source.Key[I]);
-    Key[I].Created := False;
+    Key[I].Created := Source.Key[I].Created;
+    Key[I].FOriginalName := Source.Key[I].OriginalName;
   end;
 end;
 
@@ -3648,6 +3649,7 @@ begin
   begin
     AddForeignKey(Source.ForeignKey[I]);
     ForeignKey[I].Created := Source.ForeignKey[I].Created;
+    ForeignKey[I].FOriginalName := Source.ForeignKey[I].OriginalName;
   end;
   FValid := Source.Valid;
 end;
@@ -8281,7 +8283,7 @@ begin
       OldForeignKey := Table.ForeignKeys[I];
       Found := False;
       for J := 0 to NewTable.ForeignKeys.Count - 1 do
-        if (lstrcmpi(PChar(NewTable.ForeignKeys[J].OriginalName), PChar(OldForeignKey.Name)) = 0) then
+        if (Table.ForeignKeys.NameCmp(PChar(NewTable.ForeignKeys[J].OriginalName), PChar(OldForeignKey.Name)) = 0) then
           Found := NewTable.ForeignKeys[J].Equal(OldForeignKey);
       if (not Found) then
       begin
@@ -12486,35 +12488,35 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-  if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
-  begin
-    SQL := SQLTrimStmt(Text, Len);
-    if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
-    begin
-      if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
-      begin
-        SetString(S, Text, Len);
-        UnparsableSQL := UnparsableSQL
-          + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
-          + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
-          + Trim(SQL) + #13#10 + #13#10 + #13#10;
-      end
-      else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
-      begin
-        if (SQLParser.ErrorCode = PE_IncompleteToken) then
-          UnparsableSQL := UnparsableSQL
-            + '# MonitorExecutedStmts()' + #13#10
-            + '# Error: ' + SQLParser.ErrorMessage + #13#10
-            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
-        else
-          UnparsableSQL := UnparsableSQL
-            + '# MonitorExecutedStmts()' + #13#10
-            + '# Error: ' + SQLParser.ErrorMessage + #13#10
-            + Trim(SQL) + #13#10 + #13#10 + #13#10;
-      end;
-      SQLParser.Clear();
-    end;
-  end;
+//  if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
+//  begin
+//    SQL := SQLTrimStmt(Text, Len);
+//    if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
+//    begin
+//      if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
+//      begin
+//        SetString(S, Text, Len);
+//        UnparsableSQL := UnparsableSQL
+//          + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
+//          + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
+//          + Trim(SQL) + #13#10 + #13#10 + #13#10;
+//      end
+//      else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
+//      begin
+//        if (SQLParser.ErrorCode = PE_IncompleteToken) then
+//          UnparsableSQL := UnparsableSQL
+//            + '# MonitorExecutedStmts()' + #13#10
+//            + '# Error: ' + SQLParser.ErrorMessage + #13#10
+//            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
+//        else
+//          UnparsableSQL := UnparsableSQL
+//            + '# MonitorExecutedStmts()' + #13#10
+//            + '# Error: ' + SQLParser.ErrorMessage + #13#10
+//            + Trim(SQL) + #13#10 + #13#10 + #13#10;
+//      end;
+//      SQLParser.Clear();
+//    end;
+//  end;
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
@@ -12609,7 +12611,7 @@ begin
                     else
                     begin
                       Table.Invalidate();
-                      if (Table is TSBaseTable) then
+                      if ((DDLStmt.ObjectType = otTable) and (Table is TSBaseTable)) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);

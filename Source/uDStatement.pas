@@ -8,7 +8,7 @@ uses
   Graphics, Controls, Forms, Dialogs, Menus, ComCtrls, StdCtrls,
   BCEditor.Editor,
   Forms_Ext, StdCtrls_Ext,
-  uBase, uSession;
+  uBase, uSession, BCEditor.Highlighter;
 
 type
   TDStatementViewType = (vtQuery, vtStatement, vtProcess);
@@ -180,7 +180,7 @@ begin
   TSSource.TabVisible := SQL <> '';
   if (TSSource.TabVisible) then
   begin
-    FSource.Lines.Text := SQL + #13#10;
+    FSource.Text := SQL + #13#10;
     FSource.ReadOnly := True;
   end;
 

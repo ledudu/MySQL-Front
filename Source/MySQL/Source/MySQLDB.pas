@@ -2692,8 +2692,13 @@ begin
       if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
       if (Assigned(SyncThread) and (SyncThread.State in [ssExecutingFirst, ssExecutingNext]) and (SyncThread.ErrorCode > 0)) then
-        SyncThread.State := ssReady;
-    until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
+      begin
+        Sync(SyncThread);
+        SyncThreadExecuted.WaitFor(INFINITE);
+      end;
+    until (not Assigned(SyncThread)
+      or (SyncThread.State in [ssClose, ssResult, ssReady])
+      or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
   end
   else
@@ -3098,11 +3103,6 @@ begin
                 ssReady:
                   if (SynchronCount > 0) then
                     SyncThreadExecuted.SetEvent();
-                {$IFDEF Debug}
-                ssReceivingResult: ;
-                else
-                  raise ERangeError.Create(SRangeError);
-                {$ENDIF}
               end;
             smResultHandle:
               if (KillThreadId > 0) then
@@ -3124,6 +3124,7 @@ begin
 
                 // 2017-02-20 ErrorCode: 0, TTool.DoError, no Result for SELECT query
                 // 2017-03-11 ErrorCode: 0, TTExportExcel is running in TSQLParser.ParseChecksumTableStmt, no result for SELECT query
+                // 2017-03-12 ErrorCode: 0, TTExportSQL is running in TDExport.OnError, no result for SELECT query
 
                 SyncThreadExecuted.SetEvent();
               end;
@@ -3686,11 +3687,10 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
-  DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+  DebugMonitor.Append('SyncExecutingFirst - 1' + #13#10
     + 'Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
     + 'SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
     + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
-    + 'LibLength: ' + IntToStr(LibLength) + #13#10
     + 'SyncThread.StmtIndex: ' + IntToStr(SyncThread.StmtIndex), ttDebug);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
@@ -3712,6 +3712,8 @@ begin
         Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
       else
       begin
+        DebugMonitor.Append('SyncExecutingFirst - 2' + #13#10
+          + 'LibLength: ' + IntToStr(LibLength), ttDebug);
         StartTime := Now();
         Lib.mysql_real_query(SyncThread.LibHandle, my_char(LibSQL), LibLength);
         SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
@@ -3746,6 +3748,10 @@ begin
       SyncThread.WarningCount := 0
     else
       SyncThread.WarningCount := Lib.mysql_warning_count(SyncThread.LibHandle);
+
+    DebugMonitor.Append('SyncExecutingFirst - 3' + #13#10
+      + 'errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
+      + 'field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
   end;
 end;
 
@@ -7063,7 +7069,8 @@ begin
 
   InternRecordBuffers.Clear();
   ClearBuffers();
-  if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
+  UpdateBufferCount();
+  if (ActiveBuffer() > 0) then
     InternalInitRecord(ActiveBuffer());
   for I := 0 to BufferCount - 1 do
     InternalInitRecord(Buffers[I]);
@@ -7082,6 +7089,8 @@ begin
     Connection.EndSynchron();
     if (Success) then
       Connection.SyncBindDataSet(Self);
+
+    Buffers[RecordCount]
   end;
 end;
 

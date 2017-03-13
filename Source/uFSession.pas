@@ -4395,8 +4395,8 @@ begin
   if (Assigned(ActiveBCEditor) and (Window.ActiveControl = ActiveBCEditor)) then
     if (ActiveBCEditor.SelText <> '') then
       WSQLHelp.Keyword := ActiveBCEditor.SelText
-    else if (ActiveBCEditor.WordAtCursor <> '') then
-      WSQLHelp.Keyword := ActiveBCEditor.WordAtCursor
+    else if (ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos] <> '') then
+      WSQLHelp.Keyword := ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos]
     else
       WSQLHelp.Keyword := ''
   else
@@ -5559,6 +5559,7 @@ begin
   Result.CompletionProposal.CompletionColumnIndex := 0;
   Result.CompletionProposal.Options := Result.CompletionProposal.Options
     - [cpoParseItemsFromText, cpoAddHighlighterKeywords] + [cpoResizeable];
+  Result.HideSelection := False;
   Result.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
   Result.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
   Result.LeftMargin.Bookmarks.Visible := False;
@@ -7084,7 +7085,7 @@ begin
       BCEditor.AlwaysShowCaret := True;
     end;
 
-    BCEditor.TextCaretPosition := BCEditor.PixelsToTextPosition(ClientCoord.X, ClientCoord.X);
+    BCEditor.CaretPos := BCEditor.ClientToText(ClientCoord.X, ClientCoord.X);
     Result := S_OK;
   end
   else if (Control is TMySQLDBGrid) then
@@ -14636,14 +14637,17 @@ begin
                 Session.Account.Favorites[I].Address := AddressByData(Event.Item);
             end;
 
-        if (Event.EventType = etItemRenamed) then
-        begin
-          URI.Address := FCurrentAddress;
-          if (ApplyObjectRenamed(ClassIndex, URI)) then
-          begin
-            FCurrentAddress := URI.Address;
-            AddressChanged(nil);
-          end;
+        URI.Address := FCurrentAddress;
+        case (Event.EventType) of
+          etItemDeleted:
+            if (DataByAddress(URI.Address) = Event.Item) then
+              FCurrentAddress := Session.Account.ExpandAddress('/');
+          etItemRenamed:
+            if (ApplyObjectRenamed(ClassIndex, URI)) then
+            begin
+              FCurrentAddress := URI.Address;
+              AddressChanged(nil);
+            end;
         end;
 
         URI.Free();
@@ -15048,7 +15052,7 @@ begin
     if (not Assigned(Window.ActiveControl)) then
       StatusBar.Panels[sbNavigation].Text := ''
     else if (Window.ActiveControl = ActiveBCEditor) then
-      StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveBCEditor.TextCaretPosition.Char) + ':' + IntToStr(ActiveBCEditor.TextCaretPosition.Line)
+      StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveBCEditor.CaretPos.X + 1) + ':' + IntToStr(ActiveBCEditor.CaretPos.Y)
     else if (Window.ActiveControl = ActiveListView) then
     begin
       // Debug 2017-02-12
@@ -15466,6 +15470,9 @@ begin
   Assert(Assigned(Session.Connection));
   // Debug 2017-03-11
   MainAction('aDPostObject');
+  TBCEditor(Sender).Modified;
+  SQLSingleStmt(SQL);
+  Assert(not (csDestroying in ComponentState));
 
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified
@@ -15572,7 +15579,7 @@ begin
       ActiveBCEditor.AlwaysShowCaret := True;
     end;
 
-    ActiveBCEditor.TextCaretPosition := ActiveBCEditor.PixelsToTextPosition(X, Y);
+    ActiveBCEditor.CaretPos := ActiveBCEditor.ClientToText(X, Y);
     ActiveBCEditor.Invalidate();
     ActiveBCEditor.Update();
   end;
@@ -15632,7 +15639,7 @@ end;
 
 procedure TFSession.BCEditorEnter(Sender: TObject);
 begin
-  if ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].BCEditor = Sender)) then
+  if ((View in [vEditor, vEditor2, vEditor3]) and Assigned(SQLEditors[View]) and (SQLEditors[View].BCEditor = Sender)) then
     ActiveBCEditorLog := SQLEditors[View].BCEditorLog;
 
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
@@ -16559,12 +16566,7 @@ begin
         ciBaseTable,
         ciView,
         ciSystemView:
-          begin
-            // Debug 2017-02-13
-            Assert(Assigned(CurrentData),
-              'CurrentAddress: ' + CurrentAddress);
-            TSTable(CurrentData).Update();
-          end;
+          TSTable(CurrentData).Update();
         ciProcesses:
           Session.Processes.Update();
         ciUsers:

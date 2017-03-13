@@ -59,7 +59,7 @@ function GetUTCTime(): TDateTime;
 function LocationToStr(Location: TELLocationInfo): string;
 {$ENDIF}
 function ProcAddrToStr(const Proc: Pointer): string;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 1;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 
 const
@@ -271,7 +271,7 @@ begin
   {$ENDIF}
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 1;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 {$IFNDEF Debug}
 {$IFDEF EurekaLog}

@@ -9,7 +9,7 @@ uses
   BCEditor.Editor,
   Forms_Ext, StdCtrls_Ext,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDView = class(TForm_Ext)
@@ -164,7 +164,7 @@ begin
   end;
   FFields.Items.EndUpdate();
 
-  FSource.Lines.Text := View.Source;
+  FSource.Text := View.Source;
 
   TSSource.TabVisible := Assigned(View) and (View.Source <> '');
 end;
@@ -526,7 +526,7 @@ begin
     FCheckOptionCascade.Checked := False;
     FCheckOptionLocal.Checked := False;
 
-    FStatement.Lines.Text := 'SELECT 1;';
+    FStatement.Text := 'SELECT 1;';
 
     TSSource.TabVisible := False;
   end
