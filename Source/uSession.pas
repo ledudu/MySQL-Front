@@ -11137,7 +11137,7 @@ begin
   begin
     // Debug 2017-02-09
     Assert(Assigned(Session));
-    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27
+    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14
     Assert(TObject(Session) is TSSession);
     Assert(Assigned(Session.Connection));
     Assert(TObject(Session.Connection) is TMySQLConnection);
@@ -12037,7 +12037,8 @@ begin
         for K := I - 1 downto 0 do
         begin
           // Debug 2017-02-19
-          Assert(not (TObject(List[K]) is TSDBObject) or Assigned(TSDBObject(List[I]).References[J]));
+          Assert(not (TObject(List[K]) is TSDBObject)
+            or (J < TSDBObject(List[I]).References.Count) and Assigned(TSDBObject(List[I]).References[J]));
 
           if ((TObject(List[K]) is TSDBObject)
             and (TSDBObject(List[K]) = TSDBObject(List[I]).References[J].DBObject)) then
@@ -12481,7 +12482,7 @@ var
   Parse: TSQLParse;
   Process: TSProcess;
   Routine: TSRoutine;
-  S: string;
+//  S: string;
   SQL: string;
   Table: TSTable;
   Trigger: TSTrigger;
@@ -12520,7 +12521,7 @@ begin
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
-      // Do nothing - but do not parse the Text further more
+      // Do nothing - and do not parse the Text further more
     else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);

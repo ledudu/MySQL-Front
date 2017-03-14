@@ -9,7 +9,7 @@ uses
   BCEditor.Editor,
   Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDTrigger = class(TForm_Ext)

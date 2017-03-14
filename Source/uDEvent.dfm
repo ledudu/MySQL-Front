@@ -243,8 +243,6 @@ object DEvent: TDEvent
           CompletionProposal.ShortCut = 16416
           CompletionProposal.Trigger.Chars = '.'
           CompletionProposal.Trigger.Enabled = False
-          Directories.Colors = 'Colors'
-          Directories.Highlighters = 'Highlighters'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -13
@@ -731,8 +729,6 @@ object DEvent: TDEvent
         CompletionProposal.ShortCut = 16416
         CompletionProposal.Trigger.Chars = '.'
         CompletionProposal.Trigger.Enabled = False
-        Directories.Colors = 'Colors'
-        Directories.Highlighters = 'Highlighters'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13

@@ -9,7 +9,7 @@ uses
   Forms_Ext, StdCtrls_Ext,
   BCEditor.Editor,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDRoutine = class(TForm_Ext)

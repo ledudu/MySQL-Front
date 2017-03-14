@@ -141,7 +141,7 @@ begin
   inherited;
 
   MouseDownPoint := Point(-1, -1);
-  FShowGripper := True; // not IsWine();
+  FShowGripper := True;
 end;
 
 procedure TForm_Ext.CreateWindowHandle(const Params: TCreateParams);

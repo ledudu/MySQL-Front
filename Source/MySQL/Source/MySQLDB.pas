@@ -2691,11 +2691,6 @@ begin
         MySQLConnectionOnSynchronize(SyncThread);
       if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
-      if (Assigned(SyncThread) and (SyncThread.State in [ssExecutingFirst, ssExecutingNext]) and (SyncThread.ErrorCode > 0)) then
-      begin
-        Sync(SyncThread);
-        SyncThreadExecuted.WaitFor(INFINITE);
-      end;
     until (not Assigned(SyncThread)
       or (SyncThread.State in [ssClose, ssResult, ssReady])
       or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
@@ -3475,6 +3470,8 @@ begin
   Inc(FWarningCount, SyncThread.WarningCount);
   FThreadId := SyncThread.LibThreadId;
 
+  DebugMonitor.Append('SyncExecuted - 1', ttDebug);
+
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
@@ -3542,10 +3539,13 @@ begin
     end;
   end;
 
+  DebugMonitor.Append('SyncExecuted - 2 KillThreadId: ' + IntToStr(KillThreadId) + ', Mode: ' + IntToStr(Ord(SyncThread.Mode)), ttDebug);
+
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
     if (KillThreadId > 0) then
     begin
+      DebugMonitor.Append('SyncExecuted - 3', ttDebug);
       KillThreadId := 0;
       SyncThread.State := ssResult;
       SyncHandledResult(SyncThread);
@@ -3619,6 +3619,8 @@ begin
       InOnResult := False;
     end;
   end;
+
+  DebugMonitor.Append('SyncExecuted - 4', ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecutingFirst(const SyncThread: TSyncThread);
@@ -3688,10 +3690,10 @@ begin
       Dec(LibLength);
 
   DebugMonitor.Append('SyncExecutingFirst - 1' + #13#10
-    + 'Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-    + 'SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-    + 'PacketLength: ' + IntToStr(PacketLength) + #13#10
-    + 'SyncThread.StmtIndex: ' + IntToStr(SyncThread.StmtIndex), ttDebug);
+    + '  Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+    + '  SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+    + '  PacketLength: ' + IntToStr(PacketLength) + #13#10
+    + '  SyncThread.StmtIndex: ' + IntToStr(SyncThread.StmtIndex), ttDebug);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -3713,7 +3715,7 @@ begin
       else
       begin
         DebugMonitor.Append('SyncExecutingFirst - 2' + #13#10
-          + 'LibLength: ' + IntToStr(LibLength), ttDebug);
+          + '  LibLength: ' + IntToStr(LibLength), ttDebug);
         StartTime := Now();
         Lib.mysql_real_query(SyncThread.LibHandle, my_char(LibSQL), LibLength);
         SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
@@ -3750,8 +3752,8 @@ begin
       SyncThread.WarningCount := Lib.mysql_warning_count(SyncThread.LibHandle);
 
     DebugMonitor.Append('SyncExecutingFirst - 3' + #13#10
-      + 'errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
-      + 'field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
+      + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
+      + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
   end;
 end;
 
@@ -3767,6 +3769,10 @@ begin
 
   if (SyncThread.ErrorCode = 0) then
     SyncThread.ResHandle := Lib.mysql_use_result(SyncThread.LibHandle);
+
+  DebugMonitor.Append('SyncExecutingNext -' + #13#10
+    + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
+    + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
 
   SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
   SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);

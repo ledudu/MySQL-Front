@@ -2266,6 +2266,8 @@ procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
 begin
   if (Point is TWLink) then
     raise ERangeError.Create('Point is TWLink');
+  if (Workbench.LinkPoints.IndexOf(Point) < 0) then
+    raise ERangeError.Create('Point already freed.');
 
   if (Line = Point.LineA) then
   begin

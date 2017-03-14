@@ -220,8 +220,6 @@ object DServer: TDServer
         CompletionProposal.ShortCut = 16416
         CompletionProposal.Trigger.Chars = '.'
         CompletionProposal.Trigger.Enabled = False
-        Directories.Colors = 'Colors'
-        Directories.Highlighters = 'Highlighters'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -238,8 +236,6 @@ object DServer: TDServer
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
-        Lines.Strings = (
-          'FSource')
         LineSpacing = 0
         MatchingPair.Enabled = True
         Minimap.Font.Charset = DEFAULT_CHARSET
@@ -254,6 +250,7 @@ object DServer: TDServer
         SyncEdit.Enabled = False
         SyncEdit.ShortCut = 24650
         TabOrder = 0
+        Text = 'FSource'
         TokenInfo.Font.Charset = DEFAULT_CHARSET
         TokenInfo.Font.Color = clWindowText
         TokenInfo.Font.Height = -12

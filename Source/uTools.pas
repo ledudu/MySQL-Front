@@ -1030,6 +1030,9 @@ begin
         Result := Sign(TTExport.TDBGridItem(Item1).Index - TTExport.TDBGridItem(Item2).Index)
       else
       begin
+        if (not (TObject(Item1) is TTExport.TDBObjectItem)) then
+          Write;
+
         // Debug 2017-02-28
         Assert(TObject(Item1) is TTExport.TDBObjectItem);
         Assert(TObject(Item2) is TTExport.TDBObjectItem);
@@ -4353,7 +4356,7 @@ begin
   Assert(not Data
     or not Assigned(ResultHandle)
     or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
+    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
@@ -4368,7 +4371,7 @@ begin
   Assert(not Data
     or not Assigned(ResultHandle)
     or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
+    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
@@ -4640,10 +4643,10 @@ begin
         if (Databases.IndexOf(Database) < 0) then
           Databases.Add(Database);
       end;
-    Databases.Sort(TToolItemCompareForSQL);
 
-    for I := 0 to Databases.Count - 1 do
-      Content := Content + SQLCreateDatabase(Databases[I]);
+    for I := 0 to Session.Databases.Count - 1 do
+      if (Databases.IndexOf(Session.Databases[I]) >= 0) then
+        Content := Content + SQLCreateDatabase(Session.Databases[I]);
 
     Databases.Free();
   end;

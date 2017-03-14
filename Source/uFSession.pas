@@ -3471,7 +3471,6 @@ begin
   begin
     ActiveBCEditor.Text := '';
     MainAction('aEDelete').Execute();
-    ActiveBCEditor.EndUpdate();
   end;
 end;
 
@@ -15639,7 +15638,7 @@ end;
 
 procedure TFSession.BCEditorEnter(Sender: TObject);
 begin
-  if ((View in [vEditor, vEditor2, vEditor3]) and Assigned(SQLEditors[View]) and (SQLEditors[View].BCEditor = Sender)) then
+  if ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].BCEditor = Sender)) then
     ActiveBCEditorLog := SQLEditors[View].BCEditorLog;
 
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;

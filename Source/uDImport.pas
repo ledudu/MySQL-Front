@@ -663,6 +663,7 @@ begin
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
       + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
       + 'Progress: ' + Progress + #13#10
+      + 'csDestroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
       + 'TimeToHide: ' + DateTimeToStr(Now() - TerminateTime));
 
   Session.UnRegisterEventProc(FormSessionEvent);

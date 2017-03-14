@@ -9,7 +9,7 @@ uses
   BCEditor.Editor,
   Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   uSession,
-  uBase;
+  uBase, BCEditor.Highlighter;
 
 type
   TDServer = class (TForm_Ext)
