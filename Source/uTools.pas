@@ -4295,7 +4295,10 @@ var
   IndexDefs: TIndexDefs;
   SQL: string;
   Table: TSTable;
+  OldSuccess: TDataAction; // Debug 2017-03-15
 begin
+  OldSuccess := Success;
+
   Table := TSTable(Item.DBObject);
 
   if (not Data or not Assigned(ResultHandle)) then
@@ -4358,6 +4361,7 @@ begin
     or not Assigned(ResultHandle.SyncThread)
     or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
+    + 'OldSuccess: ' + IntToStr(Ord(OldSuccess)) + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
     + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
@@ -4373,6 +4377,7 @@ begin
     or not Assigned(ResultHandle.SyncThread)
     or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
+    + 'OldSuccess: ' + IntToStr(Ord(OldSuccess)) + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
     + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));

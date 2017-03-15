@@ -3981,10 +3981,6 @@ end;
 
 procedure TFSession.aESelectAllExecute(Sender: TObject);
 begin
-  if (not Assigned(ActiveListView)) then
-    raise ERangeError.Create('Address: ' + CurrentAddress + #13#10
-      + 'Assigned: ' + BoolToStr(Assigned(GetActiveListView())));
-
   ActiveListView.SelectAll();
 end;
 
@@ -15468,10 +15464,11 @@ begin
   Assert(Assigned(Session));
   Assert(Assigned(Session.Connection));
   // Debug 2017-03-11
-  MainAction('aDPostObject');
+  Assert(Assigned(MainAction('aDPostObject')));
   TBCEditor(Sender).Modified;
   SQLSingleStmt(SQL);
   Assert(not (csDestroying in ComponentState));
+  Assert(not (csDestroying in Window.ComponentState));
 
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified

@@ -523,15 +523,16 @@ type
     TInternRecordBuffers = class(TList)
     strict private
       FDataSet: TMySQLDataSet;
+      FIndex: Integer;
       FRecordReceived: TEvent;
       function Get(Index: Integer): PInternRecordBuffer; inline;
       function GetSortDef(): TIndexDef; inline;
       procedure Put(Index: Integer; Buffer: PInternRecordBuffer); inline;
+      procedure SetIndex(AValue: Integer);
       property SortDef: TIndexDef read GetSortDef;
     public
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
-      Index: Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
@@ -541,6 +542,7 @@ type
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
       property DataSet: TMySQLDataSet read FDataSet;
+      property Index: Integer read FIndex write SetIndex;
       property RecordReceived: TEvent read FRecordReceived;
     end;
   strict private
@@ -3120,6 +3122,7 @@ begin
                 // 2017-02-20 ErrorCode: 0, TTool.DoError, no Result for SELECT query
                 // 2017-03-11 ErrorCode: 0, TTExportExcel is running in TSQLParser.ParseChecksumTableStmt, no result for SELECT query
                 // 2017-03-12 ErrorCode: 0, TTExportSQL is running in TDExport.OnError, no result for SELECT query
+                // 2017-03-15 ErrorCode: 0, TTExportExcel is running in TDExport.OnError, no result for SELECT query
 
                 SyncThreadExecuted.SetEvent();
               end;
@@ -3470,8 +3473,6 @@ begin
   Inc(FWarningCount, SyncThread.WarningCount);
   FThreadId := SyncThread.LibThreadId;
 
-  DebugMonitor.Append('SyncExecuted - 1', ttDebug);
-
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
@@ -3539,13 +3540,10 @@ begin
     end;
   end;
 
-  DebugMonitor.Append('SyncExecuted - 2 KillThreadId: ' + IntToStr(KillThreadId) + ', Mode: ' + IntToStr(Ord(SyncThread.Mode)), ttDebug);
-
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
     if (KillThreadId > 0) then
     begin
-      DebugMonitor.Append('SyncExecuted - 3', ttDebug);
       KillThreadId := 0;
       SyncThread.State := ssResult;
       SyncHandledResult(SyncThread);
@@ -3619,8 +3617,6 @@ begin
       InOnResult := False;
     end;
   end;
-
-  DebugMonitor.Append('SyncExecuted - 4', ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecutingFirst(const SyncThread: TSyncThread);
@@ -3689,12 +3685,6 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
-  DebugMonitor.Append('SyncExecutingFirst - 1' + #13#10
-    + '  Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
-    + '  SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
-    + '  PacketLength: ' + IntToStr(PacketLength) + #13#10
-    + '  SyncThread.StmtIndex: ' + IntToStr(SyncThread.StmtIndex), ttDebug);
-
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
     if (not NeedReconnect) then
@@ -3714,11 +3704,12 @@ begin
         Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
       else
       begin
-        DebugMonitor.Append('SyncExecutingFirst - 2' + #13#10
-          + '  LibLength: ' + IntToStr(LibLength), ttDebug);
         StartTime := Now();
         Lib.mysql_real_query(SyncThread.LibHandle, my_char(LibSQL), LibLength);
         SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
+        DebugMonitor.Append('SyncExecutingFirst - 2' + #13#10
+          + '  LibLength: ' + IntToStr(LibLength) + #13#10
+          + '  LibSQL: ' + LibSQL, ttDebug);
       end;
 
       if (Lib.mysql_errno(SyncThread.LibHandle) = ER_MUST_CHANGE_PASSWORD) then
@@ -3744,16 +3735,16 @@ begin
     if ((Lib.mysql_errno(SyncThread.LibHandle) = 0) and not SyncThread.Terminated) then
       SyncThread.ResHandle := Lib.mysql_use_result(SyncThread.LibHandle);
 
+    DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+      + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
+      + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
+
     SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
     SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
     if ((MySQLVersion < 40100) or not Assigned(Lib.mysql_warning_count)) then
       SyncThread.WarningCount := 0
     else
       SyncThread.WarningCount := Lib.mysql_warning_count(SyncThread.LibHandle);
-
-    DebugMonitor.Append('SyncExecutingFirst - 3' + #13#10
-      + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
-      + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
   end;
 end;
 
@@ -3807,10 +3798,12 @@ begin
   end;
 
   DebugMonitor.Append('SyncHandledResult - 1 StmtIndex: ' + IntToStr(SyncThread.StmtIndex)
+    + ', Index: ' + IntToStr(SyncThread.StmtIndex)
     + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count)
     + ', State: ' + IntToStr(Ord(SyncThread.State))
     + ', MultiStatements: ' + BoolToStr(MultiStatements, True)
     + ', LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
+    + ', mysql_field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle))
     + ', mysql_more_results: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
 
   if (SyncThread.State = ssReady) then
@@ -5827,7 +5820,7 @@ begin
   inherited;
 
   if (Index = Count) then
-    Dec(Self.Index);
+    Self.Index := Self.Index - 1;
 end;
 
 destructor TMySQLDataSet.TInternRecordBuffers.Destroy();
@@ -5931,6 +5924,14 @@ end;
 procedure TMySQLDataSet.TInternRecordBuffers.Put(Index: Integer; Buffer: PInternRecordBuffer);
 begin
   Items[Index] := Buffer;
+end;
+
+procedure TMySQLDataSet.TInternRecordBuffers.SetIndex(AValue: Integer);
+begin
+  if (AValue < -1) then
+    raise EAssertionFailed.Create('AValue: ' + IntToStr(AValue));
+
+  FIndex := AValue;
 end;
 
 { TMySQLDataSet ***************************************************************}
@@ -6326,7 +6327,8 @@ begin
         + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
         + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
         + 'GetMode: ' + IntToStr(Ord(GetMode)));
-    // 2017-03-11 CallStack: TMySQLTable.Sort, NewIndex = -1, Count = 0, grOk
+    // 2017-03-11 CallStack: TMySQLTable.Sort, NewIndex = -1, Count = 0, gmNext
+    // 2017-03-15 CallStack: TMySQLDataSet.FindRecord, NewIndex = -1, Index = -2, Count = 0, gmNext
 
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;

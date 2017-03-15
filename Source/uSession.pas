@@ -1881,6 +1881,14 @@ begin
     begin
       if (NewIndex > Index) then
         Dec(NewIndex);
+
+      // Debug 2017-03-15
+      Assert((0 <= NewIndex) and (NewIndex < Items.Count),
+        'Index: ' + IntToStr(Index) + #13#10
+        + 'NewIndex: ' + IntToStr(NewIndex) + #13#10
+        + 'Name: ' + Name + #13#10
+        + 'AName: ' + AName);
+
       Items.Move(Index, NewIndex);
     end;
     FName := AName;
@@ -4661,7 +4669,7 @@ begin
               else if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
               begin
                 Field.Default := 'CURRENT_TIMESTAMP';
-                if (SQLParseChar(Parse, '(')) then
+                if (SQLParseChar(Parse, '(') and not SQLParseChar(Parse, ')')) then
                 begin
                   Field.DefaultSize := SysUtils.StrToInt(SQLParseValue(Parse));
                   SQLParseChar(Parse, ')');

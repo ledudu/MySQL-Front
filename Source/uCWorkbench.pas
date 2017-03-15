@@ -2271,17 +2271,25 @@ begin
 
   if (Line = Point.LineA) then
   begin
-    if (Assigned(Point.ControlB)) then
-      Point.LineA.PointA.ControlB := Point.ControlB;
+    if (Assigned(Point.LineA.PointA)) then
+      Point.LineA.PointA.ControlB := Point.ControlB
+    else
+      raise ERangeError.Create('PointA not assigned');
     if (Assigned(Line.PointB.LineB)) then
-      Line.PointB.LineB.PointA := Line.PointA;
+      Line.PointB.LineB.PointA := Line.PointA
+    else
+      raise ERangeError.Create('LineB not assigned');
   end
   else if (Line = Point.LineB) then
   begin
     if (Assigned(Point.LineB.PointB)) then
-      Point.LineB.PointB.ControlA := Point.ControlA;
+      Point.LineB.PointB.ControlA := Point.ControlA
+    else
+      raise ERangeError.Create('PointB not assigned');
     if (Assigned(Line.PointA.LineA)) then
-      Line.PointA.LineA.PointB := Line.PointB;
+      Line.PointA.LineA.PointB := Line.PointB
+    else
+      raise ERangeError.Create('LineA not assigned');
   end
   else
     raise ERangeError.Create('Line is not attached to the Point.');

@@ -336,11 +336,9 @@ object DUser: TDUser
         Top = 8
         Width = 297
         Height = 187
-        Cursor = crIBeam
         ActiveLine.Indicator.Visible = False
         ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
-        Caret.Options = []
         CodeFolding.Hint.Font.Charset = DEFAULT_CHARSET
         CodeFolding.Hint.Font.Color = clWindowText
         CodeFolding.Hint.Font.Height = -12
@@ -363,10 +361,7 @@ object DUser: TDUser
             Title.Font.Name = 'Courier New'
             Title.Font.Style = []
           end>
-        CompletionProposal.SecondaryShortCut = 0
-        CompletionProposal.ShortCut = 16416
         CompletionProposal.Trigger.Chars = '.'
-        CompletionProposal.Trigger.Enabled = False
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -383,8 +378,6 @@ object DUser: TDUser
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
-        LineSpacing = 0
-        MatchingPair.Enabled = True
         Minimap.Font.Charset = DEFAULT_CHARSET
         Minimap.Font.Color = clWindowText
         Minimap.Font.Height = -1
@@ -393,11 +386,8 @@ object DUser: TDUser
         ReadOnly = True
         RightMargin.Visible = False
         Scroll.Options = [soPastEndOfLine, soWheelClickMove]
-        SpecialChars.Style = scsDot
         SyncEdit.Enabled = False
-        SyncEdit.ShortCut = 24650
         TabOrder = 0
-        Text = 'FSource'
         TokenInfo.Font.Charset = DEFAULT_CHARSET
         TokenInfo.Font.Color = clWindowText
         TokenInfo.Font.Height = -12
@@ -408,7 +398,6 @@ object DUser: TDUser
         TokenInfo.Title.Font.Height = -12
         TokenInfo.Title.Font.Name = 'Courier New'
         TokenInfo.Title.Font.Style = []
-        UndoOptions = [uoGroupUndo]
         WordWrap.Indicator.Bitmap.Data = {
           7E030000424D7E0300000000000036000000280000000F0000000E0000000100
           2000000000004803000000000000000000000000000000000000FF00FF00FF00
