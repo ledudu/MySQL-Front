@@ -3803,7 +3803,6 @@ begin
     + ', State: ' + IntToStr(Ord(SyncThread.State))
     + ', MultiStatements: ' + BoolToStr(MultiStatements, True)
     + ', LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
-    + ', mysql_field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle))
     + ', mysql_more_results: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
 
   if (SyncThread.State = ssReady) then
