@@ -88,8 +88,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  CommDlg, Dlgs, ActiveX, WinSpool,
-  RTLConsts, StrUtils, SysConst, ComObj,
+  CommDlg, Dlgs,
+  RTLConsts, StrUtils, SysConst,
   Forms, Consts;
 
 const

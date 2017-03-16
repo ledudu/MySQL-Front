@@ -4,7 +4,8 @@ interface {********************************************************************}
 
 uses
   Windows,
-  Classes, SysUtils, Registry, IniFiles,
+  Classes, SysUtils, IniFiles,
+  Registry,
   XMLDoc, XMLIntf,
   Controls, Forms, ComCtrls, Graphics,
   BCEditor.Editor;

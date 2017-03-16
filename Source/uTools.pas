@@ -725,7 +725,7 @@ implementation {***************************************************************}
 
 uses
   ActiveX, Shlwapi,
-  SysConst, UITypes, Types, RegularExpressionsCore, Math, Variants, Registry, StrUtils,
+  SysConst, UITypes, Types, RegularExpressionsCore, Math, Variants, StrUtils,
   DBCommon, DBConsts,
   Forms,
   {$IFDEF EurekaLog}
@@ -1188,16 +1188,7 @@ begin
 
   Size := MaxCharSize * Len;
   Reallocate(Size);
-  try
-    Len := WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, Buffer.Write, Buffer.Size - Self.Size);
-  except
-    // Debug 2016-11-16
-    on E: Exception do
-      if (WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, nil, 0) > Buffer.Size - Self.Size) then
-        raise ERangeError.Create(SRangeError)
-      else
-        raise E;
-  end;
+  Len := WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, Buffer.Write, Buffer.Size - Self.Size);
   Buffer.Write := @Buffer.Write[Len];
 end;
 
@@ -3154,10 +3145,10 @@ begin
   begin
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
       DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+    else if (not SQL_SUCCEEDED(SQLStatistics(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, SQL_INDEX_UNIQUE, SQL_QUICK))) then
+      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, False)
     else
     begin
-      ODBCException(Stmt, SQLStatistics(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, SQL_INDEX_UNIQUE, SQL_QUICK));
-
       ODBCException(Stmt, SQLBindCol(Stmt, 4, SQL_C_SSHORT, @NonUnique, SizeOf(NonUnique), @cbNonUnique));
       ODBCException(Stmt, SQLBindCol(Stmt, 6, SQL_C_WCHAR, @IndexName, SizeOf(IndexName), @cbIndexName));
       ODBCException(Stmt, SQLBindCol(Stmt, 7, SQL_C_SSHORT, @IndexType, SizeOf(IndexType), @cbIndexType));
@@ -3962,10 +3953,6 @@ begin
         begin
           if (Self is TTExportSQL) then
           begin
-            // Debug 2016-11-25
-            if (not Assigned(Items)) then
-              raise ERangeError.Create(SRangeError);
-
             Item := Items.Items[I];
             DBObjectItem := TDBObjectItem(Item);
             if (DBObjectItem.ClassType <> TDBObjectItem) then
@@ -4143,17 +4130,7 @@ begin
               end;
 
               if (DataTable and (Success <> daSuccess)) then
-                Session.Connection.CancelResultHandle(ResultHandle)
-              else
-              begin
-                // Debug 2017-02-16
-                Assert(not DataTable
-                  or not Assigned(ResultHandle.SyncThread)
-                  or (ResultHandle.SyncThread.DebugState in [ssNext, ssReady]),
-                  'Success: ' + IntToStr(Ord(Success)) + #13#10
-                  + 'DataTable: ' + BoolToStr(DataTable, True) + #13#10
-                  + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
-              end;
+                Session.Connection.CancelResultHandle(ResultHandle);
             end;
           end;
 
@@ -4295,10 +4272,8 @@ var
   IndexDefs: TIndexDefs;
   SQL: string;
   Table: TSTable;
-  OldSuccess: TDataAction; // Debug 2017-03-15
+  Progress: string; // Debug 2017-03-15
 begin
-  OldSuccess := Success;
-
   Table := TSTable(Item.DBObject);
 
   if (not Data or not Assigned(ResultHandle)) then
@@ -4306,11 +4281,16 @@ begin
   else
   begin
     DataSet := TMySQLQuery.Create(nil);
+    Progress := Progress + 'a';
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
+      Progress := Progress + 'b';
       DataSet.Open(ResultHandle^);
       if (not DataSet.Active) then
+      begin
+        Progress := Progress + 'c';
         DoError(DatabaseError(Session), Item, False, SQL);
+      end;
     end;
 
     if (Success = daSuccess) then
@@ -4353,7 +4333,10 @@ begin
     Item.RecordsSum := Item.RecordsDone;
 
   if (Assigned(DataSet)) then
+  begin
+    Progress := Progress + 'd';
     DataSet.Free();
+  end;
 
   // Debug 2017-03-02
   Assert(not Data
@@ -4361,7 +4344,7 @@ begin
     or not Assigned(ResultHandle.SyncThread)
     or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
-    + 'OldSuccess: ' + IntToStr(Ord(OldSuccess)) + #13#10
+    + 'Progress: ' + Progress + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
     + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
@@ -4370,17 +4353,6 @@ begin
     for I := 0 to TSBaseTable(Table).TriggerCount - 1 do
       if (Success = daSuccess) then
         ExecuteTrigger(TSBaseTable(Table).Triggers[I]);
-
-  // Debug 2017-03-02
-  Assert(not Data
-    or not Assigned(ResultHandle)
-    or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
-    'Success: ' + IntToStr(Ord(Success)) + #13#10
-    + 'OldSuccess: ' + IntToStr(Ord(OldSuccess)) + #13#10
-    + 'Data: ' + BoolToStr(Data, True) + #13#10
-    + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
-    + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
 end;
 
 procedure TTExport.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -4726,14 +4698,6 @@ begin
       Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
-
-    {$IFDEF Debug}
-      for I := 0 to Table.References.Count - 1 do
-        if (not Assigned(Table.References[I].DBObject)) then
-          Content := Content + '# Reference to ' + Table.References[I].DatabaseName + '.' + Table.References[I].DBObjectName + ' - ClassType: ' + Table.References[I].DBObjectClass.ClassName + ' (not found!)'#13#10
-        else
-          Content := Content + '# Reference to ' + Session.Connection.EscapeIdentifier(Table.References[I].DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.References[I].DBObject.Name) + ' - ClassType: ' + Table.References[I].DBObject.ClassName + #13#10;
-    {$ENDIF}
 
     Content := Content + Table.GetSourceEx(DropStmts, CrossReferencedObjects);
   end;

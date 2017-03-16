@@ -646,12 +646,10 @@ type
     private
       FSession: TFSession;
       FBCEditor: TBCEditor;
-      FBCEditorLog: TMySQLMonitor;
       PDBGrid: TPanel_Ext;
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
-      procedure ProcessCommand(ASender: TObject; var ACommand: TBCEditorCommand; const AChar: Char; AData: Pointer);
       procedure TCResultChange(Sender: TObject);
     protected
       procedure DataSetAfterOpen(DataSet: TDataSet);
@@ -665,7 +663,6 @@ type
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
       property BCEditor: TBCEditor read FBCEditor;
-      property BCEditorLog: TMySQLMonitor read FBCEditorLog;
     end;
 
     TSObjectDesktop = class(TSObject.TDesktop)
@@ -1148,7 +1145,8 @@ implementation {***************************************************************}
 
 uses
   MMSystem, ShellAPI, UxTheme, RichEdit, ShLwApi,
-  Math, Variants, Types, StrUtils, SysConst, UITypes, ComObj,
+  Math, Variants, Types, StrUtils, SysConst, UITypes,
+  System.Win.ComObj,
   DBConsts, DBCommon,
   XMLDoc,
   Clipbrd, Themes, FileCtrl, Consts,
@@ -1400,10 +1398,6 @@ begin
   PDBGrid := APDBGrid;
   Results := nil;
   TCResult := nil;
-
-  FBCEditorLog := TMySQLMonitor.Create(nil);
-  FBCEditorLog.CacheSize := 1000;
-  FBCEditor.OnProcessCommand := ProcessCommand;
 end;
 
 procedure TFSession.TSQLEditor.DataSetAfterOpen(DataSet: TDataSet);
@@ -1416,7 +1410,6 @@ begin
   CloseResult();
   if (Assigned(Results)) then
     Results.Free();
-  FBCEditorLog.Free();
   if (PDBGrid <> FSession.PSQLEditorDBGrid) then
     PDBGrid.Free();
 
@@ -1431,14 +1424,6 @@ begin
     Result := TResult(Results[0]^).DBGrid
   else
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
-end;
-
-procedure TFSession.TSQLEditor.ProcessCommand(ASender: TObject; var ACommand: TBCEditorCommand; const AChar: Char; AData: Pointer);
-var
-  Ident: string;
-begin
-  EditorCommandToIdent(ACommand, Ident);
-  FBCEditorLog.Append(Ident + ', ' + AChar + ', Data: ' + BoolToStr(Assigned(AData), True) + ', Lines: ' + IntToStr(TCustomBCEditor(ASender).Lines.Count), ttDebug);
 end;
 
 function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -1495,7 +1480,14 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
+try
       FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+except // Debug 2017-03-16
+  on E: Exception do
+    raise ERangeError.Create(E.Message + #13#10
+      + 'Length: ' + IntToStr(Length(FBCEditor.Text)) + #13#10
+      + 'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength));
+end;
       FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
@@ -5562,6 +5554,7 @@ begin
   Result.LeftMargin.LineState.Enabled := False;
   Result.LeftMargin.Marks.Visible := False;
   Result.LeftMargin.MarksPanel.Visible := False;
+  Result.MatchingPair.Enabled := False;
   Result.RightMargin.Visible := False;
   Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint];
   Result.SyncEdit.Enabled := False;
@@ -6040,6 +6033,9 @@ begin
 
     if (Assigned(DBGrid)) then
       DBGridColEnter(DBGrid);
+
+    // Debug 2017-03-16
+    Assert(Assigned(ActiveDBGrid.DataSource.DataSet));
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
@@ -6747,8 +6743,7 @@ begin
       aVBlobText.Checked := True;
 
       // Debug 2017-02-22
-      Assert(FText.Visible);
-      Assert(FText.Parent.Visible);
+      Assert(FText.Visible, 'Visible: ' + BoolToStr((Sender = aVBlobText) or not Assigned(Sender) and aVBlobText.Checked, True));
 
       Window.ActiveControl := FText;
       if (Key = VK_RETURN) then
@@ -10097,15 +10092,16 @@ begin
 end;
 
 function TFSession.GetWindow(): TForm_Ext;
+var
+  Control: TWinControl;
 begin
-  if (Owner is TForm_Ext) then
-    Result := TForm_Ext(Owner)
+  Control := GetParentForm(Self);
+  if (Control is TForm_Ext) then
+    Result := TForm_Ext(Control)
+  else if (not Assigned(Control)) then
+    raise ERangeError.Create('Parent not set')
   else
-    try
-      raise ERangeError.Create(TObject(Owner).ClassName);
-    except
-      raise ERangeError.Create('Owner not set')
-    end;
+    raise ERangeError.Create(TObject(Control).ClassName);
 end;
 
 procedure TFSession.ghmCopyClick(Sender: TObject);
@@ -13162,8 +13158,7 @@ begin
           ActiveBCEditor.SelText := Text
         else
         begin
-          ActiveBCEditor.Lines.Clear();
-          ActiveBCEditor.Lines.Text := Text;
+          ActiveBCEditor.Text := Text;
           SQLEditors[View].Filename := Import.Filename;
           SQLEditors[View].FileCodePage := Import.CodePage;
           URI := TUURI.Create(CurrentAddress);
@@ -13178,7 +13173,6 @@ begin
           Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
           Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
         end;
-        ActiveBCEditor.ClearUndo();
         ActiveBCEditor.Modified := Import.SetNamesApplied;
 
         Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
@@ -15454,6 +15448,9 @@ begin
   end;
   Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
 
+  // Debug 2017-03-16
+  Assert(not (View in [vEditor, vEditor2, vEditor3]) or Assigned(SQLEditors[View]));
+
   MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
   MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
   MainAction('aERedo').Enabled := TBCEditor(Sender).CanRedo;
@@ -15635,9 +15632,6 @@ end;
 
 procedure TFSession.BCEditorEnter(Sender: TObject);
 begin
-  if ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].BCEditor = Sender)) then
-    ActiveBCEditorLog := SQLEditors[View].BCEditorLog;
-
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
   MainAction('aEPasteFromFile').OnExecute := aEPasteFromExecute;
 
@@ -15660,8 +15654,6 @@ begin
   MainAction('aHSQL').ShortCut := 0;
 
   SynCompletionPending.Active := False;
-
-  ActiveBCEditorLog := nil;
 end;
 
 procedure TFSession.BCEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);

@@ -11144,6 +11144,7 @@ begin
   if (ErrorCode = 0) then
   begin
     // Debug 2017-02-09
+    Assert(MySQLSyncThreads.IndexOf(DataHandle) >= 0);
     Assert(Assigned(Session));
     Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14
     Assert(TObject(Session) is TSSession);
@@ -12497,35 +12498,28 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-//  if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
-//  begin
-//    SQL := SQLTrimStmt(Text, Len);
-//    if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
-//    begin
-//      if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
-//      begin
-//        SetString(S, Text, Len);
+  if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
+  begin
+    SQL := SQLTrimStmt(Text, Len);
+    if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
+    begin
+      if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
+      begin
 //        UnparsableSQL := UnparsableSQL
 //          + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
 //          + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
 //          + Trim(SQL) + #13#10 + #13#10 + #13#10;
-//      end
-//      else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
-//      begin
-//        if (SQLParser.ErrorCode = PE_IncompleteToken) then
-//          UnparsableSQL := UnparsableSQL
-//            + '# MonitorExecutedStmts()' + #13#10
-//            + '# Error: ' + SQLParser.ErrorMessage + #13#10
-//            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
-//        else
-//          UnparsableSQL := UnparsableSQL
-//            + '# MonitorExecutedStmts()' + #13#10
-//            + '# Error: ' + SQLParser.ErrorMessage + #13#10
-//            + Trim(SQL) + #13#10 + #13#10 + #13#10;
-//      end;
-//      SQLParser.Clear();
-//    end;
-//  end;
+      end
+      else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
+      begin
+        UnparsableSQL := UnparsableSQL
+          + '# MonitorExecutedStmts()' + #13#10
+          + '# Error: ' + SQLParser.ErrorMessage + #13#10
+          + Trim(SQL) + #13#10 + #13#10 + #13#10;
+      end;
+      SQLParser.Clear();
+    end;
+  end;
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then

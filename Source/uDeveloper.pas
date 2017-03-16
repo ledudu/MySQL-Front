@@ -71,7 +71,6 @@ const
     + '\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])';
 
 var
-  ActiveBCEditorLog: TMySQLMonitor;
   LastUpdateCheck: TDateTime;
   ObsoleteVersion: Integer;
   OnlineVersion: Integer;
@@ -90,7 +89,8 @@ implementation
 
 uses
   ActiveX,
-  SyncObjs, DateUtils, IOUtils, Registry,
+  SyncObjs, DateUtils, IOUtils,
+  Registry,
   XMLIntf, XMLDoc
 {$IFDEF EurekaLog}
   , Forms,
@@ -1032,14 +1032,6 @@ begin
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
-
-    if (Assigned(ActiveBCEditorLog)) then
-    begin
-      Result := Result + #13#10#13#10;
-      Result := Result + 'BCEditor' + #13#10;
-      Result := Result + StringOfChar('-', 72) + #13#10;
-      Result := Result + ActiveBCEditorLog.CacheText;
-    end;
   end;
 end;
 
@@ -1154,7 +1146,6 @@ initialization
 //  end;
   {$ENDIF}
 
-  ActiveBCEditorLog := nil;
   InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
   LastUpdateCheck := 0;
   SetLength(ModuleFilename, MAX_PATH + 1);

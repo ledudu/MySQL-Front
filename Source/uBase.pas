@@ -102,7 +102,8 @@ implementation {***************************************************************}
 
 uses
   ShlObj, ActiveX, CommCtrl, RichEdit,
-  UITypes, StrUtils, Math, Registry,
+  UITypes, StrUtils, Math,
+  System.Win.Registry,
   DB, DBCommon, DBCommonTypes,
   StdActns, StdCtrls,
   uSession;

@@ -510,6 +510,7 @@ type
     TTextWidth = function (const Text: string): Integer of object;
     PInternRecordBuffer = ^TInternRecordBuffer;
     TInternRecordBuffer = record
+      Identifier: Integer;
       NewData: TMySQLQuery.PRecordBufferData;
       OldData: TMySQLQuery.PRecordBufferData;
       VisibleInFilter: Boolean;
@@ -921,6 +922,7 @@ const
 var
   LocaleFormatSettings: TFormatSettings;
   MySQLConnectionOnSynchronize: TMySQLConnection.TSynchronizeEvent;
+  MySQLSyncThreads: TMySQLSyncThreads; // ... should be in implementation
 
 implementation {***************************************************************}
 
@@ -1021,7 +1023,6 @@ type
 var
   DataSetNumber: Integer;
   MySQLLibraries: array of TMySQLLibrary;
-  MySQLSyncThreads: TMySQLSyncThreads;
 
 {******************************************************************************}
 
@@ -2645,7 +2646,7 @@ begin
     if (StmtLength > 0) then
     begin
       // Debug 2017-03-02
-      Assert(Assigned(SyncThread.StmtLengths));
+      Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
       Assert(TObject(SyncThread.StmtLengths) is TList);
       Assert(SyncThread.StmtLengths.Count >= 0);
       Assert(SyncThread.StmtLengths.Count <= SyncThread.StmtLengths.Capacity);
@@ -2660,7 +2661,7 @@ begin
   begin
     // The MySQL server answers sometimes about a problem "near ''", if a
     // statement is not terminated by ";". A ";" attached to the last statement
-    // avoids this...
+    // avoids this sometimes...
     if (SQLIndex < Length(SyncThread.SQL)) then
       SyncThread.SQL[SQLIndex] := ';'
     else
@@ -3709,7 +3710,7 @@ begin
         SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
         DebugMonitor.Append('SyncExecutingFirst - 2' + #13#10
           + '  LibLength: ' + IntToStr(LibLength) + #13#10
-          + '  LibSQL: ' + LibSQL, ttDebug);
+          + '  LibSQL: ' + string(LibSQL), ttDebug);
       end;
 
       if (Lib.mysql_errno(SyncThread.LibHandle) = ER_MUST_CHANGE_PASSWORD) then
@@ -5967,6 +5968,7 @@ begin
 
   if (Assigned(Result)) then
   begin
+    Result^.Identifier := 123;
     Result^.NewData := nil;
     Result^.OldData := nil;
     Result^.VisibleInFilter := True;
@@ -6450,6 +6452,7 @@ begin
       begin
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier := 345;
       end;
     bfInserted:
       begin
@@ -6982,6 +6985,7 @@ begin
         if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
           FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
 
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier := 234;
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
       end;
     end
