@@ -4347,7 +4347,9 @@ begin
     + 'Progress: ' + Progress + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
-    + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+    + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+    + 'ErrorCode: ' + IntToStr(Session.Connection.ErrorCode) + #13#10
+    + 'ErrorMessage: ' + Session.Connection.ErrorMessage);
 
   if ((Table is TSBaseTable) and not (Self is TTExportSQL)) then
     for I := 0 to TSBaseTable(Table).TriggerCount - 1 do

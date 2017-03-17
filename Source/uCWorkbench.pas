@@ -2121,6 +2121,7 @@ begin
         begin
           TempTable := Point.TableB;
           Point := NextPoint;
+          Check();
           FreeSegment(Point.LineA.PointA, Point.LineA);
           Check();
           if (Assigned(TempTable)) then
@@ -2128,6 +2129,7 @@ begin
         end
         else
         begin
+          Check();
           FreeSegment(Point.LineB.PointB, Point.LineB);
           Check();
         end;

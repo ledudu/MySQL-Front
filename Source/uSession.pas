@@ -11330,7 +11330,7 @@ begin
       SQL := SQL
         + ' ORDER BY ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ',' + Session.Connection.EscapeIdentifier('ROUTINE_SCHEMA') + ';' + #13#10;
     end;
-  if (((Location is TSSession) or (Location is TSDatabase)) and Events and (Session.Connection.MySQLVersion >= 50106)) then
+  if (((Location is TSSession) or (Location is TSDatabase)) and Events and Assigned(TSDatabase(Location).Events)) then
     if ((Location is TSDatabase) and TSDatabase(Location).Events.Valid) then
     begin
       for I := 0 to TSDatabase(Location).Events.Count - 1 do

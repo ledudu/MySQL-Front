@@ -15448,24 +15448,11 @@ begin
   end;
   Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
 
-  // Debug 2017-03-16
-  Assert(not (View in [vEditor, vEditor2, vEditor3]) or Assigned(SQLEditors[View]));
-
   MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
   MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
   MainAction('aERedo').Enabled := TBCEditor(Sender).CanRedo;
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
-
-  // Debug 2017-03-02
-  Assert(Assigned(Session));
-  Assert(Assigned(Session.Connection));
-  // Debug 2017-03-11
-  Assert(Assigned(MainAction('aDPostObject')));
-  TBCEditor(Sender).Modified;
-  SQLSingleStmt(SQL);
-  Assert(not (csDestroying in ComponentState));
-  Assert(not (csDestroying in Window.ComponentState));
 
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified
