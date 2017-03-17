@@ -3439,7 +3439,7 @@ end;
 
 procedure TMySQLConnection.SyncDisconnected(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncDisconnected - start State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
+  DebugMonitor.Append('SyncDisconnected - start', ttDebug);
 
   FThreadId := 0;
   FConnected := False;
@@ -3449,7 +3449,7 @@ begin
 
   if (Assigned(AfterDisconnect)) then AfterDisconnect(Self);
 
-  DebugMonitor.Append('SyncDisconnected - end State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
+  DebugMonitor.Append('SyncDisconnected - end', ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecute(const SyncThread: TSyncThread);
