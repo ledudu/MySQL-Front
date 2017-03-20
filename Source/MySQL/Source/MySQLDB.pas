@@ -2690,7 +2690,7 @@ begin
   end;
 
   // Debug 2017-03-02
-  WriteMonitor('InternExecuteSQL - SyncThread.State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+  WriteMonitor('InternExecuteSQL - Mode: ' + IntToStr(Ord(SyncThread.Mode)) + ', State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()) + ', SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
 
   if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
@@ -2699,12 +2699,17 @@ begin
   else if (SynchronCount > 0) then
   begin
     repeat
+      WriteMonitor('InternExecuteSQL - 2', ttDebug);
       if (GetCurrentThreadId() = MainThreadId) then
         Sync(SyncThread)
       else
         MySQLConnectionOnSynchronize(SyncThread);
-      if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
+      if ((Mode = smSQL)
+        or (SyncThread.State <> ssReceivingResult)) then
+      begin
+        WriteMonitor('InternExecuteSQL - 2', ttDebug);
         SyncThreadExecuted.WaitFor(INFINITE);
+      end;
     until (not Assigned(SyncThread)
       or (SyncThread.State in [ssClose, ssResult, ssReady])
       or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
@@ -3067,7 +3072,7 @@ procedure TMySQLConnection.Sync(const SyncThread: TSyncThread);
 begin
   Assert(Assigned(SyncThread));
 
-  DebugMonitor.Append('Sync - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+  DebugMonitor.Append('Sync - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()) + ', SynchronCount:' + IntToStr(SynchronCount), ttDebug);
 
   if (not SyncThread.Terminated) then
   begin

@@ -1094,7 +1094,8 @@ begin
   end
   else
   begin
-    ShowDialog := not UpdateAvailable;
+    {$MESSAGE 'Juergen'}
+    ShowDialog := True; // not UpdateAvailable;
 
     if (not ShowDialog) then
     begin
