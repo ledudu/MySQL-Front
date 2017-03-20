@@ -204,7 +204,7 @@ end;
 
 procedure TDTransfer.FDataClick(Sender: TObject);
 begin
-  FStructure.Checked := FStructure.Checked or FData.Checked;
+  FStructure.Checked := FStructure.Checked or FData.Checked and (not Assigned(FSource.Selected) or (FSource.Selected.ImageIndex <> iiBaseTable) or not Assigned(FDestination.Selected) or (FDestination.Selected.ImageIndex <> iiBaseTable));
 
   TSExecute.Enabled := FStructure.Checked or FData.Checked;
   CheckActivePageChange(TSWhat);
@@ -351,7 +351,7 @@ end;
 
 procedure TDTransfer.FStructureClick(Sender: TObject);
 begin
-  FData.Checked := FData.Checked and FStructure.Checked;
+  FData.Checked := FData.Checked and (FStructure.Checked or Assigned(FSource.Selected) and (FSource.Selected.ImageIndex = iiBaseTable) and Assigned(FDestination.Selected) and (FDestination.Selected.ImageIndex = iiBaseTable));
 
   TSExecute.Enabled := FStructure.Checked or FData.Checked;
   CheckActivePageChange(TSWhat);
@@ -907,6 +907,7 @@ begin
         FData.Enabled := True;
   end;
 
+  FStructure.Checked := FStructure.Checked and (FSource.Selected.ImageIndex <> FDestination.Selected.ImageIndex);
   FData.Checked := FData.Checked and FData.Enabled;
 
   TSExecute.Enabled := not Assigned(Wanted.Page) and FStructure.Checked;

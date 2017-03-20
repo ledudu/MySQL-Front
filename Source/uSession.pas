@@ -1886,6 +1886,7 @@ begin
       Assert((0 <= NewIndex) and (NewIndex < Items.Count),
         'Index: ' + IntToStr(Index) + #13#10
         + 'NewIndex: ' + IntToStr(NewIndex) + #13#10
+        + 'Count: ' + IntToStr(Items.Count) + #13#10
         + 'Name: ' + Name + #13#10
         + 'AName: ' + AName);
 

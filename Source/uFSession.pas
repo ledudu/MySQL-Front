@@ -6034,13 +6034,10 @@ begin
     if (Assigned(DBGrid)) then
       DBGridColEnter(DBGrid);
 
-    // Debug 2017-03-16
-    Assert(Assigned(ActiveDBGrid.DataSource.DataSet));
-
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
-    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and (DBGrid.SelectedRows.Count < 1) and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -15453,6 +15450,12 @@ begin
   MainAction('aERedo').Enabled := TBCEditor(Sender).CanRedo;
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
+
+  // Debug 2017-03-18
+  Assert(Assigned(MainAction('aDPostObject')));
+  TBCEditor(Sender).Modified;
+  Assert(Assigned(Session));
+  Assert(Assigned(Session.Connection));
 
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified

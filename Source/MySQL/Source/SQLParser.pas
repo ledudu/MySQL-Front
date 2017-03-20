@@ -12668,6 +12668,7 @@ begin
   FormatNode(Nodes.AlgorithmValue, stSpaceBefore);
   FormatNode(Nodes.Columns.Tag, stSpaceBefore);
   FormatNode(Nodes.Columns.List, stSpaceBefore);
+  Commands.WriteReturn();
   Commands.DecreaseIndent();
   FormatNode(Nodes.PartitionCount, stReturnBefore);
   if (Nodes.SubPartition.Tag > 0) then
