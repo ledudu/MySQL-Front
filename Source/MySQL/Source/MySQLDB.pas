@@ -2605,15 +2605,7 @@ begin
 
   ExecuteSQLCS.Enter();
   if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
-  begin
-    {$MESSAGE 'Juergen'}
-    raise Exception.Create('Old SQL:' + #13#10
-      + SyncThread.SQL + #13#10#13#10
-      + 'New SQL:' + #13#10
-      + SQL);
-
     Terminate();
-  end;
 
   if (not Assigned(SyncThread)) then
     FSyncThread := TSyncThread.Create(Self)
