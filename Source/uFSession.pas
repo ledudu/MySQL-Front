@@ -15392,11 +15392,16 @@ begin
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
 
-  // Debug 2017-03-18
-  Assert(Assigned(MainAction('aDPostObject')));
-  TBCEditor(Sender).Modified;
-  Assert(Assigned(Session));
-  Assert(Assigned(Session.Connection));
+  // Debug 2017-03-21
+  MainAction('aDPostObject').Enabled := (View = vIDE);
+  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+    and TBCEditor(Sender).Modified;
+  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+    and SQLSingleStmt(SQL);
+  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+      or (ClassIndex in [ciEvent, ciTrigger]));
 
   MainAction('aDPostObject').Enabled := (View = vIDE)
     and TBCEditor(Sender).Modified

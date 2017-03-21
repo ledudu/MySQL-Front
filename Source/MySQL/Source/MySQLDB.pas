@@ -172,7 +172,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smResultHandle, smDataSet);
-      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssPrepare, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
+      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
     strict private
       FConnection: TMySQLConnection;
       FRunExecute: TEvent;
@@ -238,7 +238,6 @@ type
     FErrorCode: Integer;
     FErrorMessage: string;
     FErrorCommandText: string;
-    FExecuteSQLCS: TCriticalSection;
     FHost: string;
     FHostInfo: string;
     FHTTPAgent: string;
@@ -344,7 +343,6 @@ type
     procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
-    property ExecuteSQLCS: TCriticalSection read FExecuteSQLCS;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
@@ -371,7 +369,7 @@ type
     function InUse(): Boolean; virtual;
     function SendSQL(const SQL: string; const Done: TEvent): Boolean; overload; virtual;
     function SendSQL(const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
-    procedure Terminate(); virtual;
+    procedure Terminate();
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
     property CodePageClient: Cardinal read FCodePageClient;
     property CodePageResult: Cardinal read FCodePageResult;
@@ -2229,7 +2227,6 @@ begin
   FCodePageResult := CP_UTF8;
   FConnected := False;
   FDatabaseName := '';
-  FExecuteSQLCS := TCriticalSection.Create();
   FExecutionTime := 0;
   FHost := '';
   FHTTPAgent := '';
@@ -2310,7 +2307,6 @@ begin
 
   TerminateCS.Free();
   FDebugMonitor.Free();
-  FExecuteSQLCS.Free();
   FSQLMonitors.Free();
   SyncThreadExecuted.Free();
 
@@ -2338,8 +2334,7 @@ begin
   FErrorCommandText := '';
   FWarningCount := 0;
 
-  if (Assigned(SyncThread) and (SyncThread.State <> ssClose)) then
-    Terminate();
+  Terminate();
   if (not Assigned(FSyncThread)) then
     FSyncThread := TSyncThread.Create(Self);
 
@@ -2376,8 +2371,7 @@ begin
 
   SendConnectEvent(False);
 
-  if (Assigned(SyncThread) and (SyncThread.State <> ssReady)) then
-    Terminate();
+  Terminate();
 
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
@@ -2603,17 +2597,9 @@ begin
   if (InMonitor) then
     raise Exception.Create('Thread synchronization error (in Monitor): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
 
-  ExecuteSQLCS.Enter();
-  if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
-    Terminate();
-
+  Terminate();
   if (not Assigned(SyncThread)) then
-    FSyncThread := TSyncThread.Create(Self)
-  else
-    Assert(not SyncThread.Terminated);
-
-  FSyncThread.State := ssPrepare;
-  ExecuteSQLCS.Leave();
+    FSyncThread := TSyncThread.Create(Self);
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
@@ -3094,7 +3080,8 @@ begin
         end;
       ssConnecting:
         SyncConnected(SyncThread);
-      ssPrepare:
+      ssClose,
+      ssReady:
         begin
           SyncBeforeExecuteSQL(SyncThread);
           SyncExecute(SyncThread);
@@ -6550,13 +6537,9 @@ end;
 
 procedure TMySQLDataSet.InternalClose();
 begin
-  Connection.TerminateCS.Enter();
-  if (Assigned(SyncThread)
-    and (SyncThread = Connection.SyncThread)
-    and Connection.SyncThread.IsRunning
+  if (Assigned(SyncThread) and (SyncThread = Connection.SyncThread)
     and not CachedUpdates) then
     Connection.Terminate();
-  Connection.TerminateCS.Leave();
 
   FSortDef.Fields := '';
 
@@ -7156,11 +7139,7 @@ var
   SQL: string;
   Success: Boolean;
 begin
-  if (Assigned(SyncThread)) then
-  begin
-    Connection.Terminate();
-    SyncThread := nil;
-  end;
+  Connection.Terminate();
 
   InternRecordBuffers.Clear();
   ClearBuffers();
@@ -7623,8 +7602,7 @@ var
   Pos: Integer;
   CompareDefs: TRecordCompareDefs;
 begin
-  if (Assigned(SyncThread)) then
-    Connection.Terminate();
+  Connection.Terminate();
 
   CheckBrowseMode();
   DoBeforeScroll();
