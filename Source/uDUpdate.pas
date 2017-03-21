@@ -114,14 +114,11 @@ begin
     SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 2, 100);
 
     HTTPThread.Start();
-
-MessageBox(0, '1', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   end;
 end;
 
 procedure TDUpdate.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-MessageBox(0, '3', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   if (Assigned(HTTPThread)) then
   begin
     HTTPThread.Terminate();
@@ -145,7 +142,6 @@ begin
     FreeAndNil(PADFileStream);
   if (Assigned(SetupProgramStream)) then
     FreeAndNil(SetupProgramStream);
-MessageBox(0, '4', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 end;
 
 procedure TDUpdate.FormShow(Sender: TObject);
@@ -230,7 +226,6 @@ end;
 
 procedure TDUpdate.UMSetupFileReceived(var Msg: TMessage);
 begin
-MessageBox(0, '2', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
 
   FreeAndNil(SetupProgramStream);

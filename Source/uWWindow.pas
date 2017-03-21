@@ -571,10 +571,7 @@ begin
   begin
     Preferences.SetupProgramExecute := DUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
-    begin
-MessageBox(0, '5', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
       Close();
-    end;
   end;
 end;
 
@@ -933,9 +930,11 @@ end;
 
 destructor TWWindow.Destroy();
 begin
+MessageBox(0, '6', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
+MessageBox(0, '7', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   inherited;
 end;
 
@@ -953,7 +952,6 @@ end;
 
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-MessageBox(0, '6', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   CanClose := CloseAll();
 end;
 
@@ -1032,7 +1030,6 @@ end;
 
 procedure TWWindow.FormDestroy(Sender: TObject);
 begin
-MessageBox(0, '7', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   while (TabControlRepaint.Count > 0) do
   begin
     FreeMem(TabControlRepaint[0]);
@@ -1049,7 +1046,7 @@ MessageBox(0, '7', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
-MessageBox(0, '8', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
+MessageBox(0, '5', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
