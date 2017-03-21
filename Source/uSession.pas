@@ -66,6 +66,7 @@ type
     FItems: TSItems;
     function GetSession(): TSSession; inline;
   protected
+    function GetAddress(): string; virtual;
     function GetCaption(): string; virtual;
     function GetIndex(): Integer; virtual;
     procedure SetName(const AName: string); virtual;
@@ -73,6 +74,7 @@ type
     procedure Assign(const Source: TSItem); virtual;
     function Equal(const Second: TSItem): Boolean; virtual;
     constructor Create(const ASItems: TSItems; const AName: string = ''); virtual;
+    property Address: string read GetAddress;
     property Caption: string read GetCaption;
     property Index: Integer read GetIndex;
     property Name: string read FName write SetName;
@@ -1611,6 +1613,7 @@ type
     function FieldTypeByMySQLFieldType(const MySQLFieldType: TSField.TFieldType): TSFieldType;
     procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
     procedure Invalidate();
+    function ItemByAddress(const Address: string): TSItem;
     function PluginByName(const PluginName: string): TSPlugin;
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
     procedure PushBuildEvents();
@@ -1852,6 +1855,81 @@ end;
 function TSItem.Equal(const Second: TSItem): Boolean;
 begin
   Result := Assigned(Second) and (Second.ClassType = ClassType);
+end;
+
+function TSItem.GetAddress(): string;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+
+  if (Self is TSDatabase) then
+    URI.Database := Name
+  else if (Self is TSTable) then
+  begin
+    URI.Database := TSTable(Self).Database.Name;
+    URI.Table := Name;
+    if (TSTable(Self) is TSView) then
+      URI.Param['objecttype'] := 'view'
+    else if (TSTable(Self) is TSSystemView) then
+      URI.Param['objecttype'] := 'systemview';
+  end
+  else if (TObject(Self) is TSKey) then
+  begin
+    URI.Database := TSKey(Self).Table.Database.Name;
+    URI.Table := TSKey(Self).Table.Name;
+    URI.Param['objecttype'] := 'key';
+    URI.Param['object'] := TSKey(Self).Name;
+  end
+  else if (TObject(Self) is TSBaseField) then
+  begin
+    URI.Database := TSBaseField(Self).Table.Database.Name;
+    URI.Table := TSBaseField(Self).Table.Name;
+    URI.Param['objecttype'] := 'basefield';
+    URI.Param['object'] := TSBaseField(Self).Name;
+  end
+  else if (TObject(Self) is TSForeignKey) then
+  begin
+    URI.Database := TSForeignKey(Self).Table.Database.Name;
+    URI.Table := TSForeignKey(Self).Table.Name;
+    URI.Param['objecttype'] := 'foreignkey';
+    URI.Param['object'] := TSForeignKey(Self).Name;
+  end
+  else if (TObject(Self) is TSViewField) then
+  begin
+    URI.Database := TSViewField(Self).Table.Database.Name;
+    URI.Table := TSViewField(Self).Table.Name;
+    URI.Param['objecttype'] := 'viewfield';
+    URI.Param['object'] := TSViewField(Self).Name;
+  end
+  else if (TObject(Self) is TSProcedure) then
+  begin
+    URI.Database := TSProcedure(Self).Database.Name;
+    URI.Param['objecttype'] := 'procedure';
+    URI.Param['object'] := TSProcedure(Self).Name;
+  end
+  else if (TObject(Self) is TSFunction) then
+  begin
+    URI.Database := TSFunction(Self).Database.Name;
+    URI.Param['objecttype'] := 'function';
+    URI.Param['object'] := TSFunction(Self).Name;
+  end
+  else if (TObject(Self) is TSEvent) then
+  begin
+    URI.Database := TSEvent(Self).Database.Name;
+    URI.Param['objecttype'] := 'event';
+    URI.Param['object'] := TSEvent(Self).Name;
+  end
+  else if (TObject(Self) is TSTrigger) then
+  begin
+    URI.Database := TSTrigger(Self).Database.Name;
+    URI.Table := TSTrigger(Self).TableName;
+    URI.Param['objecttype'] := 'trigger';
+    URI.Param['object'] := TSTrigger(Self).Name;
+  end;
+
+  Result := URI.Address;
+  URI.Free();
 end;
 
 function TSItem.GetCaption(): string;
@@ -12468,6 +12546,41 @@ begin
   if (Assigned(Databases)) then Databases.Invalidate();
   if (Assigned(Plugins)) then Plugins.Invalidate();
   if (Assigned(Users)) then Users.Invalidate();
+end;
+
+function TSSession.ItemByAddress(const Address: string): TSItem;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Address);
+
+  if ((URI.Param['objecttype'] = 'view')
+    or (URI.Param['objecttype'] = 'systemview')) then
+    Result := DatabaseByName(URI.Database).ViewByName(URI.Table)
+  else if (URI.Param['objecttype'] = 'procedure') then
+    Result := DatabaseByName(URI.Database).ProcedureByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'function') then
+    Result := DatabaseByName(URI.Database).FunctionByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'trigger') then
+    Result := DatabaseByName(URI.Database).TriggerByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'event') then
+    Result := DatabaseByName(URI.Database).EventByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'key') then
+    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table).KeyByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'basefield') then
+    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table).FieldByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'foreignkey') then
+    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object'])
+  else if (URI.Param['objecttype'] = 'viewfield') then
+    Result := DatabaseByName(URI.Database).ViewByName(URI.Table).FieldByName(URI.Param['object'])
+  else if (URI.Table <> '') then
+    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table)
+  else if (URI.Database <> '') then
+    Result := DatabaseByName(URI.Database)
+  else
+    raise ERangeError.Create('Unknown Item for: ' + URI.Address);
+
+  URI.Free();
 end;
 
 procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);

@@ -496,6 +496,7 @@ begin
   else
   begin
     DTransfer.SourceSession := nil;
+    DTransfer.DestinationSession := nil;
     DTransfer.Execute();
   end;
 end;

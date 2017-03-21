@@ -172,7 +172,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smResultHandle, smDataSet);
-      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
+      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssPrepare, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
     strict private
       FConnection: TMySQLConnection;
       FRunExecute: TEvent;
@@ -238,6 +238,7 @@ type
     FErrorCode: Integer;
     FErrorMessage: string;
     FErrorCommandText: string;
+    FExecuteSQLCS: TCriticalSection;
     FHost: string;
     FHostInfo: string;
     FHTTPAgent: string;
@@ -343,6 +344,7 @@ type
     procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
+    property ExecuteSQLCS: TCriticalSection read FExecuteSQLCS;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
@@ -2227,6 +2229,7 @@ begin
   FCodePageResult := CP_UTF8;
   FConnected := False;
   FDatabaseName := '';
+  FExecuteSQLCS := TCriticalSection.Create();
   FExecutionTime := 0;
   FHost := '';
   FHTTPAgent := '';
@@ -2307,6 +2310,7 @@ begin
 
   TerminateCS.Free();
   FDebugMonitor.Free();
+  FExecuteSQLCS.Free();
   FSQLMonitors.Free();
   SyncThreadExecuted.Free();
 
@@ -2599,13 +2603,25 @@ begin
   if (InMonitor) then
     raise Exception.Create('Thread synchronization error (in Monitor): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
 
+  ExecuteSQLCS.Enter();
   if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
+  begin
+    {$MESSAGE 'Juergen'}
+    raise Exception.Create('Old SQL:' + #13#10
+      + SyncThread.SQL + #13#10#13#10
+      + 'New SQL:' + #13#10
+      + SQL);
+
     Terminate();
+  end;
 
   if (not Assigned(SyncThread)) then
     FSyncThread := TSyncThread.Create(Self)
   else
     Assert(not SyncThread.Terminated);
+
+  FSyncThread.State := ssPrepare;
+  ExecuteSQLCS.Leave();
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
@@ -2690,7 +2706,7 @@ begin
   end;
 
   // Debug 2017-03-02
-  WriteMonitor('InternExecuteSQL - Mode: ' + IntToStr(Ord(SyncThread.Mode)) + ', State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()) + ', SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
+  WriteMonitor('InternExecuteSQL - start - Mode: ' + IntToStr(Ord(SyncThread.Mode)) + ', State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()) + ', SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
 
   if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
@@ -2707,7 +2723,7 @@ begin
       if ((Mode = smSQL)
         or (SyncThread.State <> ssReceivingResult)) then
       begin
-        WriteMonitor('InternExecuteSQL - 2', ttDebug);
+        WriteMonitor('InternExecuteSQL - 3', ttDebug);
         SyncThreadExecuted.WaitFor(INFINITE);
       end;
     until (not Assigned(SyncThread)
@@ -2723,6 +2739,8 @@ begin
       MySQLConnectionOnSynchronize(SyncThread);
     Result := False;
   end;
+
+  WriteMonitor('InternExecuteSQL - end', ttDebug);
 end;
 
 function TMySQLConnection.InUse(): Boolean;
@@ -3084,8 +3102,7 @@ begin
         end;
       ssConnecting:
         SyncConnected(SyncThread);
-      ssClose,
-      ssReady:
+      ssPrepare:
         begin
           SyncBeforeExecuteSQL(SyncThread);
           SyncExecute(SyncThread);

@@ -81,8 +81,8 @@ type
     Space: Integer;
     Transfer: TTTransfer;
     Wanted: record
-      Page: TTabSheet;
       Node: TTreeNode;
+      Page: TTabSheet;
     end;
     procedure CheckActivePageChange(const ActivePage: TTabSheet);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -96,8 +96,10 @@ type
     procedure UMToolError(var Msg: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Msg: TMessage); message UM_UPDATEPROGRESSINFO;
   public
+    DestinationAddress: string;
+    DestinationSession: TSSession;
+    SourceAddresses: string;
     SourceSession: TSSession;
-    SourceDatabase: TSDatabase;
     function Execute(): Boolean;
   end;
 
@@ -109,9 +111,9 @@ implementation {***************************************************************}
 
 uses
   CommCtrl,
-  StrUtils, Consts, SysConst,
+  StrUtils, Consts, SysConst, Variants,
   SQLUtils,
-  uPreferences,
+  uPreferences, uURI,
   uDConnecting, uDExecutingSQL;
 
 var
@@ -126,17 +128,6 @@ begin
   end;
 
   Result := FDTransfer;
-end;
-
-function TreeViewSelCount(const TreeView: TTreeView_Ext): Integer;
-var
-  I: Integer;
-begin
-  Result := 0;
-
-  for I := 0 to TreeView.Items.Count - 1 do
-    if (TreeView.Items[I].Selected) then
-      Inc(Result);
 end;
 
 { TDTransfer ******************************************************************}
@@ -376,7 +367,9 @@ begin
     Index := Node.Index; // Cache for speeding - Index is slow
 
     if (Assigned(SourceSession) and (SourceSession.Account = Accounts[Index])) then
-      Sessions[Index].Session := SourceSession;
+      Sessions[Index].Session := SourceSession
+    else if (Assigned(DestinationSession) and (DestinationSession.Account = Accounts[Index])) then
+      Sessions[Index].Session := DestinationSession;
 
     if (not Assigned(Sessions[Index].Session)) then
       Sessions[Index].Session := uSession.Sessions.SessionByAccount(Accounts[Index]);
@@ -827,12 +820,18 @@ end;
 
 procedure TDTransfer.TSSelectShow(Sender: TObject);
 var
+  Addresses: TStringList;
+  Database: TSDatabase;
   FSourceOnChange: TTVChangedEvent;
   FDestinationOnChange: TTVChangedEvent;
   I: Integer;
-  J: Integer;
   Node: TTreeNode;
+  SItem: TSItem;
+  URI: TUURI;
 begin
+  Wanted.Node := nil;
+  Wanted.Page := nil;
+
   if (FSource.Items.Count = 0) then
   begin
     FSourceOnChange := FSource.OnChange;
@@ -846,17 +845,13 @@ begin
       Node.ImageIndex := iiServer;
       Node.HasChildren := True;
       if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
-      begin
         Node.Expand(False);
-        if (not Assigned(Wanted.Node)) then
-          for J := 0 to Node.Count - 1 do
-            if (Node[J].Data = SourceDatabase) then
-              Node[J].Expand(False);
-      end;
 
       Node := FDestination.Items.Add(nil, Accounts[I].Name);
       Node.ImageIndex := iiServer;
       Node.HasChildren := True;
+      if (Assigned(DestinationSession) and (Accounts[I] = DestinationSession.Account)) then
+        Node.Expand(False);
     end;
     TreeViewChange(Sender, nil);
 
@@ -864,7 +859,120 @@ begin
     FDestination.OnChange := FDestinationOnChange;
   end;
 
-  CheckActivePageChange(TSSelect);
+  if (not Assigned(Wanted.Node) and (SourceAddresses <> '')) then
+  begin
+    Addresses := TStringList.Create();
+    Addresses.Text := SourceAddresses;
+
+    for I := 0 to Addresses.Count - 1 do
+      if (not Assigned(Wanted.Page)) then
+      begin
+        URI := TUURI.Create(Addresses[I]);
+
+        Node := FSource.Items.GetFirstNode();
+        while (Assigned(Node) and (Node.Data <> SourceSession)) do
+          Node := Node.getNextSibling();
+
+        if (Assigned(Node) and (URI.Database <> '')) then
+        begin
+          Database := SourceSession.DatabaseByName(URI.Database);
+          if (Assigned(Database)) then
+          begin
+            Node := Node.getFirstChild();
+            while (Assigned(Node) and (Node.Data <> Database)) do
+              Node := Node.getNextSibling();
+
+            if (Assigned(Node)) then
+            begin
+              Node.Expand(False);
+              if (Assigned(Wanted.Node)) then
+                Wanted.Page := TSSelect
+              else
+              begin
+                SItem := SourceSession.ItemByAddress(URI.Address);
+                if (Assigned(SItem)) then
+                begin
+                  Node := Node.getFirstChild();
+                  while (Assigned(Node) and (Node.Data <> SItem)) do
+                    Node := Node.getNextSibling();
+                  if (Assigned(Node)) then
+                    FSource.Select(Node, [ssCtrl]);
+                end;
+              end;
+            end;
+          end;
+        end;
+
+        URI.Free();
+      end;
+
+    Addresses.Free();
+
+    if (not Assigned(Wanted.Page)) then
+      SourceAddresses := '';
+  end;
+
+  if (not Assigned(Wanted.Node) and (DestinationAddress <> '')) then
+  begin
+    if (not Assigned(Wanted.Page)) then
+    begin
+      URI := TUURI.Create(DestinationAddress);
+
+      Node := FDestination.Items.GetFirstNode();
+      while (Assigned(Node) and (Node.Data <> DestinationSession)) do
+        Node := Node.getNextSibling();
+
+      if (Assigned(Node) and (URI.Database <> '')) then
+      begin
+        Database := DestinationSession.DatabaseByName(URI.Database);
+        if (Assigned(Database)) then
+        begin
+          Node := Node.getFirstChild();
+          while (Assigned(Node) and (Node.Data <> Database)) do
+            Node := Node.getNextSibling();
+
+          if (Assigned(Node)) then
+            if ((URI.Table = '') and (URI.Param['object'] = Null)) then
+            begin
+              SItem := DestinationSession.ItemByAddress(URI.Address);
+              while (Assigned(Node) and (Node.Data <> SItem)) do
+                Node := Node.getNextSibling();
+              if (Assigned(Node)) then
+                FDestination.Select(Node, [ssCtrl]);
+            end
+            else
+            begin
+              Node.Expand(False);
+              if (Assigned(Wanted.Node)) then
+                Wanted.Page := TSSelect
+              else
+              begin
+                SItem := DestinationSession.ItemByAddress(URI.Address);
+                if (Assigned(SItem)) then
+                begin
+                  Node := Node.getFirstChild();
+                  while (Assigned(Node) and (Node.Data <> SItem)) do
+                    Node := Node.getNextSibling();
+                  if (Assigned(Node)) then
+                    FDestination.Select(Node, [ssCtrl]);
+                end;
+              end;
+            end;
+        end;
+      end;
+
+      URI.Free();
+    end;
+
+    if (not Assigned(Wanted.Page)) then
+      DestinationAddress := '';
+  end;
+
+  if (not Assigned(Wanted.Page)) then
+    if ((FSource.SelectionCount > 0) and (FDestination.SelectionCount > 0)) then
+      PageControl.ActivePage := TSWhat
+    else
+      CheckActivePageChange(TSSelect);
 end;
 
 procedure TDTransfer.TSWhatShow(Sender: TObject);
@@ -952,8 +1060,8 @@ begin
     Node := Wanted.Node;
     Wanted.Node := nil;
     Node.Expand(False);
-  end
-  else if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+  end;
+  if (not Assigned(Wanted.Node) and Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
     Wanted.Page.OnShow(nil);
 end;
 

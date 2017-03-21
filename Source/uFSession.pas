@@ -1056,7 +1056,7 @@ type
     function ObjectSearchStep2(): Boolean;
     procedure OnConvertError(Sender: TObject; Text: string);
     function ParamToView(const AParam: Variant): TView;
-    procedure PasteExecute(const Node: TTreeNode; const Objects: string);
+    procedure PasteExecute(const Node: TTreeNode; const Addresses: string);
     procedure PContentChange(Sender: TObject);
     function PostObject(Sender: TObject): Boolean;
     procedure PropertiesServerExecute(Sender: TObject);
@@ -2772,42 +2772,8 @@ begin
 
   if (TObject(Data) is TSSession) then
     // nothing to do...
-  else if (TObject(Data) is TSDatabase) then
-    URI.Database := TSDatabase(Data).Name
-  else if (TObject(Data) is TSTable) then
-  begin
-    URI.Database := TSTable(Data).Database.Name;
-    URI.Table := TSTable(Data).Name;
-    if (TSTable(Data) is TSView) then
-      URI.Param['objecttype'] := 'view'
-    else if (TSTable(Data) is TSSystemView) then
-      URI.Param['objecttype'] := 'systemview';
-  end
-  else if (TObject(Data) is TSProcedure) then
-  begin
-    URI.Database := TSProcedure(Data).Database.Name;
-    URI.Param['objecttype'] := 'procedure';
-    URI.Param['object'] := TSProcedure(Data).Name;
-  end
-  else if (TObject(Data) is TSFunction) then
-  begin
-    URI.Database := TSFunction(Data).Database.Name;
-    URI.Param['objecttype'] := 'function';
-    URI.Param['object'] := TSFunction(Data).Name;
-  end
-  else if (TObject(Data) is TSEvent) then
-  begin
-    URI.Database := TSEvent(Data).Database.Name;
-    URI.Param['objecttype'] := 'event';
-    URI.Param['object'] := TSEvent(Data).Name;
-  end
-  else if (TObject(Data) is TSTrigger) then
-  begin
-    URI.Database := TSTrigger(Data).Database.Name;
-    URI.Table := TSTrigger(Data).TableName;
-    URI.Param['objecttype'] := 'trigger';
-    URI.Param['object'] := TSTrigger(Data).Name;
-  end
+  else if (TObject(Data) is TSItem) then
+    URI.Address := TSItem(Data).Address
   else if (TObject(Data) is TSProcesses) then
     URI.Param['system'] := 'processes'
   else if (TObject(Data) is TSUsers) then
@@ -3475,7 +3441,6 @@ var
   Opened: Boolean;
   Retry: Integer;
   S: string;
-  StringList: TStringList;
 begin
   Retry := 0;
   repeat
@@ -3500,29 +3465,12 @@ begin
   end
   else if (Window.ActiveControl = FNavigator) then
   begin
-    if (not (TObject(FNavigatorMenuNode.Data) is TSItem)) then
+    if (not Assigned(FNavigatorMenuNode.Parent)) then
       ClassIndex := ciUnknown
     else
     begin
       ClassIndex := ClassIndexByData(FNavigatorMenuNode.Parent.Data);
-      case (FNavigatorMenuNode.ImageIndex) of
-        iiDatabase:        Data := Data + 'Database='    + FNavigatorMenuNode.Text + #13#10;
-        iiBaseTable:       Data := Data + 'Table='       + FNavigatorMenuNode.Text + #13#10;
-        iiView:            Data := Data + 'View='        + FNavigatorMenuNode.Text + #13#10;
-        iiProcedure:       Data := Data + 'Procedure='   + FNavigatorMenuNode.Text + #13#10;
-        iiFunction:        Data := Data + 'Function='    + FNavigatorMenuNode.Text + #13#10;
-        iiEvent:           Data := Data + 'Event='       + FNavigatorMenuNode.Text + #13#10;
-        iiKey:             Data := Data + 'Key='         + TSKey(FNavigatorMenuNode.Data).Name + #13#10;
-        iiBaseField,
-        iiVirtualField,
-        iiViewField,
-        iiSystemViewField: Data := Data + 'Field='       + FNavigatorMenuNode.Text + #13#10;
-        iiForeignKey:      Data := Data + 'ForeignKey='  + FNavigatorMenuNode.Text + #13#10;
-        iiTrigger:         Data := Data + 'Trigger='     + FNavigatorMenuNode.Text + #13#10;
-        iiUser:            Data := Data + 'User='        + FNavigatorMenuNode.Text + #13#10;
-      end;
-      if (Data <> '') then
-        Data := 'Address=' + AddressByData(FNavigatorMenuNode.Parent.Data) + #13#10 + Data;
+      Data := Data + AddressByData(FNavigatorMenuNode.Data) + #13#10;
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
@@ -3530,30 +3478,7 @@ begin
     ClassIndex := CurrentClassIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
-        case (ActiveListView.Items[I].ImageIndex) of
-          iiDatabase:        Data := Data + 'Database='   + ActiveListView.Items[I].Caption + #13#10;
-          iiBaseTable:       Data := Data + 'Table='      + ActiveListView.Items[I].Caption + #13#10;
-          iiView:            Data := Data + 'View='       + ActiveListView.Items[I].Caption + #13#10;
-          iiProcedure:       Data := Data + 'Procedure='  + ActiveListView.Items[I].Caption + #13#10;
-          iiFunction:        Data := Data + 'Function='   + ActiveListView.Items[I].Caption + #13#10;
-          iiEvent:           Data := Data + 'Event='      + ActiveListView.Items[I].Caption + #13#10;
-          iiKey:
-            begin
-              // Debug 2016-11-11
-              if (not (TObject(ActiveListView.Items[I].Data) is TSKey)) then
-                raise ERangeError.Create(SPropertyOutOfRange + ' (' + TObject(ActiveListView.Items[I].Data).ClassName + ')');
-                   Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
-            end;
-          iiBaseField,
-          iiVirtualField,
-          iiViewField,
-          iiSystemViewField: Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
-          iiForeignKey:      Data := Data + 'ForeignKey=' + ActiveListView.Items[I].Caption + #13#10;
-          iiTrigger:         Data := Data + 'Trigger='    + ActiveListView.Items[I].Caption + #13#10;
-          iiUser:            Data := Data + 'User='       + ActiveListView.Items[I].Caption + #13#10;
-        end;
-    if (Data <> '') then
-      Data := 'Address=' + CurrentAddress + #13#10 + Data;
+        Data := Data + AddressByData(ActiveListView.Items[I].Data) + #13#10;
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
@@ -3589,17 +3514,12 @@ begin
     begin
       ClassIndex := CurrentClassIndex;
       if (Assigned(ActiveWorkbench)) then
-      begin
-        Data := '';
         if (not Assigned(ActiveWorkbench.Selected)) then
-          Data := Data + 'Database='   + ActiveWorkbench.Database.Name + #13#10
+          Data := Data + AddressByData(ActiveWorkbench.Database) + #13#10
         else if (ActiveWorkbench.Selected is TWTable) then
-          Data := Data + 'Table='      + TWTable(ActiveWorkbench.Selected).BaseTable.Name + #13#10
+          Data := Data + AddressByData(TWTable(ActiveWorkbench.Selected).BaseTable) + #13#10
         else if (ActiveWorkbench.Selected is TWForeignKey) then
-          Data := Data + 'ForeignKey=' + TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey.Name + #13#10;
-        if (Data <> '') then
-          Data := 'Address=' + CurrentAddress + #13#10 + Data;
-      end;
+          Data := Data + AddressByData(TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey) + #13#10;
     end;
   end
   else if (Window.ActiveControl = FSQLHistory) then
@@ -3649,40 +3569,30 @@ begin
         Inc(Retry);
       end;
     until (Opened or (Retry = 10));
-  end;
 
-  if ((Data <> '') and OpenClipboard(Handle)) then
-  begin
-    try
-      EmptyClipboard();
+    if (OpenClipboard(Handle)) then
+    begin
+      try
+        EmptyClipboard();
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
-      StrPCopy(GlobalLock(ClipboardData), Data);
-      case (ClassIndex) of
-        ciSession: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
-        ciDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
-        ciBaseTable: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
-        ciView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
-        ciUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
-      end;
-      GlobalUnlock(ClipboardData);
-
-      StringList := TStringList.Create();
-      StringList.Text := Trim(Data);
-      for I := 1 to StringList.Count - 1 do
-        if (StringList.ValueFromIndex[I] <> '') then
-        begin
-          if (S <> '') then S := S + #13#10;
-          S := S + StringList.ValueFromIndex[I];
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
+        StrPCopy(GlobalLock(ClipboardData), Data);
+        case (ClassIndex) of
+          ciSession: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
+          ciDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
+          ciBaseTable: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
+          ciView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
+          ciUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
         end;
-      StringList.Free();
+        GlobalUnlock(ClipboardData);
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-      StrPCopy(GlobalLock(ClipboardData), S);
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-    finally
-      CloseClipboard();
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Data[1]) * (Length(Data) + 1));
+        StrPCopy(GlobalLock(ClipboardData), Data);
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+      finally
+        CloseClipboard();
+      end;
     end;
   end;
 end;
@@ -3981,7 +3891,10 @@ begin
   Wanted.Clear();
 
   DTransfer.SourceSession := Session;
-  DTransfer.SourceDatabase := Session.DatabaseByName(SelectedDatabase);
+  if (not (TObject(FNavigator.Selected.Data) is TSItem)) then
+    DTransfer.SourceAddresses := ''
+  else
+    DTransfer.SourceAddresses := TSItem(FNavigator.Selected.Data).Address + #13#10;
   DTransfer.Execute();
 end;
 
@@ -5932,8 +5845,12 @@ begin
     ciDatabase,
     ciSystemDatabase: Result := Session.DatabaseByName(URI.Database);
     ciBaseTable,
+    ciKey,
+    ciBaseField,
+    ciForeignKey,
     ciView,
     ciSystemView,
+    ciViewField,
     ciProcedure,
     ciFunction,
     ciEvent,
@@ -5947,6 +5864,10 @@ begin
             ciBaseTable,
             ciView,
             ciSystemView: Result := Database.TableByName(URI.Table);
+            ciKey: Result := Database.BaseTableByName(URI.Table).KeyByName(URI.Param['object']);
+            ciBaseField: Result := Database.BaseTableByName(URI.Table).FieldByName(URI.Param['object']);
+            ciForeignKey: Result := Database.BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object']);
+            ciViewField: Result := Database.ViewByName(URI.Table).FieldByName(URI.Param['object']);
             ciProcedure: Result := Database.ProcedureByName(URI.Param['object']);
             ciFunction: Result := Database.FunctionByName(URI.Param['object']);
             ciEvent: Result := Database.EventByName(URI.Param['object']);
@@ -6036,8 +5957,8 @@ begin
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
-    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and (DBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = DBGrid) and Assigned(DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and (DBGrid.SelectedRows.Count < 1) and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = DBGrid) and Assigned(DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -13328,7 +13249,7 @@ begin
     Result := vObjects;
 end;
 
-procedure TFSession.PasteExecute(const Node: TTreeNode; const Objects: string);
+procedure TFSession.PasteExecute(const Node: TTreeNode; const Addresses: string);
 var
   Database: TSDatabase;
   Found: Boolean;
@@ -13346,33 +13267,42 @@ var
   SourceKey: TSKey;
   SourceRoutine: TSRoutine;
   SourceSession: TSSession;
+  SourceSessionCreated: Boolean;
   SourceTable: TSBaseTable;
   SourceTrigger: TSTrigger;
-  SourceURI: TUURI;
   SourceUser: TSUser;
   SourceView: TSView;
   StringList: TStringList;
   Success: Boolean;
   Table: TSBaseTable;
+  URI: TUURI;
 begin
   StringList := TStringList.Create();
-  StringList.Text := Objects;
+  StringList.Text := Addresses;
 
   if (StringList.Count > 0) then
   begin
-    SourceURI := TUURI.Create(StringList.Values['Address']);
-    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceURI.Address, Session.Account));
-    if (not Assigned(SourceSession) and Assigned(Accounts.AccountByURI(SourceURI.Address))) then
+    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(StringList[0], Session.Account));
+    if (Assigned(SourceSession) or not Assigned(Accounts.AccountByURI(StringList[0]))) then
+      SourceSessionCreated := False
+    else
     begin
-      SourceSession := TSSession.Create(Sessions, Accounts.AccountByURI(SourceURI.Address));
+      SourceSession := TSSession.Create(Sessions, Accounts.AccountByURI(StringList[0]));
       DConnecting.Session := SourceSession;
       if (not DConnecting.Execute()) then
+      begin
         FreeAndNil(SourceSession);
+        SourceSessionCreated := False;
+      end
+      else
+        SourceSessionCreated := True;
     end;
 
     if (Assigned(SourceSession)) then
     begin
       Success := True;
+
+      URI := TUURI.Create(StringList[0]);
 
       case (Node.ImageIndex) of
         iiDatabase:
@@ -13382,10 +13312,18 @@ begin
 
             if (SourceSession.Databases.Valid or DExecutingSQL.Execute()) then
             begin
-              SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
+              SourceDatabase := SourceSession.DatabaseByName(URI.Database);
 
               if (not Assigned(SourceDatabase)) then
                 MessageBeep(MB_ICONERROR)
+              else if (SourceSession <> Session) then
+              begin
+                DTransfer.SourceSession := SourceSession;
+                DTransfer.SourceAddresses := Addresses;
+                DTransfer.DestinationSession := Session;
+                DTransfer.DestinationAddress := TSDatabase(Node.Data).Address;
+                DTransfer.Execute();
+              end
               else
               begin
                 Database := TSDatabase(Node.Data);
@@ -13399,7 +13337,7 @@ begin
                   MessageBeep(MB_ICONERROR)
                 else if (not Found or DPaste.Execute()) then
                 begin
-                  if (Found and (SourceSession <> Session)) then
+                  if (Found) then
                     MessageBeep(MB_ICONERROR)
                   else
                     for I := 1 to StringList.Count - 1 do
@@ -13516,7 +13454,7 @@ begin
           end;
         iiBaseTable:
           begin
-            SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
+            SourceDatabase := SourceSession.DatabaseByName(URI.Database);
 
             if (not Assigned(SourceDatabase)) then
               MessageBeep(MB_ICONERROR)
@@ -13526,7 +13464,7 @@ begin
               DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
               if (SourceDatabase.Tables.Valid or DExecutingSQL.Execute()) then
               begin
-                SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
+                SourceTable := SourceDatabase.BaseTableByName(URI.Table);
 
                 if (Assigned(SourceTable)) then
                   DExecutingSQL.Update := SourceTable.Update;
@@ -13647,8 +13585,11 @@ begin
           end;
       end;
 
-      SourceURI.Free();
+      URI.Free();
     end;
+
+    if (SourceSessionCreated) then
+      SourceSession.Free();
   end;
   StringList.Free();
 end;
