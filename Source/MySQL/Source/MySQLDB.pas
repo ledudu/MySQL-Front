@@ -207,6 +207,7 @@ type
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
+      property DebugResHandle: MYSQL_RES read ResHandle; // Debug 2017-03-21
       property DebugState: TState read State; // Debug 2017-02-16
       property DebugSQL: string read SQL; // Debug 2017-02-19
     end;
@@ -251,6 +252,7 @@ type
     FOnConvertError: TConvertErrorNotifyEvent;
     FOnDatabaseChange: TDatabaseChangeEvent;
     FOnSQLError: TErrorEvent;
+    FOnTerminate: TNotifyEvent; // Debug 2017-03-21
     FOnUpdateIndexDefs: TOnUpdateIndexDefsEvent;
     FOnVariableChange: TVariableChangeEvent;
     FPassword: string;
@@ -413,6 +415,7 @@ type
     property OnConvertError: TConvertErrorNotifyEvent read FOnConvertError write FOnConvertError;
     property OnDatabaseChange: TDatabaseChangeEvent read FOnDatabaseChange write FOnDatabaseChange;
     property OnSQLError: TErrorEvent read FOnSQLError write FOnSQLError;
+    property OnTerminate: TNotifyEvent read FOnTerminate write FOnTerminate;
     property OnUpdateIndexDefs: TOnUpdateIndexDefsEvent read FOnUpdateIndexDefs write FOnUpdateIndexDefs;
     property OnVariableChange: TVariableChangeEvent read FOnVariableChange write FOnVariableChange;
     property Password: string read FPassword write SetPassword;
@@ -2241,6 +2244,7 @@ begin
   FMultiStatements := True;
   FOnConvertError := nil;
   FOnSQLError := nil;
+  FOnTerminate := nil;
   FOnUpdateIndexDefs := nil;
   FPassword := '';
   FPort := MYSQL_PORT;
@@ -3588,6 +3592,8 @@ begin
     end;
   end;
 
+  DebugMonitor.Append('SyncExecuted - 1 - KillThreadId: ' + IntToStr(KillThreadId) + ', Mode: ' + IntToStr(Ord(SyncThread.Mode)), ttDebug);
+
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
     if (KillThreadId > 0) then
@@ -3787,7 +3793,7 @@ begin
     if ((Lib.mysql_errno(SyncThread.LibHandle) = 0) and not SyncThread.Terminated) then
       SyncThread.ResHandle := Lib.mysql_use_result(SyncThread.LibHandle);
 
-    DebugMonitor.Append('SyncExecutingFirst -' + #13#10
+    DebugMonitor.Append('SyncExecutingFirst - 3' + #13#10
       + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
       + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
 
@@ -3833,7 +3839,7 @@ end;
 
 procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncHandledResult - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+  DebugMonitor.Append('SyncHandledResult - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 
   Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
@@ -3979,6 +3985,9 @@ begin
   DebugMonitor.Append('SyncTerminate - start', ttDebug);
 
   Assert(GetCurrentThreadId() = MainThreadID);
+
+  if (Assigned(OnTerminate)) then
+    OnTerminate(Self);
 
   KillThreadId := SyncThread.LibThreadId;
 

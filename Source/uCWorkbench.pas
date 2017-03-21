@@ -2304,8 +2304,12 @@ begin
   else
     raise ERangeError.Create('Line is not attached to the Point.');
 
+  Check();
+
   Line.Free();
   Point.Free();
+
+  Check();
 end;
 
 function TWLink.GetCaption(): TCaption;

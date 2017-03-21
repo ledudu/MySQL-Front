@@ -114,11 +114,14 @@ begin
     SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 2, 100);
 
     HTTPThread.Start();
+
+MessageBox(0, '1', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   end;
 end;
 
 procedure TDUpdate.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+MessageBox(0, '3', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   if (Assigned(HTTPThread)) then
   begin
     HTTPThread.Terminate();
@@ -142,6 +145,7 @@ begin
     FreeAndNil(PADFileStream);
   if (Assigned(SetupProgramStream)) then
     FreeAndNil(SetupProgramStream);
+MessageBox(0, '4', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 end;
 
 procedure TDUpdate.FormShow(Sender: TObject);
@@ -206,12 +210,13 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (not UpdateAvailable) then
-    begin
-      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-      FBCancel.Click();
-    end
-    else
+{$MESSAGE 'Juergen'}
+//    if (not UpdateAvailable) then
+//    begin
+//      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+//      FBCancel.Click();
+//    end
+//    else
     begin
       SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
 
@@ -225,6 +230,7 @@ end;
 
 procedure TDUpdate.UMSetupFileReceived(var Msg: TMessage);
 begin
+MessageBox(0, '2', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
 
   FreeAndNil(SetupProgramStream);

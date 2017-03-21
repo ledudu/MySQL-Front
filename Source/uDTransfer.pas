@@ -90,6 +90,7 @@ type
     function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
+    procedure TerminateConnection(Sender: TObject);
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Msg: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
@@ -114,6 +115,7 @@ uses
   StrUtils, Consts, SysConst, Variants,
   SQLUtils,
   uPreferences, uURI,
+uDeveloper,
   uDConnecting, uDExecutingSQL;
 
 var
@@ -410,6 +412,11 @@ begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
   PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
+end;
+
+procedure TDTransfer.TerminateConnection(Sender: TObject);
+begin
+  SendToDeveloper('Old SQL: ' + TMySQLConnection(Sender).DebugSyncThread.DebugSQL);
 end;
 
 procedure TDTransfer.TreeViewChange(Sender: TObject; Node: TTreeNode);
@@ -794,6 +801,9 @@ begin
 
       FBBack.Enabled := False;
 
+      Transfer.Session.Connection.OnTerminate := TerminateConnection;
+      Transfer.DestinationSession.Connection.OnTerminate := TerminateConnection;
+
       Transfer.OnError := OnError;
       Transfer.OnTerminate := OnTerminate;
       Transfer.OnUpdate := OnUpdate;
@@ -1076,6 +1086,9 @@ begin
   if (Success and (Transfer.WarningCount > 0)) then
     MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
       ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
+
+  Transfer.Session.Connection.OnTerminate := nil;
+  Transfer.DestinationSession.Connection.OnTerminate := nil;
 
   Transfer.Free();
   Transfer := nil;

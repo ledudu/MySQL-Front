@@ -1488,7 +1488,16 @@ except // Debug 2017-03-16
       + 'Length: ' + IntToStr(Length(FBCEditor.Text)) + #13#10
       + 'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength));
 end;
+try
       FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
+except // Debug 2017-03-21
+  on E: Exception do
+    raise ERangeError.Create(E.Message + #13#10
+      + 'Length: ' + IntToStr(Length(FBCEditor.Text)) + #13#10
+      + 'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
+      + 'SelStart: ' + IntToStr(FBCEditor.SelStart) + #13#10
+      + 'SelLength: ' + IntToStr(Len - StartingCommentLength - EndingCommentLength));
+end;
     end
   end
   else
