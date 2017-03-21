@@ -666,7 +666,8 @@ end;
 
 procedure TWWindow.ApplicationActivate(Sender: TObject);
 begin
-  KillTimer(Handle, tiEmptyWorkingMem);
+  if (not (csDestroying in ComponentState)) then
+    KillTimer(Handle, tiEmptyWorkingMem);
 end;
 
 procedure TWWindow.ApplicationDeactivate(Sender: TObject);
@@ -930,12 +931,12 @@ end;
 
 destructor TWWindow.Destroy();
 begin
-MessageBox(0, '6', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
-MessageBox(0, '7', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
+MessageBox(0, '1', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   inherited;
+MessageBox(0, '2', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 end;
 
 procedure TWWindow.EmptyWorkingMem();
@@ -1046,7 +1047,6 @@ begin
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
-MessageBox(0, '5', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
@@ -1891,15 +1891,18 @@ var
   I: Integer;
   PopupChildVisible: Boolean;
 begin
-  if (Message.WindowPos^.flags and SWP_NOMOVE = 0) then
-    HidePopupChildren()
-  else if (Message.WindowPos^.flags and SWP_NOZORDER = 0) then
+  if (not (csDestroying in ComponentState)) then
   begin
-    PopupChildVisible := False;
-    for I := 0 to PopupChildren.Count - 1 do
-      PopupChildVisible := PopupChildVisible or TCustomForm(PopupChildren[I]).Visible;
-    if (PopupChildVisible) then
-      Message.WindowPos^.flags := Message.WindowPos^.flags or SWP_NOZORDER;
+    if (Message.WindowPos^.flags and SWP_NOMOVE = 0) then
+      HidePopupChildren()
+    else if (Message.WindowPos^.flags and SWP_NOZORDER = 0) then
+    begin
+      PopupChildVisible := False;
+      for I := 0 to PopupChildren.Count - 1 do
+        PopupChildVisible := PopupChildVisible or TCustomForm(PopupChildren[I]).Visible;
+      if (PopupChildVisible) then
+        Message.WindowPos^.flags := Message.WindowPos^.flags or SWP_NOZORDER;
+    end;
   end;
 
   inherited;
