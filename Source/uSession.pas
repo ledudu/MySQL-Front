@@ -11747,7 +11747,7 @@ var
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      Database := DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString);
+      Database := DatabaseByName(DataSet.FieldByName('EVENT_SCHEMA').AsString);
       if (Assigned(Database)) then
         Database.Events.Build(DataSet, True, Filtered, ItemSearch)
       else
@@ -11771,7 +11771,7 @@ var
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      Database := DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString);
+      Database := DatabaseByName(DataSet.FieldByName('ROUTINE_SCHEMA').AsString);
       if (Assigned(Database) and Assigned(Database.Routines)) then
         Database.Routines.Build(DataSet, True, Filtered, ItemSearch)
       else
@@ -11795,7 +11795,7 @@ var
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      Database := DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString);
+      Database := DatabaseByName(DataSet.FieldByName('TABLE_SCHEMA').AsString);
       if (Assigned(Database)) then
         Database.Tables.Build(DataSet, True, Filtered, ItemSearch)
       else
@@ -11818,7 +11818,7 @@ var
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      Database := DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString);
+      Database := DatabaseByName(DataSet.FieldByName('TRIGGER_SCHEMA').AsString);
       if (Assigned(Database)) then
         Database.Triggers.Build(DataSet, True, Filtered, ItemSearch)
       else

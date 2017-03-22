@@ -934,9 +934,7 @@ begin
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
-MessageBox(0, '1', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
   inherited;
-MessageBox(0, '2', 'Juergen', MB_OK); {$MESSAGE 'Juergen'}
 end;
 
 procedure TWWindow.EmptyWorkingMem();

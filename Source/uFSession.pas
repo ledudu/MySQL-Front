@@ -4196,20 +4196,32 @@ const
   EventPrefix = 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ';
   TriggerPrefix = 'CREATE TRIGGER `Parser` BEFORE INSERT ON `Table` FOR EACH ROW ';
 var
+  ErrorPosOffset: Integer;
   SQL: string;
 begin
   Window.ActiveControl := ActiveBCEditor;
 
   if (ActiveBCEditor.SelectionAvailable) then
-    SQL := ActiveBCEditor.SelText
+  begin
+    ErrorPosOffset := ActiveBCEditor.SelStart;
+    SQL := ActiveBCEditor.SelText;
+  end
   else
   begin
     SQL := ActiveBCEditor.Text;
     case (CurrentClassIndex) of
       ciTrigger:
-        SQL := TriggerPrefix + SQL;
+        begin
+          ErrorPosOffset := - Length(TriggerPrefix);
+          SQL := TriggerPrefix + SQL;
+        end;
       ciEvent:
-        SQL := EventPrefix + SQL;
+        begin
+          ErrorPosOffset := - Length(EventPrefix);
+          SQL := EventPrefix + SQL;
+        end;
+      else
+        ErrorPosOffset := 0;
     end;
   end;
 
@@ -4217,7 +4229,7 @@ begin
   begin
     if ((Session.SQLParser.ErrorPos > 0) and Assigned(Session.SQLParser.ErrorToken)) then
     begin
-      ActiveBCEditor.SelStart := Session.SQLParser.ErrorPos;
+      ActiveBCEditor.SelStart := ErrorPosOffset + Session.SQLParser.ErrorPos;
       ActiveBCEditor.SelLength := Length(Session.SQLParser.ErrorToken.Text);
     end;
     MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
@@ -12230,16 +12242,6 @@ begin
       MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and (Item.ImageIndex = iiTrigger);
       MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
       MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiKey);
-
-      // Debug 2017-01-15
-      if ((ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseField, iiVirtualField])) then
-        if (not (TObject(Item.Data) is TSBaseField)) then
-          raise ERangeError.Create('ClassType: ' + TObject(Item.Data).ClassName)
-        else if (not Assigned(TSBaseField(Item.Data).Table)) then
-          raise ERangeError.Create(SRangeError)
-        else if (not Assigned(TSBaseField(Item.Data).Table.Fields)) then
-          raise ERangeError.Create(SRangeError);
-
       MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseField, iiVirtualField]) and (TSBaseField(Item.Data).Table.Fields.Count > ListView.SelCount);
       MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
       MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcess]) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
@@ -12847,6 +12849,8 @@ begin
   mtEditor.Enabled := View <> vEditor;
   mtEditor2.Enabled := View <> vEditor2;
   mtEditor3.Enabled := View <> vEditor3;
+
+  mtBuilder.Visible := MainAction('aVBuilder').Visible;
 
   Checked := 0;
   for I := 0 to MToolBar.Items.Count - 1 do
@@ -15412,12 +15416,6 @@ begin
       or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
       or (ClassIndex in [ciEvent, ciTrigger]));
 
-  MainAction('aDPostObject').Enabled := (View = vIDE)
-    and TBCEditor(Sender).Modified
-    and SQLSingleStmt(SQL)
-    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-      or (ClassIndex in [ciEvent, ciTrigger]));
   MainAction('aDRun').Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty
     or (View in [vBuilder]) and FQueryBuilder.Visible
@@ -15972,7 +15970,7 @@ begin
   tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
   tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
   tbIDE.Visible := ttIDE in Preferences.ToolbarTabs;
-  tbBuilder.Visible := ttBuilder in Preferences.ToolbarTabs;
+  tbBuilder.Visible := (ttBuilder in Preferences.ToolbarTabs) and MainAction('aVBuilder').Visible;
   tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
   tbEditor.Visible := ttEditor in Preferences.ToolbarTabs;
   tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;

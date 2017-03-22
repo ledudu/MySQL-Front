@@ -496,6 +496,7 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 100
       ShortCut = 16503
+      Visible = False
     end
     object aVDiagram: TAction
       Category = 'View'

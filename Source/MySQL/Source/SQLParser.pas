@@ -3966,7 +3966,7 @@ type
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser;
           const ANodes: TNodes; const ADelimiterType: TTokenType;
-          const AChildren: POffsetList): TOffset; static;
+          const AElements: POffsetList): TOffset; static;
         function GetFirstElement(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
       public
         function GetDelimiter(const Child: PChild): PToken;
@@ -6723,7 +6723,7 @@ type
     ReservedWordList: TWordList;
     TokenBuffer: record
       Count: Integer;
-      Items: array [0 .. 10000 - 1] of record Error: TError; Token: TOffset; end;
+      Items: array [0 .. 50 - 1] of record Error: TError; Token: TOffset; end;
     end;
     {$IFDEF Debug}
     TokenIndex: Integer;
@@ -7029,7 +7029,7 @@ type
     function ParseSelectStmtTableEscapedReference(): TOffset;
     function ParseSelectStmtTableFactor(): TOffset;
     function ParseSelectStmtTableFactorIndexHint(): TOffset;
-    function ParseSelectStmtTableFactorSubquery(): TOffset;
+    function ParseSelectStmtTableFactorSubquery(const SelectStmt: TOffset): TOffset;
     function ParseSelectStmtTableFactorOj(): TOffset;
     function ParseSelectStmtTableReference(): TOffset;
     function ParseSetNamesStmt(): TOffset;
@@ -10215,7 +10215,7 @@ end;
 
 class function TSQLParser.TList.Create(const AParser: TSQLParser;
   const ANodes: TNodes; const ADelimiterType: TTokenType;
-  const AChildren: POffsetList): TOffset;
+  const AElements: POffsetList): TOffset;
 var
   I: Integer;
 begin
@@ -10224,24 +10224,24 @@ begin
   with PList(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
-    if (AChildren.Count > 0) then
-      Nodes.FirstElement := AChildren^[0];
+    if (AElements.Count > 0) then
+      Nodes.FirstElement := AElements^[0];
 
     FDelimiterType := ADelimiterType;
 
     if (ADelimiterType = ttUnknown) then
-      FElementCount := AChildren^.Count
+      FElementCount := AElements^.Count
     else
     begin
       FElementCount := 0;
-      for I := 0 to AChildren^.Count - 1 do
-        if (not AParser.IsToken(AChildren^[I])
-          or (AParser.TokenPtr(AChildren^[I])^.TokenType <> ADelimiterType)) then
+      for I := 0 to AElements^.Count - 1 do
+        if (not AParser.IsToken(AElements^[I])
+          or (AParser.TokenPtr(AElements^[I])^.TokenType <> ADelimiterType)) then
           Inc(FElementCount)
     end;
 
     Heritage.AddChildren(1, @Nodes.OpenBracket);
-    Heritage.AddChildren(AChildren.Count, AChildren.Nodes);
+    Heritage.AddChildren(AElements.Count, AElements.Nodes);
     Heritage.AddChildren(1, @Nodes.CloseBracket);
   end;
 end;
@@ -22240,7 +22240,9 @@ begin
 
   Result := TSelectStmt.Create(Self, Nodes);
 
-  if (not ErrorFound and (OpenBracketCount - CloseBracket1Count > Elements.Count)) then
+  if (not (soTableFactor in Options)
+    and not ErrorFound
+    and (OpenBracketCount - CloseBracket1Count > Elements.Count)) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
@@ -22443,13 +22445,13 @@ begin
     Result := ParseSelectStmtTableFactorOj();
 end;
 
-function TSQLParser.ParseSelectStmtTableFactorSubquery(): TOffset;
+function TSQLParser.ParseSelectStmtTableFactorSubquery(const SelectStmt: TOffset): TOffset;
 var
   Nodes: TSelectStmt.TTableFactorSubquery.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.SelectStmt := ParseSelectStmt([soSubSelect]);
+  Nodes.SelectStmt := SelectStmt;
 
   if (not ErrorFound) then
   begin
@@ -22527,63 +22529,65 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
 
   function ParseTableFactor(): TOffset;
   var
-    BracketDeep: Integer;
-//    Element: PChild;
-//    OpenBracket: TOffset;
-//    OpenedBrackets: Integer;
-    Index: Integer;
+    Lists: array of record
+      ListNodes: TList.TNodes;
+      Elements: TOffsetList;
+    end;
+    OpenedBrackets: Integer;
   begin
-    if (IsSymbol(ttOpenBracket)) then
-    begin
-//      if (IsSelectStmt()) then
-//      begin
-//        Result := ParseSelectStmt([soTableFactor]);
-//        if (IsStmt(Result) and (PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets > 0)) then
-//        begin
-//          Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)^.NodeType = ntList);
-//          OpenedBrackets := PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).ElementCount;
-//          if (PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1 > 0)) then
-//          begin
-//            Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1)^.NodeType = ntList);
-//            Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1)).ElementCount);
-//          end;
-//          if (PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2 > 0)) then
-//          begin
-//            Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)^.NodeType = ntList);
-//            Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)).ElementCount);
-//          end;
-//          while (OpenedBrackets > 0) do
-//          begin
-//            OpenBracket := PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement;
-//            PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement
-//              := PToken(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetNextElement(
-//                PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetFirstElement()))^.Offset;
-//
-//          end;
-//        end;
-//      end;
-
-      BracketDeep := 0;
-      Index := 0;
-      repeat
-        if (IsNextSymbol(Index, ttOpenBracket)) then
-          Inc(BracketDeep)
-        else if (IsNextSymbol(Index, ttCloseBracket)) then
-          Dec(BracketDeep);
-        Inc(Index);
-      until (EndOfStmt(NextToken[Index])
-        or (BracketDeep = 0));
-
-      if (IsNextTag(1, kiSELECT)
-        and (EndOfStmt(NextToken[Index]) or IsNextTag(Index, kiAS) or (TokenPtr(NextToken[Index])^.TokenType in ttIdents) and (ReservedWords.IndexOf(TokenPtr(NextToken[Index])^.AsString) < 0))) then
-        Result := ParseSelectStmtTableFactorSubquery()
-      else
-        Result := ParseList(True, ParseSelectStmtTableReference, ttComma, False);
-    end
-    else if (IsTag(kiDUAL)) then
+    if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsTag(kiSELECT)) then
-      Result := ParseSelectStmtTableFactorSubquery()
+    else if (IsSelectStmt()) then
+    begin
+      Result := ParseSelectStmt([soSubSelect, soTableFactor]);
+      if (IsStmt(Result)
+        and (PStmt(NodePtr(Result))^.StmtType = stSelect)
+        and (PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets > 0)) then
+      begin
+        Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)^.NodeType = ntList);
+        OpenedBrackets := PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).ElementCount;
+        if (PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1 > 0) then
+        begin
+          Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1)^.NodeType = ntList);
+          Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets1)).ElementCount);
+        end;
+        if (PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2 > 0) then
+        begin
+          Assert(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)^.NodeType = ntList);
+          Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)).ElementCount);
+        end;
+
+        while (not ErrorFound and (OpenedBrackets > 0)) do
+        begin
+          SetLength(Lists, Length(Lists) + 1);
+          Lists[Length(Lists) - 1].Elements.Init();
+          Lists[Length(Lists) - 1].ListNodes.OpenBracket :=
+            PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement;
+          PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement
+            := PToken(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetNextElement(
+              PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetFirstElement()))^.Offset;
+
+          Dec(OpenedBrackets);
+        end;
+
+        Result := ParseSelectStmtTableFactorSubquery(Result);
+
+        while (not ErrorFound and (Length(Lists) > 0)) do
+        begin
+          Lists[Length(Lists) - 1].Elements.Add(Result);
+          while (not ErrorFound and IsSymbol(ttComma)) do
+          begin
+            Lists[Length(Lists) - 1].Elements.Add(ParseSymbol(ttComma));
+            if (not ErrorFound) then
+              Lists[Length(Lists) - 1].Elements.Add(ParseSelectStmtTableReference());
+          end;
+          if (not ErrorFound) then
+            Lists[Length(Lists) - 1].ListNodes.CloseBracket := ParseSymbol(ttCloseBracket);
+          Result := TList.Create(Self, Lists[Length(Lists) - 1].ListNodes, ttComma, @Lists[Length(Lists) - 1].Elements);
+          SetLength(Lists, Length(Lists) - 1);
+        end;
+      end;
+    end
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
     else if (EndOfStmt(CurrentToken)) then
