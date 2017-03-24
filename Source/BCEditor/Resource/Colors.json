@@ -1,108 +1,108 @@
 {
-   "Colors": {
-      "Editor": {
-         "Colors": {
-            "Background": "clWindow",
-            "ActiveLineBackground": "$00C0FFFF",
-            "CodeFoldingActiveLineBackground": "$00C0FFFF",
-            "CodeFoldingBackground": "clWindow",
-            "CodeFoldingCollapsedLine": "$00CC9999",
-            "CodeFoldingFoldingLineHighlight": "$00CC9999",
-            "CodeFoldingFoldingLine": "$00CC9999",
-            "CodeFoldingIndent": "$00CC9999",
-            "CodeFoldingIndentHighlight": "$00CC9999",
-            "CodeFoldingHintBackground": "clWindow",
-            "CodeFoldingHintBorder": "$00CC9999",
-            "CodeFoldingHintText": "clBlack",
-            "CodeFoldingHintIndicatorBackground": "clWindow",
-            "CodeFoldingHintIndicatorBorder": "$00CC9999",
-            "CodeFoldingHintIndicatorMark": "$00CC9999",
-            "CompletionProposalBackground": "clWindow",
-            "CompletionProposalForeground": "clBlack",
-            "CompletionProposalSelectedBackground": "clHighlight",
-            "CompletionProposalSelectedText": "clHighlightText",
-            "LeftMarginBackground": "$00F4F4F4",
-            "LeftMarginBorder": "clWindow",
-            "LeftMarginLineNumbers": "$00CC9999",
-            "LeftMarginLineStateModified": "clYellow",
-            "LeftMarginLineStateNormal": "clLime",
-            "LeftMarginBookmarkPanel": "$00F4F4F4",
-            "MatchingPairMatched": "clAqua",
-            "MatchingPairUnderline": "$00FFFF00",
-            "MatchingPairUnmatched": "clYellow",
-            "MinimapBackground": "clNone",
-            "MinimapBookmark": "clGreen",
-            "MinimapVisibleLines": "$00E6FAFF",
-            "RightMargin": "clSilver",
-            "RightMovingEdge": "clSilver",
-            "SearchHighlighterBackground": "$0078AAFF",
-            "SearchHighlighterBorder": "clNone",
-            "SearchHighlighterForeground": "clBlack",
-            "SearchInSelectionBackground": "$00FAFFE6",
-            "SearchMapActiveLine": "$00F0F0F0",
-            "SearchMapBackground": "$00F4F4F4",
-            "SearchMapForeground": "$0078AAFF",
-            "SelectionBackground": "$00A56D53",
-            "SelectionForeground": "clWindow",
-            "SyncEditBackground": "$00FAFFE6",
-            "SyncEditEditBorder": "clBlack",
-            "SyncEditWordBorder": "$00A56D53",
-            "WordWrapIndicatorArrow": "clNavy",
-            "WordWrapIndicatorLines": "clBlack"
-         }
+  "Colors": {
+    "Editor": {
+      "Colors": {
+        "Background": "clWindow",
+        "ActiveLineBackground": "$00C0FFFF",
+        "CodeFoldingActiveLineBackground": "$00C0FFFF",
+        "CodeFoldingBackground": "clWindow",
+        "CodeFoldingCollapsedLine": "$00CC9999",
+        "CodeFoldingFoldingLineHighlight": "$00CC9999",
+        "CodeFoldingFoldingLine": "$00CC9999",
+        "CodeFoldingIndent": "$00CC9999",
+        "CodeFoldingIndentHighlight": "$00CC9999",
+        "CodeFoldingHintBackground": "clWindow",
+        "CodeFoldingHintBorder": "$00CC9999",
+        "CodeFoldingHintText": "clBlack",
+        "CodeFoldingHintIndicatorBackground": "clWindow",
+        "CodeFoldingHintIndicatorBorder": "$00CC9999",
+        "CodeFoldingHintIndicatorMark": "$00CC9999",
+        "CompletionProposalBackground": "clWindow",
+        "CompletionProposalForeground": "clBlack",
+        "CompletionProposalSelectedBackground": "clHighlight",
+        "CompletionProposalSelectedText": "clHighlightText",
+        "LeftMarginBackground": "$00F4F4F4",
+        "LeftMarginBorder": "clWindow",
+        "LeftMarginLineNumbers": "$00CC9999",
+        "LeftMarginLineStateModified": "clYellow",
+        "LeftMarginLineStateNormal": "clLime",
+        "LeftMarginBookmarkPanel": "$00F4F4F4",
+        "MatchingPairMatched": "clAqua",
+        "MatchingPairUnderline": "$00FFFF00",
+        "MatchingPairUnmatched": "clYellow",
+        "MinimapBackground": "clNone",
+        "MinimapBookmark": "clGreen",
+        "MinimapVisibleLines": "$00E6FAFF",
+        "RightMargin": "clSilver",
+        "RightMovingEdge": "clSilver",
+        "SearchHighlighterBackground": "$0078AAFF",
+        "SearchHighlighterBorder": "clNone",
+        "SearchHighlighterForeground": "clBlack",
+        "SearchInSelectionBackground": "$00FAFFE6",
+        "SearchMapActiveLine": "$00F0F0F0",
+        "SearchMapBackground": "$00F4F4F4",
+        "SearchMapForeground": "$0078AAFF",
+        "SelectionBackground": "$00A56D53",
+        "SelectionForeground": "clWindow",
+        "SyncEditBackground": "$00FAFFE6",
+        "SyncEditEditBorder": "clBlack",
+        "SyncEditWordBorder": "$00A56D53",
+        "WordWrapIndicatorArrow": "clNavy",
+        "WordWrapIndicatorLines": "clBlack"
+      }
+    },
+    "Elements": [
+      {
+        "Name": "Editor",
+        "Foreground": "clWindowText"
       },
-      "Elements": [
-         {
-            "Name": "Editor",
-            "Foreground": "clWindowText"
-         },
-         {
-            "Name": "Comment",
-            "Foreground": "clGreen",
-            "Style": "Italic"
-         },
-         {
-            "Name": "Constante",
-            "Foreground": "clBlue"
-         },
-         {
-            "Name": "Conditional",
-            "Foreground": "clTeal"
-         },
-         {
-            "Name": "Identifier",
-            "Foreground": "clWindowText"
-         },
-         {
-            "Name": "Keyword",
-            "Foreground": "clNavy",
-            "Style": "Bold"
-         },
-         {
-            "Name": "Method",
-            "Foreground": "clNavy",
-            "Style": "Bold"
-         },
-         {
-            "Name": "Number",
-            "Foreground": "clBlue"
-         },
-         {
-            "Name": "String",
-            "Foreground": "clBlue"
-         },
-         {
-            "Name": "Symbol"
-         },
-         {
-            "Name": "Type",
-            "Foreground": "clMaroon",
-            "Style": "Bold"
-         },
-         {
-            "Name": "Variable",
-            "Foreground": "clGreen"
-         }
-      ]
-   }
+      {
+        "Name": "Comment",
+        "Foreground": "clGreen",
+        "Style": "Italic"
+      },
+      {
+        "Name": "Constante",
+        "Foreground": "clBlue"
+      },
+      {
+        "Name": "Conditional",
+        "Foreground": "clTeal"
+      },
+      {
+        "Name": "Identifier",
+        "Foreground": "clWindowText"
+      },
+      {
+        "Name": "Keyword",
+        "Foreground": "clNavy",
+        "Style": "Bold"
+      },
+      {
+        "Name": "Method",
+        "Foreground": "clNavy",
+        "Style": "Bold"
+      },
+      {
+        "Name": "Number",
+        "Foreground": "clBlue"
+      },
+      {
+        "Name": "String",
+        "Foreground": "clBlue"
+      },
+      {
+        "Name": "Symbol"
+      },
+      {
+        "Name": "Type",
+        "Foreground": "clMaroon",
+        "Style": "Bold"
+      },
+      {
+        "Name": "Variable",
+        "Foreground": "clGreen"
+      }
+    ]
+  }
 }
