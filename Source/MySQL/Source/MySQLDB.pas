@@ -2163,22 +2163,7 @@ end;
 
 procedure TMySQLConnection.CancelResultHandle(var ResultHandle: TResultHandle);
 begin
-  TerminateCS.Enter();
-  if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssReady])) then
-  begin
-    DebugMonitor.Append('CancelResultHandle - ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
-    ResultHandle.SyncThread.State := ssTerminate;
-    if (GetCurrentThreadId() = MainThreadID) then
-      Sync(ResultHandle.SyncThread)
-    else
-    begin
-      MySQLConnectionOnSynchronize(SyncThread);
-      SyncThreadExecuted.WaitFor(INFINITE);
-    end;
-    ResultHandle.SyncThread := nil;
-  end;
-  TerminateCS.Leave();
+  Terminate();
 end;
 
 procedure TMySQLConnection.CloseResultHandle(var ResultHandle: TResultHandle);
@@ -2682,6 +2667,9 @@ begin
     Result := False
   else if (SynchronCount > 0) then
   begin
+    // Debug 2017-03-24
+    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled);
+
     repeat
       WriteMonitor('InternExecuteSQL - 2', ttDebug);
       if (GetCurrentThreadId() = MainThreadId) then
@@ -3130,6 +3118,7 @@ begin
                 // 2017-03-11 ErrorCode: 0, TTExportExcel is running in TSQLParser.ParseChecksumTableStmt, no result for SELECT query
                 // 2017-03-12 ErrorCode: 0, TTExportSQL is running in TDExport.OnError, no result for SELECT query
                 // 2017-03-15 ErrorCode: 0, TTExportExcel is running in TDExport.OnError, no result for SELECT query
+                // 2017-03-24 ErrorCode: 0, TTExportSQL is running in TDExport.OnError, no result for SELECT query
 
                 SyncThreadExecuted.SetEvent();
               end;
@@ -3181,7 +3170,7 @@ begin
           SyncThread.State := ssClose;
           if (SyncThread.Mode = smResultHandle) then
             DoAfterExecuteSQL();
-          if (SynchronCount > 0) then
+          if (GetCurrentThreadId() <> MainThreadID) then
             SyncThreadExecuted.SetEvent();
         end;
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
