@@ -3154,6 +3154,9 @@ var
   Identifier: string;
   S: string;
 begin
+  // Debug 2017-03-25
+  Assert(Assigned(Session));
+
   National := SQLParseKeyword(Parse, 'NATIONAL');
 
   Identifier := SQLParseValue(Parse);

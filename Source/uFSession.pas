@@ -3728,12 +3728,23 @@ begin
     end
     else
     begin
-      Text := Clipboard.AsText;
-      if (Pos(#13#10, Text) > 0) then
-        Text := '(' + ReplaceStr(Text, #13#10, '),(') + ')'
-      else if (Pos(#10, Text) > 0) then
-        Text := '(' + ReplaceStr(Text, #10, '),(') + ')';
-      FFilter.SelText := ReplaceStr(Text, #9, ',');
+      Text := Trim(Clipboard.AsText);
+      if (Pos(#9, Text) = 0) then
+      begin
+        if (Pos(#13#10, Text) > 0) then
+          Text := ReplaceStr(Text, #13#10, ',')
+        else if (Pos(#10, Text) > 0) then
+          Text := ReplaceStr(Text, #10, ',');
+        FFilter.SelText := Text;
+      end
+      else
+      begin
+        if (Pos(#13#10, Text) > 0) then
+          Text := '(' + ReplaceStr(Text, #13#10, '),(') + ')'
+        else if (Pos(#10, Text) > 0) then
+          Text := '(' + ReplaceStr(Text, #10, '),(') + ')';
+        FFilter.SelText := ReplaceStr(Text, #9, ',');
+      end;
     end;
   end
   else if (Window.ActiveControl = FQuickSearch) then
@@ -9694,6 +9705,7 @@ begin
         begin
           FSQLEditorBCEditor2 := CreateBCEditor(nil);
           FSQLEditorBCEditor2.Text := Session.Account.Desktop.EditorContent[ttEditor2];
+          FSQLEditorBCEditor2.Lines.LineBreak := #13#10;
           SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorBCEditor2, CreatePDBGrid());
         end;
         Result := FSQLEditorBCEditor2;
@@ -9704,6 +9716,7 @@ begin
         begin
           FSQLEditorBCEditor3 := CreateBCEditor(nil);
           FSQLEditorBCEditor3.Text := Session.Account.Desktop.EditorContent[ttEditor3];
+          FSQLEditorBCEditor3.Lines.LineBreak := #13#10;
           SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorBCEditor3, CreatePDBGrid());
         end;
         Result := FSQLEditorBCEditor3;
@@ -16384,6 +16397,7 @@ begin
   PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
 
   SQLEditor.BCEditor.Text := Session.Account.Desktop.EditorContent[ttEditor];
+  SQLEditor.BCEditor.Lines.LineBreak := #13#10;
   PResult.Height := Session.Account.Desktop.DataHeight;
   PResultHeight := PResult.Height;
   PBlob.Height := Session.Account.Desktop.BlobHeight;

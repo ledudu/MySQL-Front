@@ -2686,6 +2686,9 @@ begin
       or (SyncThread.State in [ssClose, ssResult, ssReady])
       or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
+
+    // Debug 2017-03-25
+    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled);
   end
   else
   begin
@@ -3149,7 +3152,8 @@ begin
                   ssReady:
                     begin
                       SyncAfterExecuteSQL(SyncThread);
-                      SyncThreadExecuted.SetEvent();
+                      if (SynchronCount > 0) then
+                        SyncThreadExecuted.SetEvent();
                     end;
                   else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
                 end;
