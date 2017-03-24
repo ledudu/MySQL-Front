@@ -204,10 +204,10 @@ begin
   if (Field.Decimals >= 0) then FUDFormatDecimals.Position := Field.Decimals; FFormatDecimalsChange(nil);
 
   FFormatUnion.Text := '';
-  for I := 0 to Length(Field.Items) - 1 do
+  for I := 0 to Length(Field.Elements) - 1 do
   begin
     if (I > 0) then FFormatUnion.Text := FFormatUnion.Text + ',';
-    FFormatUnion.Text := FFormatUnion.Text + Field.Items[I];
+    FFormatUnion.Text := FFormatUnion.Text + Field.Elements[I];
   end;
   FFormatTimestamp.ItemIndex := 0;
   for I := 0 to FFormatTimestamp.Items.Count - 1 do
@@ -696,7 +696,7 @@ begin
         else NewField.Size := 0;
         if (IsFloatType()) then NewField.Decimals := FUDFormatDecimals.Position else NewField.Decimals := 0;
 
-        SetLength(NewField.Items, 0);
+        SetLength(NewField.Elements, 0);
         if (NewField.FieldType = mfEnum) then
         begin
           if (FFlagNullAllowed.Checked) then
@@ -704,11 +704,11 @@ begin
           else
             Index := 0;
           for I := Index to FDefaultEnum.Items.Count - 1 do
-            begin SetLength(NewField.Items, Length(NewField.Items) + 1); NewField.Items[Length(NewField.Items) - 1] := FDefaultEnum.Items.Strings[I]; end;
+            begin SetLength(NewField.Elements, Length(NewField.Elements) + 1); NewField.Elements[Length(NewField.Elements) - 1] := FDefaultEnum.Items.Strings[I]; end;
         end;
         if (NewField.FieldType = mfSet) then
           for I := 0 to FDefaultSet.Items.Count - 1 do
-            begin SetLength(NewField.Items, Length(NewField.Items) + 1); NewField.Items[Length(NewField.Items) - 1] := FDefaultSet.Items.Strings[I]; end;
+            begin SetLength(NewField.Elements, Length(NewField.Elements) + 1); NewField.Elements[Length(NewField.Elements) - 1] := FDefaultSet.Items.Strings[I]; end;
 
         NewField.Default := '';
         if (NewField.FieldType = mfTimestamp) then

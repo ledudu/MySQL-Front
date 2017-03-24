@@ -69,10 +69,6 @@ object DSearch: TDSearch
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -83,6 +79,8 @@ object DSearch: TDSearch
         Height = 271
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GSelect'
+        DoubleBuffered = True
+        ParentDoubleBuffered = False
         TabOrder = 0
         DesignSize = (
           325
@@ -123,10 +121,6 @@ object DSearch: TDSearch
       Caption = 'TSFOptions'
       TabVisible = False
       OnShow = TSFOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -213,10 +207,6 @@ object DSearch: TDSearch
       Caption = 'TSROptions'
       TabVisible = False
       OnShow = TSROptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -324,10 +314,6 @@ object DSearch: TDSearch
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

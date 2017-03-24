@@ -904,7 +904,7 @@ begin
   else
     SetControlCursor(GProgress, crDefault);
 
-  CheckActivePageChange(TSSelect);
+  CheckActivePageChange(TSExecute);
   FBBack.Enabled := False;
   ActiveControl := FBCancel;
 end;

@@ -353,13 +353,14 @@ type
     FFieldTypes: TSFieldTypes;
   protected
     procedure ParseFieldType(var Parse: TSQLParse); virtual;
+    procedure SetName(const AName: string); override;
   public
     Charset: string;
     Decimals: Integer;
+    Elements: array of string;
     Expression: string;
     FieldKind: TFieldKind;
     FieldType: TFieldType;
-    Items: array of string;
     National: Boolean;
     Size: Integer;
     Stored: TFieldStored;
@@ -378,9 +379,9 @@ type
     TRowType = (mrUnknown, mrFixed, mrDynamic, mrCompressed, mrRedundant, mrCompact);
   private
     FCollation: string;
-    FFields: TSTableFields;
     FInPrimaryKey: Boolean;
     FInUniqueKey: Boolean;
+    function GetFields(): TSTableFields; inline;
     function GetTable(): TSTable; inline;
   protected
     procedure ParseFieldType(var Parse: TSQLParse); override;
@@ -404,7 +405,7 @@ type
     function Equal(const Second: TSTableField): Boolean; reintroduce; virtual;
     function UnescapeValue(const Value: string): string; virtual;
     property Collation: string read FCollation write FCollation;
-    property Fields: TSTableFields read FFields;
+    property Fields: TSTableFields read GetFields;
     property InPrimaryKey: Boolean read FInPrimaryKey;
     property InUniqueKey: Boolean read FInUniqueKey;
     property Index: Integer read GetIndex;
@@ -1955,6 +1956,9 @@ begin
 
   if (AName <> FName) then
   begin
+    // Debug 2017-03-23
+    Assert((Items.IndexOf(Self) >= 0) or (FName = ''));
+
     if (Items.InsertIndex(AName, NewIndex) and (Index >= 0)) then
     begin
       if (NewIndex > Index) then
@@ -3052,7 +3056,7 @@ begin
   Expression := Source.Expression;
   FieldKind := Source.FieldKind;
   FieldType := Source.FieldType;
-  Items := TSTableField(Source).Items;
+  Elements := TSTableField(Source).Elements;
   National := TSTableField(Source).National;
   Size := Source.Size;
   Stored := Source.Stored;
@@ -3066,7 +3070,7 @@ begin
   Expression := '';
   FieldKind := mkUnknown;
   FieldType := mfUnknown;
-  SetLength(Items, 0);
+  SetLength(Elements, 0);
   FName := '';
   National := False;
   Size := 0;
@@ -3076,7 +3080,7 @@ end;
 
 constructor TSField.Create(const AFieldTypes: TSFieldTypes; const AName: string = '');
 begin
-  inherited Create(AFieldTypes, AName);
+  inherited Create(nil, AName);
 
   FFieldTypes := AFieldTypes;
 end;
@@ -3099,10 +3103,10 @@ begin
   if (FieldType in [mfEnum, mfSet]) then
   begin
     Result := Result + '(';
-    for I := 0 to Length(Items) - 1 do
+    for I := 0 to Length(Elements) - 1 do
     begin
       if (I > 0) then Result := Result + ',';
-      Result := Result + SQLEscape(Items[I]);
+      Result := Result + SQLEscape(Elements[I]);
     end;
     Result := Result + ')';
   end
@@ -3161,10 +3165,10 @@ begin
   begin
     if (FieldType in [mfEnum, mfSet]) then
     begin
-      SetLength(Items, 0);
+      SetLength(Elements, 0);
       repeat
-        SetLength(Items, Length(Items) + 1);
-        Items[Length(Items) - 1] := SQLParseValue(Parse);
+        SetLength(Elements, Length(Elements) + 1);
+        Elements[Length(Elements) - 1] := SQLParseValue(Parse);
       until (not SQLParseChar(Parse, ','));
     end
     else if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
@@ -3211,6 +3215,14 @@ begin
   Unsigned := SQLParseKeyword(Parse, 'UNSIGNED');
 end;
 
+procedure TSField.SetName(const AName: string);
+begin
+  Assert(AName <> '');
+
+  if (AName <> FName) then
+    FName := AName;
+end;
+
 { TSTableField ****************************************************************}
 
 procedure TSTableField.Assign(const Source: TSField);
@@ -3254,11 +3266,13 @@ end;
 
 constructor TSTableField.Create(const AFields: TSTableFields; const AName: string = '');
 begin
-  FFields := AFields;
+  inherited Create(AFields.Session.FieldTypes, AName);
+
+  FItems := AFields;
 
   Clear();
 
-  inherited Create(AFields.Session.FieldTypes, AName);
+  FName := AName;
 end;
 
 function TSTableField.DBTypeStr(): string;
@@ -3298,21 +3312,24 @@ begin
   Result := Result and (FieldType = Second.FieldType);
   Result := Result and (Name = Second.Name);
   Result := Result and (NullAllowed = Second.NullAllowed);
-  Result := Result and (Length(Items) = Length(Second.Items));
+  Result := Result and (Length(Elements) = Length(Second.Elements));
   if (Result) then
-    for I := 0 to Length(Items) - 1 do
-      Result := Result and (Items[I] = Second.Items[I]);
+    for I := 0 to Length(Elements) - 1 do
+      Result := Result and (Elements[I] = Second.Elements[I]);
   Result := Result and (Size = Second.Size);
   Result := Result and (Unicode = Second.Unicode);
   Result := Result and (Unsigned = Second.Unsigned);
   Result := Result and (Zerofill = Second.Zerofill);
 end;
 
+function TSTableField.GetFields(): TSTableFields;
+begin
+  Result := TSTableFields(Items);
+end;
+
 function TSTableField.GetTable(): TSTable;
 begin
-  Assert(FFields is TSTableFields);
-
-  Result := FFields.Table;
+  Result := Fields.Table;
 end;
 
 procedure TSTableField.ParseFieldType(var Parse: TSQLParse);
@@ -3369,6 +3386,7 @@ begin
   Assert(Source is TSBaseField);
 
   inherited Assign(Source);
+  FOriginalName := TSBaseField(Source).OriginalName;
 
   if (Assigned(TSBaseTable(TSTableField(Source).Fields.Table).FEngine)) then
     FieldType := TSBaseTable(TSTableField(Source).Fields.Table).Engine.ApplyMySQLFieldType(TSTableField(Source).FieldType, TSTableField(Source).Size);
@@ -3447,13 +3465,8 @@ begin
 end;
 
 procedure TSTableFields.Assign(const Source: TSTableFields);
-var
-  I: Integer;
 begin
-  Clear();
-
-  for I := 0 to Source.Count - 1 do
-    AddField(Source.Field[I]);
+  raise EAbstractError.Create(SAbstractError)
 end;
 
 constructor TSTableFields.Create(const ATable: TSTable);
@@ -3552,11 +3565,18 @@ end;
 procedure TSBaseFields.Assign(const Source: TSTableFields);
 var
   I: Integer;
+  NewField: TSBaseField;
 begin
-  inherited;
+  Clear();
 
-  for I := 0 to Count - 1 do
-    Field[I].FOriginalName := TSBaseFields(Source).Field[I].OriginalName;
+  for I := 0 to TSBaseFields(Source).Count - 1 do
+  begin
+    NewField := TSBaseField.Create(Self, TSBaseFields(Source).Field[I].Name);
+    NewField.Assign(TSBaseFields(Source).Field[I]);
+    NewField.FOriginalName := TSBaseFields(Source).Field[I].OriginalName;
+    AddField(NewField);
+    NewField.Free();
+  end;
 end;
 
 function TSBaseFields.GetField(Index: Integer): TSBaseField;
@@ -3686,7 +3706,7 @@ begin
 
   Result := Result and (Length(Fields) = Length(Second.Fields));
   for I := 0 to Length(Fields) - 1 do
-    Result := Result and (lstrcmpi(PChar(Fields[I].Name), PChar(Second.Fields[I].Name)) = 0);
+    Result := Result and (Table.Fields.NameCmp(Fields[I].Name, Second.Fields[I].Name) = 0);
   Result := Result and (Match = Second.Match);
   Result := Result and (lstrcmpi(PChar(Name), PChar(Second.Name)) = 0);
   Result := Result and (OnDelete = Second.OnDelete);
@@ -12525,8 +12545,8 @@ begin
             begin
               Grid.Columns[I].PickList.Clear();
               if (Field.FieldType = mfEnum) then
-                for J := 0 to Length(Field.Items) - 1 do
-                  Grid.Columns[I].PickList.Add(Field.Items[J]);
+                for J := 0 to Length(Field.Elements) - 1 do
+                  Grid.Columns[I].PickList.Add(Field.Elements[J]);
 
               Grid.Columns[I].ButtonStyle := cbsAuto;
             end;

@@ -94,12 +94,10 @@ object DTransfer: TDTransfer
             Height = 237
             Align = alClient
             BorderStyle = bsNone
-            DoubleBuffered = True
             HideSelection = False
             Indent = 19
             MultiSelect = True
             MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
-            ParentDoubleBuffered = False
             ReadOnly = True
             ShowLines = False
             TabOrder = 0
@@ -140,10 +138,8 @@ object DTransfer: TDTransfer
             Height = 237
             Align = alClient
             BorderStyle = bsNone
-            DoubleBuffered = True
             HideSelection = False
             Indent = 19
-            ParentDoubleBuffered = False
             ReadOnly = True
             ShowLines = False
             TabOrder = 0

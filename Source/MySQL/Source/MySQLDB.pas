@@ -252,13 +252,13 @@ type
     FOnConvertError: TConvertErrorNotifyEvent;
     FOnDatabaseChange: TDatabaseChangeEvent;
     FOnSQLError: TErrorEvent;
-    FOnTerminate: TNotifyEvent; // Debug 2017-03-21
     FOnUpdateIndexDefs: TOnUpdateIndexDefsEvent;
     FOnVariableChange: TVariableChangeEvent;
     FPassword: string;
     FPort: Word;
     FServerTimeout: LongWord;
     FServerVersionStr: string;
+    FSynchronCount: Integer;
     FSQLMonitors: TList;
     FSQLParser: TSQLParser;
     FTerminateCS: TCriticalSection;
@@ -270,7 +270,6 @@ type
     InOnResult: Boolean;
     KillThreadId: my_uint;
     SilentCount: Integer;
-    SynchronCount: Integer;
     FSyncThreadExecuted: TEvent;
     function GetNextCommandText(): string;
     function GetServerTime(): TDateTime;
@@ -348,6 +347,7 @@ type
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
+    property SynchronCount: Integer read FSynchronCount;
     property SyncThread: TSyncThread read FSyncThread;
     property SyncThreadExecuted: TEvent read FSyncThreadExecuted;
     property TerminateCS: TCriticalSection read FTerminateCS;
@@ -415,7 +415,6 @@ type
     property OnConvertError: TConvertErrorNotifyEvent read FOnConvertError write FOnConvertError;
     property OnDatabaseChange: TDatabaseChangeEvent read FOnDatabaseChange write FOnDatabaseChange;
     property OnSQLError: TErrorEvent read FOnSQLError write FOnSQLError;
-    property OnTerminate: TNotifyEvent read FOnTerminate write FOnTerminate;
     property OnUpdateIndexDefs: TOnUpdateIndexDefsEvent read FOnUpdateIndexDefs write FOnUpdateIndexDefs;
     property OnVariableChange: TVariableChangeEvent read FOnVariableChange write FOnVariableChange;
     property Password: string read FPassword write SetPassword;
@@ -2119,7 +2118,7 @@ end;
 
 procedure TMySQLConnection.BeginSynchron();
 begin
-  Inc(SynchronCount);
+  Inc(FSynchronCount);
 end;
 
 function TMySQLConnection.CharsetToCharsetNr(const Charset: string): Byte;
@@ -2248,7 +2247,6 @@ begin
   FMultiStatements := True;
   FOnConvertError := nil;
   FOnSQLError := nil;
-  FOnTerminate := nil;
   FOnUpdateIndexDefs := nil;
   FPassword := '';
   FPort := MYSQL_PORT;
@@ -2442,7 +2440,7 @@ end;
 procedure TMySQLConnection.EndSynchron();
 begin
   if (SynchronCount > 0) then
-    Dec(SynchronCount);
+    Dec(FSynchronCount);
 end;
 
 function TMySQLConnection.EscapeIdentifier(const Identifier: string): string;
@@ -3105,8 +3103,9 @@ begin
                 ssNext:
                   Sync(SyncThread);
                 ssResult,
+                ssReceivingResult,
                 ssReady:
-                  if (SynchronCount > 0) then
+                  if ((SynchronCount > 0) and not InOnResult) then
                     SyncThreadExecuted.SetEvent();
               end;
             smResultHandle:
@@ -3159,7 +3158,10 @@ begin
                     if (SynchronCount > 0) then
                       SyncThreadExecuted.SetEvent();
                   ssReady:
-                    SyncAfterExecuteSQL(SyncThread);
+                    begin
+                      SyncAfterExecuteSQL(SyncThread);
+                      SyncThreadExecuted.SetEvent();
+                    end;
                   else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
                 end;
               smResultHandle:
@@ -3588,8 +3590,12 @@ begin
 
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
+    DebugMonitor.Append('SyncExecuted - 2', ttDebug);
+
     if (KillThreadId > 0) then
     begin
+      DebugMonitor.Append('SyncExecuted - 3', ttDebug);
+
       KillThreadId := 0;
       SyncThread.State := ssResult;
       SyncHandledResult(SyncThread);
@@ -3611,6 +3617,7 @@ begin
   end
   else
   begin
+    DebugMonitor.Append('SyncExecuted - 4', ttDebug);
 
     InOnResult := True;
     try
@@ -3977,9 +3984,6 @@ begin
   DebugMonitor.Append('SyncTerminate - start', ttDebug);
 
   Assert(GetCurrentThreadId() = MainThreadID);
-
-  if (Assigned(OnTerminate)) then
-    OnTerminate(Self);
 
   KillThreadId := SyncThread.LibThreadId;
 
@@ -7143,8 +7147,6 @@ begin
   Connection.Terminate();
 
   InternRecordBuffers.Clear();
-  ClearBuffers();
-  UpdateBufferCount();
   if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
     InternalInitRecord(ActiveBuffer());
   for I := 0 to BufferCount - 1 do

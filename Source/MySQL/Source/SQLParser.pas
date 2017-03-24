@@ -10,7 +10,9 @@ type
     type
       TOffset = Integer;
       POffsetArray = ^TOffsetArray;
-      TOffsetArray = array [0..$FFFFFFF] of TOffset;
+      TOffsetArray = array [0 .. MaxInt div SizeOf(TOffset) - 1] of TOffset;
+      POffsetDynArray = ^TOffsetDynArray;
+      TOffsetDynArray = array of TOffset;
 
       TError = record
         Code: Byte;
@@ -7026,12 +7028,14 @@ type
     function ParseSelectStmtLimit(): TOffset;
     function ParseSelectStmtOrder(): TOffset;
     function ParseSelectStmtOrderBy(): TOffset;
-    function ParseSelectStmtTableEscapedReference(): TOffset;
+    function ParseSelectStmtTableEscapedReference(const UnclosedOpenBrackets: POffsetDynArray = nil): TOffset;
     function ParseSelectStmtTableFactor(): TOffset;
     function ParseSelectStmtTableFactorIndexHint(): TOffset;
     function ParseSelectStmtTableFactorSubquery(const SelectStmt: TOffset): TOffset;
     function ParseSelectStmtTableFactorOj(): TOffset;
-    function ParseSelectStmtTableReference(): TOffset;
+    function ParseSelectStmtTableReference(): TOffset; overload; inline;
+    function ParseSelectStmtTableReference(const UnclosedOpenBrackets: POffsetDynArray): TOffset; overload;
+    function ParseSelectStmtTableReferences(): TOffset;
     function ParseSetNamesStmt(): TOffset;
     function ParseSetPasswordStmt(): TOffset;
     function ParseSetStmt(): TOffset;
@@ -18981,7 +18985,7 @@ begin
           Nodes.Using.Tag := ParseTag(kiUSING);
 
           if (not ErrorFound) then
-            Nodes.Using.TableReferenceList := ParseList(False, ParseSelectStmtTableEscapedReference);
+            Nodes.Using.TableReferenceList := ParseSelectStmtTableReferences();
         end;
     end
     else
@@ -18992,7 +18996,7 @@ begin
         Nodes.From2.Tag := ParseTag(kiFROM);
 
       if (not ErrorFound) then
-        Nodes.From2.TableReferenceList := ParseList(False, ParseSelectStmtTableEscapedReference);
+        Nodes.From2.TableReferenceList := ParseSelectStmtTableReferences();
     end;
 
   if (not ErrorFound) then
@@ -22087,7 +22091,7 @@ begin
       while (not ErrorFound and Assigned(Element)) do
       begin
         if (IsToken(TSelectStmt.PColumn(Element)^.Nodes.Expr)
-          and (TokenPtr(TSelectStmt.PColumn(Element)^.Nodes.Expr)^.AsString = '*')) then
+          and (TokenPtr(TSelectStmt.PColumn(Element)^.Nodes.Expr)^.Text = '*')) then
           SetError(PE_UnexpectedToken, TSelectStmt.PColumn(Element)^.Nodes.Expr);
         Element := PList(NodePtr(Nodes.ColumnsList))^.GetNextElement(Element);
       end;
@@ -22106,7 +22110,7 @@ begin
     begin
       Nodes.From.Tag := ParseTag(kiFROM);
       if (not ErrorFound) then
-        Nodes.From.TableReferenceList := ParseList(False, ParseSelectStmtTableEscapedReference);
+        Nodes.From.TableReferenceList := ParseSelectStmtTableReferences();
 
       if (not ErrorFound) then
         if (IsTag(kiPARTITION)) then
@@ -22259,7 +22263,7 @@ begin
 
   if (not IsToken(Nodes.Expr)
     or (TokenPtr(Nodes.Expr)^.UsageType <> utDbIdent)
-    or (TokenPtr(Nodes.Expr)^.AsString <> '*')) then
+    or (TokenPtr(Nodes.Expr)^.Text <> '*')) then
   begin
     if (not ErrorFound) then
       if (IsTag(kiAS)) then
@@ -22437,10 +22441,10 @@ begin
   Result := TSelectStmt.TTableFactor.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseSelectStmtTableEscapedReference(): TOffset;
+function TSQLParser.ParseSelectStmtTableEscapedReference(const UnclosedOpenBrackets: POffsetDynArray = nil): TOffset;
 begin
   if (not IsSymbol(ttOpenCurlyBracket)) then
-    Result := ParseSelectStmtTableReference()
+    Result := ParseSelectStmtTableReference(UnclosedOpenBrackets)
   else
     Result := ParseSelectStmtTableFactorOj();
 end;
@@ -22526,13 +22530,14 @@ begin
 end;
 
 function TSQLParser.ParseSelectStmtTableReference(): TOffset;
+begin
+  Result := ParseSelectStmtTableReference(nil);
+end;
 
-  function ParseTableFactor(): TOffset;
+function TSQLParser.ParseSelectStmtTableReference(const UnclosedOpenBrackets: POffsetDynArray): TOffset;
+
+  function ParseTableFactor(const UnclosedOpenBrackets: POffsetDynArray = nil): TOffset;
   var
-    Lists: array of record
-      ListNodes: TList.TNodes;
-      Elements: TOffsetList;
-    end;
     OpenedBrackets: Integer;
   begin
     if (IsTag(kiDUAL)) then
@@ -22557,37 +22562,36 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
           Dec(OpenedBrackets, PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.CloseBrackets2)).ElementCount);
         end;
 
-        while (not ErrorFound and (OpenedBrackets > 0)) do
+        if (not ErrorFound) then
         begin
-          SetLength(Lists, Length(Lists) + 1);
-          Lists[Length(Lists) - 1].Elements.Init();
-          Lists[Length(Lists) - 1].ListNodes.OpenBracket :=
-            PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement;
-          PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement
-            := PToken(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetNextElement(
-              PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetFirstElement()))^.Offset;
+          if (OpenedBrackets > 0) then
+            if (not Assigned(UnclosedOpenBrackets)) then
+              raise EAssertionFailed.Create('Unclosed bracket found:' + #13#10
+                + Parse.SQL)
+            else
+              while (not ErrorFound and (OpenedBrackets > 0)) do
+              begin
+                SetLength(UnclosedOpenBrackets^, Length(UnclosedOpenBrackets^) + 1);
+                UnclosedOpenBrackets^[Length(UnclosedOpenBrackets^) - 1]
+                  := PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement;
+                if (PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).ElementCount = 1) then
+                  PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets := 0
+                else
+                begin
+                  PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).Nodes.FirstElement
+                    := PToken(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).GetNextElement(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).FirstElement))^.Offset;
+                  Dec(PList(NodePtr(PSelectStmt(NodePtr(Result))^.Nodes.OpenBrackets)).FElementCount);
+                end;
 
-          Dec(OpenedBrackets);
-        end;
+                Dec(OpenedBrackets);
+              end;
 
-        Result := ParseSelectStmtTableFactorSubquery(Result);
-
-        while (not ErrorFound and (Length(Lists) > 0)) do
-        begin
-          Lists[Length(Lists) - 1].Elements.Add(Result);
-          while (not ErrorFound and IsSymbol(ttComma)) do
-          begin
-            Lists[Length(Lists) - 1].Elements.Add(ParseSymbol(ttComma));
-            if (not ErrorFound) then
-              Lists[Length(Lists) - 1].Elements.Add(ParseSelectStmtTableReference());
-          end;
-          if (not ErrorFound) then
-            Lists[Length(Lists) - 1].ListNodes.CloseBracket := ParseSymbol(ttCloseBracket);
-          Result := TList.Create(Self, Lists[Length(Lists) - 1].ListNodes, ttComma, @Lists[Length(Lists) - 1].Elements);
-          SetLength(Lists, Length(Lists) - 1);
+          Result := ParseSelectStmtTableFactorSubquery(Result);
         end;
       end;
     end
+    else if (IsSymbol(ttOpenBracket)) then
+      Result := ParseSelectStmtTableReferences()
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
     else if (EndOfStmt(CurrentToken)) then
@@ -22609,7 +22613,7 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   Children.Init();
 
-  Children.Add(ParseTableFactor());
+  Children.Add(ParseTableFactor(UnclosedOpenBrackets));
 
   JoinType := jtInner;
   while (not ErrorFound and (JoinType <> jtUnknown)) do
@@ -22759,6 +22763,43 @@ begin
     Result := 0
   else
     Result := TList.Create(Self, Nodes, ttUnknown, @Children);
+end;
+
+function TSQLParser.ParseSelectStmtTableReferences(): TOffset;
+var
+  Elements: TOffsetList;
+  ListNodes: TList.TNodes;
+  UnclosedOpenBrackets: TOffsetDynArray;
+begin
+  Result := ParseSelectStmtTableEscapedReference(@UnclosedOpenBrackets);
+
+  while (not ErrorFound
+    and ((Length(UnclosedOpenBrackets) > 0) or (IsSymbol(ttComma)))) do
+  begin
+    FillChar(ListNodes, SizeOf(ListNodes), #0);
+    Elements.Init();
+
+    if (Length(UnclosedOpenBrackets) > 0) then
+      ListNodes.OpenBracket :=
+        UnclosedOpenBrackets[Length(UnclosedOpenBrackets) - 1];
+
+    Elements.Add(Result);
+    while (not ErrorFound and IsSymbol(ttComma)) do
+    begin
+      Elements.Add(ParseSymbol(ttComma));
+      if (not ErrorFound) then
+        Elements.Add(ParseSelectStmtTableReference());
+    end;
+
+    if (not ErrorFound) then
+      if (Length(UnclosedOpenBrackets) > 0) then
+      begin
+        ListNodes.CloseBracket := ParseSymbol(ttCloseBracket);
+        SetLength(UnclosedOpenBrackets, Length(UnclosedOpenBrackets) - 1);
+      end;
+
+    Result := TList.Create(Self, ListNodes, ttComma, @Elements);
+  end;
 end;
 
 function TSQLParser.ParseSetNamesStmt(): TOffset;
@@ -25946,7 +25987,7 @@ begin
 
   if (not ErrorFound) then
   begin
-    Nodes.TableReferenceList := ParseList(False, ParseSelectStmtTableEscapedReference);
+    Nodes.TableReferenceList := ParseSelectStmtTableReferences();
     if (Nodes.TableReferenceList = 0) then
       TableCount := 0
     else

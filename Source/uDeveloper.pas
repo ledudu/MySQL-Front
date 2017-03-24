@@ -660,12 +660,13 @@ begin
       Result := Item^.Location.Address <> Item^.ReturnAddr;
   end;
 
-  Result := Result and (Item^.Location.UnitName <> 'EAppType') and
-    (Item^.Location.UnitName <> 'EAppVCL') and
-    (Item^.Location.UnitName <> 'EDialog') and
-    (Item^.Location.UnitName <> 'EDialogWinAPI') and
-    (Item^.Location.UnitName <> 'EExceptionManager') and
-    (Item^.Location.UnitName <> 'EThreadsManager');
+  Result := Result and (Item^.Location.UnitName <> 'EAppType')
+    and (Item^.Location.UnitName <> 'EAppVCL')
+    and (Item^.Location.UnitName <> 'EDialog')
+    and (Item^.Location.UnitName <> 'EDialogWinAPI')
+    and (Item^.Location.UnitName <> 'EExceptionManager')
+    and (Item^.Location.UnitName <> 'EThreadsManager')
+    and (Item^.Location.UnitName <> 'EExceptionHook');
 
   if (FExceptionClass = 'EImportEx') then
     Result := True;
@@ -1090,7 +1091,7 @@ begin
   begin
     ShowDialog := False;
 
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 1, True);
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
   end
   else
   begin

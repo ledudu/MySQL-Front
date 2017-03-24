@@ -2697,17 +2697,6 @@ begin
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
-          // Debug 2016-12-19
-          if (not Assigned(NewTable.KeyByName(TSKey(Items[I]).Name))) then
-            raise ERangeError.Create('Key "' + TSKey(Items[I]).Name + '" not found!' + #13#10
-              + 'I: ' + IntToStr(I) + #13#10
-              + 'Count: ' + IntToStr(Items.Count) + #13#10
-              + Table.Source);
-          // 2017-02-08 occurred with "" key name - but inside the CREATE TABLE, there was a primary key. :-/
-          // 2017-02-08 occurred with "ProdiDiktiID" key name - but inside the CREATE TABLE, there was this key. :-/
-          //   Count: 53 ... did the user try to all fields and keys?
-
-
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end
@@ -8650,6 +8639,10 @@ begin
 
         Expanded := Node.Expanded;
 
+        // Debug 2017-03-23
+        if (Assigned(Node.getFirstChild())) then
+          Write;
+
         if (Expanded or (Node = FNavigatorNodeToExpand)) then
         begin
           if (Table is TSBaseTable) then
@@ -8660,6 +8653,10 @@ begin
           if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
             UpdateGroup(Node, giTriggers, Table.Database.Triggers);
         end;
+
+        // Debug 2017-03-23
+        if (Assigned(Node.getFirstChild())) then
+          Write;
 
         Node.HasChildren := Assigned(Node.getFirstChild());
         Node.Expanded := Expanded;
@@ -9796,8 +9793,8 @@ begin
         begin
           FObjectIDEGrid.Columns[I].PickList.Clear();
           if (Routine.Parameter[I].FieldType = mfEnum) then
-            for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
-              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
+            for J := 0 to Length(Routine.Parameter[I].Elements) - 1 do
+              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Elements[J]);
         end;
       end;
     ciTrigger:
@@ -15376,6 +15373,7 @@ var
   Empty: Boolean; // Cache for speeding
   Parse: TSQLParse;
   SelSQL: string; // Cache for speeding
+  SingleStmt: Boolean; // Debug 2017-03-23
   SQL: string; // Cache for speeding
 begin
   // Debug 2017-03-01
@@ -15409,12 +15407,26 @@ begin
   MainAction('aDPostObject').Enabled := (View = vIDE);
   MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
     and TBCEditor(Sender).Modified;
-  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-    and SQLSingleStmt(SQL);
-  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-      or (ClassIndex in [ciEvent, ciTrigger]));
+  if (MainAction('aDPostObject').Enabled) then
+  begin
+    SingleStmt := SQLSingleStmt(SQL);
+    MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+      and SingleStmt;
+  end;
+  if (MainAction('aDPostObject').Enabled) then
+    if (ClassIndex in [ciView]) then
+      MainAction('aDPostObject').Enabled :=
+        SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+    else if (ClassIndex in [ciProcedure, ciFunction]) then
+      MainAction('aDPostObject').Enabled :=
+         SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+    else if (ClassIndex in [ciEvent, ciTrigger]) then
+      MainAction('aDPostObject').Enabled := True;
+
+//  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+//    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+//      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+//      or (ClassIndex in [ciEvent, ciTrigger]));
 
   MainAction('aDRun').Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty
