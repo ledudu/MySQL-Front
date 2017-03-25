@@ -2617,8 +2617,6 @@ begin
 end;
 
 destructor TWTable.Destroy();
-var
-  I: Integer;
 begin
   while (Length(FLinkPoints) > 0) do
     FLinkPoints[0].Free();
