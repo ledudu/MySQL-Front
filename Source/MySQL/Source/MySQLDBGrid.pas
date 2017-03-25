@@ -1235,7 +1235,12 @@ begin
 
     inherited;
 
-    if (ssShift in Shift) then
+    if (Shift * [ssShift, ssCtrl, ssAlt] = []) then
+    begin
+      SelectedFields.Clear();
+      SelectedRows.Clear();
+    end
+    else if (ssShift in Shift) then
     begin
       Cursor := crCross;
       Perform(WM_SETCURSOR, Handle, HTCLIENT);

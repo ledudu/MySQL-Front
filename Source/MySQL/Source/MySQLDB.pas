@@ -2035,8 +2035,6 @@ begin
       end
       else
       begin
-        Connection.DebugMonitor.Append('Sync-Execute - start - State: ' + IntToStr(Ord(State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -2051,8 +2049,6 @@ begin
           else
             raise ERangeError.Create('State: ' + IntToStr(Ord(State)));
         end;
-
-        Connection.DebugMonitor.Append('Sync-Execute - end - State: ' + IntToStr(Ord(State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
@@ -2252,7 +2248,7 @@ begin
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
-  FDebugMonitor.CacheSize := 10000;
+  FDebugMonitor.CacheSize := 1000;
   FDebugMonitor.Enabled := True;
   FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;
@@ -2430,7 +2426,7 @@ end;
 
 function TMySQLConnection.EscapeIdentifier(const Identifier: string): string;
 begin
-  Result := IdentifierQuoter + Identifier + IdentifierQuoter;
+  Result := SQLEscape(Identifier, IdentifierQuoter);
 end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
@@ -3050,8 +3046,6 @@ begin
   Assert(Assigned(SyncThread));
   Assert(GetCurrentThreadId() = MainThreadID);
 
-  DebugMonitor.Append('Sync - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()) + ', SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
-
   if (not SyncThread.Terminated) then
   begin
     case (SyncThread.State) of
@@ -3180,14 +3174,10 @@ begin
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
   end;
-
-  DebugMonitor.Append('Sync - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncAfterExecuteSQL(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncAfterExecuteSQL - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(SyncThread.State in [ssClose, ssReady]);
 
   FExecutionTime := SyncThread.ExecutionTime;
@@ -3199,8 +3189,6 @@ begin
 
   if (Assigned(SyncThread.Done)) then
     SyncThread.Done.SetEvent();
-
-  DebugMonitor.Append('SyncAfterExecuteSQL - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncBeforeExecuteSQL(const SyncThread: TSyncThread);
@@ -3216,8 +3204,6 @@ end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
 begin
-  DebugMonitor.Append('SyncBindDataSet - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(Assigned(DataSet));
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
@@ -3230,16 +3216,12 @@ begin
 
   if (DataSet is TMySQLDataSet) then
     SyncThread.RunExecute.SetEvent();
-
-  DebugMonitor.Append('SyncBindDataSet - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncConnecting(const SyncThread: TSyncThread);
 var
   ClientFlag: my_uint;
 begin
-  DebugMonitor.Append('SyncConnecting - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   if (not Assigned(Lib)) then
   begin
     SyncThread.ErrorCode := ER_CANT_OPEN_LIBRARY;
@@ -3315,8 +3297,6 @@ begin
     if (SyncThread.ErrorCode > 0) then
       SyncDisconnecting(SyncThread);
   end;
-
-  DebugMonitor.Append('SyncConnecting - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncConnected(const SyncThread: TSyncThread);
@@ -3324,8 +3304,6 @@ var
   I: Integer;
   S: string;
 begin
-  DebugMonitor.Append('SyncConnected - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   FConnected := SyncThread.ErrorCode = 0;
   FErrorCode := SyncThread.ErrorCode;
   FErrorMessage := SyncThread.ErrorMessage;
@@ -3425,14 +3403,10 @@ begin
     SendConnectEvent(True);
   if (Assigned(AfterConnect)) then
     AfterConnect(Self);
-
-  DebugMonitor.Append('SyncConnected - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncDisconnecting(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncDisconnecting - start State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(Assigned(SyncThread.LibHandle));
 
   if (Assigned(SyncThread.LibHandle)) then
@@ -3440,14 +3414,10 @@ begin
     Lib.mysql_close(SyncThread.LibHandle);
     SyncThread.LibHandle := nil;
   end;
-
-  DebugMonitor.Append('SyncDisconnecting - end State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncDisconnected(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncDisconnected - start', ttDebug);
-
   FThreadId := 0;
   FConnected := False;
 
@@ -3455,20 +3425,13 @@ begin
     SyncThread.State := ssClose;
 
   if (Assigned(AfterDisconnect)) then AfterDisconnect(Self);
-
-  DebugMonitor.Append('SyncDisconnected - end', ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecute(const SyncThread: TSyncThread);
 var
   StmtLength: Integer;
 begin
-  DebugMonitor.Append('SyncExecute - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(SyncThread.State in [ssFirst, ssNext]);
-
-  // Debug 2017-02-22
-  WriteMonitor('SyncExecute - 1 SyncThread.State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 
   if (SyncThread.State = ssFirst) then
     WriteMonitor('# ' + SysUtils.DateTimeToStr(GetServerTime(), FormatSettings), ttTime);
@@ -3484,8 +3447,6 @@ begin
     ssNext: SyncThread.State := ssExecutingNext;
     else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
   end;
-
-  DebugMonitor.Append('SyncExecute - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
@@ -3502,8 +3463,6 @@ var
   Value: string;
   I: Integer;
 begin
-  DebugMonitor.Append('SyncExecuted - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(SyncThread = Self.SyncThread);
   Assert(SyncThread.State in [ssExecutingFirst, ssExecutingNext]);
 
@@ -3579,16 +3538,10 @@ begin
     end;
   end;
 
-  DebugMonitor.Append('SyncExecuted - 1 - KillThreadId: ' + IntToStr(KillThreadId) + ', Mode: ' + IntToStr(Ord(SyncThread.Mode)), ttDebug);
-
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
-    DebugMonitor.Append('SyncExecuted - 2', ttDebug);
-
     if (KillThreadId > 0) then
     begin
-      DebugMonitor.Append('SyncExecuted - 3', ttDebug);
-
       KillThreadId := 0;
       SyncThread.State := ssResult;
       SyncHandledResult(SyncThread);
@@ -3610,8 +3563,6 @@ begin
   end
   else
   begin
-    DebugMonitor.Append('SyncExecuted - 4', ttDebug);
-
     InOnResult := True;
     try
       if (SyncThread.ErrorCode <> 0) then
@@ -3663,8 +3614,6 @@ begin
       InOnResult := False;
     end;
   end;
-
-  DebugMonitor.Append('SyncExecuted - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecutingFirst(const SyncThread: TSyncThread);
@@ -3688,8 +3637,6 @@ var
   StmtLength: Integer;
   Success: Boolean;
 begin
-  DebugMonitor.Append('SyncExecutingFirst - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(SyncThread.State = ssExecutingFirst);
 
   CreateTableInPacket := False; AlterTableAfterCreateTable := False;
@@ -3757,9 +3704,6 @@ begin
         StartTime := Now();
         Lib.mysql_real_query(SyncThread.LibHandle, my_char(LibSQL), LibLength);
         SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
-        DebugMonitor.Append('SyncExecutingFirst - 2' + #13#10
-          + '  LibLength: ' + IntToStr(LibLength) + #13#10
-          + '  LibSQL: ' + string(LibSQL), ttDebug);
       end;
 
       if (Lib.mysql_errno(SyncThread.LibHandle) = ER_MUST_CHANGE_PASSWORD) then
@@ -3785,10 +3729,6 @@ begin
     if ((Lib.mysql_errno(SyncThread.LibHandle) = 0) and not SyncThread.Terminated) then
       SyncThread.ResHandle := Lib.mysql_use_result(SyncThread.LibHandle);
 
-    DebugMonitor.Append('SyncExecutingFirst - 3' + #13#10
-      + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
-      + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
-
     SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
     SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
     if ((MySQLVersion < 40100) or not Assigned(Lib.mysql_warning_count)) then
@@ -3796,16 +3736,12 @@ begin
     else
       SyncThread.WarningCount := Lib.mysql_warning_count(SyncThread.LibHandle);
   end;
-
-  DebugMonitor.Append('SyncExecutingFirst - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncExecutingNext(const SyncThread: TSyncThread);
 var
   StartTime: TDateTime;
 begin
-  DebugMonitor.Append('SyncExecutingNext - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(SyncThread.State = ssExecutingNext);
 
   StartTime := Now();
@@ -3815,24 +3751,16 @@ begin
   if (SyncThread.ErrorCode = 0) then
     SyncThread.ResHandle := Lib.mysql_use_result(SyncThread.LibHandle);
 
-  DebugMonitor.Append('SyncExecutingNext -' + #13#10
-    + '  errno: ' + IntToStr(Lib.mysql_errno(SyncThread.LibHandle)) + #13#10
-    + '  field_count: ' + IntToStr(Lib.mysql_field_count(SyncThread.LibHandle)), ttDebug);
-
   SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
   SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
   if ((MySQLVersion < 40100) or not Assigned(Lib.mysql_warning_count)) then
     SyncThread.WarningCount := 0
   else
     SyncThread.WarningCount := Lib.mysql_warning_count(SyncThread.LibHandle);
-
-  DebugMonitor.Append('SyncExecutingNext - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncHandledResult - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
   if (SyncThread.State = ssReceivingResult) then
@@ -3855,14 +3783,6 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
   end;
 
-  DebugMonitor.Append('SyncHandledResult - 1 StmtIndex: ' + IntToStr(SyncThread.StmtIndex)
-    + ', Index: ' + IntToStr(SyncThread.StmtIndex)
-    + ', Count: ' + IntToStr(SyncThread.StmtLengths.Count)
-    + ', State: ' + IntToStr(Ord(SyncThread.State))
-    + ', MultiStatements: ' + BoolToStr(MultiStatements, True)
-    + ', LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True)
-    + ', mysql_more_results: ' + BoolToStr(Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1), True), ttDebug);
-
   if (SyncThread.State = ssReady) then
     // An error occurred and it was NOT handled in OnResult
   else if (SyncThread.ErrorCode = CR_SERVER_GONE_ERROR) then
@@ -3873,8 +3793,6 @@ begin
     SyncThread.State := ssFirst
   else
     SyncThread.State := ssReady;
-
-  DebugMonitor.Append('SyncHandledResult - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
@@ -3889,8 +3807,6 @@ var
   LibRow: MYSQL_ROW;
   OldDataSize: Int64;
 begin
-  DebugMonitor.Append('SyncReceivingResult - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   Assert(SyncThread.State = ssReceivingResult);
   Assert(SyncThread.DataSet is TMySQLDataSet);
   Assert(Assigned(SyncThread.ResHandle));
@@ -3936,14 +3852,10 @@ begin
     DataSet.InternRecordBuffers.RecordReceived.SetEvent(); // Release possible waiting thread
   end;
   TerminateCS.Leave();
-
-  DebugMonitor.Append('SyncReceivingResult - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncReleaseDataSet(const DataSet: TMySQLQuery);
 begin
-  DebugMonitor.Append('SyncReleaseDataSet - end', ttDebug);
-
   Assert(Assigned(DataSet));
 
   if (DataSet.SyncThread = SyncThread) then
@@ -3968,14 +3880,10 @@ begin
   end;
 
   DataSet.SyncThread := nil;
-
-  DebugMonitor.Append('SyncReleaseDataSet - end', ttDebug);
 end;
 
 procedure TMySQLConnection.SyncTerminate(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncTerminate - start', ttDebug);
-
   Assert(GetCurrentThreadId() = MainThreadID);
 
   KillThreadId := SyncThread.LibThreadId;
@@ -3998,8 +3906,6 @@ begin
   TerminatedThreads.Add(SyncThread);
 
   Self.FSyncThread := nil;
-
-  DebugMonitor.Append('SyncTerminate - end', ttDebug);
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -4007,7 +3913,6 @@ begin
   TerminateCS.Enter();
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
-    DebugMonitor.Append('Terminate - ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
     SyncThread.State := ssTerminate;
     if (GetCurrentThreadId() = MainThreadID) then
       Sync(SyncThread)
@@ -6253,6 +6158,9 @@ begin
 end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
+var
+  InternRecordBuffer: PInternRecordBuffer; // Debug 2017-03-25
+  NewData: TMySQLQuery.PRecordBufferData; // Debug 2017-03-25
 begin
   if (not Active
     or not Assigned(Pointer(ActiveBuffer()))
@@ -6260,7 +6168,11 @@ begin
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
-    Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow;
+  begin
+    InternRecordBuffer := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer;
+    NewData := InternRecordBuffer^.NewData;
+    Result := NewData^.LibRow;
+  end;
 end;
 
 function TMySQLDataSet.GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer;
@@ -7152,6 +7064,9 @@ begin
   else
     SQL := CommandText;
 
+  // Debug 2017-03-25
+  Success := False;
+
   if (SQL <> '') then
   begin
     Connection.BeginSynchron();
@@ -7159,8 +7074,17 @@ begin
     Connection.EndSynchron();
     if (Success) then
       Connection.SyncBindDataSet(Self);
+  end;
 
-    Buffers[RecordCount]
+  try
+    Resync([]);
+  except
+    on E: Exception do
+      raise EAssertionFailed.Create(E.Message + #13#10
+        + 'SQL: ' + SQL + #13#10
+        + 'Success: ' + BoolToStr(Success, True) + #13#10
+        + 'ErrorCode: ' + IntToStr(Connection.ErrorCode) + #13#10
+        + 'ErrorMessage: ' + Connection.ErrorMessage);
   end;
 end;
 

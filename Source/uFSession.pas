@@ -2742,10 +2742,6 @@ begin
   Wanted.Clear();
 
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
-  begin
-    // Debug 2017-03-01
-    Assert(Assigned(ActiveDBGrid.DataSource.DataSet));
-
     if ((ActiveDBGrid.SelectedRows.Count = 0) and (ActiveDBGrid.SelectedFields.Count = 0)) then
       ActiveDBGrid.DataSource.DataSet.Delete()
     else if (ActiveDBGrid.SelectedRows.Count = 0) then
@@ -2753,13 +2749,15 @@ begin
     else
     begin
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
-      for I := 0 to Length(Bookmarks) - 1 do
-        Bookmarks[I] := ActiveDBGrid.SelectedRows.Items[I];
-      ActiveDBGrid.SelectedRows.Clear();
-      TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Delete(Bookmarks);
-      SetLength(Bookmarks, 0);
+      try
+        for I := 0 to Length(Bookmarks) - 1 do
+          Bookmarks[I] := ActiveDBGrid.SelectedRows.Items[I];
+        ActiveDBGrid.SelectedRows.Clear();
+        TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Delete(Bookmarks);
+      finally
+        SetLength(Bookmarks, 0);
+      end;
     end;
-  end;
 end;
 
 function TFSession.AddressByData(const Data: TCustomData): string;
@@ -4459,14 +4457,6 @@ begin
       vBuilder: if (PQueryBuilder.Visible) then
         if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
         begin
-          // Debug 2016-12-05
-          if (not FQueryBuilderActiveWorkArea().Visible) then
-            raise ERangeError.Create(SRangeError);
-          // Debug 2016-12-08
-          if (not FQueryBuilderActiveWorkArea().Enabled) then
-            raise ERangeError.Create(SRangeError);
-
-          // Debug 2016-12-12
           Control := FQueryBuilderActiveWorkArea();
           repeat
             if (not Control.Enabled) then
@@ -8665,7 +8655,8 @@ begin
             UpdateGroup(Node, giTriggers, Table.Database.Triggers);
         end;
 
-        // Debug 2017-03-23
+        // Debug 2017-03-25
+        Assert(Assigned(Node));
         if (Assigned(Node.getFirstChild())) then
           Write;
 
@@ -10732,6 +10723,9 @@ begin
   if ((Source is TTreeView) and (TTreeView(Source).Name = FNavigator.Name)) then
   begin
     SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
+
+    // Debug 2017-03-25
+    Assert(Assigned(SourceNode));
 
     if (not Assigned(TargetItem)) then
       case (SourceNode.ImageIndex) of
@@ -12860,8 +12854,6 @@ begin
   mtEditor2.Enabled := View <> vEditor2;
   mtEditor3.Enabled := View <> vEditor3;
 
-  mtBuilder.Visible := MainAction('aVBuilder').Visible;
-
   Checked := 0;
   for I := 0 to MToolBar.Items.Count - 1 do
     if (MToolBar.Items[I].Checked) then
@@ -13678,7 +13670,7 @@ begin
     PResult.Align := alNone;
 
     // 2017-02-20
-    // I can't find out, why SBlob will be set to nil - but this works... :-/
+    // I can't find out, why SBlob will be set to nil - but this works often... :-/
     if (not Assigned(SBlob)) then SBlob := SBlobDebug;
 
     SBlob.Align := alNone;

@@ -64,11 +64,11 @@ type
   private
     FName: string;
     FItems: TSItems;
-    function GetSession(): TSSession; inline;
   protected
     function GetAddress(): string; virtual;
     function GetCaption(): string; virtual;
     function GetIndex(): Integer; virtual;
+    function GetSession(): TSSession; virtual;
     procedure SetName(const AName: string); virtual;
   public
     procedure Assign(const Source: TSItem); virtual;
@@ -352,6 +352,7 @@ type
   private
     FFieldTypes: TSFieldTypes;
   protected
+    function GetSession(): TSSession; override;
     procedure ParseFieldType(var Parse: TSQLParse); virtual;
     procedure SetName(const AName: string); override;
   public
@@ -464,6 +465,8 @@ type
   end;
 
   TSViewFields = class(TSTableFields)
+  public
+    procedure Assign(const Source: TSTableFields); override;
   end;
 
   TSForeignKey = class(TSItem)
@@ -3149,14 +3152,16 @@ begin
     Result := SQLEscape(Value);
 end;
 
+function TSField.GetSession(): TSSession;
+begin
+  Result := FieldTypes.Session;
+end;
+
 procedure TSField.ParseFieldType(var Parse: TSQLParse);
 var
   Identifier: string;
   S: string;
 begin
-  // Debug 2017-03-25
-  Assert(Assigned(Session));
-
   National := SQLParseKeyword(Parse, 'NATIONAL');
 
   Identifier := SQLParseValue(Parse);
@@ -3613,6 +3618,22 @@ begin
 end;
 
 { TSViewFields ****************************************************************}
+
+procedure TSViewFields.Assign(const Source: TSTableFields);
+var
+  I: Integer;
+  NewField: TSViewField;
+begin
+  Clear();
+
+  for I := 0 to TSBaseFields(Source).Count - 1 do
+  begin
+    NewField := TSViewField.Create(Self, TSBaseFields(Source).Field[I].Name);
+    NewField.Assign(TSBaseFields(Source).Field[I]);
+    AddField(NewField);
+    NewField.Free();
+  end;
+end;
 
 { TSForeignKey ****************************************************************}
 

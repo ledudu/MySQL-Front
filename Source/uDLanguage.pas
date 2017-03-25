@@ -266,6 +266,10 @@ begin
 
   EnglishFile.ReadSectionValues('Strings', Section);
 
+  // Debug 2017-03-25
+  Assert(Section.Count > 0,
+    'Empty language file "' + Preferences.LanguagePath + 'English.ini' + '"');
+
   StringGrid.RowCount := Section.Count + 1;
   StringGrid.Rows[0][1] := 'English';
   StringGrid.Rows[0][2] := LanguageFile.ReadString('Global', 'Name', 'Translation');
@@ -282,9 +286,7 @@ begin
 
   LanguageFile.ReadSectionValues('Strings', Section);
   for I := 1 to StringGrid.RowCount - 1 do
-  begin
     StringGrid.Rows[I][2] := Section.Values[StringGrid.Rows[I][0]];
-  end;
 
   Section.Free();
 

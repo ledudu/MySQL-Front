@@ -1111,7 +1111,7 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 1, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
 
       ExceptionInfo.Options.EMailSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +

@@ -2733,13 +2733,16 @@ begin
       end;
     SetLength(FileFields, Length(CSVValues));
     for I := 0 to Length(FileFields) - 1 do
-      FileFields[I].Name := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
+      if (CSVValues[I].Length = 0) then
+        FileFields[I].Name := 'Field_' + IntToStr(I + 1)
+      else
+        FileFields[I].Name := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
   end
   else
   begin
     SetLength(FileFields, Length(CSVValues));
     for I := 0 to Length(FileFields) - 1 do
-      FileFields[I].Name := 'Field_' + IntToStr(I);
+      FileFields[I].Name := 'Field_' + IntToStr(I + 1);
 
     ReadContent(0);
   end;
