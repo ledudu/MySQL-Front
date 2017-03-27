@@ -3674,6 +3674,8 @@ begin
         begin
           SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
           GlobalUnlock(ClipboardData);
+          if ((Length(S) > 0) and (S[1 + Length(S) - 1] = #0)) then
+            Delete(S, Length(S), 1);
         end;
       finally
         CloseClipboard();
@@ -13358,7 +13360,7 @@ begin
 
                 Found := False;
                 for I := 1 to StringList.Count - 1 do
-                  Found := Found or (StringList.Names[I] = 'Table');
+                  Found := Found or (ClassIndexByAddress(StringList[I]) in [ciBaseTable, ciView]);
 
                 DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
                 if (not Assigned(Database) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
@@ -13370,7 +13372,7 @@ begin
                   else
                     for I := 1 to StringList.Count - 1 do
                       if (Success) then
-                        if (StringList.Names[I] = 'Table') then
+                        if (ClassIndexByAddress(StringList[I]) = ciBaseTable) then
                         begin
                           SourceTable := SourceDatabase.BaseTableByName(StringList.ValueFromIndex[I]);
 
@@ -13392,7 +13394,7 @@ begin
                         end;
                   for I := 1 to StringList.Count - 1 do
                     if (Success) then
-                      if (StringList.Names[I] = 'View') then
+                      if (ClassIndexByAddress(StringList[I]) = ciView) then
                       begin
                         SourceView := SourceDatabase.ViewByName(StringList.ValueFromIndex[I]);
 
@@ -13416,7 +13418,7 @@ begin
                       end;
                   for I := 1 to StringList.Count - 1 do
                     if (Success) then
-                      if (StringList.Names[I] = 'Procedure') then
+                      if (ClassIndexByAddress(StringList[I]) = ciProcedure) then
                       begin
                         SourceRoutine := SourceDatabase.ProcedureByName(StringList.ValueFromIndex[I]);
 
@@ -13446,7 +13448,7 @@ begin
                           end;
                         end;
                       end
-                      else if (StringList.Names[I] = 'Function') then
+                      else if (ClassIndexByAddress(StringList[I]) = ciFunction) then
                       begin
                         SourceRoutine := SourceDatabase.FunctionByName(StringList.ValueFromIndex[I]);
 
@@ -13510,7 +13512,7 @@ begin
                     NewTable.Assign(Table);
 
                     for I := 1 to StringList.Count - 1 do
-                      if (StringList.Names[I] = 'Field') then
+                      if (ClassIndexByAddress(StringList[I]) = ciBaseField) then
                       begin
                         Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
 
@@ -13530,7 +13532,7 @@ begin
                       end;
 
                     for I := 1 to StringList.Count - 1 do
-                      if (StringList.Names[I] = 'Key') then
+                      if (ClassIndexByAddress(StringList[I]) = ciKey) then
                       begin
                         Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
 
@@ -13556,7 +13558,7 @@ begin
                           end;
                         end;
                       end
-                      else if (StringList.Names[I] = 'ForeignKey') then
+                      else if (ClassIndexByAddress(StringList[I]) = ciForeignKey) then
                       begin
                         Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
@@ -13579,7 +13581,7 @@ begin
                     Session.Connection.EndSynchron();
 
                     for I := 1 to StringList.Count - 1 do
-                      if (StringList.Names[I] = 'Trigger') then
+                      if (ClassIndexByAddress(StringList[I]) = ciTrigger) then
                       begin
                         DExecutingSQL.Session := SourceSession;
                         DExecutingSQL.Update := SourceDatabase.Triggers.Update;
@@ -15435,13 +15437,21 @@ begin
     MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
       and SingleStmt;
   end;
+  // Debug 2017-03-27
+  if (Session.Connection.MySQLVersion > 0) then
+    Write;
   if (MainAction('aDPostObject').Enabled) then
     if (ClassIndex in [ciView]) then
       MainAction('aDPostObject').Enabled :=
         SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
     else if (ClassIndex in [ciProcedure, ciFunction]) then
-      MainAction('aDPostObject').Enabled :=
-         SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+    begin
+      if (not SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
+        MainAction('aDPostObject').Enabled := False
+      else
+        MainAction('aDPostObject').Enabled :=
+           (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+    end
     else if (ClassIndex in [ciEvent, ciTrigger]) then
       MainAction('aDPostObject').Enabled := True;
 
