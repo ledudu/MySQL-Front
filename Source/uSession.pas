@@ -3817,12 +3817,6 @@ begin
 
   FTable := ATable;
 
-  // Debug 2017-01-05
-  if (not Assigned(Table)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Table.Session)) then
-    raise ERangeError.Create(SRangeError);
-
   Connection := Table.Session.Connection;
   FFilterSQL := '';
 end;
@@ -12157,6 +12151,9 @@ begin
       for J := 0 to TSDBObject(List[I]).References.Count - 1 do
         for K := I - 1 downto 0 do
         begin
+          // Debug 2017-03-27
+          Assert(Assigned(TSDBObject(List[I]).References));
+
           // Debug 2017-02-19
           Assert(not (TObject(List[K]) is TSDBObject)
             or (J < TSDBObject(List[I]).References.Count) and Assigned(TSDBObject(List[I]).References[J]));
