@@ -1959,21 +1959,10 @@ begin
 
   if (AName <> FName) then
   begin
-    // Debug 2017-03-23
-    Assert((Items.IndexOf(Self) >= 0) or (FName = ''));
-
     if (Items.InsertIndex(AName, NewIndex) and (Index >= 0)) then
     begin
       if (NewIndex > Index) then
         Dec(NewIndex);
-
-      // Debug 2017-03-15
-      Assert((0 <= NewIndex) and (NewIndex < Items.Count),
-        'Index: ' + IntToStr(Index) + #13#10
-        + 'NewIndex: ' + IntToStr(NewIndex) + #13#10
-        + 'Count: ' + IntToStr(Items.Count) + #13#10
-        + 'Name: ' + Name + #13#10
-        + 'AName: ' + AName);
 
       Items.Move(Index, NewIndex);
     end;
@@ -6513,7 +6502,11 @@ end;
 function TSProcedure.SQLGetSource(): string;
 begin
   if ((Name = '') and (Source <> '')) then
+  try
     ParseCreateRoutine(Source);
+  except
+    Exit('');
+  end;
 
   Result := 'SHOW CREATE PROCEDURE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
 end;
@@ -11267,12 +11260,8 @@ begin
   if (ErrorCode = 0) then
   begin
     // Debug 2017-02-09
-    Assert(MySQLSyncThreads.IndexOf(DataHandle) >= 0);
     Assert(Assigned(Session));
-    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14
-    Assert(TObject(Session) is TSSession);
-    Assert(Assigned(Session.Connection));
-    Assert(TObject(Session.Connection) is TMySQLConnection);
+    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);

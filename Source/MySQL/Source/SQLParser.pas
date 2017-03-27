@@ -10342,6 +10342,7 @@ begin
   begin
     Nodes := ANodes;
 
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -21173,6 +21174,9 @@ begin
       Nodes.InfileTag := ParseTag(kiLOCAL, kiINFILE)
     else
       Nodes.InfileTag := ParseTag(kiINFILE);
+
+  if (not ErrorFound) then
+    Nodes.FilenameString := ParseString();
 
   if (not ErrorFound and not EndOfStmt(CurrentToken)) then
     if (IsTag(kiREPLACE)) then

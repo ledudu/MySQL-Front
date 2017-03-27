@@ -411,8 +411,10 @@ end;
 
 procedure TDUserRight.FormShow(Sender: TObject);
 begin
-  // Debug 2017-02-09
-  Assert(Assigned(User));
+  // Debug 2017-03-27
+  Assert(Assigned(User)); // User can be a new created user - not inside Session.Users
+  Assert(TObject(User) is TSUser,
+    'Visible: ' + BoolToStr(Visible, True));
 
   if (not Assigned(UserRight)) then
     Caption := Preferences.LoadStr(298)

@@ -1146,6 +1146,7 @@ implementation {***************************************************************}
 uses
   MMSystem, ShellAPI, UxTheme, RichEdit, ShLwApi,
   Math, Variants, Types, StrUtils, SysConst, UITypes,
+DateUtils,
   System.Win.ComObj,
   DBConsts, DBCommon,
   XMLDoc,
@@ -1480,24 +1481,21 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-try
+
+      // Debug 2017-03-27
+      Assert(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength >= 0,
+        'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+        + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
+        + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
+        + SQL);
+
       FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-except // Debug 2017-03-16
-  on E: Exception do
-    raise ERangeError.Create(E.Message + #13#10
-      + 'Length: ' + IntToStr(Length(FBCEditor.Text)) + #13#10
-      + 'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength));
-end;
-try
+
+      // Debug 2017-03-27
+      if ((GetUTCTime() <= IncDay(GetCompileTime(), 2)) and (SQL <> '')) then
+        FSession.Session.Connection.DebugMonitor.Append('  ResultEvent - Len: ' + IntToStr(Len) + ', StartingCommentLength: ' + IntToStr(StartingCommentLength) + ', EndingCommentLength: ' + IntToStr(EndingCommentLength) + ', SelStart: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + '=' + IntToStr(FBCEditor.SelStart), ttDebug);
+
       FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
-except // Debug 2017-03-21
-  on E: Exception do
-    raise ERangeError.Create(E.Message + #13#10
-      + 'Length: ' + IntToStr(Length(FBCEditor.Text)) + #13#10
-      + 'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
-      + 'SelStart: ' + IntToStr(FBCEditor.SelStart) + #13#10
-      + 'SelLength: ' + IntToStr(Len - StartingCommentLength - EndingCommentLength));
-end;
     end
   end
   else
@@ -5480,7 +5478,8 @@ begin
   Result.LeftMargin.MarksPanel.Visible := False;
   Result.MatchingPair.Enabled := False;
   Result.RightMargin.Visible := False;
-  Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint];
+  Result.Options := Result.Options + [eoTrimTrailingLines, eoTrimTrailingSpaces];
+  Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint] + [soPastEndOfFile];
   Result.SyncEdit.Enabled := False;
   Result.OnChange := BCEditorChange;
   Result.OnBeforeCompletionProposalExecute := BCEditorBeforeCompletionProposalExecute;
@@ -8553,9 +8552,11 @@ var
   Database: TSDatabase;
   Expanded: Boolean;
   ExpandingEvent: TTVExpandingEvent;
+  ImageIndex: Integer; // Debug 2017-03-27
   Node: TTreeNode;
   OldSelected: TTreeNode;
   Table: TSTable;
+  Text: string; // Debug 2017-03-27
 begin
   OldSelected := FNavigator.Selected;
 
@@ -8644,6 +8645,9 @@ begin
         if (Assigned(Node.getFirstChild())) then
           Write;
 
+        ImageIndex := Node.ImageIndex;
+        Text := Node.Text;
+
         if (Expanded or (Node = FNavigatorNodeToExpand)) then
         begin
           if (Table is TSBaseTable) then
@@ -8657,8 +8661,17 @@ begin
 
         // Debug 2017-03-25
         Assert(Assigned(Node));
-        if (Assigned(Node.getFirstChild())) then
-          Write;
+        try
+          if (Assigned(Node.getFirstChild())) then
+            Write;
+        except
+          on E: Exception do
+            raise EAssertionFailed.Create(E.Message + #13#10
+              + 'ImageIndex: ' + IntToStr(ImageIndex) + #13#10
+              + 'Text: ' + Text + #13#10
+              + 'Sender: ' + TSItem(Event.Sender).Name + #13#10
+              + 'Items: ' + Event.Items.ClassName);
+        end;
 
         Node.HasChildren := Assigned(Node.getFirstChild());
         Node.Expanded := Expanded;
@@ -13762,6 +13775,10 @@ begin
 
     if (PBlob.Visible) then
     begin
+      // 2017-02-20
+      // I can't find out, why SBlob will be set to nil - but this works often... :-/
+      if (not Assigned(SBlob)) then SBlob := SBlobDebug;
+
       SBlob.Parent := PBlob.Parent;
       SBlob.Top := PBlob.Top - SBlob.Height;
       SBlob.Align := alBottom;

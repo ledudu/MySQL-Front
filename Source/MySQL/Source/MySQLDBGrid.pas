@@ -1235,7 +1235,7 @@ begin
 
     inherited;
 
-    if (Shift * [ssShift, ssCtrl, ssAlt] = []) then
+    if (Shift * [ssLeft, ssShift, ssCtrl, ssAlt] = [ssLeft]) then
     begin
       SelectedFields.Clear();
       SelectedRows.Clear();

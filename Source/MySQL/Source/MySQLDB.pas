@@ -2655,8 +2655,6 @@ begin
     Inc(SQLIndex, StmtLength);
   end;
 
-  WriteMonitor('InternExecuteSQL - start - Mode: ' + IntToStr(Ord(SyncThread.Mode)) + ', State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()) + ', SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
-
   if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
   else if (SyncThread.StmtLengths.Count = 0) then
@@ -2664,27 +2662,25 @@ begin
   else if (SynchronCount > 0) then
   begin
     // Debug 2017-03-24
-    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled);
+    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled,
+      'State: ' + IntToStr(Ord(SyncThread.State)));
 
     repeat
-      WriteMonitor('InternExecuteSQL - 2', ttDebug);
       if (GetCurrentThreadId() = MainThreadId) then
         Sync(SyncThread)
       else
         MySQLConnectionOnSynchronize(SyncThread);
       if ((Mode = smSQL)
         or (SyncThread.State <> ssReceivingResult)) then
-      begin
-        WriteMonitor('InternExecuteSQL - 3', ttDebug);
         SyncThreadExecuted.WaitFor(INFINITE);
-      end;
     until (not Assigned(SyncThread)
       or (SyncThread.State in [ssClose, ssResult, ssReady])
       or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
 
     // Debug 2017-03-25
-    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled);
+    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled,
+      'State: ' + IntToStr(Ord(SyncThread.State)));
   end
   else
   begin
@@ -2694,8 +2690,6 @@ begin
       MySQLConnectionOnSynchronize(SyncThread);
     Result := False;
   end;
-
-  WriteMonitor('InternExecuteSQL - end', ttDebug);
 end;
 
 function TMySQLConnection.InUse(): Boolean;
@@ -3090,7 +3084,7 @@ begin
                 ssResult,
                 ssReceivingResult,
                 ssReady:
-                  if ((SynchronCount > 0) and not InOnResult) then
+                  if ((SynchronCount > 0) and (SyncThread.Mode = smSQL) and not InOnResult) then
                     SyncThreadExecuted.SetEvent();
               end;
             smResultHandle:
@@ -3193,13 +3187,9 @@ end;
 
 procedure TMySQLConnection.SyncBeforeExecuteSQL(const SyncThread: TSyncThread);
 begin
-  DebugMonitor.Append('SyncBeforeExecuteSQL - start - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-
   DoBeforeExecuteSQL();
 
   SyncThread.State := ssFirst;
-
-  DebugMonitor.Append('SyncBeforeExecuteSQL - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', ThreadId: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
@@ -5607,7 +5597,11 @@ end;
 function TMySQLQuery.SetActiveEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
-  Assert(not Assigned(SyncThread));
+  Assert(not Assigned(SyncThread),
+    'Self.CommandText: ' + #13#10
+    + Self.CommandText + #13#10
+    + 'CommandText: ' + #13#10
+    + CommandText);
 
   if (Assigned(DataHandle)) then
   begin
@@ -7051,11 +7045,25 @@ var
 begin
   Connection.Terminate();
 
+  // Debug 2017-03-27
+  Resync([]);
+
   InternRecordBuffers.Clear();
+
+  // Debug 2017-03-27
+  Resync([]);
+
   if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
     InternalInitRecord(ActiveBuffer());
+
+  // Debug 2017-03-27
+  Resync([]);
+
   for I := 0 to BufferCount - 1 do
     InternalInitRecord(Buffers[I]);
+
+  // Debug 2017-03-27
+  Resync([]);
 
   RecordsReceived.ResetEvent();
 
@@ -7076,6 +7084,7 @@ begin
       Connection.SyncBindDataSet(Self);
   end;
 
+  // Debug 2017-03-27
   try
     Resync([]);
   except
