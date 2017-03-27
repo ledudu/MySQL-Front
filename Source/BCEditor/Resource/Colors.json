@@ -5,7 +5,7 @@
         "Background": "clWindow",
         "ActiveLineBackground": "$00C0FFFF",
         "CodeFoldingActiveLineBackground": "$00C0FFFF",
-        "CodeFoldingBackground": "clWindow",
+        "CodeFoldingBackground": "$00F4F4F4",
         "CodeFoldingCollapsedLine": "$00CC9999",
         "CodeFoldingFoldingLineHighlight": "$00CC9999",
         "CodeFoldingFoldingLine": "$00CC9999",

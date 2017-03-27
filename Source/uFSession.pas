@@ -1493,7 +1493,7 @@ begin
 
       // Debug 2017-03-27
       if ((GetUTCTime() <= IncDay(GetCompileTime(), 2)) and (SQL <> '')) then
-        FSession.Session.Connection.DebugMonitor.Append('  ResultEvent - Len: ' + IntToStr(Len) + ', StartingCommentLength: ' + IntToStr(StartingCommentLength) + ', EndingCommentLength: ' + IntToStr(EndingCommentLength) + ', SelStart: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + '=' + IntToStr(FBCEditor.SelStart), ttDebug);
+        FSession.Session.Connection.DebugMonitor.Append('  ResultEvent - Len: ' + IntToStr(Len) + ', StartingCommentLength: ' + IntToStr(StartingCommentLength) + ', EndingCommentLength: ' + IntToStr(EndingCommentLength) + ', SelStart: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + '=' + IntToStr(FBCEditor.SelStart) + ', CommandText: ' + SQLEscapeBin(CommandText, True), ttDebug);
 
       FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
