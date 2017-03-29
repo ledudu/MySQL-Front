@@ -328,6 +328,7 @@ type
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
   private
+    FDowndateFilename: TFileName;
     FImages: TImageList;
     FInternetAgent: string;
     FLanguage: TLanguage;
@@ -335,14 +336,16 @@ type
     FUserPath: TFileName;
     FXMLDocument: IXMLDocument;
     procedure LoadFromRegistry();
+    procedure LoadFromXML(const XML: IXMLNode);
+    function GetDowndateVersionStr(): string;
     function GetFilename(): TFileName;
     function GetLanguage(): TLanguage;
     function GetLanguagePath(): TFileName;
     function GetXMLDocument(): IXMLDocument;
-  protected
-    procedure LoadFromXML(const XML: IXMLNode);
-    procedure SaveToRegistry(); virtual;
+    procedure HandleSetupProgram(const Filename: TFileName);
+    procedure SaveToRegistry();
     procedure SaveToXML(const XML: IXMLNode);
+  protected
     property XMLDocument: IXMLDocument read GetXMLDocument;
   public
     Account: TAccount;
@@ -404,6 +407,7 @@ type
     Top: Integer;
     Transfer: TTransfer;
     Trigger: TTrigger;
+    UpdateRemoved: string;
     User: TUser;
     View: TPView;
     Width: Integer;
@@ -413,7 +417,10 @@ type
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
     procedure Open();
+    function PrepareDowndate(): Boolean;
     procedure Save();
+    property DowndateFilename: TFileName read FDowndateFilename;
+    property DowndateVersionStr: string read GetDowndateVersionStr;
     property Filename: TFileName read GetFilename;
     property Images: TImageList read FImages;
     property InternetAgent: string read FInternetAgent;
@@ -1065,6 +1072,29 @@ begin
   for I := 1 to Length(Text) do
     if (CharInSet(Text[I], [#0 .. #8, #11 .. #12, #14 .. #31])) then
       Exit(False);
+end;
+
+function GetFileInfo(const Filename: TFileName; var FileInfo: VS_FIXEDFILEINFO): Boolean;
+var
+  Buffer: PChar;
+  BufferSize: Cardinal;
+  FileInfoSize: UINT;
+  Handle: Cardinal;
+  PFileInfo: Pointer;
+begin
+  BufferSize := GetFileVersionInfoSize(PChar(Filename), Handle);
+  Result := BufferSize > 0;
+  if (Result) then
+  begin
+    GetMem(Buffer, BufferSize);
+    PFileInfo := nil;
+    Result := GetFileVersionInfo(PChar(Filename), 0, BufferSize, Buffer)
+      and (VerQueryValue(Buffer, '\', PFileInfo, FileInfoSize))
+      and (FileInfoSize >= SizeOf(FileInfo));
+    if (Result) then
+      MoveMemory(@FileInfo, PFileInfo, SizeOf(FileInfo));
+    FreeMem(Buffer);
+  end;
 end;
 
 { TPPreferences.TItem *********************************************************}
@@ -1878,6 +1908,7 @@ end;
 constructor TPPreferences.Create();
 var
   Bitmap: Graphics.TBitmap;
+  Filename: TFileName;
   Foldername: array [0..MAX_PATH] of Char;
   Font: TFont;
   FontSize: Integer;
@@ -1890,6 +1921,7 @@ var
   NonClientMetrics: TNonClientMetrics;
   Path: string;
   ResData: HGLOBAL;
+  ResIndex: Integer;
   ResInfo: HRSRC;
   Resource: Pointer;
   StringList: TStringList;
@@ -1950,8 +1982,8 @@ begin
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  if (FileExists(IncludeTrailingPathDelimiter(GetCurrentDir()) + 'Desktop.xml')) then
-    FUserPath := IncludeTrailingPathDelimiter(GetCurrentDir())
+  if (FileExists(IncludeTrailingPathDelimiter(TPath.GetDirectoryName(Application.ExeName)) + 'Desktop.xml')) then
+    FUserPath := IncludeTrailingPathDelimiter(TPath.GetDirectoryName(Application.ExeName))
   else if (SysUtils.LoadStr(1002) = '') then
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + 'MySQL-Front')
   else
@@ -1967,6 +1999,16 @@ begin
 
     CloseKey();
   end;
+
+  LoadFromRegistry();
+
+  Filename := TPath.GetDirectoryName(Application.ExeName) + TPath.DirectorySeparatorChar + 'Install' + TPath.DirectorySeparatorChar + TPath.GetFileNameWithoutExtension(Application.ExeName) + '_Setup.exe';
+  if (TFile.Exists(Filename)) then
+    HandleSetupProgram(Filename);
+
+  FDowndateFilename := TPath.GetDirectoryName(Application.ExeName) + TPath.DirectorySeparatorChar + 'Install' + TPath.DirectorySeparatorChar + TPath.GetFileNameWithoutExtension(Application.ExeName) + '_Setup (2).exe';
+  if (not TFile.Exists(FDowndateFilename)) then
+    FDowndateFilename := '';
 
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
@@ -1999,12 +2041,17 @@ begin
       SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
       ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
     end
-    else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
+    else
+    begin
+      if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) = 0) then
+        ResIndex := 10000
+      else
+        ResIndex := 10000 + I;
       if (FImages.Width = 16) then
-        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR))
+        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(ResIndex), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR))
       else
       begin
-        ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
+        ResInfo := FindResource(HInstance, MAKEINTRESOURCE(ResIndex), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
         IconId := LookupIconIdFromDirectoryEx(Resource, TRUE, 64, 64, LR_DEFAULTCOLOR);
@@ -2029,12 +2076,8 @@ begin
 
         GPGraphics.Free();
         Bitmap.Free();
-      end
-    else if (I > 0) then
-    begin
-      ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
+      end;
     end;
-
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2063,7 +2106,6 @@ begin
   User := TUser.Create();
   View := TPView.Create();
 
-  LoadFromRegistry();
   Open();
 end;
 
@@ -2104,6 +2146,19 @@ begin
     FLanguage.Free();
 
   inherited;
+end;
+
+function TPPreferences.GetDowndateVersionStr(): string;
+var
+  FileInfo: VS_FIXEDFILEINFO;
+begin
+  if (not TFile.Exists(DowndateFilename)
+    or not GetFileInfo(DowndateFilename, FileInfo)) then
+    Result := ''
+  else
+    Result :=
+      IntToStr(FileInfo.dwFileVersionMS shr 16) + '.' + IntToStr(FileInfo.dwFileVersionMS and $FFFF)
+        + '  (Build ' + IntToStr(FileInfo.dwFileVersionLS shr 16) + '.' + IntToStr(FileInfo.dwFileVersionLS and $FFFF) + ')';
 end;
 
 function TPPreferences.GetFilename(): TFileName;
@@ -2184,6 +2239,77 @@ begin
   Result := FXMLDocument;
 end;
 
+procedure TPPreferences.HandleSetupProgram(const Filename: TFileName);
+var
+  Directory: TFileName;
+  Ext: TFileName;
+  Found: Boolean;
+  Name: TFileName;
+  SearchFileInfo: VS_FIXEDFILEINFO;
+  SearchRec: TSearchRec;
+  SetupProgramFileInfo: VS_FIXEDFILEINFO;
+begin
+  Directory := TPath.GetDirectoryName(Filename) + TPath.DirectorySeparatorChar;
+  Name := TPath.GetFileNameWithoutExtension(Filename);
+  Ext := TPath.GetExtension(Filename);
+
+  if (UpdateRemoved = '') then
+  begin
+    if (not GetFileInfo(Filename, SetupProgramFileInfo)
+      or (FindFirst(Directory + Name + ' (*)' + Ext, faNormal, SearchRec) <> 0)) then
+      TFile.Move(Filename, Directory + Name + ' (1)' + Ext)
+    else
+    begin
+      Found := False;
+      repeat
+        Found := Found
+          or (GetFileInfo(Directory + SearchRec.Name, SearchFileInfo) and CompareMem(@SearchFileInfo, @SetupProgramFileInfo, SizeOf(VS_FIXEDFILEINFO)));
+      until (FindNext(SearchRec) <> 0);
+      FindClose(SearchRec);
+
+      if (Found) then
+        TFile.Delete(Filename)
+      else
+      begin
+        if (TFile.Exists(Directory + Name + ' (5)' + Ext)) then
+          TDirectory.Delete(Directory + Name + ' (5)' + Ext);
+        if (TFile.Exists(Directory + Name + ' (4)' + Ext)) then
+          TFile.Move(Directory + Name + ' (4)' + Ext, Directory + Name + ' (5)' + Ext);
+        if (TFile.Exists(Directory + Name + ' (3)' + Ext)) then
+          TFile.Move(Directory + Name + ' (3)' + Ext, Directory + Name + ' (4)' + Ext);
+        if (TFile.Exists(Directory + Name + ' (2)' + Ext)) then
+          TFile.Move(Directory + Name + ' (2)' + Ext, Directory + Name + ' (3)' + Ext);
+        if (TFile.Exists(Directory + Name + ' (1)' + Ext)) then
+          TFile.Move(Directory + Name + ' (1)' + Ext, Directory + Name + ' (2)' + Ext);
+        TFile.Move(Filename, Directory + Name + ' (1)' + Ext);
+      end;
+    end;
+  end
+  else
+  begin
+    if (GetFileInfo(Filename, SetupProgramFileInfo)
+      and GetFileInfo(Directory + Name + ' (1)' + Ext, SearchFileInfo)
+      and CompareMem(@SearchFileInfo, @SetupProgramFileInfo, SizeOf(VS_FIXEDFILEINFO))) then
+    begin
+      if (TFile.Exists(Directory + Name + ' (1)' + Ext)) then
+        TFile.Delete(Directory + Name + ' (1)' + Ext);
+      if (TFile.Exists(Directory + Name + ' (2)' + Ext)) then
+        TFile.Move(Directory + Name + ' (2)' + Ext, Directory + Name + ' (1)' + Ext);
+      if (TFile.Exists(Directory + Name + ' (3)' + Ext)) then
+        TFile.Move(Directory + Name + ' (3)' + Ext, Directory + Name + ' (2)' + Ext);
+      if (TFile.Exists(Directory + Name + ' (4)' + Ext)) then
+        TFile.Move(Directory + Name + ' (4)' + Ext, Directory + Name + ' (3)' + Ext);
+      if (TFile.Exists(Directory + Name + ' (5)' + Ext)) then
+        TFile.Move(Directory + Name + ' (5)' + Ext, Directory + Name + ' (4)' + Ext);
+    end;
+
+   UpdateRemoved := '';
+  end;
+
+  if (TFile.Exists(Filename)) then
+    TFile.Delete(Filename);
+end;
+
 procedure TPPreferences.LoadFromRegistry();
 begin
   RootKey := HKEY_CURRENT_USER;
@@ -2194,6 +2320,7 @@ begin
     if (ValueExists('Path') and DirectoryExists(ReadString('Path'))) then Path := IncludeTrailingPathDelimiter(ReadString('Path'));
     if (ValueExists('SetupProgram') and FileExists(ReadString('SetupProgram'))) then SetupProgram := ReadString('SetupProgram');
     if (ValueExists('SetupProgramInstalled')) then SetupProgramInstalled := ReadBool('SetupProgramInstalled');
+    if (ValueExists('UpdateRemoved')) then UpdateRemoved := ReadString('UpdateRemoved');
 
     CloseKey();
   end;
@@ -2310,6 +2437,13 @@ begin
   if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
 end;
 
+function TPPreferences.PrepareDowndate(): Boolean;
+begin
+  SetupProgram := DowndateFilename;
+
+  Result := True;
+end;
+
 procedure TPPreferences.Save();
 begin
   FreeAndNil(FLanguage);
@@ -2333,6 +2467,10 @@ begin
     else if (ValueExists('SetupProgramInstalled')) then
       DeleteValue('SetupProgramInstalled');
     WriteString('Path', Path);
+    if (UpdateRemoved <> '') then
+      WriteString('UpdateRemoved', UpdateRemoved)
+    else if (ValueExists('UpdateRemoved')) then
+      DeleteValue('UpdateRemoved');
 
     CloseKey();
   end;

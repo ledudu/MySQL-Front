@@ -1201,6 +1201,13 @@ object WWindow: TWWindow
       ShortCut = 32883
       OnExecute = aFExitExecute
     end
+    object aHDowndate: TAction
+      Category = 'Help'
+      Caption = 'aHDowndate'
+      HelpContext = 1157
+      HelpType = htContext
+      OnExecute = aHDowndateExecute
+    end
     object aHSupport: TAction
       Category = 'Help'
       Caption = 'aHSupport'
@@ -1667,6 +1674,9 @@ object WWindow: TWWindow
       end
       object miHUpdate: TMenuItem
         Action = aHUpdate
+      end
+      object miHDowndate: TMenuItem
+        Action = aHDowndate
       end
       object miHSupport: TMenuItem
         Action = aHSupport

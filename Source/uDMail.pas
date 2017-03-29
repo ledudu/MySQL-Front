@@ -115,11 +115,22 @@ begin
 end;
 
 procedure TDMail.FormCreate(Sender: TObject);
+var
+  Size: DWORD;
+  UserName: string;
 begin
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
   BorderStyle := bsSizeable;
+
+  Size := 64 + 1;
+  SetLength(UserName, Size);
+  if (GetUserName(PChar(UserName), Size)) then
+  begin
+    SetLength(UserName, Size - 1);
+    FName.Text := UserName;
+  end;
 end;
 
 procedure TDMail.FormShow(Sender: TObject);

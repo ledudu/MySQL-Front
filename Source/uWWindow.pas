@@ -328,6 +328,8 @@ type
     ToolButton1: TToolButton;
     aHSupport: TAction;
     miHSupport: TMenuItem;
+    aHDowndate: TAction;
+    miHDowndate: TMenuItem;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -371,6 +373,7 @@ type
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
     procedure aHSupportExecute(Sender: TObject);
+    procedure aHDowndateExecute(Sender: TObject);
   const
     tiEmptyWorkingMem = 1;
     tiFormDeactivated = 2;
@@ -520,6 +523,19 @@ end;
 procedure TWWindow.aFOpenAccountExecute(Sender: TObject);
 begin
   Perform(UM_ADDTAB, 0, 0);
+end;
+
+procedure TWWindow.aHDowndateExecute(Sender: TObject);
+begin
+  if (MsgBox(Preferences.LoadStr(944, Preferences.DowndateVersionStr), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
+  begin
+    Preferences.SetupProgramExecute := Preferences.PrepareDowndate();
+    if (Preferences.SetupProgramExecute) then
+    begin
+      Preferences.UpdateRemoved := IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '.' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild);
+      Close();
+    end;
+  end;
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
@@ -1003,6 +1019,7 @@ begin
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := (Preferences.SetupProgram = '') and InternetGetConnectedState(nil, 0);
+  aHDowndate.Enabled := Preferences.DowndateFilename <> '';
   aHSupport.Enabled := (Preferences.SetupProgram = '') and InternetGetConnectedState(nil, 0);
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
@@ -1125,7 +1142,7 @@ end;
 
 procedure TWWindow.InformOnlineUpdateFound();
 begin
-  if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(43), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
+  if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(101), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
     aHUpdate.Execute();
 end;
 
@@ -1612,6 +1629,7 @@ begin
   aHSQL.Caption := Preferences.LoadStr(883) + '...';
   aHManual.Caption := Preferences.LoadStr(573);
   aHUpdate.Caption := Preferences.LoadStr(666) + '...';
+  aHDowndate.Caption := Preferences.LoadStr(943);
   aHSupport.Caption := 'Support...';
   aHInfo.Caption := Preferences.LoadStr(168) + '...';
 

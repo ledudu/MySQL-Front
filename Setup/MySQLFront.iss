@@ -69,6 +69,7 @@ Source: "{BuildTempPath}\{BuildName}.exe"; DestDir: "{app}"; Flags: ignoreversio
 Source: "{BuildTempPath}\{BuildName}.chm"; DestDir: "{app}"
 Source: "{BuildTempPath}\libMySQL.php"; DestDir: "{app}"
 Source: "{BuildLanguagesPath}\*.ini"; DestDir: "{app}\Languages"; Flags: comparetimestamp
+Source: "{srcexe}"; DestDir: "{app}\Install"; Flags: external
 
 [Icons]
 Name: "{group}\{BuildName}"; Filename: "{app}\{BuildName}.exe";
