@@ -37,18 +37,25 @@ object DUpdate: TDUpdate
     Height = 101
     Caption = 'GroupBox'
     TabOrder = 1
+    DesignSize = (
+      329
+      101)
     object FVersionInfo: TLabel
       Left = 8
       Top = 18
-      Width = 59
+      Width = 313
       Height = 13
+      Anchors = [akLeft, akTop, akRight]
+      AutoSize = False
       Caption = 'FVersionInfo'
     end
     object FProgram: TLabel
       Left = 8
       Top = 41
-      Width = 45
+      Width = 313
       Height = 13
+      Anchors = [akLeft, akTop, akRight]
+      AutoSize = False
       Caption = 'FProgram'
     end
     object FProgressBar: TProgressBar
