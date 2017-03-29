@@ -240,6 +240,9 @@ begin
 
   if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
     MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode) + ')', Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if (HTTPThread.ErrorCode = 123456) then
+    raise EOSError.Create('ErrorCode: + IntToStr(HTTPThread.ErrorCode) + #13#10'
+      + 'ErrorMessage: ' + HTTPThread.ErrorMessage)
   else if (HTTPThread.ErrorCode <> 0) then
     RaiseLastOSError(HTTPThread.ErrorCode)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then

@@ -638,96 +638,80 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
-  if (Assigned(Import)) then
+  // Sometimes, this will be called while destroying. Why??? 2017-03-27
+
+  if (not (csDestroying in ComponentState)) then
   begin
-    SendToDeveloper('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
-      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress);
-
-    Import.WaitFor();
-    Import.Free();
-    Import := nil;
-  end;
-
-  Progress := Progress + 'j';
-
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)
-    or Visible
-    or Assigned(Import)) then
-    raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
-      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress + #13#10
-      + 'csDestroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-      + 'TimeToHide: ' + DateTimeToStr(Now() - TerminateTime));
-
-  Session.UnRegisterEventProc(FormSessionEvent);
-
-  Preferences.Import.Width := Width;
-  Preferences.Import.Height := Height;
-
-  if (ModalResult = mrOk) then
-  begin
-    case (ImportType) of
-      itTextFile:
-        begin
-          Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
-          if (FDelimiterTab.Checked) then
-            Preferences.Import.CSV.DelimiterType := dtTab
-          else if (FDelimiterChar.Checked) then
-            Preferences.Import.CSV.DelimiterType := dtChar;
-          Preferences.Import.CSV.Delimiter := FDelimiter.Text;
-          Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
-          if (FQuoteNothing.Checked) then
-            Preferences.Import.CSV.Quote := qtNone
-          else
-            Preferences.Import.CSV.Quote := qtStrings;
-        end;
-      itODBC:
-        begin
-          Preferences.Import.Structure := FStructure.Checked;
-          Preferences.Import.Data := FData.Checked;
-        end;
+    if (Assigned(Import)) then
+    begin
+      Import.WaitFor();
+      Import.Free();
+      Import := nil;
     end;
 
-    if (FReplace.Checked) then
-      Preferences.Import.StmtType := stReplace
-    else if (FUpdate.Checked) then
-      Preferences.Import.StmtType := stUpdate
-    else if (FInsertOrUpdate.Checked) then
-      Preferences.Import.StmtType := stInsertOrUpdate
-    else
-      Preferences.Import.StmtType := stInsert;
+    Session.UnRegisterEventProc(FormSessionEvent);
+
+    Preferences.Import.Width := Width;
+    Preferences.Import.Height := Height;
+
+    if (ModalResult = mrOk) then
+    begin
+      case (ImportType) of
+        itTextFile:
+          begin
+            Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
+            if (FDelimiterTab.Checked) then
+              Preferences.Import.CSV.DelimiterType := dtTab
+            else if (FDelimiterChar.Checked) then
+              Preferences.Import.CSV.DelimiterType := dtChar;
+            Preferences.Import.CSV.Delimiter := FDelimiter.Text;
+            Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
+            if (FQuoteNothing.Checked) then
+              Preferences.Import.CSV.Quote := qtNone
+            else
+              Preferences.Import.CSV.Quote := qtStrings;
+          end;
+        itODBC:
+          begin
+            Preferences.Import.Structure := FStructure.Checked;
+            Preferences.Import.Data := FData.Checked;
+          end;
+      end;
+
+      if (FReplace.Checked) then
+        Preferences.Import.StmtType := stReplace
+      else if (FUpdate.Checked) then
+        Preferences.Import.StmtType := stUpdate
+      else if (FInsertOrUpdate.Checked) then
+        Preferences.Import.StmtType := stInsertOrUpdate
+      else
+        Preferences.Import.StmtType := stInsert;
+    end;
+
+    FTables.Items.BeginUpdate();
+    FTables.Items.Clear();
+    FTables.Items.EndUpdate();
+    ClearTSFields(Sender);
+
+    FCSVPreview.Items.BeginUpdate();
+    FCSVPreview.Items.Clear();
+    FCSVPreview.Columns.Clear();
+    FCSVPreview.Items.EndUpdate();
+
+    FEngine.Items.BeginUpdate();
+    FEngine.Items.Clear();
+    FEngine.Items.EndUpdate();
+    FCharset.Items.BeginUpdate();
+    FCharset.Items.Clear();
+    FCharset.Items.EndUpdate();
+    FCollation.Items.BeginUpdate();
+    FCollation.Items.Clear();
+    FCollation.Items.EndUpdate();
+
+    TableNames.Free();
+
+    PageControl.ActivePage := nil;
   end;
-
-  FTables.Items.BeginUpdate();
-  FTables.Items.Clear();
-  FTables.Items.EndUpdate();
-  ClearTSFields(Sender);
-
-  FCSVPreview.Items.BeginUpdate();
-  FCSVPreview.Items.Clear();
-  FCSVPreview.Columns.Clear();
-  FCSVPreview.Items.EndUpdate();
-
-  FEngine.Items.BeginUpdate();
-  FEngine.Items.Clear();
-  FEngine.Items.EndUpdate();
-  FCharset.Items.BeginUpdate();
-  FCharset.Items.Clear();
-  FCharset.Items.EndUpdate();
-  FCollation.Items.BeginUpdate();
-  FCollation.Items.Clear();
-  FCollation.Items.EndUpdate();
-
-  TableNames.Free();
-
-  PageControl.ActivePage := nil;
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);

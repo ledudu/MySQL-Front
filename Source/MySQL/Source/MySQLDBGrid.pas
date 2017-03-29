@@ -1216,14 +1216,13 @@ begin
     BeginDrag(False)
   else
   begin
-    if ((Shift = [ssLeft]) and (SelectedRows.Count = 0)) then
+    if ((Shift = [ssLeft]) and (SelectedRows.Count = 0) and (SelectedFields.Count = 0)) then
     begin
       SelectedFields.Clear();
       SelectedRows.Clear();
       BeginDrag(False);
-    end;
-
-    if ((Shift = [ssLeft]) and not (ssCtrl in Shift) and not (ssAlt in Shift)) then
+    end
+    else if (Shift * [ssLeft, ssCtrl, ssAlt] = [ssLeft]) then
     begin
       if (SelectedRows.Count = 0) then
         for I := 0 to Columns.Count - 1 do
@@ -1231,16 +1230,13 @@ begin
             InvalidateCol(I);
       SelectedFields.Clear();
       SelectedRows.Clear();
-    end;
+    end
+    else if ((Shift * [ssLeft, ssCtrl, ssAlt] = [ssLeft]) and (Shift * [ssShift, ssCtrl] <> []) and (SelectedRows.Count = 0) and (SelectedFields.Count = 0)) then
+      SelectedRows.CurrentRowSelected := True;
 
     inherited;
 
-    if (Shift * [ssLeft, ssShift, ssCtrl, ssAlt] = [ssLeft]) then
-    begin
-      SelectedFields.Clear();
-      SelectedRows.Clear();
-    end
-    else if (ssShift in Shift) then
+    if (ssShift in Shift) then
     begin
       Cursor := crCross;
       Perform(WM_SETCURSOR, Handle, HTCLIENT);

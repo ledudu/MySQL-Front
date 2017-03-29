@@ -1403,6 +1403,9 @@ end;
 
 procedure TFSession.TSQLEditor.DataSetAfterOpen(DataSet: TDataSet);
 begin
+  // Debug 2017-03-29
+  Assert(ActiveDBGrid.DataSource.DataSet = DataSet);
+
   FSession.DataSetAfterOpen(ActiveDBGrid, DataSet);
 end;
 
@@ -1481,20 +1484,7 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-
-      // Debug 2017-03-27
-      Assert(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength >= 0,
-        'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-        + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-        + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-        + SQL);
-
       FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-
-      // Debug 2017-03-27
-      if ((GetUTCTime() <= IncDay(GetCompileTime(), 2)) and (SQL <> '')) then
-        FSession.Session.Connection.DebugMonitor.Append('  ResultEvent - Len: ' + IntToStr(Len) + ', StartingCommentLength: ' + IntToStr(StartingCommentLength) + ', EndingCommentLength: ' + IntToStr(EndingCommentLength) + ', SelStart: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + '=' + IntToStr(FBCEditor.SelStart) + ', CommandText: ' + SQLEscapeBin(CommandText, True), ttDebug);
-
       FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
@@ -6608,6 +6598,13 @@ begin
 
   DBGrid.DataSource.Enabled := True;
 
+  // Debug 2017-03-29
+  for I := 0 to DBGrid.Columns.Count - 1 do
+  begin
+    Assert(Assigned(DBGrid.Columns[I].Field));
+    Assert(DBGrid.Columns[I].Field = DBGrid.DataSource.DataSet.Fields[I]);
+  end;
+
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (not Assigned(DBGrid.Columns[I].Field)) then
@@ -6719,10 +6716,6 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  // Debug 2016-11-21
-  if (not Column.Grid.DataSource.Enabled) then
-    raise ERangeError.Create(SRangeError);
-
   // Debug 2017-01-02
   if (not Assigned(Column)) then
     raise ERangeError.Create(SRangeError);
@@ -8552,6 +8545,7 @@ var
   ChangeEvent: TTVChangedEvent;
   ChangingEvent: TTVChangingEvent;
   Database: TSDatabase;
+  DebugNode: TTreeNode;
   Expanded: Boolean;
   ExpandingEvent: TTVExpandingEvent;
   ImageIndex: Integer; // Debug 2017-03-27
@@ -8643,6 +8637,8 @@ begin
 
         Expanded := Node.Expanded;
 
+        DebugNode := Node;
+
         // Debug 2017-03-23
         if (Assigned(Node.getFirstChild())) then
           Write;
@@ -8660,6 +8656,9 @@ begin
           if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
             UpdateGroup(Node, giTriggers, Table.Database.Triggers);
         end;
+
+        if (Node <> DebugNode) then
+          raise ERangeError.Create('Node changed');
 
         // Debug 2017-03-25
         Assert(Assigned(Node));
@@ -13359,7 +13358,7 @@ begin
                 Database := TSDatabase(Node.Data);
 
                 Found := False;
-                for I := 1 to StringList.Count - 1 do
+                for I := 0 to StringList.Count - 1 do
                   Found := Found or (ClassIndexByAddress(StringList[I]) in [ciBaseTable, ciView]);
 
                 DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
@@ -13370,7 +13369,7 @@ begin
                   if (Found) then
                     MessageBeep(MB_ICONERROR)
                   else
-                    for I := 1 to StringList.Count - 1 do
+                    for I := 0 to StringList.Count - 1 do
                       if (Success) then
                         if (ClassIndexByAddress(StringList[I]) = ciBaseTable) then
                         begin
@@ -13392,7 +13391,7 @@ begin
                             end;
                           end;
                         end;
-                  for I := 1 to StringList.Count - 1 do
+                  for I := 0 to StringList.Count - 1 do
                     if (Success) then
                       if (ClassIndexByAddress(StringList[I]) = ciView) then
                       begin
@@ -13416,7 +13415,7 @@ begin
                           end;
                         end;
                       end;
-                  for I := 1 to StringList.Count - 1 do
+                  for I := 0 to StringList.Count - 1 do
                     if (Success) then
                       if (ClassIndexByAddress(StringList[I]) = ciProcedure) then
                       begin
@@ -13511,7 +13510,7 @@ begin
                     NewTable := TSBaseTable.Create(Database.Tables);
                     NewTable.Assign(Table);
 
-                    for I := 1 to StringList.Count - 1 do
+                    for I := 0 to StringList.Count - 1 do
                       if (ClassIndexByAddress(StringList[I]) = ciBaseField) then
                       begin
                         Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
@@ -13531,7 +13530,7 @@ begin
                         end;
                       end;
 
-                    for I := 1 to StringList.Count - 1 do
+                    for I := 0 to StringList.Count - 1 do
                       if (ClassIndexByAddress(StringList[I]) = ciKey) then
                       begin
                         Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
@@ -13580,7 +13579,7 @@ begin
                     Database.UpdateBaseTable(Table, NewTable);
                     Session.Connection.EndSynchron();
 
-                    for I := 1 to StringList.Count - 1 do
+                    for I := 0 to StringList.Count - 1 do
                       if (ClassIndexByAddress(StringList[I]) = ciTrigger) then
                       begin
                         DExecutingSQL.Session := SourceSession;
@@ -15437,6 +15436,9 @@ begin
     MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
       and SingleStmt;
   end;
+  // Debug 2017-03-29
+  Assert(Assigned(Session), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
+  Assert(Assigned(Session.Connection), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
   // Debug 2017-03-27
   if (Session.Connection.MySQLVersion > 0) then
     Write;

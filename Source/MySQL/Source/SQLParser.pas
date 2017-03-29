@@ -22570,8 +22570,10 @@ function TSQLParser.ParseSelectStmtTableReference(const UnclosedOpenBrackets: PO
         begin
           if (OpenedBrackets > 0) then
             if (not Assigned(UnclosedOpenBrackets)) then
-              raise EAssertionFailed.Create('Unclosed bracket found:' + #13#10
-                + Parse.SQL)
+              if (EndOfStmt(CurrentToken)) then
+                SetError(PE_IncompleteStmt)
+              else
+                SetError(PE_UnexpectedToken)
             else
               while (not ErrorFound and (OpenedBrackets > 0)) do
               begin

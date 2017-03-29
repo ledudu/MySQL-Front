@@ -663,6 +663,8 @@ begin
         NewTable.Assign(Table);
       end;
 
+      if (Trim(FName.Text) = '') then
+        begin MessageBeep(MB_ICONERROR); ActiveControl := FName; CanClose := False; end;
       if (IsIntType() or (GetType() = mfTimestamp)) then
         for I := 1 to Length(FDefault.Text) do
           if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then

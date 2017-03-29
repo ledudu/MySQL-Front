@@ -1710,7 +1710,8 @@ begin
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
 
         if (not Assigned(Table)) then
-          raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
+          raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.' + #13#10
+            + 'Structure: ' + BoolToStr(Structure, True));
 
         ExecuteTableData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
       end;
@@ -4110,10 +4111,19 @@ begin
                 // Debug 2017-02-17
                 Assert((Success <> daSuccess)
                   or not Assigned(ResultHandle.SyncThread)
-                  or (ResultHandle.SyncThread.DebugState <> ssResult));
+                  or (ResultHandle.SyncThread.DebugState <> ssResult),
+                    'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
 
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
+                begin
                   DoError(DatabaseError(Session), nil, True);
+
+                  // Debug 2017-02-17
+                  Assert((Success <> daSuccess)
+                    or not Assigned(ResultHandle.SyncThread)
+                    or (ResultHandle.SyncThread.DebugState <> ssResult),
+                      'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+                end;
               end;
 
               if (Success <> daAbort) then
@@ -4352,7 +4362,7 @@ begin
     + 'Progress: ' + Progress + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
     + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
-    + 'State: ' + IntToStr(Ord(DataSet.State)) + #13#10
+    + 'DataSet.State: ' + IntToStr(Ord(DataSet.State)) + #13#10
     + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
     + 'DebugResHandle: ' + BoolToStr(Assigned(ResultHandle.SyncThread.DebugResHandle), True) + #13#10
     + 'ErrorCode: ' + IntToStr(Session.Connection.ErrorCode) + #13#10

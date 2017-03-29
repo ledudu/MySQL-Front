@@ -327,7 +327,9 @@ procedure TDUserRight.FormCloseQuery(Sender: TObject;
 var
   NewUserRight: TSUserRight;
 begin
-  if (ModalResult = mrOk) then
+  // Why is this called sometimes, if it's not Visible??? 2017-03-29
+
+  if ((ModalResult = mrOk) and Visible) then
   begin
     NewUserRight := TSUserRight.Create(User);
     if (Assigned(UserRight)) then
@@ -369,11 +371,6 @@ begin
     NewUserRight.RSuper            := FSuper.Checked            and  FAll.Checked;
     NewUserRight.RTrigger          := FTrigger.Checked          and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RUpdate           := FUpdate.Checked;
-
-    // Debug 2017-02-20
-    Assert(Assigned(User)); // User can be a new created user - not inside Session.Users
-    Assert(TObject(User) is TSUser,
-      'Visible: ' + BoolToStr(Visible, True));
 
     if (not Assigned(UserRight)) then
       User.AddRight(NewUserRight)
