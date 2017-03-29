@@ -7851,7 +7851,12 @@ var
   I: Integer;
 begin
   for I := 0 to Tables.Count - 1 do
+  begin
+    // Debug 2017-03-29
+    Assert(Assigned(Tables[I]));
+
     Tables[I].FreeDesktop();
+  end;
   if (Assigned(Routines)) then
     for I := 0 to Routines.Count - 1 do
       Routines[I].FreeDesktop();

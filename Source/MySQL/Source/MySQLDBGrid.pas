@@ -1231,7 +1231,7 @@ begin
       SelectedFields.Clear();
       SelectedRows.Clear();
     end
-    else if ((Shift * [ssLeft, ssCtrl, ssAlt] = [ssLeft]) and (Shift * [ssShift, ssCtrl] <> []) and (SelectedRows.Count = 0) and (SelectedFields.Count = 0)) then
+    else if ((Shift * [ssLeft, ssCtrl, ssAlt] = [ssLeft, ssCtrl]) and (SelectedRows.Count = 0) and (SelectedFields.Count = 0)) then
       SelectedRows.CurrentRowSelected := True;
 
     inherited;
