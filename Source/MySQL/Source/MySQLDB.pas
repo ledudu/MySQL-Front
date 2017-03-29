@@ -2683,7 +2683,7 @@ begin
       else
         MySQLConnectionOnSynchronize(SyncThread);
       if ((Mode = smSQL)
-        or not (SyncThread.State in [ssReady, ssResult, ssReceivingResult])) then
+        or not (SyncThread.State in [ssReceivingResult])) then
       begin
         SyncThreadExecuted.WaitFor(INFINITE);
         DebugMonitor.Append('SyncThreadExecuted: W 4', ttDebug);
