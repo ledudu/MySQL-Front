@@ -13366,36 +13366,33 @@ begin
                   MessageBeep(MB_ICONERROR)
                 else if (not Found or DPaste.Execute()) then
                 begin
-                  if (Found) then
-                    MessageBeep(MB_ICONERROR)
-                  else
-                    for I := 0 to StringList.Count - 1 do
-                      if (Success) then
-                        if (ClassIndexByAddress(StringList[I]) = ciBaseTable) then
+                  for I := 0 to StringList.Count - 1 do
+                    if (Success) then
+                      if (ClassIndexByAddress(StringList[I]) = ciBaseTable) then
+                      begin
+                        SourceTable := DataByAddress(StringList[I]);
+
+                        if (not Assigned(SourceTable)) then
+                          MessageBeep(MB_ICONERROR)
+                        else
                         begin
-                          SourceTable := SourceDatabase.BaseTableByName(StringList.ValueFromIndex[I]);
-
-                          if (not Assigned(SourceTable)) then
-                            MessageBeep(MB_ICONERROR)
-                          else
+                          DExecutingSQL.Session := SourceSession;
+                          DExecutingSQL.Update := SourceTable.Update;
+                          if (SourceTable.Valid or DExecutingSQL.Execute()) then
                           begin
-                            DExecutingSQL.Session := SourceSession;
-                            DExecutingSQL.Update := SourceTable.Update;
-                            if (SourceTable.Valid or DExecutingSQL.Execute()) then
-                            begin
-                              Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
+                            Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
 
-                              Session.Connection.BeginSynchron();
-                              Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
-                              Session.Connection.EndSynchron();
-                            end;
+                            Session.Connection.BeginSynchron();
+                            Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
+                            Session.Connection.EndSynchron();
                           end;
                         end;
+                      end;
                   for I := 0 to StringList.Count - 1 do
                     if (Success) then
                       if (ClassIndexByAddress(StringList[I]) = ciView) then
                       begin
-                        SourceView := SourceDatabase.ViewByName(StringList.ValueFromIndex[I]);
+                        SourceView := DataByAddress(StringList[I]);
 
                         if (not Assigned(SourceView)) then
                           MessageBeep(MB_ICONERROR)
@@ -13419,7 +13416,7 @@ begin
                     if (Success) then
                       if (ClassIndexByAddress(StringList[I]) = ciProcedure) then
                       begin
-                        SourceRoutine := SourceDatabase.ProcedureByName(StringList.ValueFromIndex[I]);
+                        SourceRoutine := DataByAddress(StringList[I]);
 
                         if (not Assigned(SourceRoutine)) then
                           MessageBeep(MB_ICONERROR)
@@ -13449,7 +13446,7 @@ begin
                       end
                       else if (ClassIndexByAddress(StringList[I]) = ciFunction) then
                       begin
-                        SourceRoutine := SourceDatabase.FunctionByName(StringList.ValueFromIndex[I]);
+                        SourceRoutine := DataByAddress(StringList[I]);
 
                         if (not Assigned(SourceRoutine)) then
                           MessageBeep(MB_ICONERROR)
@@ -13513,9 +13510,7 @@ begin
                     for I := 0 to StringList.Count - 1 do
                       if (ClassIndexByAddress(StringList[I]) = ciBaseField) then
                       begin
-                        Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
-
-                        SourceField := SourceTable.FieldByName(StringList.ValueFromIndex[I]);
+                        SourceField := DataByAddress(StringList[I]);
 
                         if (not Assigned(SourceField)) then
                           MessageBeep(MB_ICONERROR)
@@ -13523,7 +13518,7 @@ begin
                         begin
                           NewField := TSBaseField.Create(NewTable.Fields);
                           NewField.Assign(SourceField);
-                          NewField.Name := Name;
+                          NewField.Name := CopyName(SourceField.Name, NewTable.Fields);
                           NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
                           NewTable.Fields.AddField(NewField);
                           NewField.Free();
@@ -13533,8 +13528,6 @@ begin
                     for I := 0 to StringList.Count - 1 do
                       if (ClassIndexByAddress(StringList[I]) = ciKey) then
                       begin
-                        Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
-
                         SourceKey := SourceTable.KeyByName(StringList.ValueFromIndex[I]);
 
                         if (not Assigned(SourceKey)) then
@@ -13551,7 +13544,7 @@ begin
                           begin
                             NewKey := TSKey.Create(NewTable.Keys);
                             NewKey.Assign(SourceKey);
-                            NewKey.Name := Name;
+                            NewKey.Name := CopyName(SourceKey.Name, NewTable.Keys);
                             NewTable.Keys.AddKey(NewKey);
                             NewKey.Free();
                           end;
@@ -13559,8 +13552,6 @@ begin
                       end
                       else if (ClassIndexByAddress(StringList[I]) = ciForeignKey) then
                       begin
-                        Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
-
                         SourceForeignKey := SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]);
 
                         if (not Assigned(SourceForeignKey)) then
@@ -13569,7 +13560,7 @@ begin
                         begin
                           NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
                           NewForeignKey.Assign(SourceForeignKey);
-                          NewForeignKey.Name := Name;
+                          NewForeignKey.Name := CopyName(SourceForeignKey.Name, NewTable.ForeignKeys);
                           NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
                           NewForeignKey.Free();
                         end;
@@ -13597,7 +13588,7 @@ begin
 
                           NewTrigger := TSTrigger.Create(Database.Triggers);
                           NewTrigger.Assign(SourceTrigger);
-                          NewTrigger.Name := Name;
+                          NewTrigger.Name := CopyName(SourceTrigger.Name, Database.Triggers);
                           NewTrigger.TableName := NewTable.Name;
                           Session.Connection.BeginSynchron();
                           Database.AddTrigger(NewTrigger);

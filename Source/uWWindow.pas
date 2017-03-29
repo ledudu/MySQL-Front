@@ -1042,6 +1042,8 @@ begin
   Application.OnMessage := nil;
   Application.OnModalBegin := nil;
   Application.OnModalEnd := nil;
+  Application.OnActivate := nil;
+  Application.OnDeactivate := nil;
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);

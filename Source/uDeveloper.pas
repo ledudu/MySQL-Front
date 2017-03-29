@@ -479,6 +479,7 @@ begin
             lpOptional := PAnsiChar(Body);
             dwOptionalLength := Length(Body);
             // ... an AV occurred in the following line...
+            // 2017-03-29 bei mir passiert - trotz vorheriger Zeilen...
 
             if (not HttpSendRequest(Request, lpszHeaders, dwHeadersLength,
               lpOptional, dwOptionalLength)) then
