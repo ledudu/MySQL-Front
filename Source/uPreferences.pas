@@ -2268,20 +2268,20 @@ begin
       FindClose(SearchRec);
 
       if (Found) then
-        TFile.Delete(Filename)
+        DeleteFile(Filename)
       else
       begin
-        if (TFile.Exists(Directory + Name + ' (5)' + Ext)) then
-          TDirectory.Delete(Directory + Name + ' (5)' + Ext);
-        if (TFile.Exists(Directory + Name + ' (4)' + Ext)) then
-          TFile.Move(Directory + Name + ' (4)' + Ext, Directory + Name + ' (5)' + Ext);
-        if (TFile.Exists(Directory + Name + ' (3)' + Ext)) then
-          TFile.Move(Directory + Name + ' (3)' + Ext, Directory + Name + ' (4)' + Ext);
-        if (TFile.Exists(Directory + Name + ' (2)' + Ext)) then
-          TFile.Move(Directory + Name + ' (2)' + Ext, Directory + Name + ' (3)' + Ext);
-        if (TFile.Exists(Directory + Name + ' (1)' + Ext)) then
-          TFile.Move(Directory + Name + ' (1)' + Ext, Directory + Name + ' (2)' + Ext);
-        TFile.Move(Filename, Directory + Name + ' (1)' + Ext);
+        if (FileExists(Directory + Name + ' (5)' + Ext)) then
+          DeleteFile(Directory + Name + ' (5)' + Ext);
+        if (FileExists(Directory + Name + ' (4)' + Ext)) then
+          MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
+        if (FileExists(Directory + Name + ' (3)' + Ext)) then
+          MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
+        if (FileExists(Directory + Name + ' (2)' + Ext)) then
+          MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
+        if (FileExists(Directory + Name + ' (1)' + Ext)) then
+          MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
+        MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
       end;
     end;
   end
@@ -2291,23 +2291,23 @@ begin
       and GetFileInfo(Directory + Name + ' (1)' + Ext, SearchFileInfo)
       and CompareMem(@SearchFileInfo, @SetupProgramFileInfo, SizeOf(VS_FIXEDFILEINFO))) then
     begin
-      if (TFile.Exists(Directory + Name + ' (1)' + Ext)) then
-        TFile.Delete(Directory + Name + ' (1)' + Ext);
-      if (TFile.Exists(Directory + Name + ' (2)' + Ext)) then
-        TFile.Move(Directory + Name + ' (2)' + Ext, Directory + Name + ' (1)' + Ext);
-      if (TFile.Exists(Directory + Name + ' (3)' + Ext)) then
-        TFile.Move(Directory + Name + ' (3)' + Ext, Directory + Name + ' (2)' + Ext);
-      if (TFile.Exists(Directory + Name + ' (4)' + Ext)) then
-        TFile.Move(Directory + Name + ' (4)' + Ext, Directory + Name + ' (3)' + Ext);
-      if (TFile.Exists(Directory + Name + ' (5)' + Ext)) then
-        TFile.Move(Directory + Name + ' (5)' + Ext, Directory + Name + ' (4)' + Ext);
+      if (FileExists(Directory + Name + ' (1)' + Ext)) then
+        DeleteFile(Directory + Name + ' (1)' + Ext);
+      if (FileExists(Directory + Name + ' (2)' + Ext)) then
+        MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (1)' + Ext));
+      if (FileExists(Directory + Name + ' (3)' + Ext)) then
+        MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
+      if (FileExists(Directory + Name + ' (4)' + Ext)) then
+        MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
+      if (FileExists(Directory + Name + ' (5)' + Ext)) then
+        MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
     end;
 
    UpdateRemoved := '';
   end;
 
   if (TFile.Exists(Filename)) then
-    TFile.Delete(Filename);
+    DeleteFile(Filename);
 end;
 
 procedure TPPreferences.LoadFromRegistry();
