@@ -14950,7 +14950,7 @@ end;
 
 function TSQLParser.NodePtr(const Node: TOffset): PNode;
 begin
-  Assert((0 < Node) and (Node < Nodes.UsedSize));
+  Assert((0 < Node) and (Node < Nodes.UsedSize), Parse.SQL);
 
   Result := @Nodes.Mem[Node];
 end;

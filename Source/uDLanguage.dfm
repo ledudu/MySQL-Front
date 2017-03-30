@@ -24,7 +24,7 @@ object DLanguage: TDLanguage
   PixelsPerInch = 106
   TextHeight = 13
   object FLMail: TLabel
-    Left = 248
+    Left = 240
     Top = 443
     Width = 31
     Height = 13

@@ -77,3 +77,6 @@ Name: "{userdesktop}\{BuildName}"; Filename: "{app}\{BuildName}.exe"; Tasks: Des
 
 [Run]
 Filename: "{app}\{BuildName}.exe"; Description: "&Launch {BuildName}"; Flags: postinstall nowait
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\Install"

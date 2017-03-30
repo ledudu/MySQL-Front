@@ -168,6 +168,7 @@ type
     procedure SetTable(Index: Integer; ATable: TWTable);
   protected
     procedure Cleanup(const Sender: TWControl); virtual;
+    procedure Check(); // Debug 2017-03-02
     function CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWLinkPoint; const CreateBefore: Boolean = True): TWLinkPoint; virtual;
     procedure FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine); virtual;
     function GetCaption(): TCaption; virtual;
@@ -308,6 +309,7 @@ type
     FHideSelection: Boolean;
     FFilePixelsPerInch: Integer;
     FFilename: string;
+    FLinkPoints: TList; // Debug 2017-01-05
     FLinks: TWLinks;
     FMultiSelect: Boolean;
     FOnChange: TChangeEvent;
@@ -350,6 +352,7 @@ type
     function TableAt(const Position: TCoord): TWTable;
     procedure UpdateControl(const Control: TWControl); virtual;
     property FilePixelsPerInch: Integer read FFilePixelsPerInch;
+    property LinkPoints: TList read FLinkPoints;
   public
     procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
     procedure BeginUpdate(); virtual;
@@ -747,6 +750,12 @@ begin
   end;
 
   MouseCapture := False;
+
+  // Debug 2017-02-16
+  // Check, if Link is valid...
+  if (Self is TWTable) then
+    for I := 0 to TWTable(Self).LinkPointCount - 1 do
+      TWTable(Self).LinkPoints[I].Link;
 
   inherited;
 
@@ -1153,6 +1162,8 @@ begin
   ControlB := nil;
   MoveState := msNormal;
 
+  Workbench.LinkPoints.Add(Self);
+
   if (Assigned(APreviousPoint)) then
     LineA := TWLinkLine.Create(Workbench, APreviousPoint, Self);
 
@@ -1171,6 +1182,12 @@ begin
 
   TableA := nil;
   TableB := nil;
+
+  // Debug 2017-01-05
+  if (Workbench.LinkPoints.IndexOf(Self) < 0) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
 
   inherited;
 end;
@@ -1215,7 +1232,15 @@ var
 begin
   Point := Self;
   while (Assigned(Point.LineA)) do
+  begin
     Point := Point.LineA.PointA;
+
+    // Debug 2017-01-05
+    if (not Assigned(Point)) then
+      raise Exception.Create('Point is not assigned')
+    else if (Workbench.LinkPoints.IndexOf(Point) < 0) then
+      raise ERangeError.Create(SRangeError);
+  end;
 
   if (not (Point is TWLink)) then
     raise Exception.CreateFmt('Point is not TWLink  (%s)', [Point.ClassName])
@@ -1291,6 +1316,11 @@ begin
   end
   else if (Link = Workbench.CreatedLink) then
   begin
+    // Debug 2017-01-17
+    // Check, if Link was created completely
+    if (Assigned(Workbench.CreatedLink)) then
+      Workbench.CreatedLink.LastPoint.Link;
+
     if (not Workbench.OnValidateControl(Workbench, Workbench.CreatedLink)) then
       FreeAndNil(Workbench.CreatedLink)
     else if ((Workbench.CreatedLink is TWLink) and not (Workbench.CreatedLink is TWForeignKey)) then
@@ -1395,7 +1425,11 @@ procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; 
       and Assigned(Link.ParentTable)
       and Assigned(NextPoint) and (Point.Position.X = NextPoint.Position.X) and (Point.Position.Y = NextPoint.Position.Y)
       and (MoveState <> msAutomatic)) then
+    begin
+      Link.Check();
       Link.FreeSegment(Point, NextLine);
+      Link.Check();
+    end;
   end;
 
 var
@@ -2079,12 +2113,18 @@ begin
         begin
           TempTable := Point.TableB;
           Point := NextPoint;
+          Check();
           FreeSegment(Point.LineA.PointA, Point.LineA);
+          Check();
           if (Assigned(TempTable)) then
             Point.TableB := TempTable;
         end
         else
+        begin
+          Check();
           FreeSegment(Point.LineB.PointB, Point.LineB);
+          Check();
+        end;
       end;
     end;
 
@@ -2124,11 +2164,24 @@ begin
   Workbench.Links.Add(Self);
 end;
 
+procedure TWLink.Check();
+var
+  I: Integer;
+begin
+  for I := 0 to PointCount - 1 do
+    if (Workbench.LinkPoints.IndexOf(Points[I]) < 0) then
+      raise EAssertionFailed.Create('Freed Point found!');
+end;
+
 function TWLink.CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWLinkPoint; const CreateBefore: Boolean = True): TWLinkPoint;
 var
   Line: TWLinkLine;
   OldMoveState: TWLinkPoint.TMoveState;
 begin
+  // Debug 2017-01-17
+  // Check, if Link is complete
+  LastPoint.Link;
+
   OldMoveState := Point.MoveState;
   if (Point.MoveState = msNormal) then
     Point.MoveState := msFixed;
@@ -2155,12 +2208,31 @@ begin
 
   Result.MoveTo(Sender, [], APosition);
   Result.Selected := Point.Selected;
+
+  // Debug 2017-02-08
+  // Check, if Link is complete
+  if (not (LastPoint.Link is TWLink)) then
+    raise ERangeError.Create('ClassType: ' + LastPoint.Link.ClassName);
 end;
 
 destructor TWLink.Destroy();
 var
+  CT: TWTable; // Debug 2016-12-27
+  I: Integer; // Debug 2016-12-27
+  J: Integer; // Debug 2016-12-27
+  LinkPoints: TList; // Debug 2016-12-28
   Point: TWLinkPoint;
+  PT: TWTable; // Debug 2016-12-27
 begin
+  LinkPoints := TList.Create();
+  for I := 0 to Workbench.Tables.Count - 1 do
+    for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
+      if (Workbench.Tables[I].LinkPoints[J].Link = Self) then
+        LinkPoints.Add(Workbench.Tables[I].LinkPoints[J]);
+
+  CT := ChildTable;
+  PT := ParentTable;
+
   Point := LastPoint;
   while (Assigned(Point) and Assigned(Point.LineA)) do
   begin
@@ -2171,15 +2243,30 @@ begin
   Workbench.Links.Delete(Workbench.Links.IndexOf(Self));
 
   inherited;
+
+  // Debug 2016-12-28
+  for I := 0 to Workbench.Tables.Count - 1 do
+    for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
+      if (LinkPoints.IndexOf(Workbench.Tables[I].LinkPoints[J]) >= 0) then
+        raise ERangeError.Create('Link still exists!' + #13#10
+          + 'Table: ' + Workbench.Tables[I].Caption + #13#10
+          + 'ChildTable: ' + CT.Caption + #13#10
+          + 'ParentTable: ' + PT.Caption);
+
+  LinkPoints.Free();
 end;
 
 procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
 begin
   if (Point is TWLink) then
     raise ERangeError.Create('Point is TWLink');
+  if (Workbench.LinkPoints.IndexOf(Point) < 0) then
+    raise ERangeError.Create('Point already freed.');
 
   if (Line = Point.LineA) then
   begin
+    Check();
+
     if (Assigned(Point.LineA.PointA)) then
       Point.LineA.PointA.ControlB := Point.ControlB
     else
@@ -2188,9 +2275,13 @@ begin
       Line.PointB.LineB.PointA := Line.PointA
     else
       raise ERangeError.Create('LineB not assigned');
+
+    Check();
   end
   else if (Line = Point.LineB) then
   begin
+    Check();
+
     if (Assigned(Point.LineB.PointB)) then
       Point.LineB.PointB.ControlA := Point.ControlA
     else
@@ -2199,17 +2290,21 @@ begin
       Line.PointA.LineA.PointB := Line.PointB
     else
       raise ERangeError.Create('LineA not assigned');
+
+    Check();
   end
   else
     raise ERangeError.Create('Line is not attached to the Point.');
 
-  Line.PointA := nil;
-  Line.PointB := nil;
-  Line.Free();
+  Check();
 
   Point.ControlA := nil;
   Point.ControlB := nil;
+
+  Line.Free();
   Point.Free();
+
+  Check();
 end;
 
 function TWLink.GetCaption(): TCaption;
@@ -2449,6 +2544,9 @@ end;
 
 procedure TWLink.SetTable(Index: Integer; ATable: TWTable);
 begin
+  // Debug 2017-02-12
+  Assert(Assigned(ATable));
+
   Workbench.State := wsAutoCreate;
 
   case (Index) of
@@ -2528,7 +2626,15 @@ begin
   begin
     Selected := Link[I].Points[0].Selected;
     for J := 1 to Link[I].PointCount - 1 do
+    begin
+      // Debug 2017-03-01
+      Assert(Assigned(Link[I].Points[J]));
+      Assert(Assigned(Link[I].Points[J].LineA),
+        'J: ' + IntToStr(J) + #13#10
+        + 'Link[I].PointCount: ' + IntToStr(Link[I].PointCount));
+
       Selected := Selected and Link[I].Points[J].LineA.Selected and Link[I].Points[J].Selected;
+    end;
     if (Selected) then
       Inc(Result);
   end;
@@ -2617,11 +2723,19 @@ begin
 end;
 
 destructor TWTable.Destroy();
+var
+  I: Integer;
 begin
   while (Length(FLinkPoints) > 0) do
     FLinkPoints[0].Free();
 
   Workbench.Tables.Delete(Workbench.Tables.IndexOf(Self));
+
+  // Debug 2017-01-17
+  for I := 0 to Workbench.Links.Count - 1 do
+    if ((Workbench.Links[I].ParentTable = Self)
+      or (Workbench.Links[I].ChildTable = Self)) then
+    raise ERangeError.Create(SRangeError);
 
   inherited;
 end;
@@ -3339,6 +3453,7 @@ begin
   FOnChange := nil;
   FOnCursorMove := nil;
   FOnValidateControl := nil;
+  FLinkPoints := TList.Create();
   FLinks := TWLinks.Create(Self);
   FHideSelection := False;
   FModified := False;
@@ -3426,6 +3541,7 @@ begin
 
   Clear();
 
+  FLinkPoints.Free();
   FLinks.Free();
   FTables.Free();
   FSections.Free();
@@ -3729,6 +3845,11 @@ begin
     end
     else if (CreatedLink is TWForeignKey) then
     begin
+      // Debug 2017-02-08
+      // Check, if Link was created completely
+      if (not (CreatedLink.LastPoint.Link is TWLink)) then
+        raise ERangeError.Create('ClassType: ' + CreatedLink.LastPoint.Link.ClassName);
+
       for J := 0 to BaseTable.ForeignKeys.Count - 1 do
         if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then
           TWForeignKey(CreatedLink).BaseForeignKey := BaseTable.ForeignKeys[J];
@@ -3785,7 +3906,13 @@ begin
                 else
                   Link := nil;
                 if (Assigned(Link)) then
+                begin
                   Link.LoadFromXML(XML.ChildNodes[J]);
+
+                  // Debug 2017-01-17
+                  // Check, if the link is complete
+                  Link.LastPoint.Link;
+                end;
               end;
             end;
         end;

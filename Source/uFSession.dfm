@@ -1182,7 +1182,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 2003485
+      Left = 32752
       Top = 0
       Width = 140
       Height = 22
@@ -1194,10 +1194,9 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
-      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 1999906
+      Left = 32752
       Top = 0
       Width = 23
       Height = 22
@@ -1206,7 +1205,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
@@ -1224,6 +1222,15 @@ object FSession: TFSession
     object mlOpen: TMenuItem
       Caption = 'mlOpen'
       OnClick = mlOpenClick
+    end
+    object mlFOpenInNewWindow: TMenuItem
+      Action = aFOpenInNewWindow
+    end
+    object mlFOpenInNewTab: TMenuItem
+      Action = aFOpenInNewTab
+    end
+    object N8: TMenuItem
+      Caption = '-'
     end
     object mlFImport: TMenuItem
       Caption = 'mlFImport'
@@ -1472,6 +1479,16 @@ object FSession: TFSession
       Caption = 'aSynCompletionExecute'
       OnExecute = aSynCompletionExecuteExecute
     end
+    object aFOpenInNewWindow: TAction
+      Category = 'File'
+      Caption = 'aFOpenInNewWindow'
+      OnExecute = aFOpenInNewWindowExecute
+    end
+    object aFOpenInNewTab: TAction
+      Category = 'File'
+      Caption = 'aFOpenInNewTab'
+      OnExecute = aFOpenInNewTabExecute
+    end
   end
   object MNavigator: TPopupMenu
     OnPopup = MNavigatorPopup
@@ -1484,6 +1501,18 @@ object FSession: TFSession
     object miNCollapse: TMenuItem
       Action = aPCollapse
       Visible = False
+    end
+    object N6: TMenuItem
+      Caption = '-'
+    end
+    object miNOpenInNewWindow: TMenuItem
+      Action = aFOpenInNewWindow
+    end
+    object miNOpenInNewTab: TMenuItem
+      Action = aFOpenInNewTab
+    end
+    object N7: TMenuItem
+      Caption = '-'
     end
     object miNImport: TMenuItem
       Caption = 'miNImport'

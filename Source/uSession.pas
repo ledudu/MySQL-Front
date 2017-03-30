@@ -2053,6 +2053,8 @@ var
   Right: Integer;
   strcmp: Tstrcmp;
 begin
+  Assert((Self is TSKeys) or (Name <> ''));
+
   Result := True;
 
   if (((Self is TSTables) or (Self is TSDatabases)) and (Session.LowerCaseTableNames = 0)) then
@@ -2060,17 +2062,7 @@ begin
   else
     strcmp := lstrcmpi;
 
-  if (not (Self is TSKeys) and (Name = '')) then
-  begin
-    // Debug 2017-01-03
-    SendToDeveloper('Empty name for class: ' + ClassName + #13#10
-      + 'Version: ' + Session.Connection.ServerVersionStr + #13#10
-      + Session.Connection.DebugMonitor.CacheText);
-
-    Index := -1;
-    Result := False;
-  end
-  else if ((TList(Self).Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
+  if ((TList(Self).Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
     Index := TList(Self).Count
   else
   begin
@@ -2078,7 +2070,7 @@ begin
     Right := TList(Self).Count - 1;
     while (Left <= Right) do
     begin
-      Mid := (Right - Left) div 2 + Left;
+      Mid := (Right + Left) div 2;
       case (strcmp(PChar(Item[Mid].Name), PChar(Name))) of
         -1: begin Left := Mid + 1;  Index := Mid + 1; end;
         0: begin Result := False; Index := Mid; break; end;
@@ -4814,7 +4806,7 @@ begin
               if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
               begin
                 Field.OnUpdate := 'CURRENT_TIMESTAMP';
-                if (SQLParseChar(Parse, '(')) then
+                if (SQLParseChar(Parse, '(') and not SQLParseChar(Parse, ')')) then
                 begin
                   Field.OnUpdateSize := SysUtils.StrToInt(SQLParseValue(Parse));
                   SQLParseChar(Parse, ')');
@@ -4977,6 +4969,10 @@ begin
 
       if (not FForeignKeys.InsertIndex(NewName, Index)) then
       begin
+        // Debug 2017-03-30
+        Assert(DeleteList.IndexOf(FForeignKeys.Items[Index]) >= 0,
+          SQL);
+
         DeleteList.Delete(DeleteList.IndexOf(FForeignKeys.Items[Index]));
         FForeignKeys[Index].Clear();
       end

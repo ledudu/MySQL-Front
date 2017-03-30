@@ -81,6 +81,10 @@
         <DCCReference Include="uDDatabases.pas">
             <Form>DDatabases</Form>
         </DCCReference>
+        <DCCReference Include="udDowndate.pas">
+            <Form>DDowndate</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <DCCReference Include="uDEvent.pas">
             <Form>DEvent</Form>
         </DCCReference>

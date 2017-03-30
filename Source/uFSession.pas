@@ -360,6 +360,15 @@ type
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
     N5: TMenuItem;
+    aFOpenInNewTab: TAction;
+    aFOpenInNewWindow: TAction;
+    N6: TMenuItem;
+    N7: TMenuItem;
+    miNOpenInNewWindow: TMenuItem;
+    miNOpenInNewTab: TMenuItem;
+    mlFOpenInNewWindow: TMenuItem;
+    mlFOpenInNewTab: TMenuItem;
+    N8: TMenuItem;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -394,6 +403,8 @@ type
     procedure aFImportODBCExecute(Sender: TObject);
     procedure aFImportSQLExecute(Sender: TObject);
     procedure aFImportTextExecute(Sender: TObject);
+    procedure aFOpenInNewWindowExecute(Sender: TObject);
+    procedure aFOpenInNewTabExecute(Sender: TObject);
     procedure aHRunClick(Sender: TObject);
     procedure aHRunExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
@@ -4125,6 +4136,16 @@ begin
     OpenSQLFile('');
 end;
 
+procedure TFSession.aFOpenInNewTabExecute(Sender: TObject);
+begin
+  Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(FocusedSItem.Address)));
+end;
+
+procedure TFSession.aFOpenInNewWindowExecute(Sender: TObject);
+begin
+  ShellExecute(0, 'open', PChar(Application.ExeName), PChar(FocusedSItem.Address), '', SW_SHOW);
+end;
+
 procedure TFSession.aFSaveAsExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -4547,7 +4568,12 @@ begin
               end;
 
               if (AllowRefresh) then
-                ActiveDBGrid.DataSource.DataSet.Refresh()
+              begin
+                // Debug 2017-03-30
+                ActiveDBGrid.DataSource.DataSet.Resync([]);
+
+                ActiveDBGrid.DataSource.DataSet.Refresh();
+              end
               else
               begin
                 ActiveDBGrid.DataSource.DataSet.Close();
@@ -8307,6 +8333,7 @@ end;
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 var
   LastChild: TTreeNode;
+  DebugNode: TTreeNode; // Debug 2017-03-30
 
   procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
   var
@@ -8510,10 +8537,16 @@ var
       etItemDeleted:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
+    if (Parent <> DebugNode) then
+      raise ERangeError.Create('Node changed');
           Child := FNavigatorNodeByAddress(AddressByData(Event.Item));
 
+    if (Parent <> DebugNode) then
+      raise ERangeError.Create('Node changed');
           if (Assigned(Child)) then
           begin
+    if (Parent <> DebugNode) then
+      raise ERangeError.Create('Node changed');
             Node := FNavigatorNodeToExpand;
             while (Assigned(Node)) do
               if (Node = Child) then
@@ -8521,6 +8554,8 @@ var
               else
                 Node := Node.Parent;
 
+    if (Parent <> DebugNode) then
+      raise ERangeError.Create('Node changed');
             if (Child <> FNavigator.Selected) then
               Node := nil
             else
@@ -8531,8 +8566,12 @@ var
               if (not Assigned(Node) or (Node.ImageIndex in [iiKey, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey])) then
                 Node := Child.Parent;
             end;
+    if (Parent <> DebugNode) then
+      raise ERangeError.Create('Node changed');
 
             DeleteChild(Child);
+    if (Parent <> DebugNode) then
+      raise ERangeError.Create('Node changed');
 
             if (Assigned(Node)) then
               Wanted.Address := AddressByData(Node.Data);
@@ -8545,7 +8584,6 @@ var
   ChangeEvent: TTVChangedEvent;
   ChangingEvent: TTVChangingEvent;
   Database: TSDatabase;
-  DebugNode: TTreeNode;
   Expanded: Boolean;
   ExpandingEvent: TTVExpandingEvent;
   ImageIndex: Integer; // Debug 2017-03-27
@@ -8645,6 +8683,9 @@ begin
 
         ImageIndex := Node.ImageIndex;
         Text := Node.Text;
+
+        if (Node <> DebugNode) then
+          raise ERangeError.Create('Node changed');
 
         if (Expanded or (Node = FNavigatorNodeToExpand)) then
         begin
@@ -12279,6 +12320,8 @@ begin
       MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and ((Item.ImageIndex in [iiDatabase, iiBaseTable]) or (Item.ImageIndex in [iiBaseField]) and TSBaseField(Item.Data).NullAllowed);
 
       mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
+      aFOpenInNewWindow.Enabled := mlOpen.Enabled;
+      aFOpenInNewTab.Enabled := mlOpen.Enabled;
       aDDelete.Enabled := (ListView.SelCount >= 1);
 
       case (Item.ImageIndex) of
@@ -12764,6 +12807,8 @@ begin
   AllowChange := True;
   FNavigatorChanging(Sender, FNavigatorMenuNode, AllowChange);
 
+  aFOpenInNewWindow.Enabled := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
+  aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
 
@@ -15387,7 +15432,6 @@ var
   Empty: Boolean; // Cache for speeding
   Parse: TSQLParse;
   SelSQL: string; // Cache for speeding
-  SingleStmt: Boolean; // Debug 2017-03-23
   SQL: string; // Cache for speeding
 begin
   // Debug 2017-03-01
@@ -15417,41 +15461,17 @@ begin
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
 
-  // Debug 2017-03-21
-  MainAction('aDPostObject').Enabled := (View = vIDE);
-  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-    and TBCEditor(Sender).Modified;
-  if (MainAction('aDPostObject').Enabled) then
-  begin
-    SingleStmt := SQLSingleStmt(SQL);
-    MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-      and SingleStmt;
-  end;
-  // Debug 2017-03-29
+  // Debug 2017-03-30
+  Assert(Assigned(Self));
+  Assert(Self is TFSession);
   Assert(Assigned(Session), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
-  Assert(Assigned(Session.Connection), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
-  // Debug 2017-03-27
-  if (Session.Connection.MySQLVersion > 0) then
-    Write;
-  if (MainAction('aDPostObject').Enabled) then
-    if (ClassIndex in [ciView]) then
-      MainAction('aDPostObject').Enabled :=
-        SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-    else if (ClassIndex in [ciProcedure, ciFunction]) then
-    begin
-      if (not SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
-        MainAction('aDPostObject').Enabled := False
-      else
-        MainAction('aDPostObject').Enabled :=
-           (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-    end
-    else if (ClassIndex in [ciEvent, ciTrigger]) then
-      MainAction('aDPostObject').Enabled := True;
 
-//  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-//    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-//      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-//      or (ClassIndex in [ciEvent, ciTrigger]));
+  MainAction('aDPostObject').Enabled := (View = vIDE)
+    and TBCEditor(Sender).Modified
+    and SQLSingleStmt(SQL)
+    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+      or (ClassIndex in [ciEvent, ciTrigger]));
 
   MainAction('aDRun').Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty
@@ -15918,6 +15938,8 @@ begin
   else
     Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttTime];
 
+  aFOpenInNewWindow.Caption := Preferences.LoadStr(760);
+  aFOpenInNewTab.Caption := Preferences.LoadStr(850);
   aPExpand.Caption := Preferences.LoadStr(150);
   aPCollapse.Caption := Preferences.LoadStr(151);
   aDDelete.Caption := Preferences.LoadStr(28);
@@ -16454,9 +16476,11 @@ begin
   FNavigatorInitialize(nil);
 
 
-  if (Param <> '') then
+  if (LowerCase(LeftStr(Param, 8)) = 'mysql://') then
+    CurrentAddress := Param
+  else if (Param <> '') then
   begin
-    URI := TUURI.Create(Session.Account.Desktop.Address);
+    URI := TUURI.Create(Param);
     URI.Param['view'] := 'editor';
     URI.Table := '';
     URI.Param['system'] := Null;

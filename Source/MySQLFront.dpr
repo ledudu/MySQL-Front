@@ -43,6 +43,7 @@ uses
   uDConnecting in 'uDConnecting.pas' {DConnecting},
   uDDatabase in 'uDDatabase.pas' {DDatabase},
   uDDatabases in 'uDDatabases.pas' {DDatabases},
+  udDowndate in 'udDowndate.pas' {DDowndate},
   uDEvent in 'uDEvent.pas' {DEvent},
   uDExecutingSQL in 'uDExecutingSQL.pas' {DExecutingSQL},
   uDExport in 'uDExport.pas' {DExport},
@@ -105,7 +106,8 @@ begin
       MsgBox(Preferences.LoadStr(908, LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   end;
 
-  if (not Preferences.SetupProgramExecute) then
+  SetupProgramExecute := Preferences.SetupProgramExecute;
+  if (not SetupProgramExecute) then
   begin
     Application.Initialize();
     Application.Title := LoadStr(1000);
@@ -117,10 +119,11 @@ begin
     Application.ShowHint := False;
     Application.Destroying();
     Application.DestroyComponents();
+
+    SetupProgramExecute := Preferences.SetupProgramExecute;
   end;
 
   SetupProgram := Preferences.SetupProgram;
-  SetupProgramExecute := Preferences.SetupProgramExecute;
   Preferences.Free(); Preferences := nil;
 
   if (SetupProgramExecute) then

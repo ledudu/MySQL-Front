@@ -102,11 +102,17 @@ begin
       Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, 'Support');
       Thread.Execute();
       if ((INTERNET_ERROR_BASE <= Thread.ErrorCode) and (Thread.ErrorCode <= INTERNET_ERROR_LAST)) then
-        MsgBox(Thread.ErrorMessage + ' (#' + IntToStr(Thread.ErrorCode), Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+      begin
+        MsgBox(Thread.ErrorMessage + ' (#' + IntToStr(Thread.ErrorCode), Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+        CanClose := False;
+      end
       else if (Thread.ErrorCode <> 0) then
         RaiseLastOSError(Thread.ErrorCode)
       else if (Thread.HTTPStatus <> HTTP_STATUS_OK) then
-        MsgBox(Thread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+      begin
+        MsgBox(Thread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+        CanClose := False;
+      end
       else
         MsgBox('Your message was sent to the developer.', Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       Thread.Free();

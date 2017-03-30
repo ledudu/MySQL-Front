@@ -166,7 +166,18 @@ constructor TUURI.Create(const AAddress: string = '');
 begin
   inherited Create();
 
-  Address := AAddress;
+  if (AAddress <> '') then
+    Address := AAddress
+  else
+  begin
+    Scheme := '';
+    Username := '';
+    Password := '';
+    FHost := '';
+    Port := MYSQL_PORT;
+    FPath := '';
+    FExtraInfos := '';
+  end;
 end;
 
 function TUURI.GetAddress(): string;
@@ -271,48 +282,47 @@ var
   URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
   URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
 begin
+  Assert(AAddress <> '');
+
   Clear();
 
-  if (AAddress <> '') then
+  URLComponents.dwStructSize := SizeOf(URLComponents);
+  URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
+  URLComponents.dwHostNameLength := Length(URLComponentsHostName);
+  URLComponents.dwUserNameLength := Length(URLComponentsUserName);
+  URLComponents.dwPasswordLength := Length(URLComponentsPassword);
+  URLComponents.dwUrlPathLength := Length(URLComponentsPath);
+  URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
+  URLComponents.lpszScheme := @URLComponentsSchemeName;
+  URLComponents.lpszHostName := @URLComponentsHostName;
+  URLComponents.lpszUserName := @URLComponentsUserName;
+  URLComponents.lpszPassword := @URLComponentsPassword;
+  URLComponents.lpszUrlPath := @URLComponentsPath;
+  URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
+
+  if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
   begin
-    URLComponents.dwStructSize := SizeOf(URLComponents);
-    URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
-    URLComponents.dwHostNameLength := Length(URLComponentsHostName);
-    URLComponents.dwUserNameLength := Length(URLComponentsUserName);
-    URLComponents.dwPasswordLength := Length(URLComponentsPassword);
-    URLComponents.dwUrlPathLength := Length(URLComponentsPath);
-    URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
-    URLComponents.lpszScheme := @URLComponentsSchemeName;
-    URLComponents.lpszHostName := @URLComponentsHostName;
-    URLComponents.lpszUserName := @URLComponentsUserName;
-    URLComponents.lpszPassword := @URLComponentsPassword;
-    URLComponents.lpszUrlPath := @URLComponentsPath;
-    URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
-
-    if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
-    begin
-      Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
-        Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, Length(Buffer), nil);
-      while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
-      SetString(ErrorMessage, Buffer, Len);
-      ErrorMessage := ErrorMessage + #13#10 + 'URL: ' + AAddress;
-      raise EConvertError.Create(ErrorMessage);
-    end;
-
-    Scheme := URLComponents.lpszScheme;
-    Username := UnescapeURL(URLComponents.lpszUserName);
-    Password := UnescapeURL(URLComponents.lpszPassword);
-    FHost := URLComponents.lpszHostName;
-    if (URLComponents.nPort = 0) then
-      Port := MYSQL_PORT
-    else
-      Port := URLComponents.nPort;
-    Path := UnescapeURL(URLComponents.lpszUrlPath);
-    if (URLComponents.dwExtraInfoLength = 0) then
-      FExtraInfos := ''
-    else
-      FExtraInfos := StrPas(URLComponents.lpszExtraInfo);
+    Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
+      Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, Length(Buffer), nil);
+    while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
+    SetString(ErrorMessage, Buffer, Len);
+    ErrorMessage := ErrorMessage + #13#10 + 'URL: ' + AAddress;
+    raise EConvertError.Create(ErrorMessage);
   end;
+
+  Scheme := URLComponents.lpszScheme;
+  Username := UnescapeURL(URLComponents.lpszUserName);
+  Password := UnescapeURL(URLComponents.lpszPassword);
+  FHost := URLComponents.lpszHostName;
+  if (URLComponents.nPort = 0) then
+    Port := MYSQL_PORT
+  else
+    Port := URLComponents.nPort;
+  Path := UnescapeURL(URLComponents.lpszUrlPath);
+  if (URLComponents.dwExtraInfoLength = 0) then
+    FExtraInfos := ''
+  else
+    FExtraInfos := StrPas(URLComponents.lpszExtraInfo);
 end;
 
 procedure TUURI.SetDatabase(const ADatabase: string);

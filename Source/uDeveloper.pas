@@ -464,7 +464,7 @@ begin
         Request := HttpOpenRequest(Client, Method,
           PChar(StrPas(URLComponents.lpszUrlPath) +
           StrPas(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil,
-          INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
+          INTERNET_FLAG_RELOAD, 0);
 
         if (not Assigned(Request)) then
           FErrorCode := GetLastError()
@@ -664,7 +664,7 @@ begin
   Result := Result and (Item^.Location.UnitName <> 'EAppType')
     and (Item^.Location.UnitName <> 'EAppVCL')
     and (Item^.Location.UnitName <> 'EDialog')
-    and (Item^.Location.UnitName <> 'EDialogWinAPI')
+    and (Item^.Location.UnitName <> 'EDialogWinAPIMSClassic')
     and (Item^.Location.UnitName <> 'EExceptionManager')
     and (Item^.Location.UnitName <> 'EThreadsManager')
     and (Item^.Location.UnitName <> 'EExceptionHook');

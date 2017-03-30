@@ -1517,7 +1517,7 @@
         "FoldRegion": [
           {
             "OpenToken": "BEGIN",
-            "CloseToken": "END;"
+            "CloseToken": "END"
           }
         ]
       }

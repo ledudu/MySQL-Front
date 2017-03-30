@@ -3117,21 +3117,6 @@ begin
               end
               else
               begin
-                if (not Assigned(SyncThread)) then
-                  Assert(SynchronCount > 0)
-                else
-                  Assert(SynchronCount > 0,
-                    'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
-                    + 'ErrorMessage: ' + SyncThread.ErrorMessage + #13#10
-                    + 'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
-                    + 'LibHandle: ' + BoolToStr(Assigned(SyncThread.LibHandle), True));
-
-                // 2017-02-20 ErrorCode: 0, TTool.DoError, no Result for SELECT query
-                // 2017-03-11 ErrorCode: 0, TTExportExcel is running in TSQLParser.ParseChecksumTableStmt, no result for SELECT query
-                // 2017-03-12 ErrorCode: 0, TTExportSQL is running in TDExport.OnError, no result for SELECT query
-                // 2017-03-15 ErrorCode: 0, TTExportExcel is running in TDExport.OnError, no result for SELECT query
-                // 2017-03-24 ErrorCode: 0, TTExportSQL is running in TDExport.OnError, no result for SELECT query
-
                 DebugMonitor.Append('SyncThreadExecuted: S 3', ttDebug);
                 SyncThreadExecuted.SetEvent();
               end;
@@ -3568,7 +3553,6 @@ begin
     begin
       KillThreadId := 0;
       SyncThread.State := ssResult;
-      DebugMonitor.Append('ssResult - 1', ttDebug);
       SyncHandledResult(SyncThread);
     end
     else if (SyncThread.ErrorCode > 0) then
@@ -3584,10 +3568,7 @@ begin
       SyncHandledResult(SyncThread);
     end
     else
-    begin
       SyncThread.State := ssResult;
-      DebugMonitor.Append('ssResult - 2', ttDebug);
-    end;
   end
   else
   begin
@@ -3602,7 +3583,6 @@ begin
       begin
         DataHandle := SyncThread;
         SyncThread.State := ssResult;
-        DebugMonitor.Append('ssResult - 3', ttDebug);
       end;
 
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
@@ -3809,7 +3789,7 @@ begin
     Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
     Inc(SyncThread.StmtIndex);
     if (SyncThread.ErrorCode = 0) then
-      FSuccessfullExecutedSQLLength := SyncThread.SQLIndex;
+      FSuccessfullExecutedSQLLength := SyncThread.SQLIndex - 1;
   end;
 
   if (SyncThread.State = ssReady) then
@@ -7106,19 +7086,7 @@ var
   SQL: string;
   Success: Boolean;
 begin
-  // Debug 2017-03-29
-  Assert(Assigned(Connection));
-
-  // Debug 2017-03-27
-  Resync([]);
-
-  // Debug 2017-03-29
-  Assert(Assigned(Connection));
-
   Connection.Terminate();
-
-  // Debug 2017-03-27
-  Resync([]);
 
   InternRecordBuffers.Clear();
   if ((BufferCount > 0) and (ActiveBuffer() > 0)) then

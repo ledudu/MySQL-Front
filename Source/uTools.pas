@@ -1777,7 +1777,7 @@ begin
       if (Structure) then
       begin
         SQL := SQL + 'LOCK TABLES ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
-        if ((Session.Connection.MySQLVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+        if ((Session.Connection.MySQLVersion >= 40000) and (Table is TSBaseTable) and Assigned(TSBaseTable(Table).Engine) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
       end;
     end;
@@ -2003,7 +2003,7 @@ begin
       SQL := '';
       if (Structure) then
       begin
-        if ((Session.Connection.MySQLVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+        if ((Session.Connection.MySQLVersion >= 40000) and (Table is TSBaseTable) and Assigned(TSBaseTable(Table).Engine) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
       end;

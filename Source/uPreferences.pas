@@ -417,7 +417,6 @@ type
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
     procedure Open();
-    function PrepareDowndate(): Boolean;
     procedure Save();
     property DowndateFilename: TFileName read FDowndateFilename;
     property DowndateVersionStr: string read GetDowndateVersionStr;
@@ -678,7 +677,7 @@ implementation {***************************************************************}
 
 uses
   CommCtrl, SHFolder, WinInet, ShellAPI, ShlObj, ActiveX, GDIPAPI, GDIPObj,
-  Math, SysConst, IOUtils, Variants, RTLConsts, StrUtils,
+  Math, SysConst, Variants, RTLConsts, StrUtils,
   Consts, ImgList,
   MySQLConsts,
   CSVUtils,
@@ -1982,12 +1981,12 @@ begin
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  if (FileExists(IncludeTrailingPathDelimiter(TPath.GetDirectoryName(Application.ExeName)) + 'Desktop.xml')) then
-    FUserPath := IncludeTrailingPathDelimiter(TPath.GetDirectoryName(Application.ExeName))
+  if (FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Desktop.xml') or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
+    FUserPath := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName))
   else if (SysUtils.LoadStr(1002) = '') then
-    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + 'MySQL-Front')
+    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + 'MySQL-Front')
   else
-    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
+    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + SysUtils.LoadStr(1002));
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -2002,12 +2001,16 @@ begin
 
   LoadFromRegistry();
 
-  Filename := TPath.GetDirectoryName(Application.ExeName) + TPath.DirectorySeparatorChar + 'Install' + TPath.DirectorySeparatorChar + TPath.GetFileNameWithoutExtension(Application.ExeName) + '_Setup.exe';
-  if (TFile.Exists(Filename)) then
+  Filename := ExtractFileName(Application.ExeName);
+  Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
+  Filename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup.exe';
+  if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
 
-  FDowndateFilename := TPath.GetDirectoryName(Application.ExeName) + TPath.DirectorySeparatorChar + 'Install' + TPath.DirectorySeparatorChar + TPath.GetFileNameWithoutExtension(Application.ExeName) + '_Setup (2).exe';
-  if (not TFile.Exists(FDowndateFilename)) then
+  Filename := ExtractFileName(Application.ExeName);
+  Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
+  FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
+  if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
 
 
@@ -2152,7 +2155,7 @@ function TPPreferences.GetDowndateVersionStr(): string;
 var
   FileInfo: VS_FIXEDFILEINFO;
 begin
-  if (not TFile.Exists(DowndateFilename)
+  if (not FileExists(DowndateFilename)
     or not GetFileInfo(DowndateFilename, FileInfo)) then
     Result := ''
   else
@@ -2249,15 +2252,16 @@ var
   SearchRec: TSearchRec;
   SetupProgramFileInfo: VS_FIXEDFILEINFO;
 begin
-  Directory := TPath.GetDirectoryName(Filename) + TPath.DirectorySeparatorChar;
-  Name := TPath.GetFileNameWithoutExtension(Filename);
-  Ext := TPath.GetExtension(Filename);
+  Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Filename));
+  Ext := ExtractFileExt(Filename);
+  Name := ExtractFileName(Filename);
+  Name := LeftStr(Name, Length(Name) - Length(Ext));
 
   if (UpdateRemoved = '') then
   begin
     if (not GetFileInfo(Filename, SetupProgramFileInfo)
       or (FindFirst(Directory + Name + ' (*)' + Ext, faNormal, SearchRec) <> 0)) then
-      TFile.Move(Filename, Directory + Name + ' (1)' + Ext)
+      MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext))
     else
     begin
       Found := False;
@@ -2271,16 +2275,24 @@ begin
         DeleteFile(Filename)
       else
       begin
-        if (FileExists(Directory + Name + ' (5)' + Ext)) then
-          DeleteFile(Directory + Name + ' (5)' + Ext);
-        if (FileExists(Directory + Name + ' (4)' + Ext)) then
-          MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
-        if (FileExists(Directory + Name + ' (3)' + Ext)) then
-          MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
-        if (FileExists(Directory + Name + ' (2)' + Ext)) then
-          MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
         if (FileExists(Directory + Name + ' (1)' + Ext)) then
+        begin
+          if (FileExists(Directory + Name + ' (2)' + Ext)) then
+          begin
+            if (FileExists(Directory + Name + ' (3)' + Ext)) then
+            begin
+              if (FileExists(Directory + Name + ' (4)' + Ext)) then
+              begin
+                if (FileExists(Directory + Name + ' (5)' + Ext)) then
+                  DeleteFile(Directory + Name + ' (5)' + Ext);
+                MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
+              end;
+              MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
+            end;
+            MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
+          end;
           MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
+        end;
         MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
       end;
     end;
@@ -2288,25 +2300,29 @@ begin
   else
   begin
     if (GetFileInfo(Filename, SetupProgramFileInfo)
-      and GetFileInfo(Directory + Name + ' (1)' + Ext, SearchFileInfo)
+      and FileExists(Directory + Name + ' (2)' + Ext)
+      and GetFileInfo(Directory + Name + ' (2)' + Ext, SearchFileInfo)
       and CompareMem(@SearchFileInfo, @SetupProgramFileInfo, SizeOf(VS_FIXEDFILEINFO))) then
     begin
       if (FileExists(Directory + Name + ' (1)' + Ext)) then
         DeleteFile(Directory + Name + ' (1)' + Ext);
-      if (FileExists(Directory + Name + ' (2)' + Ext)) then
-        MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (1)' + Ext));
+      MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (1)' + Ext));
       if (FileExists(Directory + Name + ' (3)' + Ext)) then
+      begin
         MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
-      if (FileExists(Directory + Name + ' (4)' + Ext)) then
-        MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
-      if (FileExists(Directory + Name + ' (5)' + Ext)) then
-        MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
+        if (FileExists(Directory + Name + ' (4)' + Ext)) then
+        begin
+          MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
+          if (FileExists(Directory + Name + ' (5)' + Ext)) then
+            MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
+        end;
+      end;
     end;
 
    UpdateRemoved := '';
   end;
 
-  if (TFile.Exists(Filename)) then
+  if (FileExists(Filename)) then
     DeleteFile(Filename);
 end;
 
@@ -2435,13 +2451,6 @@ end;
 procedure TPPreferences.Open();
 begin
   if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
-end;
-
-function TPPreferences.PrepareDowndate(): Boolean;
-begin
-  SetupProgram := DowndateFilename;
-
-  Result := True;
 end;
 
 procedure TPPreferences.Save();

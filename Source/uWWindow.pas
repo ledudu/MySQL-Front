@@ -384,6 +384,7 @@ type
       Rect: TRect;
     end;
   private
+    AddTabParam: string;
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
     FSessions: TList;
     MouseDownPoint: TPoint;
@@ -457,7 +458,7 @@ uses
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
-  uDConnecting, uDInfo, uDUpdate, uDMail;
+  uDConnecting, uDInfo, uDUpdate, uDMail, uDDowndate;
 
 { TWWindow ********************************************************************}
 
@@ -527,9 +528,10 @@ end;
 
 procedure TWWindow.aHDowndateExecute(Sender: TObject);
 begin
-  if (MsgBox(Preferences.LoadStr(944, Preferences.DowndateVersionStr), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
+  if (DDowndate.Execute()) then
   begin
-    Preferences.SetupProgramExecute := Preferences.PrepareDowndate();
+    Preferences.SetupProgram := Preferences.DowndateFilename;
+    Preferences.SetupProgramExecute := FileExists(Preferences.SetupProgram);
     if (Preferences.SetupProgramExecute) then
     begin
       Preferences.UpdateRemoved := IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '.' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild);
@@ -1104,7 +1106,8 @@ begin
     CheckOnlineVersionThread.Start();
   end;
 
-  PostMessage(Handle, UM_ADDTAB, 0, 0);
+  AddTabParam := ParamStr(1);
+  PostMessage(Handle, UM_ADDTAB, 0, LPARAM(PChar(AddTabParam)));
 end;
 
 function TWWindow.GetActiveTab(): TFSession;
@@ -1433,9 +1436,9 @@ begin
   DAccounts.Open := True;
   DAccounts.Account := nil;
   DAccounts.Session := nil;
-  if (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://') then
+  if (LowerCase(LeftStr(PChar(Message.LParam), 8)) = 'mysql://') then
   begin
-    DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
+    DAccounts.Account := Accounts.AccountByURI(StrPas(PChar(Message.LParam)));
     if (Assigned(DAccounts.Account)) then
     begin
       DConnecting.Session := TSSession.Create(Sessions, DAccounts.Account);
