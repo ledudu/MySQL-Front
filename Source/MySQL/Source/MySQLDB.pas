@@ -172,7 +172,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smResultHandle, smDataSet);
-      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting);
+      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssAfterExecuteSQL);
     strict private
       FConnection: TMySQLConnection;
       FRunExecute: TEvent;
@@ -336,7 +336,6 @@ type
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
-    procedure SyncTerminate(const SyncThread: TSyncThread);
     function LibDecode(const CodePage: Cardinal; const Text: my_char; const Length: my_int = -1): string; virtual;
     function LibEncode(const CodePage: Cardinal; const Value: string): RawByteString; virtual;
     function LibPack(const Value: string): RawByteString; virtual;
@@ -2164,6 +2163,16 @@ end;
 procedure TMySQLConnection.CancelResultHandle(var ResultHandle: TResultHandle);
 begin
   Terminate();
+
+  SyncThread.State := ssAfterExecuteSQL;
+  if (GetCurrentThreadId() = MainThreadId) then
+    Sync(SyncThread)
+  else
+  begin
+    MySQLConnectionOnSynchronize(SyncThread);
+    SyncThreadExecuted.WaitFor(INFINITE);
+    DebugMonitor.Append('SyncThreadExecuted: W 8', ttDebug);
+  end;
 end;
 
 procedure TMySQLConnection.CloseResultHandle(var ResultHandle: TResultHandle);
@@ -3173,6 +3182,16 @@ begin
         end;
       ssDisconnecting:
         SyncDisconnected(SyncThread);
+      ssAfterExecuteSQL:
+        begin
+          SyncAfterExecuteSQL(SyncThread);
+          SyncThread.State := ssClose;
+          if (GetCurrentThreadId() <> MainThreadID) then
+          begin
+            DebugMonitor.Append('SyncThreadExecuted: S 8', ttDebug);
+            SyncThreadExecuted.SetEvent();
+          end;
+        end;
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
   end;
@@ -3878,10 +3897,6 @@ begin
   end;
 
   DataSet.SyncThread := nil;
-end;
-
-procedure TMySQLConnection.SyncTerminate(const SyncThread: TSyncThread);
-begin
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -5960,6 +5975,7 @@ begin
   try
     GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
 
+    Pointer(PExternRecordBuffer(Result)^.Progress) := nil;
     PExternRecordBuffer(Result)^.Progress := 'A';
     PExternRecordBuffer(Result)^.Index := -1;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;

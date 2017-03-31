@@ -2700,6 +2700,9 @@ begin
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
+          // Debug 2017-03-31
+          Assert(Assigned(NewTable.KeyByName(TSKey(Items[I]).Name)), 'Name: ' + TSKey(Items[I]).Name);
+
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end
