@@ -3162,7 +3162,10 @@ begin
     end
     else if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
     begin
-      Size := SysUtils.StrToInt(SQLParseValue(Parse));
+      if (SQLParseChar(Parse, ')', False)) then
+        Size := 0
+      else
+        Size := SysUtils.StrToInt(SQLParseValue(Parse));
 
       if (not SQLParseChar(Parse, ',') and not SQLParseChar(Parse, '.')) then
         Decimals := 0

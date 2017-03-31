@@ -172,7 +172,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smResultHandle, smDataSet);
-      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
+      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting);
     strict private
       FConnection: TMySQLConnection;
       FRunExecute: TEvent;
@@ -520,6 +520,7 @@ type
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
+      Progress: string;
       Index: Integer;
       InternRecordBuffer: PInternRecordBuffer;
       BookmarkFlag: TBookmarkFlag;
@@ -3172,18 +3173,6 @@ begin
         end;
       ssDisconnecting:
         SyncDisconnected(SyncThread);
-      ssTerminate:
-        begin
-          SyncTerminate(SyncThread);
-          SyncThread.State := ssClose;
-          if (SyncThread.Mode = smResultHandle) then
-            DoAfterExecuteSQL();
-          if (GetCurrentThreadId() <> MainThreadID) then
-          begin
-            DebugMonitor.Append('SyncThreadExecuted: S 7', ttDebug);
-            SyncThreadExecuted.SetEvent();
-          end;
-        end;
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
   end;
@@ -3893,45 +3882,36 @@ end;
 
 procedure TMySQLConnection.SyncTerminate(const SyncThread: TSyncThread);
 begin
-  Assert(GetCurrentThreadId() = MainThreadID);
-
-  KillThreadId := SyncThread.LibThreadId;
-
-  {$IFDEF Debug}
-    MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
-  {$ENDIF}
-
-  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
-
-  SyncThread.Terminate();
-
-  if (GetCurrentThreadId() = MainThreadID) then
-    WriteMonitor('--> Connection terminated! (' + IntToStr(SyncThread.LibThreadId) + ')', ttInfo);
-
-  {$IFDEF EurekaLog}
-    SetEurekaLogStateInThread(SyncThread.ThreadID, False);
-  {$ENDIF}
-
-  TerminatedThreads.Add(SyncThread);
-
-  Self.FSyncThread := nil;
 end;
 
 procedure TMySQLConnection.Terminate();
 begin
   TerminateCS.Enter();
+
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
-    SyncThread.State := ssTerminate;
+    {$IFDEF Debug}
+      MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
+    {$ENDIF}
+
+    MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
+
+    SyncThread.Terminate();
+
     if (GetCurrentThreadId() = MainThreadID) then
-      Sync(SyncThread)
-    else
-    begin
-      MySQLConnectionOnSynchronize(SyncThread);
-      SyncThreadExecuted.WaitFor(INFINITE);
-      DebugMonitor.Append('SyncThreadExecuted: W 5', ttDebug);
-    end;
+      DebugMonitor.Append('--> Connection terminated!', ttInfo);
+
+    {$IFDEF EurekaLog}
+      SetEurekaLogStateInThread(SyncThread.ThreadID, False);
+    {$ENDIF}
+
+    TerminatedThreads.Add(SyncThread);
+
+    Self.FSyncThread := nil;
+
+    KillThreadId := SyncThread.LibThreadId;
   end;
+
   TerminateCS.Leave();
 end;
 
@@ -5612,6 +5592,9 @@ begin
       else
         SQL := CommandText;
 
+      // Debug 2017-03-31
+      Assert(SQL <> '', 'CommandType: ' + IntToStr(Ord(CommandType)));
+
       Connection.DebugMonitor.Append('BeginSynchron - 4', ttDebug);
       Connection.BeginSynchron();
       Connection.InternExecuteSQL(smDataSet, SQL, SetActiveEvent);
@@ -5977,6 +5960,7 @@ begin
   try
     GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
 
+    PExternRecordBuffer(Result)^.Progress := 'A';
     PExternRecordBuffer(Result)^.Index := -1;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
     PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
@@ -6453,6 +6437,8 @@ procedure TMySQLDataSet.InternalCancel();
 var
   Index: Integer;
 begin
+  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'C';
+
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF,
     bfEOF:
@@ -6550,9 +6536,12 @@ end;
 
 procedure TMySQLDataSet.InternalEdit();
 begin
+  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'F';
+
   if (not CachedUpdates and
     not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
     raise EAssertionFailed.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'Progress: ' + PExternRecordBuffer(ActiveBuffer())^.Progress + #13#10
       + 'Identifier: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xIdentifier) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
@@ -6614,6 +6603,8 @@ var
   Index: Integer;
   RBS: RawByteString;
 begin
+  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'B';
+
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF,
     bfEOF:
@@ -6697,6 +6688,8 @@ var
   WhereClause: string;
   WhereFields: array of TField;
 begin
+  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'C';
+
   if (CachedUpdates) then
   begin
     case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
@@ -6958,6 +6951,8 @@ begin
       end;
     end;
   end;
+
+  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'E';
 end;
 
 function TMySQLDataSet.InternalPostEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -6974,6 +6969,8 @@ var
 begin
   Result := False;
 
+  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'D';
+
   if (SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
   begin
     Update := SQLParseKeyword(Parse, 'UPDATE');
@@ -6985,6 +6982,8 @@ begin
         InternalPostResult.Exception := EDatabasePostError.Create(SRecordChanged)
       else
       begin
+        PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'E';
+
         if (not Update) then
           for I := 0 to Fields.Count - 1 do
             if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then

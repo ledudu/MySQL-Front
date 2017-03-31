@@ -1495,6 +1495,10 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
+      Assert(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength >= 0,
+        'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+        + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
+        + 'StartingCommentLength: ' + IntToStr(StartingCommentLength));
       FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
@@ -8611,6 +8615,8 @@ begin
     if (not Assigned(Node.getFirstChild())) then
       Node.Expand(False);
 
+DebugNode := Node;
+
     if (Event.Items is TSDatabases) then
       UpdateGroup(Node, giDatabases, Event.Items);
 
@@ -8632,6 +8638,8 @@ begin
       FNavigator.Items.BeginUpdate();
 
       Expanded := Node.Expanded;
+
+DebugNode := Node;
 
       if (Expanded or (Node = FNavigatorNodeToExpand)) then
       begin
@@ -15432,6 +15440,7 @@ var
   Empty: Boolean; // Cache for speeding
   Parse: TSQLParse;
   SelSQL: string; // Cache for speeding
+  SingleStmt: Boolean; // Debug 2017-03-23
   SQL: string; // Cache for speeding
 begin
   // Debug 2017-03-01
@@ -15461,17 +15470,44 @@ begin
   MainAction('aECopyToFile').Enabled := (SelSQL <> '');
   MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
 
-  // Debug 2017-03-30
+
   Assert(Assigned(Self));
   Assert(Self is TFSession);
   Assert(Assigned(Session), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
+  Assert(Assigned(Session.Connection), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
+  if (Session.Connection.MySQLVersion > 0) then
+    Write;
 
-  MainAction('aDPostObject').Enabled := (View = vIDE)
-    and TBCEditor(Sender).Modified
-    and SQLSingleStmt(SQL)
-    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-      or (ClassIndex in [ciEvent, ciTrigger]));
+  MainAction('aDPostObject').Enabled := (View = vIDE);
+  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+    and TBCEditor(Sender).Modified;
+  if (MainAction('aDPostObject').Enabled) then
+  begin
+    SingleStmt := SQLSingleStmt(SQL);
+    MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
+      and SingleStmt;
+  end;
+  if (MainAction('aDPostObject').Enabled) then
+    if (ClassIndex in [ciView]) then
+      MainAction('aDPostObject').Enabled :=
+        SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+    else if (ClassIndex in [ciProcedure, ciFunction]) then
+    begin
+      if (not SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
+        MainAction('aDPostObject').Enabled := False
+      else
+        MainAction('aDPostObject').Enabled :=
+           (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+    end
+    else if (ClassIndex in [ciEvent, ciTrigger]) then
+      MainAction('aDPostObject').Enabled := True;
+
+//  MainAction('aDPostObject').Enabled := (View = vIDE)
+//    and TBCEditor(Sender).Modified
+//    and SQLSingleStmt(SQL)
+//    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+//      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+//      or (ClassIndex in [ciEvent, ciTrigger]));
 
   MainAction('aDRun').Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty

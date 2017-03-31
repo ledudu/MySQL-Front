@@ -72,17 +72,13 @@ object DRoutine: TDRoutine
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSDependencies
+    ActivePage = TSSource
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -166,10 +162,6 @@ object DRoutine: TDRoutine
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -278,10 +270,6 @@ object DRoutine: TDRoutine
       Caption = 'TSDependencies'
       ImageIndex = 3
       OnShow = TSDependenciesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -309,10 +297,6 @@ object DRoutine: TDRoutine
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -368,6 +352,7 @@ object DRoutine: TDRoutine
         Minimap.Font.Height = -1
         Minimap.Font.Name = 'Courier New'
         Minimap.Font.Style = []
+        OnChange = FSourceChange
         RightMargin.Visible = False
         Scroll.Options = [soPastEndOfLine, soWheelClickMove]
         SyncEdit.Enabled = False
