@@ -22597,7 +22597,7 @@ function TSQLParser.ParseSelectStmtTableReference(const UnclosedOpenBrackets: PO
       end;
     end
     else if (IsSymbol(ttOpenBracket)) then
-      Result := ParseSelectStmtTableReferences()
+      Result := ParseSubArea(ParseSelectStmtTableReferences)
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
     else if (EndOfStmt(CurrentToken)) then

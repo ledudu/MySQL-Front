@@ -4577,6 +4577,7 @@ begin
               if (AllowRefresh) then
               begin
                 // Debug 2017-03-30
+                Assert(ActiveDBGrid.DataSource.DataSet.Active);
                 ActiveDBGrid.DataSource.DataSet.Resync([]);
 
                 ActiveDBGrid.DataSource.DataSet.Refresh();

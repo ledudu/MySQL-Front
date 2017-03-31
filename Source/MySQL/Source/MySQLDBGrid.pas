@@ -953,6 +953,8 @@ begin
     Perform(WM_SETCURSOR, Handle, HTCLIENT);
     MouseCapture := True;
   end;
+  if ((Key = VK_MENU) and (AltDownAnchor.Col >= 0) and (ssLeft in Shift)) then
+    SelectedFields.Add(Columns[Col].Field);
 
   if ((Key = VK_UP) and (Shift = [ssCtrl]) and not EditorMode) then
   begin
@@ -1185,9 +1187,6 @@ begin
 
   Cell := MouseCoord(X, Y);
 
-  if (Button = mbLeft) then
-    LeftClickAnchor.Shift := Shift + LeftClickAnchor.Shift - [ssLeft, ssRight, ssMiddle, ssDouble];
-
   if ((Cell.X = -1) and (Cell.Y = -1) and EditorMode) then
     try
       SelectedField.AsString := TMySQLDBGridInplaceEdit(InplaceEditor).Text;
@@ -1236,17 +1235,24 @@ begin
 
     inherited;
 
+    if (Button = mbLeft) then
+    begin
+      LeftClickAnchor.Col := Col;
+      LeftClickAnchor.Rec := DataLink.ActiveRecord;
+      LeftClickAnchor.Shift := Shift + LeftClickAnchor.Shift - [ssLeft, ssRight, ssMiddle, ssDouble];
+    end;
+
     if (ssShift in Shift) then
     begin
       Cursor := crCross;
       Perform(WM_SETCURSOR, Handle, HTCLIENT);
-      LeftClickAnchor.Col := Col;
-      LeftClickAnchor.Rec := DataLink.ActiveRecord;
 
-      if ((Shift = [ssLeft]) and (ssAlt in Shift)) then
+      if ((Shift * [ssLeft, ssAlt] = [ssLeft, ssAlt])) then
       begin
         SelectedFields.Clear();
-        SelectedFields.Add(Columns[Cell.X].Field);
+        SelectedFields.Add(Columns[Col].Field);
+        SelectedRows.Clear();
+        SelectedRows.CurrentRowSelected := True;
       end;
     end;
 
@@ -1266,10 +1272,10 @@ var
   UseTimer: Boolean;
 begin
   KillTimer(Handle, tiMouseMove);
+  Cell := MouseCoord(X, Y);
 
   inherited;
 
-  Cell := MouseCoord(X, Y);
   if (LeftClickAnchor.Col < 0) then
   begin
     if (not ShowHint and not ParentShowHint or (Hint = '')) then
@@ -1289,7 +1295,7 @@ begin
   end
   else if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
     // Do nothing - handle this message within the next equal message
-  else
+  else if (ssLeft in Shift) then
   begin
     UseTimer := False;
 
@@ -1331,10 +1337,12 @@ begin
         SelectedRows.CurrentRowSelected := False;
         DataLink.DataSet.MoveBy(Sign(Cell.Y - Row));
       end;
-      SelectedRows.CurrentRowSelected := True;
-      while ((Row <> Cell.Y)
-        and (DataLink.DataSet.MoveBy(Sign(Cell.Y - Row)) <> 0)) do
+      if (ssCtrl in Shift) then
         SelectedRows.CurrentRowSelected := True;
+      if (ssShift in Shift) then
+        while ((Row <> Cell.Y)
+          and (DataLink.DataSet.MoveBy(Sign(Cell.Y - Row)) <> 0)) do
+          SelectedRows.CurrentRowSelected := True;
     end
     else
     begin

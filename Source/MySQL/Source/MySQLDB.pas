@@ -519,7 +519,6 @@ type
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
-      Progress: string;
       Index: Integer;
       InternRecordBuffer: PInternRecordBuffer;
       BookmarkFlag: TBookmarkFlag;
@@ -3184,8 +3183,8 @@ begin
         SyncDisconnected(SyncThread);
       ssAfterExecuteSQL:
         begin
-          SyncAfterExecuteSQL(SyncThread);
           SyncThread.State := ssClose;
+          SyncAfterExecuteSQL(SyncThread);
           if (GetCurrentThreadId() <> MainThreadID) then
           begin
             DebugMonitor.Append('SyncThreadExecuted: S 8', ttDebug);
@@ -5975,8 +5974,6 @@ begin
   try
     GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
 
-    Pointer(PExternRecordBuffer(Result)^.Progress) := nil;
-    PExternRecordBuffer(Result)^.Progress := 'A';
     PExternRecordBuffer(Result)^.Index := -1;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
     PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
@@ -6347,9 +6344,6 @@ begin
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
 
-    // Debug 2017-03-31
-    Assert(Buffer > 0);
-
     PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
     PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
     PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
@@ -6456,8 +6450,6 @@ procedure TMySQLDataSet.InternalCancel();
 var
   Index: Integer;
 begin
-  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'C';
-
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF,
     bfEOF:
@@ -6555,12 +6547,9 @@ end;
 
 procedure TMySQLDataSet.InternalEdit();
 begin
-  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'F';
-
   if (not CachedUpdates and
     not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
     raise EAssertionFailed.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'Progress: ' + PExternRecordBuffer(ActiveBuffer())^.Progress + #13#10
       + 'Identifier: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.xIdentifier) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
@@ -6622,8 +6611,6 @@ var
   Index: Integer;
   RBS: RawByteString;
 begin
-  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'B';
-
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF,
     bfEOF:
@@ -6707,8 +6694,6 @@ var
   WhereClause: string;
   WhereFields: array of TField;
 begin
-  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'C';
-
   if (CachedUpdates) then
   begin
     case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
@@ -6970,8 +6955,6 @@ begin
       end;
     end;
   end;
-
-  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'E';
 end;
 
 function TMySQLDataSet.InternalPostEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -6988,8 +6971,6 @@ var
 begin
   Result := False;
 
-  PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'D';
-
   if (SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
   begin
     Update := SQLParseKeyword(Parse, 'UPDATE');
@@ -7001,8 +6982,6 @@ begin
         InternalPostResult.Exception := EDatabasePostError.Create(SRecordChanged)
       else
       begin
-        PExternRecordBuffer(ActiveBuffer())^.Progress := PExternRecordBuffer(ActiveBuffer())^.Progress + 'E';
-
         if (not Update) then
           for I := 0 to Fields.Count - 1 do
             if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
