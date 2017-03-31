@@ -3890,6 +3890,8 @@ begin
 
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
+    KillThreadId := SyncThread.LibThreadId;
+
     {$IFDEF Debug}
       MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
     {$ENDIF}
@@ -3908,8 +3910,6 @@ begin
     TerminatedThreads.Add(SyncThread);
 
     Self.FSyncThread := nil;
-
-    KillThreadId := SyncThread.LibThreadId;
   end;
 
   TerminateCS.Leave();
@@ -6330,6 +6330,9 @@ begin
 
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
+
+    // Debug 2017-03-31
+    Assert(Buffer > 0);
 
     PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
     PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
