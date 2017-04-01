@@ -2260,8 +2260,8 @@ procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
 begin
   if (Point is TWLink) then
     raise ERangeError.Create('Point is TWLink');
-  if (Workbench.LinkPoints.IndexOf(Point) < 0) then
-    raise ERangeError.Create('Point already freed.');
+
+  Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);
 
   if (Line = Point.LineA) then
   begin
@@ -2301,7 +2301,12 @@ begin
   Point.ControlA := nil;
   Point.ControlB := nil;
 
+  Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);
+
   Line.Free();
+
+  Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);
+
   Point.Free();
 
   Check();

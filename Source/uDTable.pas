@@ -1679,7 +1679,7 @@ end;
 
 procedure TDTable.TSSourceShow(Sender: TObject);
 begin
-  if (FSource.Lines.Count = 0) then
+  if (FSource.Text = '') then
     if (Assigned(NewTable)) then
       FSource.Text := NewTable.Source;
 end;

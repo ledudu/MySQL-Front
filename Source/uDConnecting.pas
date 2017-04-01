@@ -73,6 +73,9 @@ end;
 
 procedure TDConnecting.FBCancelClick(Sender: TObject);
 begin
+  // Debug 2017-04-01
+  Assert(Assigned(Session.Connection));
+
   Session.Connection.Terminate();
   ModalResult := mrCancel;
 end;

@@ -3185,10 +3185,12 @@ begin
         begin
           SyncThread.State := ssClose;
           SyncAfterExecuteSQL(SyncThread);
-          if (GetCurrentThreadId() <> MainThreadID) then
-          begin
-            DebugMonitor.Append('SyncThreadExecuted: S 8', ttDebug);
-            SyncThreadExecuted.SetEvent();
+          case (SyncThread.Mode) of
+            smResultHandle:
+              begin
+                DebugMonitor.Append('SyncThreadExecuted: S 8', ttDebug);
+                SyncThreadExecuted.SetEvent();
+              end;
           end;
         end;
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
@@ -3227,6 +3229,8 @@ begin
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
+
+  DebugMonitor.Append('SyncBildDataSet - ' + SyncThread.CommandText, ttDebug);
 
   SyncThread.State := ssReceivingResult;
 
@@ -3878,6 +3882,8 @@ begin
   begin
     Assert(Assigned(SyncThread));
 
+    DebugMonitor.Append('SyncReleaseDataSet - ' + DataSet.SyncThread.CommandText, ttDebug);
+
     SyncThread.DataSet := nil;
 
     TerminateCS.Enter();
@@ -3900,6 +3906,10 @@ end;
 
 procedure TMySQLConnection.Terminate();
 begin
+  // Debug 2017-04-01
+  Assert(Assigned(Self));
+  Assert(Assigned(TerminateCS));
+
   TerminateCS.Enter();
 
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
@@ -6221,7 +6231,13 @@ begin
       Result := Max(Result, TextWidth(Connection.LibUnpack(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])))
   else
     for I := 0 to InternRecordBuffers.Count - 1 do
+    begin
+      // Debug 2017-04-01
+      Assert(Assigned(InternRecordBuffers[I]^.NewData^.LibRow));
+      Assert(Assigned(InternRecordBuffers[I]^.NewData^.LibLengths));
+
       Result := Max(Result, TextWidth(Connection.LibDecode(FieldCodePage(Field), InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
+    end;
   InternRecordBuffers.CriticalSection.Leave();
 end;
 

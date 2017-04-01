@@ -44,7 +44,7 @@ object DUpdate: TDUpdate
       Left = 8
       Top = 18
       Width = 313
-      Height = 13
+      Height = 17
       Anchors = [akLeft, akTop, akRight]
       AutoSize = False
       Caption = 'FVersionInfo'
@@ -53,7 +53,7 @@ object DUpdate: TDUpdate
       Left = 8
       Top = 41
       Width = 313
-      Height = 13
+      Height = 16
       Anchors = [akLeft, akTop, akRight]
       AutoSize = False
       Caption = 'FProgram'

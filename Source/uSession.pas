@@ -11259,7 +11259,7 @@ begin
   begin
     // Debug 2017-02-09
     Assert(Assigned(Session));
-    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27
+    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27, 2017-04-01
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
@@ -11570,6 +11570,9 @@ begin
   if (Count > 0) then
     Session.SendEvent(etItemsValid, Self, Self);
 
+  // Debug 2017-04-01
+  Assert(Assigned(Session));
+
   Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
 end;
 
@@ -11648,6 +11651,9 @@ begin
 
   if (Count > 0) then
     Session.SendEvent(etItemsValid, Self, Self);
+
+  // Debug 2017-04-01
+  Assert(Assigned(Session));
 
   Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
 end;

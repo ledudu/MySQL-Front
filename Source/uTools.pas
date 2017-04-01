@@ -3978,7 +3978,7 @@ begin
               SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Name) + ';' + #13#10;
               DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
             end
-            else if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge) then
+            else if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and Assigned(TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine) and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge) then
             begin
               TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).RecordCount;
               DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));

@@ -510,7 +510,7 @@ end;
 
 procedure TDDatabase.TSSourceShow(Sender: TObject);
 begin
-  if (FSource.Lines.Count = 0) then
+  if (FSource.Text = '') then
     FSource.Text := Database.Source + #13#10;
 end;
 

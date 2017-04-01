@@ -2701,7 +2701,10 @@ begin
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
           // Debug 2017-03-31
-          Assert(Assigned(NewTable.KeyByName(TSKey(Items[I]).Name)), 'Name: ' + TSKey(Items[I]).Name);
+          Assert(Assigned(NewTable.KeyByName(TSKey(Items[I]).Name)),
+            'Name: ' + TSKey(Items[I]).Name + #13#10
+            + 'I: ' + IntToStr(I) + #13#10
+            + 'Items.Count: ' + IntToStr(Items.Count));
 
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
@@ -3436,13 +3439,14 @@ end;
 
 procedure TFSession.aECopyExecute(Sender: TObject);
 var
+  Addresses: string;
   ClassIndex: TClassIndex;
   ClipboardData: HGLOBAL;
-  Data: string;
   I: Integer;
   Opened: Boolean;
   Retry: Integer;
   S: string;
+  StringList: TStringList;
 begin
   Retry := 0;
   repeat
@@ -3457,7 +3461,7 @@ begin
   until (Opened or (Retry = 10));
 
 
-  Data := '';
+  Addresses := '';
 
   if (not Opened
     or not Assigned(Window.ActiveControl)) then
@@ -3472,7 +3476,7 @@ begin
     else
     begin
       ClassIndex := ClassIndexByData(FNavigatorMenuNode.Parent.Data);
-      Data := Data + AddressByData(FNavigatorMenuNode.Data) + #13#10;
+      Addresses := Addresses + AddressByData(FNavigatorMenuNode.Data) + #13#10;
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
@@ -3480,7 +3484,7 @@ begin
     ClassIndex := CurrentClassIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
-        Data := Data + AddressByData(ActiveListView.Items[I].Data) + #13#10;
+        Addresses := Addresses + AddressByData(ActiveListView.Items[I].Data) + #13#10;
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
@@ -3517,11 +3521,11 @@ begin
       ClassIndex := CurrentClassIndex;
       if (Assigned(ActiveWorkbench)) then
         if (not Assigned(ActiveWorkbench.Selected)) then
-          Data := Data + AddressByData(ActiveWorkbench.Database) + #13#10
+          Addresses := Addresses + AddressByData(ActiveWorkbench.Database) + #13#10
         else if (ActiveWorkbench.Selected is TWTable) then
-          Data := Data + AddressByData(TWTable(ActiveWorkbench.Selected).BaseTable) + #13#10
+          Addresses := Addresses + AddressByData(TWTable(ActiveWorkbench.Selected).BaseTable) + #13#10
         else if (ActiveWorkbench.Selected is TWForeignKey) then
-          Data := Data + AddressByData(TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey) + #13#10;
+          Addresses := Addresses + AddressByData(TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey) + #13#10;
     end;
   end
   else if (Window.ActiveControl = FSQLHistory) then
@@ -3558,7 +3562,7 @@ begin
     exit;
   end;
 
-  if (Data <> '') then
+  if (Addresses <> '') then
   begin
     Retry := 0;
     repeat
@@ -3577,8 +3581,8 @@ begin
       try
         EmptyClipboard();
 
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
-        StrPCopy(GlobalLock(ClipboardData), Data);
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Addresses) + 1));
+        StrPCopy(GlobalLock(ClipboardData), Addresses);
         case (ClassIndex) of
           ciSession: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
           ciDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
@@ -3588,10 +3592,24 @@ begin
         end;
         GlobalUnlock(ClipboardData);
 
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Data[1]) * (Length(Data) + 1));
-        StrPCopy(GlobalLock(ClipboardData), Data);
-        SetClipboardData(CF_UNICODETEXT, ClipboardData);
-        GlobalUnlock(ClipboardData);
+        StringList := TStringList.Create();
+        StringList.Text := Trim(Addresses);
+        S := '';
+        for I := 0 to StringList.Count - 1 do
+          if (TObject(DataByAddress(StringList[I])) is TSKey) then
+            S := S + TSKey(DataByAddress(StringList[I])).Caption + #13#10
+          else if (TObject(DataByAddress(StringList[I])) is TSItem) then
+            S := S + TSItem(DataByAddress(StringList[I])).Name + #13#10;
+        S := Trim(S);
+        StringList.Free();
+
+        if (S <> '') then
+        begin
+          ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+          StrPCopy(GlobalLock(ClipboardData), S);
+          SetClipboardData(CF_UNICODETEXT, ClipboardData);
+          GlobalUnlock(ClipboardData);
+        end;
       finally
         CloseClipboard();
       end;
