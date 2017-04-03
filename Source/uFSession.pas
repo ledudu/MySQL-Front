@@ -4184,6 +4184,10 @@ end;
 
 procedure TFSession.aFOpenInNewTabExecute(Sender: TObject);
 begin
+  // Debug 2017-04-03
+  Assert(Assigned(FocusedSItem),
+    'ActiveControl: ' + Window.ActiveControl.ClassName);
+
   Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(FocusedSItem.Address)));
 end;
 
@@ -7641,8 +7645,7 @@ begin
   else if (TObject(Node.Data) is TSItem) then
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
-    raise ERangeError.Create('ClassType: ' + TObject(Node.Data).ClassName + #13#10
-      + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+    raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
       + 'Text: ' + Node.Text)
   else
     raise ERangeError.Create(SRangeError);
@@ -10067,22 +10070,6 @@ begin
     Result := TSItem(CurrentData)
   else
     Result := nil;
-
-  // Debug 2016-12-19
-  if (Assigned(Result)) then
-  begin
-    if (not (TObject(Result) is TSItem)) then
-      if ((Window.ActiveControl is TTreeView) and Assigned(TTreeView(Window.ActiveControl).Selected)) then
-        raise ERangeError.Create('ImageIndex: ' + IntToStr(TTreeView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Text: ' + TTreeView(Window.ActiveControl).Selected.Text)
-      else if ((Window.ActiveControl is TListView) and Assigned(TListView(Window.ActiveControl).Selected)) then
-        raise ERangeError.Create('ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption + #13#10
-          + 'Assigned(Data): ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data), True) + #13#10
-          + 'Is User: ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data) and (Session.Users.IndexOf(TListView(Window.ActiveControl).Selected.Data) >= 0), True))
-      else
-        raise ERangeError.Create('ActiveControl.ClassType: ' + Window.ActiveControl.ClassName);
-  end;
 end;
 
 function TFSession.GetMenuDatabase(): TSDatabase;
@@ -12388,9 +12375,6 @@ begin
       aFOpenInNewWindow.Enabled := mlOpen.Enabled;
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
 
-      // Debug 2017-04-03
-      Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
-
       aDDelete.Enabled := (ListView.SelCount >= 1);
 
       case (Item.ImageIndex) of
@@ -12878,9 +12862,6 @@ begin
 
   aFOpenInNewWindow.Enabled := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
   aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
-
-  // Debug 2017-04-03
-  Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
 
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
