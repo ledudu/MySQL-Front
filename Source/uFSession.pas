@@ -1489,18 +1489,36 @@ begin
 
   if (ErrorCode > 0) then
   begin
-    if ((CommandText <> '') and (Length(FBCEditor.Text) > Length(CommandText) + 5)) then
+    if (CommandText <> '') then
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      Assert(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength >= 0,
-        'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-        + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-        + 'StartingCommentLength: ' + IntToStr(StartingCommentLength));
-      FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      try
+        FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      except
+        on E: Exception do
+          E.RaiseOuterException(ERangeError.Create(
+            'CommandText: ' + LeftStr(CommandText, 10) + #13#10
+            + 'Text: ' + Copy(FBCEditor.Text, 1 + FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength, 10)
+            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
+            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
+            + E.ClassName + ':' + #13#10 + E.Message));
+      end;
+      try
+        FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      except
+        on E: Exception do
+          E.RaiseOuterException(ERangeError.Create(
+            'CommandText: ' + LeftStr(CommandText, 10) + #13#10
+            + 'Text: ' + Copy(FBCEditor.Text, 1 + FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength, 10)
+            + 'Len: ' + IntToStr(Len) + #13#10
+            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
+            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
+            + E.ClassName + ':' + #13#10 + E.Message));
+      end;
     end
   end
   else
@@ -3377,7 +3395,7 @@ begin
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
     begin
-      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)) + 1);
+      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)));
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
     end;
 
@@ -3416,7 +3434,7 @@ begin
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
     begin
-      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)) + 1);
+      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)));
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
     end;
 
@@ -3922,6 +3940,9 @@ end;
 procedure TFSession.aETransferExecute(Sender: TObject);
 begin
   Wanted.Clear();
+
+  // Debug 2017-04-03
+  Assert(Assigned(FNavigator.Selected));
 
   DTransfer.SourceSession := Session;
   if (not (TObject(FNavigator.Selected.Data) is TSItem)) then
@@ -8053,6 +8074,8 @@ begin
   MainAction('aDEditVariable').Enabled := False;
   MainAction('aDEmpty').Enabled := False;
 
+  aFOpenInNewTab.Enabled := False;
+
   aDDelete.ShortCut := 0;
 end;
 
@@ -8738,11 +8761,13 @@ DebugNode := Node;
             Write;
         except
           on E: Exception do
-            raise EAssertionFailed.Create(E.Message + #13#10
+            E.RaiseOuterException(EAssertionFailed.Create(E.ClassName + ':' + #13#10
+              + E.Message + #13#10
+              + 'EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
               + 'ImageIndex: ' + IntToStr(ImageIndex) + #13#10
               + 'Text: ' + Text + #13#10
               + 'Sender: ' + TSItem(Event.Sender).Name + #13#10
-              + 'Items: ' + Event.Items.ClassName);
+              + 'Items: ' + Event.Items.ClassName));
         end;
 
         Node.HasChildren := Assigned(Node.getFirstChild());
@@ -10667,7 +10692,15 @@ begin
             begin
               Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
               if (Compare = 0) then
+              begin
+                // Debug 2017-04-03
+                Assert(Item1.SubItems.Count > 1,
+                  'ImageIndex: ' + IntToStr(Item1.ImageIndex));
+                Assert(Item2.SubItems.Count > 1,
+                  'ImageIndex: ' + IntToStr(Item2.ImageIndex));
+
                 Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+              end;
               if (Compare = 0) then
                 Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
             end;
@@ -11329,6 +11362,8 @@ begin
   MainAction('aDEditUser').Enabled := False;
   MainAction('aDEditVariable').Enabled := False;
   MainAction('aDEmpty').Enabled := False;
+
+  aFOpenInNewTab.Enabled := False;
 
   aDCreate.ShortCut := 0;
   aDDelete.ShortCut := 0;
@@ -12352,6 +12387,10 @@ begin
       mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
       aFOpenInNewWindow.Enabled := mlOpen.Enabled;
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
+
+      // Debug 2017-04-03
+      Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
+
       aDDelete.Enabled := (ListView.SelCount >= 1);
 
       case (Item.ImageIndex) of
@@ -12839,6 +12878,10 @@ begin
 
   aFOpenInNewWindow.Enabled := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
   aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
+
+  // Debug 2017-04-03
+  Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
+
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
 
@@ -15464,6 +15507,9 @@ var
   SelSQL: string; // Cache for speeding
   SingleStmt: Boolean; // Debug 2017-03-23
   SQL: string; // Cache for speeding
+  SQLP: PChar;
+  Len: Integer;
+  B: Boolean;
 begin
   // Debug 2017-03-01
   Assert(Sender is TBCEditor,
@@ -15515,7 +15561,20 @@ begin
         SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
     else if (ClassIndex in [ciProcedure, ciFunction]) then
     begin
-      if (not SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
+      if (Session.Connection.MySQLVersion > 0) then
+        Write;
+      SQLP := PChar(SQL);
+      Len := Length(SQL);
+      B := True;
+      try
+        B := SQLParseDDLStmt(DDLStmt, SQLP, Len, Session.Connection.MySQLVersion);
+      except
+        on E: Exception do
+          E.RaiseOuterException(ERangeError.Create(E.Message + #13#10
+            + 'Len: ' + IntToStr(Len) + #13#10
+            + 'SingleStmt: ' + BoolToStr(SQLSingleStmt(SQL), True)));
+      end;
+      if (not B) then
         MainAction('aDPostObject').Enabled := False
       else
         MainAction('aDPostObject').Enabled :=
@@ -16538,7 +16597,7 @@ begin
     CurrentAddress := Param
   else if (Param <> '') then
   begin
-    URI := TUURI.Create(Param);
+    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
     URI.Param['view'] := 'editor';
     URI.Table := '';
     URI.Param['system'] := Null;

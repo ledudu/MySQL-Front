@@ -519,6 +519,9 @@ procedure TDRoutine.TSDependenciesShow(Sender: TObject);
 var
   List: TList;
 begin
+  // Debug 2017-04-03
+  Assert(Assigned(Routine));
+
   if (FDependencies.Items.Count = 0) then
   begin
     List := TList.Create();

@@ -60,7 +60,7 @@ for /D /R %%I in (*) do (
   if exist "%%I\*.identcache" DEL "%%I\*.identcache"
 )
 
-CHOICE /M "Clean built packages?"
+CHOICE /M "Clean built packages"
 if Errorlevel 2 goto End
 if Errorlevel 1 goto CleanAll
 goto End

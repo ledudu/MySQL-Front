@@ -1855,6 +1855,8 @@ function TMySQLMonitor.GetCacheText(): string;
 var
   Len: Integer;
 begin
+  FCriticalSection.Enter();
+
   if (Cache.UsedLen < 2) then
     Result := ''
   else
@@ -1869,6 +1871,8 @@ begin
       MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Len - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
     end;
   end;
+
+  FCriticalSection.Leave();
 end;
 
 procedure TMySQLMonitor.SetConnection(const AConnection: TMySQLConnection);
@@ -2638,6 +2642,7 @@ begin
   Assert(TerminatedThreads.IndexOf(SyncThread) < 0);
   Assert(Assigned(SyncThread.StmtLengths));
   Assert(TObject(SyncThread.StmtLengths) is TList);
+  Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
   SQLIndex := 1;
   StmtLength := 1; // ... to make sure, the first SQLStmtLength will be executed
@@ -2647,9 +2652,6 @@ begin
 
     if (StmtLength > 0) then
     begin
-      // Debug 2017-03-02
-      Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
-
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
       Inc(SQLIndex, StmtLength);
     end;
@@ -2684,7 +2686,8 @@ begin
   begin
     // Debug 2017-03-24
     Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled,
-      'State: ' + IntToStr(Ord(SyncThread.State)));
+      'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
+      + DebugMonitor.CacheText);
 
     repeat
       if (GetCurrentThreadId() = MainThreadId) then
@@ -2692,7 +2695,7 @@ begin
       else
         MySQLConnectionOnSynchronize(SyncThread);
       if ((Mode in [smSQL, smResultHandle])
-        or not (SyncThread.State in [ssReady, ssResult, ssReceivingResult])) then
+        or Assigned(SyncThread) and not (SyncThread.State in [ssReady, ssResult, ssReceivingResult])) then
       begin
         SyncThreadExecuted.WaitFor(INFINITE);
         DebugMonitor.Append('SyncThreadExecuted: W 4', ttDebug);
@@ -2722,7 +2725,7 @@ end;
 function TMySQLConnection.InUse(): Boolean;
 begin
   TerminateCS.Enter();
-  Result := Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady]);
+  Result := Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady]) or InMonitor;
   TerminateCS.Leave();
 end;
 

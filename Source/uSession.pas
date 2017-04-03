@@ -4736,7 +4736,8 @@ begin
       try
         Field.ParseFieldType(Parse);
       except
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+        on E: Exception do
+          E.RaiseOuterException(EAssertionFailed.CreateFmt(SSourceParseError + #13#10 + E.ClassName + ':' + E.Message, [Database.Name + '.' + Name, SQL]));
       end;
 
       // Debug 2017-01-15
@@ -11258,6 +11259,8 @@ begin
   if (ErrorCode = 0) then
   begin
     // Debug 2017-02-09
+    Assert(Assigned(DataHandle));
+    Assert(MySQLSyncThreads.IndexOf(DataHandle) >= 0);
     Assert(Assigned(Session));
     Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27, 2017-04-01
 

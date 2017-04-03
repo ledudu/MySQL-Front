@@ -734,6 +734,9 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
     I: Integer;
     Objects: TList;
   begin
+    // Debug 2017-04-03
+    Assert(Assigned(Session));
+
     Objects := TList.Create();
     case (Node.ImageIndex) of
       iiServer:

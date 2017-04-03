@@ -460,7 +460,7 @@ procedure TDTables.TSSourceShow(Sender: TObject);
 var
   I: Integer;
 begin
-  if (FSource.Text = '') then
+  if (FSource.Lines.Count = 0) then
     for I := 0 to Tables.Count - 1 do
     begin
       if (I > 0) then FSource.Text := FSource.Text + #13#10;

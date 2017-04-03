@@ -2302,10 +2302,12 @@ begin
   Point.ControlB := nil;
 
   Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);
+  Check();
 
   Line.Free();
 
   Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);
+  Check();
 
   Point.Free();
 

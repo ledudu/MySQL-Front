@@ -490,7 +490,7 @@ end;
 
 procedure TDEvent.TSSourceShow(Sender: TObject);
 begin
-  if (FSource.Text = '') then
+  if (FSource.Lines.Count = 0) then
     FSource.Text := Event.Source
 end;
 
