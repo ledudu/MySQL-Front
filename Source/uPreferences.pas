@@ -335,6 +335,7 @@ type
     FOnlineVersion: Integer;
     FUserPath: TFileName;
     FXMLDocument: IXMLDocument;
+    OldAssociateSQL: Boolean;
     procedure LoadFromRegistry();
     procedure LoadFromXML(const XML: IXMLNode);
     function GetDowndateVersionStr(): string;
@@ -350,6 +351,7 @@ type
   public
     Account: TAccount;
     Accounts: TAccounts;
+    AssociateSQL: Boolean;
     Database: TDatabase;
     Databases: TDatabases;
     Editor: TEditor;
@@ -1889,6 +1891,8 @@ end;
 { TPPreferences ***************************************************************}
 
 procedure TPPreferences.ApplyToBCEditor(const BCEditor: TBCEditor);
+var
+  S: string;
 begin
   BCEditor.ActiveLine.Visible := Editor.CurrRowBGColorEnabled;
   BCEditor.ActiveLine.Color := Editor.CurrRowBGColor;
@@ -1896,7 +1900,8 @@ begin
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
   BCEditor.Font.Size := SQLFontSize;
-  BCEditor.LeftMargin.Font.Name := BCEditor.Font.Name;
+  S := BCEditor.Font.Name; {$MESSAGE 'Nils'}
+  BCEditor.LeftMargin.Font.Name := S;
   BCEditor.LeftMargin.Font.Charset := BCEditor.Font.Charset;
   BCEditor.LeftMargin.Font.Size := BCEditor.Font.Size;
 end;
@@ -2041,17 +2046,12 @@ begin
       SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
       ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
     end
-    else
-    begin
-      if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) = 0) then
-        ResIndex := 10000
-      else
-        ResIndex := 10000 + I;
+    else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
-        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(ResIndex), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR))
+        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR))
       else
       begin
-        ResInfo := FindResource(HInstance, MAKEINTRESOURCE(ResIndex), RT_GROUP_ICON);
+        ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
         IconId := LookupIconIdFromDirectoryEx(Resource, TRUE, 64, 64, LR_DEFAULTCOLOR);
@@ -2076,7 +2076,10 @@ begin
 
         GPGraphics.Free();
         Bitmap.Free();
-      end;
+      end
+    else if (I > 0) then
+    begin
+      ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
     end;
 
   Database := TDatabase.Create();
@@ -2324,7 +2327,25 @@ begin
 end;
 
 procedure TPPreferences.LoadFromRegistry();
+var
+  KeyName: string;
 begin
+  RootKey := HKEY_CLASSES_ROOT;
+
+  AssociateSQL := False;
+  if (OpenKeyReadOnly('.sql')) then
+  begin
+    if (ValueExists('')) then KeyName := ReadString('');
+    CloseKey();
+
+    if (OpenKeyReadOnly(KeyName + '\shell\open\command')) then
+    begin
+      AssociateSQL := Pos(UpperCase(Application.ExeName), UpperCase(ReadString(''))) > 0;
+      CloseKey();
+    end;
+  end;
+  OldAssociateSQL := AssociateSQL;
+
   RootKey := HKEY_CURRENT_USER;
 
   if (OpenKeyReadOnly(SysUtils.LoadStr(1003))) then
@@ -2457,8 +2478,47 @@ begin
 end;
 
 procedure TPPreferences.SaveToRegistry();
+var
+  KeyName: string;
 begin
   Access := KEY_ALL_ACCESS;
+
+  if (AssociateSQL <> OldAssociateSQL) then
+  begin
+    RootKey := HKEY_CLASSES_ROOT;
+
+    if (OpenKey('.sql', True)) then
+    begin
+      if (not ValueExists('')) then WriteString('', 'SQLFile');
+      KeyName := ReadString('');
+      CloseKey();
+    end;
+
+    if (not AssociateSQL) then
+    begin
+      if (OpenKey(KeyName + '\DefaultIcon', False)) then
+      begin
+        if (ValueExists('')) then
+          DeleteValue('');
+        CloseKey();
+      end;
+      if (OpenKey(KeyName + '\shell\open\command', False)) then
+      begin
+        if (ValueExists('')) then
+          DeleteValue('');
+        CloseKey();
+      end;
+    end
+    else
+    begin
+      if (OpenKey(KeyName + '\DefaultIcon', True)) then
+        begin WriteString('', Application.ExeName + ',0'); CloseKey(); end;
+      if (OpenKey(KeyName + '\shell\open\command', True)) then
+        begin WriteString('', '"' + Application.ExeName + '" "%0"'); CloseKey(); end;
+    end;
+
+    RootKey := HKEY_CURRENT_USER;
+  end;
 
   RootKey := HKEY_CURRENT_USER;
 

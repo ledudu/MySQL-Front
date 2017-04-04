@@ -971,7 +971,7 @@ object FSession: TFSession
         OnEnter = FRTFEnter
         OnExit = FRTFExit
       end
-      object FHexEditor: TMPHexEditorEx
+      object FHexEditor: TBCHexEditorEx
         Left = 2
         Top = 25
         Width = 463
@@ -1020,7 +1020,6 @@ object FSession: TFSession
         FocusFrame = True
         DrawGridLines = False
         GraySelectionIfNotFocused = True
-        Version = 'september 30, 2007; '#169' markus stephany, vcl[at]mirkes[dot]de'
         OnChange = FHexEditorChange
         BytesPerBlock = 8
         SeparateBlocksInCharField = False
@@ -1182,7 +1181,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 40682
+      Left = 149222
       Top = 0
       Width = 140
       Height = 22
@@ -1197,7 +1196,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 40667
+      Left = 149009
       Top = 0
       Width = 23
       Height = 22

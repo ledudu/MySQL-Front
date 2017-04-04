@@ -9,6 +9,7 @@ SET CleanImagesPath=%CleanRootPath%\Images
 SET CleanImagesPureFlatPath=%CleanImagesPath%\PureFlat
 SET CleanSourcePath=%CleanRootPath%\Source
 SET ClearSourceBCEditorPath=%CleanSourcePath%\BCEditor
+SET ClearSourceBCEditorPath=%CleanSourcePath%\BCHexEditor
 SET ClearSourceFastMMPath=%CleanSourcePath%\FastMM
 SET ClearSourceMySQLPath=%CleanSourcePath%\MySQL
 SET ClearSourceQueryBuilderPath=%CleanSourcePath%\QueryBuilder
@@ -34,6 +35,9 @@ if not exist "%ClearSourceMySQLPath%\Source" MKDIR "%ClearSourceMySQLPath%\Sourc
 if not exist "%ClearSourceBCEditorPath%\Source" MKDIR "%ClearSourceBCEditorPath%\Source"
 if not exist "%ClearSourceBCEditorPath%\Resource" MKDIR "%ClearSourceBCEditorPath%\Resource"
 if not exist "%ClearSourceBCEditorPath%\Bin" MKDIR "%ClearSourceBCEditorPath%\Bin"
+if not exist "%ClearSourceBCHexEditorPath%\Source" MKDIR "%ClearSourceBCHexEditorPath%\Source"
+if not exist "%ClearSourceBCHexEditorPath%\Resource" MKDIR "%ClearSourceBCHexEditorPath%\Resource"
+if not exist "%ClearSourceBCHexEditorPath%\Bin" MKDIR "%ClearSourceBCHexEditorPath%\Bin"
 if not exist "%ClearSourceQueryBuilderPath%\Source" MKDIR "%ClearSourceQueryBuilderPath%\Source"
 if not exist "%ClearSourceQueryBuilderPath%\Resource" MKDIR "%ClearSourceQueryBuilderPath%\Resource"
 if not exist "%ClearSourceQueryBuilderPath%\Bin" MKDIR "%ClearSourceQueryBuilderPath%\Bin"

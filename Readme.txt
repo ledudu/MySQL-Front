@@ -23,8 +23,11 @@ http://www.jam-software.de/shellbrowser_delphi/
 Synopse PDF:
 http://synopse.info/fossil/wiki?name=PDF+Engine
 
-SynEdit:
-https://github.com/SynEdit/SynEdit/
+BCEditor:
+https://github.com/bonecode/BCEditor/
+
+BCHexEditor:
+https://github.com/bonecode/BCHexEditor/
 
 
 Tools to build the setup program:

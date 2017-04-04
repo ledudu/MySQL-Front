@@ -1563,6 +1563,10 @@ begin
       if (DataSet.Active) then
       begin
         OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
+
+        // Debug 2017-04-04
+        Assert(DataSet.Active);
+
         OLD_FOREIGN_KEY_CHECKS := DataSet.Fields[1].AsString;
         DataSet.Close();
       end;

@@ -1077,9 +1077,6 @@ procedure TDTable.FormHide(Sender: TObject);
 begin
   Database.Session.UnRegisterEventProc(FormSessionEvent);
 
-  if (Assigned(NewTable)) then
-    FreeAndNil(NewTable);
-
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
 
@@ -1102,6 +1099,10 @@ begin
   FSource.Lines.Clear();
 
   PageControl.ActivePage := nil;
+
+  // Must be after ActivePage := nil, since in FAutoIncrementExit NewTable will be accessed
+  if (Assigned(NewTable)) then
+    FreeAndNil(NewTable);
 end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);

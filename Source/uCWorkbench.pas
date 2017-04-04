@@ -2304,6 +2304,9 @@ begin
   Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);
   Check();
 
+  Line.FPointA := nil;
+  Line.FPointB := nil;
+
   Line.Free();
 
   Assert(Workbench.LinkPoints.IndexOf(Point) >= 0);

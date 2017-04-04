@@ -470,7 +470,7 @@ begin
 
   if (not Assigned(SelectedParentTable)) then
     // do nothing
-  else if (not SelectedParentTable.Update()) then
+  else if (Table.Session.Connection.InUse or not SelectedParentTable.Update()) then
     Wanted.ComboBox := FParentTable
   else
   begin

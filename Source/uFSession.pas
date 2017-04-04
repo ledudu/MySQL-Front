@@ -11,7 +11,7 @@ uses
   Graphics, Controls, Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls,
   DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
   PNGImage, GIFImg, Jpeg, ToolWin,
-  MPHexEditor, MPHexEditorEx,
+  BCHexEditor, BCHexEditorEx,
   BCEditor.Editor, BCEditor.Editor.CompletionProposal, BCEditor.Editor.KeyCommands,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
@@ -68,7 +68,7 @@ type
     FFilter: TComboBox_Ext;
     FFilterEnabled: TToolButton;
     FGridDataSource: TDataSource;
-    FHexEditor: TMPHexEditorEx;
+    FHexEditor: TBCHexEditorEx;
     FImage: TImage;
     FLimit: TEdit;
     FLimitEnabled: TToolButton;
@@ -1489,36 +1489,14 @@ begin
 
   if (ErrorCode > 0) then
   begin
-    if (CommandText <> '') then
+    if ((CommandText <> '') and (FSession.Session.Connection.SuccessfullExecutedSQLLength >= FSession.aDRunExecuteSelStart)) then
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      try
-        FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      except
-        on E: Exception do
-          E.RaiseOuterException(ERangeError.Create(
-            'CommandText: ' + LeftStr(CommandText, 10) + #13#10
-            + 'Text: ' + Copy(FBCEditor.Text, 1 + FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength, 10)
-            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-            + E.ClassName + ':' + #13#10 + E.Message));
-      end;
-      try
-        FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
-      except
-        on E: Exception do
-          E.RaiseOuterException(ERangeError.Create(
-            'CommandText: ' + LeftStr(CommandText, 10) + #13#10
-            + 'Text: ' + Copy(FBCEditor.Text, 1 + FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength, 10)
-            + 'Len: ' + IntToStr(Len) + #13#10
-            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
-            + E.ClassName + ':' + #13#10 + E.Message));
-      end;
+      FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
   else
@@ -2723,6 +2701,8 @@ begin
             'Name: ' + TSKey(Items[I]).Name + #13#10
             + 'I: ' + IntToStr(I) + #13#10
             + 'Items.Count: ' + IntToStr(Items.Count));
+          // 2017-04-04
+          // ALTER TABLE / DROP INDEX three times in the log log - with the missing key
 
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
@@ -3361,9 +3341,9 @@ begin
   aDRunExecuteSelStart := 0;
   SQL := '';
   if (View in [vBuilder]) then
-    SQL := Trim(ActiveBCEditor.Text)
+    SQL := ActiveBCEditor.Text
   else if (View in [vEditor, vEditor2, vEditor3]) then
-    SQL := Trim(ActiveBCEditor.Text)
+    SQL := ActiveBCEditor.Text
   else if ((View = vIDE) and (CurrentClassIndex = ciView)) then
   begin
     if (not ActiveBCEditor.Modified or PostObject(Sender)) then
@@ -4621,7 +4601,14 @@ begin
               begin
                 // Debug 2017-03-30
                 Assert(ActiveDBGrid.DataSource.DataSet.Active);
-                ActiveDBGrid.DataSource.DataSet.Resync([]);
+                try
+                  ActiveDBGrid.DataSource.DataSet.Resync([]);
+                except
+                  on E: Exception do
+                    E.RaiseOuterException(EAssertionFailed.Create(
+                      'CommandText: ' + LeftStr(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText, 20) + #13#10
+                      + E.ClassName + ':' + #13#10 + E.Message));
+                end;
 
                 ActiveDBGrid.DataSource.DataSet.Refresh();
               end
@@ -4817,6 +4804,14 @@ begin
     Result := ciTrigger
   else if (URI.Param['objecttype'] = 'event') then
     Result := ciEvent
+  else if (URI.Param['objecttype'] = 'key') then
+    Result := ciKey
+  else if (URI.Param['objecttype'] = 'basefield') then
+    Result := ciBaseField
+  else if (URI.Param['objecttype'] = 'foreignkey') then
+    Result := ciForeignKey
+  else if (URI.Param['objecttype'] = 'viewfield') then
+    Result := ciViewField
   else if (URI.Table <> '') then
     Result := ciBaseTable
   else if (Assigned(Session.InformationSchema) and (Session.Databases.NameCmp(URI.Database, Session.InformationSchema.Name) = 0)
@@ -5545,7 +5540,7 @@ begin
   Result.LeftMargin.LineState.Enabled := False;
   Result.LeftMargin.Marks.Visible := False;
   Result.LeftMargin.MarksPanel.Visible := False;
-  Result.MatchingPair.Enabled := False;
+  Result.MatchingPair.Enabled := True;
   Result.RightMargin.Visible := False;
   Result.Options := Result.Options + [eoTrimTrailingLines, eoTrimTrailingSpaces];
   Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint] + [soPastEndOfFile];
@@ -6404,13 +6399,9 @@ begin
   DBGrid.EndDrag(False);
 
   GridCoord := DBGrid.MouseCoord(X, Y);
-  if ((State = dsDragEnter) and (GridCoord.X >= 0)) then
-  begin
-    if (DBGrid.SelText <> '') then
-      OleCheck(DoDragDrop(TDBGridDropData.Create(DBGrid), Self, DROPEFFECT_COPY, Effect));
-  end;
-
-  Accept := False;
+  Accept := (State = dsDragEnter) and (GridCoord.X >= 0)
+    and (DBGrid.SelText <> '')
+    and Succeeded(DoDragDrop(TDBGridDropData.Create(DBGrid), Self, DROPEFFECT_COPY, Effect));
 end;
 
 function TFSession.DBGridDrop(const DBGrid: TMySQLDBGrid; const dataObj: IDataObject;
@@ -8326,7 +8317,7 @@ begin
               TableNode := Child
             else
               Child := Child.getNextSibling();
-          if ((URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
+          if (URI.Param['objecttype'] = Null) then
             Result := TableNode
           else
           begin
@@ -8337,7 +8328,11 @@ begin
             end;
             Child := TableNode.getFirstChild();
             while (Assigned(Child) and not Assigned(Result)) do
-              if ((Child.ImageIndex in [iiTrigger]) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)) then
+              if ((Child.ImageIndex in [iiKey]) and ((URI.Param['object'] = Null) and TSKey(Child.Data).PrimaryKey or (TSBaseTable(TableNode.Data).Keys.NameCmp(URI.Param['object'], Child.Text) = 0))
+                or (Child.ImageIndex in [iiBaseField]) and (TSBaseTable(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)
+                or (Child.ImageIndex in [iiForeignKey]) and (TSBaseTable(TableNode.Data).ForeignKeys.NameCmp(URI.Param['object'], Child.Text) = 0)
+                or (Child.ImageIndex in [iiTrigger]) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)
+                or (Child.ImageIndex in [iiViewField]) and (TSView(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)) then
                 Result := Child
               else
                 Child := Child.getNextSibling();
@@ -8385,7 +8380,6 @@ end;
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 var
   LastChild: TTreeNode;
-  DebugNode: TTreeNode; // Debug 2017-03-30
 
   procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
   var
@@ -8589,16 +8583,10 @@ var
       etItemDeleted:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
-    if (Parent <> DebugNode) then
-      raise ERangeError.Create('Node changed');
           Child := FNavigatorNodeByAddress(AddressByData(Event.Item));
 
-    if (Parent <> DebugNode) then
-      raise ERangeError.Create('Node changed');
           if (Assigned(Child)) then
           begin
-    if (Parent <> DebugNode) then
-      raise ERangeError.Create('Node changed');
             Node := FNavigatorNodeToExpand;
             while (Assigned(Node)) do
               if (Node = Child) then
@@ -8606,8 +8594,6 @@ var
               else
                 Node := Node.Parent;
 
-    if (Parent <> DebugNode) then
-      raise ERangeError.Create('Node changed');
             if (Child <> FNavigator.Selected) then
               Node := nil
             else
@@ -8618,12 +8604,8 @@ var
               if (not Assigned(Node) or (Node.ImageIndex in [iiKey, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey])) then
                 Node := Child.Parent;
             end;
-    if (Parent <> DebugNode) then
-      raise ERangeError.Create('Node changed');
 
             DeleteChild(Child);
-    if (Parent <> DebugNode) then
-      raise ERangeError.Create('Node changed');
 
             if (Assigned(Node)) then
               Wanted.Address := AddressByData(Node.Data);
@@ -8638,11 +8620,9 @@ var
   Database: TSDatabase;
   Expanded: Boolean;
   ExpandingEvent: TTVExpandingEvent;
-  ImageIndex: Integer; // Debug 2017-03-27
   Node: TTreeNode;
   OldSelected: TTreeNode;
   Table: TSTable;
-  Text: string; // Debug 2017-03-27
 begin
   OldSelected := FNavigator.Selected;
 
@@ -8655,15 +8635,10 @@ begin
     while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
       Node := Node.getNextSibling();
 
-    // Debug 2017-02-28
-    Assert(Assigned(Node));
-
     FNavigator.Items.BeginUpdate();
 
     if (not Assigned(Node.getFirstChild())) then
       Node.Expand(False);
-
-DebugNode := Node;
 
     if (Event.Items is TSDatabases) then
       UpdateGroup(Node, giDatabases, Event.Items);
@@ -8686,8 +8661,6 @@ DebugNode := Node;
       FNavigator.Items.BeginUpdate();
 
       Expanded := Node.Expanded;
-
-DebugNode := Node;
 
       if (Expanded or (Node = FNavigatorNodeToExpand)) then
       begin
@@ -8731,18 +8704,6 @@ DebugNode := Node;
 
         Expanded := Node.Expanded;
 
-        DebugNode := Node;
-
-        // Debug 2017-03-23
-        if (Assigned(Node.getFirstChild())) then
-          Write;
-
-        ImageIndex := Node.ImageIndex;
-        Text := Node.Text;
-
-        if (Node <> DebugNode) then
-          raise ERangeError.Create('Node changed');
-
         if (Expanded or (Node = FNavigatorNodeToExpand)) then
         begin
           if (Table is TSBaseTable) then
@@ -8752,25 +8713,6 @@ DebugNode := Node;
             UpdateGroup(Node, giForeignKeys, TSBaseTable(Table).ForeignKeys);
           if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
             UpdateGroup(Node, giTriggers, Table.Database.Triggers);
-        end;
-
-        if (Node <> DebugNode) then
-          raise ERangeError.Create('Node changed');
-
-        // Debug 2017-03-25
-        Assert(Assigned(Node));
-        try
-          if (Assigned(Node.getFirstChild())) then
-            Write;
-        except
-          on E: Exception do
-            E.RaiseOuterException(EAssertionFailed.Create(E.ClassName + ':' + #13#10
-              + E.Message + #13#10
-              + 'EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
-              + 'ImageIndex: ' + IntToStr(ImageIndex) + #13#10
-              + 'Text: ' + Text + #13#10
-              + 'Sender: ' + TSItem(Event.Sender).Name + #13#10
-              + 'Items: ' + Event.Items.ClassName));
         end;
 
         Node.HasChildren := Assigned(Node.getFirstChild());
@@ -8786,17 +8728,6 @@ DebugNode := Node;
 
   if (FNavigator.Selected <> OldSelected) then
     SetTimer(Self.Handle, tiNavigator, 1, nil); // We're inside a Monitor call. So we can't call FNavigatorNodeChange2 directly
-
-
-  // Debug 2017-02-24
-  try
-    if (Assigned(FNavigatorNodeToExpand)) then
-      FNavigatorNodeToExpand.Count;
-  except
-    on E: Exception do
-      raise EAssertionFailed.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-        + E.Message);
-  end;
 
   if (Assigned(FNavigatorNodeToExpand) and (FNavigatorNodeToExpand.Count > 0)) then
   begin
@@ -13200,6 +13131,9 @@ begin
 
       if (Import.ErrorCount = 0) then
       begin
+        if (not Assigned(ActiveBCEditor)) then
+          ActiveBCEditor := GetActiveBCEditor;
+
         if (Insert) then
           ActiveBCEditor.SelText := Text
         else
@@ -15255,7 +15189,7 @@ begin
     SQL := ActiveBCEditor.Text;
 
     Index := 1;
-    while (Index < ActiveBCEditor.SelStart + 1) do
+    while (Index < ActiveBCEditor.SelStart) do
     begin
       Len := Max(SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1)), Length(SQL) - (Index - 1));
       if ((Len = 0) or (Index + Len >= ActiveBCEditor.SelStart + 1)) then

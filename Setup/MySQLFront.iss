@@ -50,11 +50,16 @@ Name: "Ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Tasks]
 Name: DesktopIcon; Description: "&Desktop Icon"; GroupDescription: "Icons:";
+Name: AssociateSQL; Description: "Associate .sql (SQL File) with {BuildName}"; GroupDescription: "Explorer integration:";
 
 [Registry]
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: string; ValueName: "LanguageFile"; ValueData: "{language}.ini"; Flags: createvalueifdoesntexist uninsdeletevalue
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "SetupProgramInstalled"; ValueData: 1
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "UpdateAvailable"; ValueData: "0"; Flags: deletevalue
+Root: HKCR; Subkey: ".sql"; ValueType: string; ValueName: ""; ValueData: "SQLFile"; Tasks: AssociateSQL; Flags: uninsdeletevalue
+Root: HKCR; Subkey: "SQLFile"; ValueType: string; ValueName: ""; ValueData: "SQL Script"; Tasks: AssociateSQL; Flags: uninsdeletekey
+Root: HKCR; Subkey: "SQLFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{BuildName}.exe,0"; Tasks: AssociateSQL; Flags: createvalueifdoesntexist uninsdeletevalue
+Root: HKCR; Subkey: "SQLFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{BuildName}.exe"" ""%1"""; Tasks: AssociateSQL; Flags: uninsdeletevalue
 Root: HKCR; Subkey: "mysql"; ValueType: string; ValueName: ""; ValueData: "URL:mysql (MySQL Protocol)"; Flags: uninsdeletevalue
 Root: HKCR; Subkey: "mysql"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
 Root: HKCR; Subkey: "mysql\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{BuildName}.exe,0"; Flags: createvalueifdoesntexist uninsdeletevalue

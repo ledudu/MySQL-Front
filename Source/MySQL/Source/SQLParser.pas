@@ -22898,7 +22898,8 @@ begin
 
   if (not ErrorFound) then
     if (not EndOfStmt(CurrentToken)
-      and ((StrLIComp(TokenPtr(CurrentToken)^.FText, 'ON', 2) = 0) or (StrLIComp(TokenPtr(CurrentToken)^.FText, 'OFF', 3) = 0))) then
+      and ((TokenPtr(CurrentToken)^.FLength = 2) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'ON', 2) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 3) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'OFF', 3) = 0))) then
       Nodes.ValueExpr := ParseConstIdent()
     else
       Nodes.ValueExpr := ParseExpr();

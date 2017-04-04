@@ -87,7 +87,7 @@ type
     FSession: TSSession;
     function GetItem(Index: Integer): TSItem; inline;
   protected
-    procedure Delete(const AItem: TSItem); overload; virtual;
+    procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); overload; virtual;
     function GetCount(): Integer; virtual;
     function InsertIndex(const Name: string; out Index: Integer): Boolean; virtual;
   public
@@ -254,7 +254,7 @@ type
     FDatabase: TSDatabase;
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
-    procedure Delete(const AItem: TSItem); override;
+    procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); override;
   public
     constructor Create(const ADatabase: TSDatabase); reintroduce; virtual;
     property Database: TSDatabase read FDatabase;
@@ -327,7 +327,7 @@ type
   protected
     FValid: Boolean;
   public
-    procedure AddKey(const NewKey: TSKey); virtual;
+    function AddKey(const NewKey: TSKey): Integer; virtual;
     procedure Assign(const Source: TSKeys); virtual;
     constructor Create(const ATable: TSBaseTable);
     procedure Invalidate();
@@ -357,6 +357,7 @@ type
     procedure SetName(const AName: string); override;
   public
     Charset: string;
+    Collation: string;
     Decimals: Integer;
     Elements: array of string;
     Expression: string;
@@ -379,7 +380,6 @@ type
   type
     TRowType = (mrUnknown, mrFixed, mrDynamic, mrCompressed, mrRedundant, mrCompact);
   private
-    FCollation: string;
     FInPrimaryKey: Boolean;
     FInUniqueKey: Boolean;
     function GetFields(): TSTableFields; inline;
@@ -405,7 +405,6 @@ type
     destructor Destroy(); override;
     function Equal(const Second: TSTableField): Boolean; reintroduce; virtual;
     function UnescapeValue(const Value: string): string; virtual;
-    property Collation: string read FCollation write FCollation;
     property Fields: TSTableFields read GetFields;
     property InPrimaryKey: Boolean read FInPrimaryKey;
     property InUniqueKey: Boolean read FInUniqueKey;
@@ -443,7 +442,7 @@ type
     function FieldByName(const FieldName: string): TSTableField; virtual;
     function InsertIndex(const Name: string; out Index: Integer): Boolean; override;
   public
-    procedure AddField(const NewField: TSTableField); virtual;
+    function AddField(const NewField: TSTableField): Integer; virtual;
     procedure Assign(const Source: TSTableFields); virtual;
     constructor Create(const ATable: TSTable);
     procedure Delete(const AField: TSTableField); overload;
@@ -459,6 +458,7 @@ type
   private
     function GetField(Index: Integer): TSBaseField; inline;
   public
+    function AddField(const NewField: TSTableField): Integer; override;
     procedure Assign(const Source: TSTableFields); override;
     procedure MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField); virtual;
     property Field[Index: Integer]: TSBaseField read GetField; default;
@@ -510,7 +510,7 @@ type
   protected
     FValid: Boolean;
   public
-    procedure AddForeignKey(const NewForeignKey: TSForeignKey); virtual;
+    function AddForeignKey(const NewForeignKey: TSForeignKey): Integer; virtual;
     procedure Assign(const Source: TSForeignKeys); virtual;
     procedure Clear(); override;
     constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
@@ -783,12 +783,12 @@ type
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; overload; override;
     function BuildFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
-    procedure Delete(const AItem: TSItem); override;
+    procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
     function SQLGetFields(): string;
   public
-    procedure AddTable(const NewTable: TSTable); virtual;
+    function AddTable(const NewTable: TSTable): Integer; virtual;
     procedure Invalidate(); override;
     function NameCmp(const Name1, Name2: string): Integer; override;
     function Update(const Status: Boolean): Boolean; overload;
@@ -877,7 +877,7 @@ type
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
-    procedure AddRoutine(const NewRoutine: TSRoutine); virtual;
+    function AddRoutine(const NewRoutine: TSRoutine): Integer; virtual;
     property Routine[Index: Integer]: TSRoutine read GetRoutine; default;
   end;
 
@@ -1115,7 +1115,7 @@ type
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
-    procedure Delete(const AItem: TSItem); override;
+    procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function NameCmp(const Name1, Name2: string): Integer; override;
@@ -1438,7 +1438,7 @@ type
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
-    procedure Delete(const AItem: TSItem); override;
+    procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1989,7 +1989,7 @@ begin
   FSession := ASession;
 end;
 
-procedure TSItems.Delete(const AItem: TSItem);
+procedure TSItems.Delete(const AItem: TSItem; const FreeItem: Boolean = True);
 begin
   Delete(IndexOf(AItem));
 
@@ -2626,7 +2626,7 @@ procedure TSDBObject.SetDatabase(const ADatabase: TSDatabase);
 begin
   if (ADatabase <> FDatabase) then
   begin
-    Entities.Delete(Self);
+    Entities.Delete(Self, False);
     if (Self is TSTable) then
       FItems := ADatabase.Tables
     else if (Self is TSRoutine) then
@@ -2638,6 +2638,7 @@ begin
     else
       raise ERangeError.Create(SRangeError);
     TSEntities(FItems).Add(Self, True);
+    FDatabase := ADatabase;
   end;
 end;
 
@@ -2734,7 +2735,7 @@ begin
   FDatabase := ADatabase;
 end;
 
-procedure TSDBObjects.Delete(const AItem: TSItem);
+procedure TSDBObjects.Delete(const AItem: TSItem; const FreeItem: Boolean = True);
 begin
   Assert(AItem is TSDBObject);
 
@@ -2744,7 +2745,8 @@ begin
 
   Session.SendEvent(etItemsValid, Session, Session.Databases);
 
-  AItem.Free();
+  if (FreeItem) then
+    AItem.Free();
 end;
 
 { TSKeyColumn *****************************************************************}
@@ -2970,18 +2972,17 @@ begin
   end;
 end;
 
-procedure TSKeys.AddKey(const NewKey: TSKey);
-var
-  Index: Integer;
+function TSKeys.AddKey(const NewKey: TSKey): Integer;
 begin
   if (NewKey.PrimaryKey) then
-    Index := 0
+    Result := 0
   else
-    Index := Count;
+    Result := Count;
 
-  Insert(Index, TSKey.Create(Self));
-  Key[Index].Assign(NewKey);
-  Key[Index].Created := True;
+  Insert(Result, TSKey.Create(Self));
+  Key[Result].Assign(NewKey);
+  Key[Result].FOriginalName := '';
+  Key[Result].Created := True;
 end;
 
 constructor TSKeys.Create(const ATable: TSBaseTable);
@@ -3036,6 +3037,7 @@ begin
   inherited Assign(Source);
 
   Charset := Source.Charset;
+  Collation := Source.Collation;
   Decimals := Source.Decimals;
   Expression := Source.Expression;
   FieldKind := Source.FieldKind;
@@ -3050,6 +3052,7 @@ end;
 procedure TSField.Clear();
 begin
   Charset := '';
+  Collation := '';
   Decimals := 0;
   Expression := '';
   FieldKind := mkUnknown;
@@ -3201,8 +3204,13 @@ begin
   else if (FieldType in [mfDouble]) then
     SQLParseKeyword(Parse, 'PRECISION');
 
-  if (SQLParseKeyword(Parse, 'CHARACTER SET') or SQLParseKeyword(Parse, 'CHAR')) then
-    Charset := SQLParseValue(Parse);
+  if (FieldType in TextFieldTypes) then
+  begin
+    if (SQLParseKeyword(Parse, 'CHARACTER SET') or SQLParseKeyword(Parse, 'CHARSET') or SQLParseKeyword(Parse, 'CHAR')) then
+      Charset := SQLParseValue(Parse);
+    if (SQLParseKeyword(Parse, 'COLLATE')) then
+      Collation := SQLParseValue(Parse);
+  end;
 
   Unsigned := SQLParseKeyword(Parse, 'UNSIGNED');
 end;
@@ -3225,7 +3233,6 @@ begin
   AutoIncrement := TSTableField(Source).AutoIncrement;
   Binary := TSTableField(Source).Binary;
   Comment := TSTableField(Source).Comment;
-  FCollation := TSTableField(Source).FCollation;
   Default := TSTableField(Source).Default;
   DefaultSize := TSTableField(Source).DefaultSize;
   FieldBefore := nil;
@@ -3245,8 +3252,6 @@ begin
   Ascii := False;
   AutoIncrement := False;
   Binary := False;
-  if (Table is TSBaseTable) then
-    FCollation := TSBaseTable(Table).Collation;
   Comment := '';
   Default := '';
   DefaultSize := 0;
@@ -3431,29 +3436,27 @@ end;
 
 { TSTableFields ***************************************************************}
 
-procedure TSTableFields.AddField(const NewField: TSTableField);
-var
-  Index: Integer;
+function TSTableFields.AddField(const NewField: TSTableField): Integer;
 begin
   if (not Assigned(NewField.FieldBefore)) then
-    Index := 0
+    Result := 0
   else
-    Index := NewField.FieldBefore.Index + 1;
+    Result := NewField.FieldBefore.Index + 1;
 
   if (NewField is TSBaseField) then
   begin
-    Insert(Index, TSBaseField.Create(TSBaseFields(Self)));
-    TSBaseField(Field[Index]).FOriginalName := '';
+    Insert(Result, TSBaseField.Create(TSBaseFields(Self)));
+    TSBaseField(Field[Result]).FOriginalName := '';
   end
   else if (NewField is TSViewField) then
-    Insert(Index, TSViewField.Create(Self))
+    Insert(Result, TSViewField.Create(Self))
   else
     raise Exception.Create(sUnknownToType);
-  Field[Index].Assign(NewField);
-  if (Index > 0) then
-    Field[Index].FieldBefore := Field[Index - 1];
-  if (Index + 1 <= Count - 1) then
-    Field[Index + 1].FieldBefore := Field[Index];
+  Field[Result].Assign(NewField);
+  if (Result > 0) then
+    Field[Result].FieldBefore := Field[Result - 1];
+  if (Result + 1 <= Count - 1) then
+    Field[Result + 1].FieldBefore := Field[Result];
 end;
 
 procedure TSTableFields.Assign(const Source: TSTableFields);
@@ -3554,6 +3557,13 @@ end;
 
 { TSBaseTableFields ***********************************************************}
 
+function TSBaseFields.AddField(const NewField: TSTableField): Integer;
+begin
+  Result := inherited;
+
+  Field[Result].FOriginalName := '';
+end;
+
 procedure TSBaseFields.Assign(const Source: TSTableFields);
 var
   I: Integer;
@@ -3568,6 +3578,8 @@ begin
     NewField.FOriginalName := TSBaseFields(Source).Field[I].OriginalName;
     AddField(NewField);
     NewField.Free();
+
+    TSBaseField(Field[I]).FOriginalName := TSBaseFields(Source).Field[I].OriginalName;;
   end;
 end;
 
@@ -3747,11 +3759,13 @@ end;
 
 { TSForeignKeys ***************************************************************}
 
-procedure TSForeignKeys.AddForeignKey(const NewForeignKey: TSForeignKey);
+function TSForeignKeys.AddForeignKey(const NewForeignKey: TSForeignKey): Integer;
 begin
-  Insert(TList(Self).Count, TSForeignKey.Create(Self));
-  ForeignKey[TList(Self).Count - 1].Assign(NewForeignKey);
-  ForeignKey[TList(Self).Count - 1].Created := True;
+  Result := TList(Self).Count;
+  Insert(Result, TSForeignKey.Create(Self));
+  ForeignKey[Result].Assign(NewForeignKey);
+  ForeignKey[Result].FOriginalName := '';
+  ForeignKey[Result].Created := True;
 end;
 
 procedure TSForeignKeys.Assign(const Source: TSForeignKeys);
@@ -5605,28 +5619,27 @@ begin
   Result := inherited;
 end;
 
-procedure TSTables.AddTable(const NewTable: TSTable);
+function TSTables.AddTable(const NewTable: TSTable): Integer;
 var
   I: Integer;
-  Index: Integer;
   TableName: string;
 begin
   TableName := NewTable.Name;
 
-  Index := TList(Self).Count - 1;
+  Result := TList(Self).Count - 1;
   for I := TList(Self).Count - 1 downto 0 do
     if (Session.TableNameCmp(TableName, Table[I].Name) <= 0) then
-      Index := I;
+      Result := I;
 
   if (NewTable is TSBaseTable) then
   begin
-    Insert(Index, TSBaseTable.Create(Self));
-    Table[Index].Assign(TSBaseTable(NewTable));
+    Insert(Result, TSBaseTable.Create(Self));
+    Table[Result].Assign(TSBaseTable(NewTable));
   end
   else
   begin
-    Insert(Index, TSView.Create(Self));
-    Table[Index].Assign(TSView(NewTable));
+    Insert(Result, TSView.Create(Self));
+    Table[Result].Assign(TSView(NewTable));
   end;
 end;
 
@@ -5959,7 +5972,7 @@ begin
   Result := False;
 end;
 
-procedure TSTables.Delete(const AItem: TSItem);
+procedure TSTables.Delete(const AItem: TSItem; const FreeItem: Boolean = True);
 begin
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
@@ -6426,7 +6439,10 @@ begin
         try
           Parameter.ParseFieldType(Parse);
         except
-          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+          on E: Exception do
+            E.RaiseOuterException(EAssertionFailed.CreateFmt(SSourceParseError + #13#10
+              + E.ClassName + ':' + #13#10
+              + E.Message, [Database.Name + '.' + Name, SQL]));
         end;
 
         if (SQLParseKeyword(Parse, 'CHARSET')) then
@@ -6589,17 +6605,17 @@ end;
 
 { TSRoutines ******************************************************************}
 
-procedure TSRoutines.AddRoutine(const NewRoutine: TSRoutine);
+function TSRoutines.AddRoutine(const NewRoutine: TSRoutine): Integer;
 begin
   if (NewRoutine is TSProcedure) then
   begin
-    Add(TSProcedure.Create(Self));
-    TSProcedure(Items[TList(Self).Count - 1]).Assign(TSProcedure(NewRoutine));
+    Result := Add(TSProcedure.Create(Self));
+    TSProcedure(Items[Result]).Assign(TSProcedure(NewRoutine));
   end
   else
   begin
-    Add(TSFunction.Create(Self));
-    TSFunction(Items[TList(Self).Count - 1]).Assign(TSFunction(NewRoutine));
+    Result := Add(TSFunction.Create(Self));
+    TSFunction(Items[Result]).Assign(TSFunction(NewRoutine));
   end;
 end;
 
@@ -9118,7 +9134,7 @@ begin
     Session.SendEvent(etItemValid, Session, Self, Item);
 end;
 
-procedure TSDatabases.Delete(const AItem: TSItem);
+procedure TSDatabases.Delete(const AItem: TSItem; const FreeItem: Boolean = True);
 var
   I: Integer;
   J: Integer;
@@ -9149,7 +9165,8 @@ begin
 
   Delete(IndexOf(AItem));
 
-  AItem.Free();
+  if (FreeItem) then
+    AItem.Free();
 end;
 
 function TSDatabases.GetDatabase(Index: Integer): TSDatabase;
@@ -10856,7 +10873,7 @@ begin
       Session.SendEvent(etItemsValid, Session, Self);
 end;
 
-procedure TSUsers.Delete(const AItem: TSItem);
+procedure TSUsers.Delete(const AItem: TSItem; const FreeItem: Boolean = True);
 begin
   Assert(AItem is TSUser);
 
@@ -10867,7 +10884,8 @@ begin
 
   Delete(IndexOf(AItem));
 
-  AItem.Free();
+  if (FreeItem) then
+    AItem.Free();
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
