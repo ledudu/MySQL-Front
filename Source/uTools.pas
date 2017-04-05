@@ -4176,9 +4176,15 @@ begin
     ExecuteFooter();
   end;
 
+  MessageBox(0, '1', 'Hendri', MB_OK); {$MESSAGE 'Hendri'}
+
   AfterExecute();
 
+  MessageBox(0, '2', 'Hendri', MB_OK); {$MESSAGE 'Hendri'}
+
   DataTables.Free();
+
+  MessageBox(0, '3', 'Hendri', MB_OK); {$MESSAGE 'Hendri'}
 
   {$IFDEF EurekaLog}
   except
@@ -4504,7 +4510,7 @@ begin
 
   BytesWritten := 0;
   while ((Success = daSuccess) and (BytesWritten < BytesToWrite)) do
-    if (not WriteFile(Handle, Buffer[BytesWritten], BytesToWrite - BytesWritten, Size, nil)) then
+    if (not WriteFile(Handle, Buffer[BytesWritten], BytesToWrite - BytesWritten, Size, nil) or (Size = 0)) then
       DoError(SysError(), nil, False)
     else
       Inc(BytesWritten, Size);

@@ -6701,11 +6701,6 @@ begin
   DBGrid.Columns.EndUpdate();
 
   SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PBCEditor.Visible);
-
-  if (Fields <> '') then
-    SendToDeveloper('Version: ' + Session.Connection.ServerVersionStr + #13#10
-      + 'Fields: ' + Fields + #13#10
-      + TMySQLDataSet(DBGrid.DataSource.DataSet).CommandText);
 end;
 
 procedure TFSession.DBGridKeyDown(Sender: TObject; var Key: Word;

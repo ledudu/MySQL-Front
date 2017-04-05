@@ -7511,21 +7511,7 @@ end;
 
 function TSDatabase.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  // On ONE 4.1.10 server, on the first execution of SHOW CREATE DATABASE,
-  // only one field ("Database") will be given back - not a "Create Database" field.
-  // On the second execution, the "Create Database" field is given.
-  // Is this a bug of MySQL 4.1.10?
-  if (Assigned(DataSet.FindField('Create Database'))) then
-    Result := Build(DataSet.FieldByName('Create Database'))
-  else
-  begin
-    // Debug 2017-01-23
-    SendToDeveloper('FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
-      + 'Field: ' + DataSet.Fields[0].DisplayName + #13#10
-      + 'MySQL: ' + Session.Connection.ServerVersionStr);
-
-    Result := False;
-  end;
+  Result := Build(DataSet.FieldByName('Create Database'));
 end;
 
 function TSDatabase.Build(const Field: TField): Boolean;
@@ -10831,12 +10817,6 @@ begin
         Name := SQLParseValue(Parse)
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
-
-      // Debug 2017-02-08
-      if (Name = '') then
-        SendToDeveloper('Empty User name' + #13#10
-          + DataSet.CommandText + #13#10
-          + Session.Connection.ServerVersionStr);
 
       if (InsertIndex(Name, Index)) then
         if (Index < Count) then
