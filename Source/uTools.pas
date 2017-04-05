@@ -4368,7 +4368,7 @@ begin
   Assert(not Data
     or not Assigned(ResultHandle)
     or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssAfterExecuteSQL]),
+    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssAfterExecute]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
     + 'Progress: ' + Progress + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
