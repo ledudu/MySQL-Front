@@ -4606,7 +4606,9 @@ begin
                 except
                   on E: Exception do
                     E.RaiseOuterException(EAssertionFailed.Create(
-                      'CommandText: ' + LeftStr(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText, 20) + #13#10
+                      'ActiveDBGrid: ' + BoolToStr(Assigned(ActiveDBGrid), True) + #13#10
+                      + 'DataSource: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource), True) + #13#10
+                      + 'DataSet: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet), True) + #13#10
                       + E.ClassName + ':' + #13#10 + E.Message));
                 end;
 
@@ -8324,10 +8326,10 @@ begin
             Child := TableNode.getFirstChild();
             while (Assigned(Child) and not Assigned(Result)) do
               if ((Child.ImageIndex in [iiKey]) and ((URI.Param['object'] = Null) and TSKey(Child.Data).PrimaryKey or (TSBaseTable(TableNode.Data).Keys.NameCmp(URI.Param['object'], Child.Text) = 0))
-                or (Child.ImageIndex in [iiBaseField]) and (TSBaseTable(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)
-                or (Child.ImageIndex in [iiForeignKey]) and (TSBaseTable(TableNode.Data).ForeignKeys.NameCmp(URI.Param['object'], Child.Text) = 0)
-                or (Child.ImageIndex in [iiTrigger]) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)
-                or (Child.ImageIndex in [iiViewField]) and (TSView(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)) then
+                or (Child.ImageIndex in [iiBaseField]) and (URI.Param['object'] <> Null) and (TSBaseTable(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)
+                or (Child.ImageIndex in [iiForeignKey]) and (URI.Param['object'] <> Null) and (TSBaseTable(TableNode.Data).ForeignKeys.NameCmp(URI.Param['object'], Child.Text) = 0)
+                or (Child.ImageIndex in [iiTrigger]) and (URI.Param['object'] <> Null) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)
+                or (Child.ImageIndex in [iiViewField]) and (URI.Param['object'] <> Null) and (TSView(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)) then
                 Result := Child
               else
                 Child := Child.getNextSibling();
@@ -14349,6 +14351,11 @@ var
   Text: string;
   URI: TUURI;
 begin
+  // Debug 2017-04-05
+  Assert(View in [vEditor, vEditor2, vEditor3],
+    'View: ' + IntToStr(Ord(View)) + #13#10
+    + 'CurrentAddress: ' + CurrentAddress);
+
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := EncodingCaptions();
@@ -14881,18 +14888,24 @@ begin
   URI.Free();
 end;
 
-procedure TFSession.SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
+procedure TFSession.SetListViewGroupHeader(const ListView: TListView;
+  const GroupID: Integer; const NewHeader: string);
   // In Delphi XE2 there is a flickering in the VScrollBar, while changing
   // TListGroup.Header - also if Groups.BeginUpdate is used
 var
-  LVGroup: TLVGroup;
+//  LVGroup: TLVGroup;
+  I: Integer;
 begin
-  ZeroMemory(@LVGroup, SizeOf(LVGroup));
-  LVGroup.cbSize := SizeOf(LVGroup);
-  LVGroup.mask := LVGF_HEADER;
-  LVGroup.pszHeader := PChar(NewHeader);
-  LVGroup.cchHeader := Length(NewHeader);
-  ListView_SetGroupInfo(ListView.Handle, GroupID, LVGroup);
+  for I := 0 to ListView.Groups.Count - 1 do
+    if (ListView.Groups[I].GroupID = GroupID) then
+      ListView.Groups[I].Header := NewHeader;
+
+//  ZeroMemory(@LVGroup, SizeOf(LVGroup));
+//  LVGroup.cbSize := SizeOf(LVGroup);
+//  LVGroup.mask := LVGF_HEADER;
+//  LVGroup.pszHeader := PChar(NewHeader);
+//  LVGroup.cchHeader := Length(NewHeader);
+//  ListView_SetGroupInfo(ListView.Handle, GroupID, LVGroup);
 end;
 
 procedure TFSession.SetPath(const APath: TFileName);
@@ -16214,7 +16227,7 @@ begin
 
   if (CanClose) then
     for View in [vEditor, vEditor2, vEditor3] do
-      if (Assigned(SQLEditors[View]) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
+      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
       begin
         Self.View := View;
 

@@ -649,6 +649,7 @@ begin
   begin
     ZipFile := TZipFile.Create();
     try
+      SetLastError(0);
       ZipFile.Open(OpenDialog.FileName, zmRead);
     except
       on E: EZipException do
@@ -657,6 +658,11 @@ begin
           ZipFile.Free();
           ZipFile := nil;
         end;
+      on E: EFOpenError do
+        if (GetLastError() > 0) then
+          MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+        else
+          raise;
     end;
 
     if (Assigned(ZipFile)) then

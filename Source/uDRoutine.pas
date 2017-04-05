@@ -520,7 +520,9 @@ var
   List: TList;
 begin
   // Debug 2017-04-03
-  Assert(Assigned(Routine));
+  Assert(Assigned(Routine),
+    'Visible: ' + BoolToStr(Visible, True) + #13#10
+    + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
 
   if (FDependencies.Items.Count = 0) then
   begin

@@ -2091,7 +2091,7 @@ end;
 function TMySQLConnection.TSyncThread.GetIsRunning(): Boolean;
 begin
   Result := not Terminated
-    and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+    and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady, ssAfterExecuteSQL]));
 end;
 
 function TMySQLConnection.TSyncThread.GetNextCommandText(): string;
@@ -2167,9 +2167,7 @@ procedure TMySQLConnection.CancelResultHandle(var ResultHandle: TResultHandle);
 begin
   Terminate();
 
-  if (Assigned(SyncThread)) then
-  begin
-    SyncThread.State := ssAfterExecuteSQL;
+  if (Assigned(SyncThread) and (SyncThread.State = ssAfterExecuteSQL)) then
     if (GetCurrentThreadId() = MainThreadId) then
       Sync(SyncThread)
     else
@@ -2178,7 +2176,6 @@ begin
       SyncThreadExecuted.WaitFor(INFINITE);
       DebugMonitor.Append('SyncThreadExecuted: W 8', ttDebug);
     end;
-  end;
 end;
 
 procedure TMySQLConnection.CloseResultHandle(var ResultHandle: TResultHandle);
@@ -2454,15 +2451,11 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
-  if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssReady, ssFirst, ssNext])) then
-    raise ERangeError.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)) + #13#10
-      + 'ResultHandle.SyncThread = SyncThread: ' + BoolToStr(ResultHandle.SyncThread = SyncThread, True));
-
-  Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady, ssFirst, ssNext]));
+  Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]));
 
   DebugMonitor.Append('BeginSynchron - 2 - SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
   BeginSynchron();
-  if (ResultHandle.SQLIndex >= Length(ResultHandle.SQL) - 1) then
+  if (ResultHandle.SQLIndex = Length(ResultHandle.SQL) + 1) then
     Result := False
   else if (not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady])) then
   begin
@@ -3110,7 +3103,7 @@ begin
           if ((SyncThread.Mode = smSQL) and (SyncThread.State = ssResult)) then
             SyncHandledResult(SyncThread);
 
-          if (SyncThread.State = ssReady) then
+          if (SyncThread.State = ssAfterExecuteSQL) then
             SyncAfterExecuteSQL(SyncThread);
 
           case (SyncThread.Mode) of
@@ -3143,7 +3136,6 @@ begin
               end;
           end;
         end;
-      ssResult: ; // Do nothing, also don't report a problem
 	    ssReceivingResult:
         begin
           if ((SyncThread.DataSet is TMySQLDataSet) and (SyncThread.ErrorCode <> 0)) then
@@ -3168,7 +3160,7 @@ begin
                       DebugMonitor.Append('SyncThreadExecuted: S 4', ttDebug);
                       SyncThreadExecuted.SetEvent();
                     end;
-                  ssReady:
+                  ssAfterExecuteSQL:
                     begin
                       SyncAfterExecuteSQL(SyncThread);
                       if (SynchronCount > 0) then
@@ -3177,6 +3169,7 @@ begin
                         SyncThreadExecuted.SetEvent();
                       end;
                     end;
+                  ssReady: ; // Do nothing - and don't report a problem
                   else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
                 end;
               smResultHandle:
@@ -3195,7 +3188,6 @@ begin
         SyncDisconnected(SyncThread);
       ssAfterExecuteSQL:
         begin
-          SyncThread.State := ssClose;
           SyncAfterExecuteSQL(SyncThread);
           case (SyncThread.Mode) of
             smResultHandle:
@@ -3212,7 +3204,7 @@ end;
 
 procedure TMySQLConnection.SyncAfterExecuteSQL(const SyncThread: TSyncThread);
 begin
-  Assert(SyncThread.State in [ssClose, ssReady]);
+  Assert(SyncThread.State in [ssAfterExecuteSQL]);
 
   FExecutionTime := SyncThread.ExecutionTime;
 
@@ -3220,6 +3212,8 @@ begin
     SyncThread.SQL := '';
 
   DoAfterExecuteSQL();
+
+  SyncThread.State := ssReady;
 
   if (Assigned(SyncThread.Done)) then
     SyncThread.Done.SetEvent();
@@ -3581,7 +3575,7 @@ begin
     else if (SyncThread.ErrorCode > 0) then
     begin
       DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
-      SyncThread.State := ssReady;
+      SyncThread.State := ssAfterExecuteSQL;
       SyncHandledResult(SyncThread);
     end
     else if ((SyncThread.Mode = smSQL) and Assigned(SyncThread.ResHandle)) then
@@ -3600,7 +3594,7 @@ begin
       if (SyncThread.ErrorCode <> 0) then
       begin
         DataHandle := nil;
-        SyncThread.State := ssReady;
+        SyncThread.State := ssAfterExecuteSQL;
       end
       else
       begin
@@ -3614,7 +3608,7 @@ begin
         and (not Assigned(SyncThread.DataSet) or not (SyncThread.DataSet is TMySQLDataSet))) then
       begin
         DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
-        SyncThread.State := ssReady;
+        SyncThread.State := ssAfterExecuteSQL;
         SyncHandledResult(SyncThread);
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
@@ -3815,16 +3809,16 @@ begin
       FSuccessfullExecutedSQLLength := SyncThread.SQLIndex - 1;
   end;
 
-  if (SyncThread.State = ssReady) then
+  if (SyncThread.State = ssAfterExecuteSQL) then
     // An error occurred and it was NOT handled in OnResult
   else if (SyncThread.ErrorCode = CR_SERVER_GONE_ERROR) then
-    SyncThread.State := ssReady
+    SyncThread.State := ssAfterExecuteSQL
   else if (MultiStatements and Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1)) then
     SyncThread.State := ssNext
   else if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     SyncThread.State := ssFirst
   else
-    SyncThread.State := ssReady;
+    SyncThread.State := ssAfterExecuteSQL;
 end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
@@ -3904,13 +3898,9 @@ begin
     if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
     begin
       SyncHandledResult(SyncThread);
-      if ((SyncThread.Mode in [smResultHandle, smDataSet]) and (SyncThread.State = ssReady)) then
-      begin
-        SyncAfterExecuteSQL(SyncThread);
 
-        if ((DataSet is TMySQLTable) and (TMySQLTable(DataSet).WaitFor = wfLast)) then
-          DataSet.Last();
-      end;
+      if ((DataSet is TMySQLTable) and (TMySQLTable(DataSet).WaitFor = wfLast)) then
+        DataSet.Last();
     end;
     TerminateCS.Leave();
   end;

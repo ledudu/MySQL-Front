@@ -3785,7 +3785,13 @@ var
 begin
   for I := 0 to Items.Count - 1 do
     if (Items[I] is TDBGridItem) then
+    begin
+      // Debug 2017-04-05
+      Assert(Assigned(TDBGridItem(Items[I]).DBGrid));
+      Assert(Assigned(TDBGridItem(Items[I]).DBGrid.DataSource));
+
       TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.EnableControls();
+    end;
 
   FSession.Connection.EndSilent();
 
@@ -4166,7 +4172,8 @@ begin
           TItem(Items[I]).Done := True;
         end;
 
-      Session.Connection.CloseResultHandle(ResultHandle);
+      if (SQL <> '') then
+        Session.Connection.CloseResultHandle(ResultHandle);
     end;
   end;
 
@@ -4176,15 +4183,9 @@ begin
     ExecuteFooter();
   end;
 
-  MessageBox(0, '1', 'Hendri', MB_OK); {$MESSAGE 'Hendri'}
-
   AfterExecute();
 
-  MessageBox(0, '2', 'Hendri', MB_OK); {$MESSAGE 'Hendri'}
-
   DataTables.Free();
-
-  MessageBox(0, '3', 'Hendri', MB_OK); {$MESSAGE 'Hendri'}
 
   {$IFDEF EurekaLog}
   except
@@ -4367,7 +4368,7 @@ begin
   Assert(not Data
     or not Assigned(ResultHandle)
     or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssReady]),
+    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssAfterExecuteSQL]),
     'Success: ' + IntToStr(Ord(Success)) + #13#10
     + 'Progress: ' + Progress + #13#10
     + 'Data: ' + BoolToStr(Data, True) + #13#10
