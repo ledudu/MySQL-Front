@@ -73,7 +73,7 @@ Name: "{userappdata}\{BuildName}\Accounts"
 Source: "{BuildTempPath}\{BuildName}.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{BuildTempPath}\{BuildName}.chm"; DestDir: "{app}"
 Source: "{BuildTempPath}\libMySQL.php"; DestDir: "{app}"
-Source: "{BuildLanguagesPath}\*.ini"; DestDir: "{app}\Languages"; Flags: comparetimestamp
+Source: "{BuildLanguagesPath}\*.ini"; DestDir: "{app}\Languages";
 Source: "{srcexe}"; DestDir: "{app}\Install"; Flags: external
 
 [Icons]

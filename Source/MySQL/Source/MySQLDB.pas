@@ -5095,10 +5095,10 @@ var
   Decimals: Word;
   DName: string;
   Field: TField;
-  FieldName: string;
   I: Integer;
   Len: Longword;
   LibField: TMYSQL_FIELD;
+  Name: string;
   RawField: MYSQL_FIELD;
   S: string;
   UniqueDatabaseName: Boolean;
@@ -5301,18 +5301,21 @@ begin
 
           Field.Tag := Field.Tag or CodePage;
           try
-            FieldName := Connection.LibDecode(Connection.CodePageResult, LibField.name);
+            Field.FieldName := Connection.LibDecode(Connection.CodePageResult, LibField.name);
           except
-            FieldName := Connection.LibUnpack(LibField.name);
+            Field.FieldName := Connection.LibUnpack(LibField.name);
           end;
-          FieldName := ReplaceStr(ReplaceStr(FieldName, ' ', '_'), '.', '_');
-          if (Assigned(FindField(FieldName))) then
+
+          // Debug 2017-01-23
+          if (Field.FieldName = '') then
+            Field.FieldName := 'Field_' + IntToStr(Fields.Count);
+
+          if (Assigned(FindField(Field.FieldName))) then
           begin
             I := 2;
-            while (Assigned(FindField(FieldName + '_' + IntToStr(I)))) do Inc(I);
-            FieldName := FieldName + '_' + IntToStr(I);
+            while (Assigned(FindField(Field.FieldName + '_' + IntToStr(I)))) do Inc(I);
+            Field.FieldName := Field.FieldName + '_' + IntToStr(I);
           end;
-          Field.FieldName := FieldName;
 
           Field.Required := LibField.flags and NOT_NULL_FLAG <> 0;
 
@@ -5411,13 +5414,20 @@ begin
               end;
             end;
 
-            if ((Field.Name = '') and IsValidIdent(FieldName)) then
-              Field.Name := FieldName;
             if (Field.Name = '') then
-              Field.Name := 'Field' + '_' + IntToStr(FieldDefs.Count);
-            if (Field.FieldName = '') then
-              Field.FieldName := Field.Name;
-
+            begin
+              Name := ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_');
+              if (not IsValidIdent(Name)) then
+                Name := ''
+              else
+                for I := 0 to FieldDefs.Count - 1 do
+                  if (FieldDefs[I].Name = Name) then
+                    Name := '';
+              if (Name = '') then
+                Field.Name := 'Field' + '_' + IntToStr(FieldDefs.Count)
+              else
+                Field.Name := Name;
+            end;
 
             if (Field.ReadOnly) then
               Field.ProviderFlags := Field.ProviderFlags - [pfInUpdate]
