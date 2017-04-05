@@ -10609,9 +10609,9 @@ begin
               if (Compare = 0) then
               begin
                 // Debug 2017-04-03
-                Assert(Item1.SubItems.Count > 1,
+                Assert(Item1.SubItems.Count < 2,
                   'ImageIndex: ' + IntToStr(Item1.ImageIndex));
-                Assert(Item2.SubItems.Count > 1,
+                Assert(Item2.SubItems.Count < 2,
                   'ImageIndex: ' + IntToStr(Item2.ImageIndex));
 
                 Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
