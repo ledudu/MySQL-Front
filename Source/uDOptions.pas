@@ -441,24 +441,28 @@ procedure TDOptions.TSBrowserResize(Sender: TObject);
 begin
   FBGridFont.Left := FGridFont.Left + FGridFont.Width;
   FBGridFont.Height := FGridFont.Height;
+  FBGridFont.Width := FBGridFont.Height;
 end;
 
 procedure TDOptions.TSEditorResize(Sender: TObject);
 begin
   FBEditorFont.Left := FEditorFont.Left + FEditorFont.Width;
   FBEditorFont.Height := FEditorFont.Height;
+  FBEditorFont.Width := FBEditorFont.Height;
 end;
 
 procedure TDOptions.TSLogResize(Sender: TObject);
 begin
   FBLogFont.Left := FLogFont.Left + FLogFont.Width;
   FBLogFont.Height := FLogFont.Height;
+  FBLogFont.Width := FBLogFont.Height;
 end;
 
 procedure TDOptions.TSViewResize(Sender: TObject);
 begin
   FBLanguage.Left := FLanguage.Left + FLanguage.Width;
   FBLanguage.Height := FLanguage.Height;
+  FBLanguage.Width := FBLanguage.Height;
 end;
 
 procedure TDOptions.UMChangePreferences(var Message: TMessage);

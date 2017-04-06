@@ -312,6 +312,9 @@ begin
 
   FDependencies.RowSelect := CheckWin32Version(6);
 
+  TSBasics.TabVisible := False;
+  TSInformation.TabVisible := False;
+
   PageControl.ActivePage := TSBasics;
 end;
 
@@ -325,6 +328,9 @@ begin
   FDependencies.Items.BeginUpdate();
   FDependencies.Items.Clear();
   FDependencies.Items.EndUpdate();
+
+  TSBasics.TabVisible := False;
+  TSInformation.TabVisible := False;
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -519,11 +525,6 @@ procedure TDRoutine.TSDependenciesShow(Sender: TObject);
 var
   List: TList;
 begin
-  // Debug 2017-04-03
-  Assert(Assigned(Routine),
-    'Visible: ' + BoolToStr(Visible, True) + #13#10
-    + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
-
   if (FDependencies.Items.Count = 0) then
   begin
     List := TList.Create();

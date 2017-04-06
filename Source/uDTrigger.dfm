@@ -47,10 +47,6 @@ object DTrigger: TDTrigger
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -114,7 +110,6 @@ object DTrigger: TDTrigger
           Width = 173
           Height = 41
           BevelOuter = bvNone
-          ParentBackground = False
           TabOrder = 1
           object FBefore: TRadioButton
             Left = 0
@@ -142,8 +137,6 @@ object DTrigger: TDTrigger
           Width = 173
           Height = 57
           BevelOuter = bvNone
-          ParentBackground = False
-          ParentColor = True
           TabOrder = 2
           object FInsert: TRadioButton
             Left = 0
@@ -247,10 +240,6 @@ object DTrigger: TDTrigger
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -313,10 +302,6 @@ object DTrigger: TDTrigger
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

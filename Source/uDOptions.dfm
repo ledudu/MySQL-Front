@@ -78,7 +78,7 @@ object DOptions: TDOptions
           OnChange = FLanguageChange
         end
         object FBLanguage: TButton
-          Left = 281
+          Left = 278
           Top = 16
           Width = 21
           Height = 21

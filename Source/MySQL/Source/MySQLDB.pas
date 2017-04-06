@@ -509,6 +509,8 @@ type
 
   TMySQLDataSet = class(TMySQLQuery)
   type
+    PBookmarks = ^TBookmarks;
+    TBookmarks = array of TBookmark;
     TTextWidth = function (const Text: string): Integer of object;
     PInternRecordBuffer = ^TInternRecordBuffer;
     TInternRecordBuffer = record
@@ -571,7 +573,7 @@ type
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     function VisibleInFilter(const InternRecordBuffer: PInternRecordBuffer): Boolean;
   protected
-    DeleteBookmarks: array of TBookmark;
+    DeleteBookmarks: PBookmarks;
     procedure ActivateFilter(); virtual;
     function AllocRecordBuffer(): TRecordBuffer; override;
     procedure DeactivateFilter(); virtual;
@@ -2648,6 +2650,10 @@ begin
 
     if (StmtLength > 0) then
     begin
+      // Debug 2017-04-06
+      Assert(Assigned(SyncThread.StmtLengths));
+      Assert(TObject(SyncThread.StmtLengths) is TList);
+
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
       Inc(SQLIndex, StmtLength);
     end;
@@ -6065,16 +6071,10 @@ begin
 end;
 
 procedure TMySQLDataSet.Delete(const Bookmarks: array of TBookmark);
-var
-  I: Integer;
 begin
-  SetLength(DeleteBookmarks, Length(Bookmarks));
-  for I := 0 to Length(DeleteBookmarks) - 1 do
-    DeleteBookmarks[I] := Bookmarks[I];
+  DeleteBookmarks := @Bookmarks;
 
   Delete();
-
-  SetLength(DeleteBookmarks, 0);
 end;
 
 procedure TMySQLDataSet.DeleteAll();
@@ -6538,7 +6538,7 @@ begin
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end
-    else if (Length(DeleteBookmarks) = 0) then
+    else if (Length(DeleteBookmarks^) = 0) then
     begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
@@ -6547,9 +6547,9 @@ begin
     end
     else
     begin
-      for I := 0 to Length(DeleteBookmarks) - 1 do
+      for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
-        Index := InternRecordBuffers.IndexOf(DeleteBookmarks[I]);
+        Index := InternRecordBuffers.IndexOf(DeleteBookmarks^[I]);
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
         if (Filtered) then
@@ -7646,7 +7646,7 @@ begin
       Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + WhereClause;
     Connection.SQLParser.Clear();
   end
-  else if (Length(DeleteBookmarks) = 0) then
+  else if (Length(DeleteBookmarks^) = 0) then
     Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + SQLWhereClause()
   else
   begin
@@ -7663,9 +7663,14 @@ begin
     if (WhereFieldCount = 1) then
     begin
       Values := ''; NullValue := False;
-      for I := 0 to Length(DeleteBookmarks) - 1 do
+      for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
-        InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks[I])];
+        // Debug 2017-04-06
+        Assert(InternRecordBuffers.IndexOf(DeleteBookmarks^[I]) >= 0,
+          'Length(DeleteBookmarks^): ' + IntToStr(Length(DeleteBookmarks^)) + #13#10
+          + 'InternRecordBuffers.Count: ' + IntToStr(InternRecordBuffers.Count));
+
+        InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks^[I])];
         if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True
         else
@@ -7686,7 +7691,7 @@ begin
     end
     else
     begin
-      for I := 0 to Length(DeleteBookmarks) - 1 do
+      for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
         if (I > 0) then Result := Result + ' OR ';
         Result := Result + '(';
@@ -7694,7 +7699,7 @@ begin
         for J := 0 to FieldCount - 1 do
           if (pfInWhere in Fields[J].ProviderFlags) then
           begin
-            InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks[I])];
+            InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks^[I])];
             if (ValueHandled) then Result := Result + ' AND ';
 
             // Debug 2017-01-22
@@ -8345,7 +8350,7 @@ begin
   inherited;
 
   FAutomaticLoadNextRecords := False;
-  SetLength(DeleteBookmarks, 0);
+  DeleteBookmarks := nil;
   FCommandType := ctTable;
   FLimitedDataReceived := False;
   FWaitFor := wfNothing;

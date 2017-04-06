@@ -1117,7 +1117,7 @@ begin
       ExceptionInfo.Options.SendShellSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +
         ' (Build: ' + IntToStr(ProgramVersionPatch) + '.' +
-        IntToStr(ProgramVersionBuild) + ')' + ' - Error Report';
+        IntToStr(ProgramVersionBuild) + ')' + ' - Bug Report';
     end;
   end;
 end;

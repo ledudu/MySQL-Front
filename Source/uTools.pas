@@ -7968,6 +7968,10 @@ begin
   DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
   DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
 
+  // Debug 2017-04-06
+  Assert(Assigned(DestinationTable));
+  Assert(Assigned(DestinationTable.Fields));
+
   FieldCount := 0;
   for I := 0 to SourceTable.Fields.Count - 1 do
     for J := 0 to DestinationTable.Fields.Count - 1 do
@@ -7981,9 +7985,7 @@ begin
     begin
       DataSet.Open(ResultHandle);
       if (not DataSet.Active) then
-        DoError(DatabaseError(Session), Item, False, SQL)
-      else if (DataSet.FieldCount = 0) then
-        raise ERangeError.CreateFMT(SRangeError + ' (FieldCount: %d, ErrorCode: %d, SQL: %s)', ['FieldCount', FieldCount, DataSet.Connection.ErrorCode, DataSet.CommandText]);
+        DoError(DatabaseError(Session), Item, False, SQL);
     end;
 
     if (Success = daSuccess) then

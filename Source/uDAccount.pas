@@ -155,7 +155,7 @@ procedure TDAccount.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
 
-  FBDatabase.Height := FDatabase.Height;
+  FormResize(nil);
 end;
 
 function TDAccount.Execute(): Boolean;
@@ -361,8 +361,9 @@ end;
 
 procedure TDAccount.FormResize(Sender: TObject);
 begin
-  FBDatabase.Height := FDatabase.Height; FBDatabase.Width := FBDatabase.Height;
   FBDatabase.Left := FDatabase.Left + FDatabase.Width;
+  FBDatabase.Height := FDatabase.Height;
+  FBDatabase.Width := FBDatabase.Height;
 end;
 
 procedure TDAccount.FormShow(Sender: TObject);

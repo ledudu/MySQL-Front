@@ -2191,8 +2191,6 @@ begin
   end
   else
     SQL := Field.AsString;
-  if (SQL <> '') then
-    SQL := SQL + ';' + #13#10;
 
   SetSource(SQL);
 
@@ -2289,7 +2287,12 @@ end;
 
 procedure TSObject.SetSource(const ASource: string);
 begin
-  FSource := ASource;
+  if ((Pos(#13#10, ASource) = 0) and (Pos(#10, ASource) > 0)) then
+    FSource := ReplaceStr(ASource, #10, #13#10)
+  else
+    FSource := ASource;
+  if (FSource <> '') then
+    FSource := FSource + ';' + #13#10;
 
   FValidSource := True;
 end;
@@ -7038,6 +7041,7 @@ var
   Index: Integer;
   Item: TSItem;
   Name: string;
+  SQL: string;
 begin
   Item := nil;
 
@@ -7097,7 +7101,12 @@ begin
         Trigger[Index].FValid := True;
 
         if (Session.Connection.MySQLVersion < 50121) then
-          Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
+        begin
+          SQL := Trim(Trigger[Index].GetSourceEx());
+          if ((SQL <> '') and (SQL[Length(SQL)] = ';')) then
+            System.Delete(SQL, Length(SQL), 1);
+          Trigger[Index].SetSource(SQL);
+        end;
 
         Item := Trigger[Index];
 
@@ -10753,9 +10762,12 @@ begin
 
   if (SQL <> '') then
   begin
+    SQL := Trim(SQL);
+    if ((SQL <> '') and (SQL[Length(SQL)] = ';')) then
+      System.Delete(SQL, Length(SQL), 1);
     SetSource(SQL);
 
-    ParseGrant(SQL);
+    ParseGrant(Source);
 
     if (Session.Connection.MySQLVersion >= 50002) then
       FSource := 'CREATE USER ' + Session.EscapeUser(Name) + ';' + #13#10 + FSource;
