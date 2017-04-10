@@ -1562,6 +1562,9 @@ begin
 
       if (DataSet.Active) then
       begin
+        // Debug 2017-04-10
+        Assert(DataSet.Active);
+
         OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
 
         // Debug 2017-04-04

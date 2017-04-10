@@ -119,6 +119,7 @@ type
   public
     procedure Clear(); override;
     constructor Create(const ASession: TSSession);
+    function IndexByName(const Name: string): Integer; override;
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
     function Update(): Boolean; overload; virtual;
@@ -1534,7 +1535,7 @@ type
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
     TEventProc = procedure (const AEvent: TSSession.TEvent) of object;
     TUpdate = function (): Boolean of object;
-  private
+  strict private
     EventProcs: array of TEventProc;
     FAccount: TPAccount;
     FCharsets: TSCharsets;
@@ -1547,31 +1548,19 @@ type
     FDatabases: TSDatabases;
     FEngines: TSEngines;
     FFieldTypes: TSFieldTypes;
-    FInformationSchema: TSDatabase;
     FItemSearches: TSItemSearches;
     FMetadataProvider: TacEventMetadataProvider;
-    FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
     FProcesses: TSProcesses;
     FQuickAccess: TSQuickAccess;
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
     FSyntaxProvider: TacMYSQLSyntaxProvider;
-    FUser: TSUser;
     FUsers: TSUsers;
     FVariables: TSVariables;
     ManualURL: string;
     StmtMonitor: TMySQLMonitor;
     procedure BuildManualURL(const DataSet: TMySQLQuery);
-    function BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean;
-    function BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean;
-    function BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean;
-    function BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean;
-    function BuildUser(const DataSet: TMySQLQuery): Boolean;
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TSSession.TEvent);
@@ -1584,8 +1573,21 @@ type
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
     procedure VariableChange(const Connection: TMySQLConnection; const Name, NewValue: string);
   protected
+    FInformationSchema: TSDatabase;
     FLowerCaseTableNames: Byte;
+    FPerformanceSchema: TSDatabase;
+    FUser: TSUser;
+    FUserRequested: Boolean;
     UnparsableSQL: string;
+    function BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
+      const ItemSearch: TSItemSearch = nil): Boolean;
+    function BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
+      const ItemSearch: TSItemSearch = nil): Boolean;
+    function BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
+      const ItemSearch: TSItemSearch = nil): Boolean;
+    function BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
+      const ItemSearch: TSItemSearch = nil): Boolean;
+    function BuildUser(const DataSet: TMySQLQuery): Boolean;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil); overload;
@@ -2130,6 +2132,13 @@ end;
 function TSEntities.GetValid(): Boolean;
 begin
   Result := FValid;
+end;
+
+function TSEntities.IndexByName(const Name: string): Integer;
+begin
+  Assert(Valid);
+
+  Result := inherited;
 end;
 
 procedure TSEntities.Invalidate();
@@ -9334,7 +9343,17 @@ begin
         ItemSearch.Add(Item);
     until (not DataSet.FindNext());
 
-  if (Count > 0) then
+  if (not Filtered) then
+    while (DeleteList.Count > 0) do
+    begin
+      Delete(DeleteList.Items[0]);
+      DeleteList.Delete(0);
+    end;
+  DeleteList.Free();
+
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE);
+
+  if (Valid) then
   begin
     if (Assigned(Session.VariableByName('character_set'))) then
     begin
@@ -9397,16 +9416,6 @@ begin
           Session.Engines[I].FDefault := StrIComp(PChar(Session.Engines[I].Name), PChar(Session.VariableByName('storage_engine').Value)) = 0;
     end;
   end;
-
-  if (not Filtered) then
-    while (DeleteList.Count > 0) do
-    begin
-      Delete(DeleteList.Items[0]);
-      DeleteList.Delete(0);
-    end;
-  DeleteList.Free();
-
-  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE);
 
   if (DataSet.RecordCount = 1) then
     Session.SendEvent(etItemValid, Session, Self, Item)
@@ -10848,7 +10857,10 @@ begin
     while (DeleteList.Count > 0) do
     begin
       if (Items[0] = Session.User) then
+      begin
         Session.FUser := nil;
+        Session.FUserRequested := False;
+      end;
       Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
@@ -10870,7 +10882,10 @@ begin
   Assert(AItem is TSUser);
 
   if (AItem = Session.FUser) then
+  begin
     Session.FUser := nil;
+    Session.FUserRequested := False;
+  end;
 
   Session.SendEvent(etItemDeleted, Session, Self, AItem);
 
@@ -12024,6 +12039,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
+  FUserRequested := False;
   ManualURL := '';
   UnparsableSQL := '';
 
@@ -13627,7 +13643,7 @@ begin
     else
       SQL := SQL + 'SELECT SYSDATE(),CURRENT_USER();' + #13#10;
 
-  if (not Assigned(FUser))  then
+  if (not Assigned(FUser) and not FUserRequested)  then
     if (Connection.MySQLVersion >= 40102) then
       SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10
     else if (FCurrentUser <> '') then

@@ -764,6 +764,9 @@ begin
     else
       CopyToClipboard();
 
+    // Debug 2017-04-10
+    Assert(DataLink.DataSet.CanModify);
+
     Result := EditDeleteExecute();
   end;
 end;
@@ -791,7 +794,12 @@ begin
   else if (Action is TEditPaste) then
     Result := PasteFromClipboard()
   else if (Action is TEditDelete) then
-    Result := EditDeleteExecute()
+  begin
+    // Debug 2017-04-10
+    Assert(DataLink.DataSet.CanModify);
+
+    Result := EditDeleteExecute();
+  end
   else if (Action is TEditSelectAll) then
     begin Result := True; SelectAll(); end
   else
@@ -1080,7 +1088,12 @@ begin
       HideEditor();
   end
   else if ((Key = VK_DELETE) and (Shift = []) and not ReadOnly and not SelectedField.ReadOnly) then
-    EditDeleteExecute()
+  begin
+    // Debug 2017-04-10
+    Assert(DataLink.DataSet.CanModify);
+
+    EditDeleteExecute();
+  end
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
   else if ((Key = VK_DOWN) and (ssShift in Shift) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)) then

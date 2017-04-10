@@ -24,7 +24,7 @@ const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
   UM_ACTIVATEFRAME = WM_USER + 501;
   UM_ACTIVATEFTEXT = WM_USER + 502;
-  UM_CLOSE_FRAME = WM_USER + 503;
+  UM_FRAME_CLOSE = WM_USER + 503;
   UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 505;
   UM_SYNCOMPLETION_TIMER = WM_USER + 506;
   UM_WANTED_SYNCHRONIZE = WM_USER + 507;
@@ -1087,9 +1087,9 @@ type
     procedure UMActivateDBGrid(var Msg: TMessage); message UM_ACTIVATE_DBGRID;
     procedure UMActivateFText(var Msg: TMessage); message UM_ACTIVATEFTEXT;
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMCloseFrame(var Msg: TMessage); message UM_CLOSE_FRAME;
-    procedure UMCloseFrameQuery(var Msg: TMessage); message UM_CLOSE_FRAME_QUERY;
     procedure UMFrameActivate(var Msg: TMessage); message UM_ACTIVATEFRAME;
+    procedure UMFrameClose(var Msg: TMessage); message UM_FRAME_CLOSE;
+    procedure UMFrameCloseQuery(var Msg: TMessage); message UM_FRAME_CLOSE_QUERY;
     procedure UMFrameDeactivate(var Msg: TMessage); message UM_DEACTIVATEFRAME;
     procedure UMPostBuilderQueryChange(var Msg: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
     procedure UMPostShow(var Msg: TMessage); message UM_POST_SHOW;
@@ -4185,7 +4185,7 @@ begin
 
   if (View = vDiagram) then
     OpenDiagram()
-  else if (Boolean(Perform(UM_CLOSE_FRAME_QUERY, 0, 0))) then
+  else if (Boolean(Perform(UM_FRAME_CLOSE_QUERY, 0, 0))) then
     OpenSQLFile('');
 end;
 
@@ -4200,6 +4200,10 @@ end;
 
 procedure TFSession.aFOpenInNewWindowExecute(Sender: TObject);
 begin
+  // Debug 2017-04-10
+  Assert(Assigned(FocusedSItem),
+    'ActiveControl: ' + Window.ActiveControl.ClassName);
+
   ShellExecute(0, 'open', PChar(Application.ExeName), PChar(FocusedSItem.Address), '', SW_SHOW);
 end;
 
@@ -5566,12 +5570,12 @@ begin
   Result.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
   Result.LeftMargin.Bookmarks.Visible := False;
   Result.LeftMargin.LineNumbers.DigitCount := 2;
-  Result.LeftMargin.LineState.Enabled := False;
+  Result.LeftMargin.LineState.Enabled := Assigned(SObject);
   Result.LeftMargin.Marks.Visible := False;
   Result.LeftMargin.MarksPanel.Visible := False;
   Result.MatchingPair.Enabled := True;
   Result.RightMargin.Visible := False;
-  Result.Options := Result.Options + [eoTrimTrailingLines, eoTrimTrailingSpaces];
+  Result.Options := Result.Options + [eoTrimTrailingLines];
   Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint] + [soPastEndOfFile];
   Result.SyncEdit.Enabled := False;
   Result.OnChange := BCEditorChange;
@@ -7661,7 +7665,8 @@ begin
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
     raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-      + 'Text: ' + Node.Text)
+      + 'Text: ' + Node.Text + #13#10
+      + 'ClassType: ' + TObject(Node.Data).ClassName)
   else
     raise ERangeError.Create(SRangeError);
 
@@ -8341,7 +8346,7 @@ begin
               TableNode := Child
             else
               Child := Child.getNextSibling();
-          if (URI.Param['objecttype'] = Null) then
+          if ((URI.Param['objecttype'] = Null) or (URI.Param['objecttype'] = 'view')) then
             Result := TableNode
           else
           begin
@@ -8658,6 +8663,9 @@ begin
     Node := FNavigator.Items.getFirstNode();
     while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
       Node := Node.getNextSibling();
+
+    // Debug 2017-04-10
+    Assert(Assigned(Node));
 
     FNavigator.Items.BeginUpdate();
 
@@ -12521,7 +12529,7 @@ begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
 
-    if (Boolean(Perform(UM_CLOSE_FRAME_QUERY, 0, 0))) then
+    if (Boolean(Perform(UM_FRAME_CLOSE_QUERY, 0, 0))) then
       OpenSQLFile(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption);
   end
   else
@@ -12664,7 +12672,7 @@ begin
   Wanted.Clear();
 
   if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])
-    and Boolean(Perform(UM_CLOSE_FRAME_QUERY, 0, 0))) then
+    and Boolean(Perform(UM_FRAME_CLOSE_QUERY, 0, 0))) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
@@ -16208,86 +16216,6 @@ begin
   PasteMode := False;
 end;
 
-procedure TFSession.UMCloseFrame(var Msg: TMessage);
-begin
-  MainAction('aFClose').Execute();
-end;
-
-procedure TFSession.UMCloseFrameQuery(var Msg: TMessage);
-var
-  CanClose: Boolean;
-  I: Integer;
-  J: Integer;
-  SObject: TSObject;
-  BCEditor: TBCEditor;
-  View: TView;
-begin
-  CanClose := True;
-
-  if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
-    ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-
-  for I := 0 to PBCEditor.ControlCount - 1 do
-    if (CanClose) then
-      if (PBCEditor.Controls[I] is TBCEditor) then
-      begin
-        BCEditor := TBCEditor(PBCEditor.Controls[I]);
-        if (BCEditor.Modified) then
-        begin
-          SObject := TSObject(BCEditor.Tag);
-          if (Assigned(SObject)) then
-            for J := 0 to FNavigator.Items.Count - 1 do
-              if (FNavigator.Items[J].Data = SObject) then
-              begin
-                CurrentAddress := AddressByData(FNavigator.Items[J].Data);
-                if (BCEditor = SQLEditors[vEditor].BCEditor) then Self.View := vEditor
-                else if (Assigned(SQLEditor2) and (BCEditor = SQLEditor2.BCEditor)) then Self.View := vEditor2
-                else if (Assigned(SQLEditor3) and (BCEditor = SQLEditor3.BCEditor)) then Self.View := vEditor3;
-                Window.ActiveControl := ActiveBCEditor;
-                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-                  IDYES: MainAction('aDPostObject').Execute();
-                  IDCANCEL: CanClose := False;
-                end;
-              end;
-        end;
-      end;
-
-  if (CanClose) then
-    for View in [vEditor, vEditor2, vEditor3] do
-      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
-      begin
-        Self.View := View;
-
-        // Debug 2017-01-15
-        Assert(Self.View in [vEditor, vEditor2, vEditor3],
-          'View: ' + IntToStr(Ord(View)) + #13#10
-            + 'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
-            + 'CurrentAddress: ' + CurrentAddress);
-
-        Window.ActiveControl := ActiveBCEditor;
-        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-          IDYES: SaveSQLFile(MainAction('aFSave'));
-          IDCANCEL: CanClose := False;
-        end;
-      end;
-
-  for I := 0 to Session.Databases.Count - 1 do
-    if (CanClose) then
-    begin
-      if (not Assigned(Session.Databases[I])) then
-        raise ERangeError.Create(SRangeError);
-      if (not Assigned(Desktop(Session.Databases[I]))) then
-        raise ERangeError.Create('Database: ' + Session.Databases[I].Name);
-
-      Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
-    end;
-
-  if (not CanClose) then
-    Msg.Result := 0
-  else
-    Msg.Result := 1;
-end;
-
 procedure TFSession.UMFrameActivate(var Msg: TMessage);
 begin
   Include(FrameState, fsActive);
@@ -16431,6 +16359,80 @@ begin
 
   if (Assigned(StatusBar)) then
     StatusBarRefresh(True);
+end;
+
+procedure TFSession.UMFrameClose(var Msg: TMessage);
+begin
+  MainAction('aFClose').Execute();
+end;
+
+procedure TFSession.UMFrameCloseQuery(var Msg: TMessage);
+var
+  CanClose: Boolean;
+  I: Integer;
+  J: Integer;
+  SObject: TSObject;
+  BCEditor: TBCEditor;
+  View: TView;
+begin
+  CanClose := True;
+
+  if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
+    ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+
+  for I := 0 to PBCEditor.ControlCount - 1 do
+    if (CanClose) then
+      if (PBCEditor.Controls[I] is TBCEditor) then
+      begin
+        BCEditor := TBCEditor(PBCEditor.Controls[I]);
+        if (BCEditor.Modified) then
+        begin
+          SObject := TSObject(BCEditor.Tag);
+          if (Assigned(SObject)) then
+            for J := 0 to FNavigator.Items.Count - 1 do
+              if (FNavigator.Items[J].Data = SObject) then
+              begin
+                CurrentAddress := AddressByData(FNavigator.Items[J].Data);
+                if (BCEditor = SQLEditors[vEditor].BCEditor) then Self.View := vEditor
+                else if (Assigned(SQLEditor2) and (BCEditor = SQLEditor2.BCEditor)) then Self.View := vEditor2
+                else if (Assigned(SQLEditor3) and (BCEditor = SQLEditor3.BCEditor)) then Self.View := vEditor3
+                else Self.View := vIDE;
+                Window.ActiveControl := ActiveBCEditor;
+                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+                  IDYES: MainAction('aDPostObject').Execute();
+                  IDCANCEL: CanClose := False;
+                end;
+              end;
+        end;
+      end;
+
+  if (CanClose) then
+    for View in [vEditor, vEditor2, vEditor3] do
+      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
+      begin
+        Self.View := View;
+        Window.ActiveControl := ActiveBCEditor;
+        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+          IDYES: SaveSQLFile(MainAction('aFSave'));
+          IDCANCEL: CanClose := False;
+        end;
+      end;
+
+  for I := 0 to Session.Databases.Count - 1 do
+    if (CanClose) then
+    begin
+      if (not Assigned(Session.Databases[I])) then
+        raise ERangeError.Create(SRangeError);
+      if (not Assigned(Desktop(Session.Databases[I]))) then
+        raise ERangeError.Create('Database: ' + Session.Databases[I].Name);
+
+      Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
+    end;
+
+  if (not CanClose) then
+    Msg.Result := 0
+  else
+    Msg.Result := 1;
 end;
 
 procedure TFSession.UMFrameDeactivate(var Msg: TMessage);

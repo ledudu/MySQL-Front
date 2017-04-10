@@ -664,6 +664,7 @@ begin
   Result := Result and (Item^.Location.UnitName <> 'EAppType')
     and (Item^.Location.UnitName <> 'EAppVCL')
     and (Item^.Location.UnitName <> 'EDialog')
+    and (Item^.Location.UnitName <> 'EDialogWinAPI')
     and (Item^.Location.UnitName <> 'EDialogWinAPIMSClassic')
     and (Item^.Location.UnitName <> 'EExceptionManager')
     and (Item^.Location.UnitName <> 'EThreadsManager')

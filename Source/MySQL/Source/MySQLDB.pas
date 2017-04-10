@@ -3124,7 +3124,7 @@ begin
                 ssReady:
                   if ((SynchronCount > 0) and (SyncThread.Mode = smSQL) and not InOnResult) then
                   begin
-                    DebugMonitor.Append('SyncThreadExecuted: S 2', ttDebug);
+                    DebugMonitor.Append('SyncThreadExecuted: S 2 - State: ' + IntToStr(Ord(SyncThread.Mode)), ttDebug);
                     SyncThreadExecuted.SetEvent();
                   end;
               end;
@@ -3593,7 +3593,7 @@ begin
       SyncHandledResult(SyncThread);
     end
     else
-      SyncThread.State := ssResult;
+      SyncThread.State := ssAfterExecute;
   end
   else
   begin
@@ -6020,6 +6020,7 @@ constructor TMySQLDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+  DeleteBookmarks := nil;
   DeleteByWhereClause := False;
   FCanModify := False;
   FCommandType := ctQuery;
@@ -6075,6 +6076,8 @@ begin
   DeleteBookmarks := @Bookmarks;
 
   Delete();
+
+  DeleteBookmarks := nil;
 end;
 
 procedure TMySQLDataSet.DeleteAll();
@@ -7646,7 +7649,7 @@ begin
       Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + WhereClause;
     Connection.SQLParser.Clear();
   end
-  else if (Length(DeleteBookmarks^) = 0) then
+  else if (not Assigned(DeleteBookmarks)) then
     Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ' + SQLWhereClause()
   else
   begin
