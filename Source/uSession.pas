@@ -2136,8 +2136,6 @@ end;
 
 function TSEntities.IndexByName(const Name: string): Integer;
 begin
-  Assert(Valid);
-
   Result := inherited;
 end;
 
