@@ -231,11 +231,6 @@ object DServer: TDServer
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
-        Minimap.Font.Charset = DEFAULT_CHARSET
-        Minimap.Font.Color = clWindowText
-        Minimap.Font.Height = -1
-        Minimap.Font.Name = 'Courier New'
-        Minimap.Font.Style = []
         ReadOnly = True
         RightMargin.Visible = False
         Scroll.Options = [soPastEndOfLine, soWheelClickMove]

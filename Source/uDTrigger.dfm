@@ -47,6 +47,10 @@ object DTrigger: TDTrigger
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -110,6 +114,7 @@ object DTrigger: TDTrigger
           Width = 173
           Height = 41
           BevelOuter = bvNone
+          ParentBackground = False
           TabOrder = 1
           object FBefore: TRadioButton
             Left = 0
@@ -137,6 +142,7 @@ object DTrigger: TDTrigger
           Width = 173
           Height = 57
           BevelOuter = bvNone
+          ParentBackground = False
           TabOrder = 2
           object FInsert: TRadioButton
             Left = 0
@@ -216,11 +222,6 @@ object DTrigger: TDTrigger
           LeftMargin.Marks.Visible = False
           LeftMargin.MarksPanel.Visible = False
           LeftMargin.Width = 21
-          Minimap.Font.Charset = DEFAULT_CHARSET
-          Minimap.Font.Color = clWindowText
-          Minimap.Font.Height = -1
-          Minimap.Font.Name = 'Courier New'
-          Minimap.Font.Style = []
           RightMargin.Visible = False
           Scroll.Options = [soPastEndOfLine, soWheelClickMove]
           SyncEdit.Enabled = False
@@ -240,6 +241,10 @@ object DTrigger: TDTrigger
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -302,6 +307,10 @@ object DTrigger: TDTrigger
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -352,11 +361,6 @@ object DTrigger: TDTrigger
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
-        Minimap.Font.Charset = DEFAULT_CHARSET
-        Minimap.Font.Color = clWindowText
-        Minimap.Font.Height = -1
-        Minimap.Font.Name = 'Courier New'
-        Minimap.Font.Style = []
         ReadOnly = True
         RightMargin.Visible = False
         Scroll.Options = [soPastEndOfLine, soWheelClickMove]

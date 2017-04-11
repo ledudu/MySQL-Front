@@ -3593,7 +3593,7 @@ begin
       SyncHandledResult(SyncThread);
     end
     else
-      SyncThread.State := ssAfterExecute;
+      SyncThread.State := ssResult;
   end
   else
   begin

@@ -2136,6 +2136,8 @@ end;
 
 function TSEntities.IndexByName(const Name: string): Integer;
 begin
+  Assert(Valid);
+
   Result := inherited;
 end;
 
@@ -9121,6 +9123,8 @@ begin
   DeleteList.Free();
 
   Result := inherited;
+  if (not Valid and Filtered) then
+    FValid := DataSet.CommandText + ';' = Trim(SQLGetItems());
 
   Found := True;
   if (Filtered) then

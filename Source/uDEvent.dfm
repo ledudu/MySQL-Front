@@ -254,11 +254,6 @@ object DEvent: TDEvent
           LeftMargin.Marks.Visible = False
           LeftMargin.MarksPanel.Visible = False
           LeftMargin.Width = 21
-          Minimap.Font.Charset = DEFAULT_CHARSET
-          Minimap.Font.Color = clWindowText
-          Minimap.Font.Height = -1
-          Minimap.Font.Name = 'Courier New'
-          Minimap.Font.Style = []
           RightMargin.Visible = False
           Scroll.Options = [soPastEndOfLine, soWheelClickMove]
           SyncEdit.Enabled = False
@@ -644,6 +639,10 @@ object DEvent: TDEvent
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -694,11 +693,6 @@ object DEvent: TDEvent
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
-        Minimap.Font.Charset = DEFAULT_CHARSET
-        Minimap.Font.Color = clWindowText
-        Minimap.Font.Height = -1
-        Minimap.Font.Name = 'Courier New'
-        Minimap.Font.Style = []
         ReadOnly = True
         RightMargin.Visible = False
         Scroll.Options = [soPastEndOfLine, soWheelClickMove]

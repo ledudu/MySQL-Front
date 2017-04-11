@@ -1700,7 +1700,7 @@ var
   TablesXML: IXMLNode;
 begin
   TablesXML := XMLNode(XML, 'tables');
-  if (Assigned(TablesXML)) then
+  if (Assigned(TablesXML) and Database.Tables.Valid) then
     for I := TablesXML.ChildNodes.Count - 1 downto 0 do
       if ((TablesXML.ChildNodes[I].NodeName = 'table') and not Assigned(Database.TableByName(TablesXML.ChildNodes[I].Attributes['name']))) then
         TablesXML.ChildNodes.Delete(I);
@@ -6977,7 +6977,7 @@ begin
   if (Assigned(Session.Account.DesktopXML)) then
   begin
     DatabasesXML := XMLNode(Session.Account.DesktopXML, 'browser/databases');
-    if (Assigned(DatabasesXML)) then
+    if (Assigned(DatabasesXML) and Session.Databases.Valid) then
       for I := DatabasesXML.ChildNodes.Count - 1 downto 0 do
         if ((DatabasesXML.ChildNodes[I].NodeName = 'database') and not Assigned(Session.DatabaseByName(DatabasesXML.ChildNodes[I].Attributes['name']))) then
           DatabasesXML.ChildNodes.Delete(I);
@@ -8665,7 +8665,8 @@ begin
       Node := Node.getNextSibling();
 
     // Debug 2017-04-10
-    Assert(Assigned(Node));
+    Assert(Assigned(Node),
+      'Count: ' + IntToStr(FNavigator.Items.Count));
 
     FNavigator.Items.BeginUpdate();
 
@@ -12383,8 +12384,18 @@ begin
           MainAction('aDEditForeignKey').Enabled := MainAction('aDEditForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
           MainAction('aDEditTrigger').Enabled := MainAction('aDEditTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
           MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiBaseField]);
-          aDDelete.Enabled := aDDelete.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiTrigger, iiEvent, iiKey, iiBaseField, iiVirtualField, iiForeignKey, iiUser]);
         end;
+
+      aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
+        or MainAction('aDDeleteTable').Enabled
+        or MainAction('aDDeleteView').Enabled
+        or MainAction('aDDeleteRoutine').Enabled
+        or MainAction('aDDeleteEvent').Enabled
+        or MainAction('aDDeleteKey').Enabled
+        or MainAction('aDDeleteField').Enabled
+        or MainAction('aDDeleteForeignKey').Enabled
+        or MainAction('aDDeleteTrigger').Enabled
+        or MainAction('aDDeleteProcess').Enabled;
     end
     else if (View = vObjects) then
     begin
