@@ -2284,7 +2284,11 @@ begin
               if (FileExists(Directory + Name + ' (4)' + Ext)) then
               begin
                 if (FileExists(Directory + Name + ' (5)' + Ext)) then
-                  DeleteFile(Directory + Name + ' (5)' + Ext);
+                begin
+                  if (FileExists(Directory + Name + ' (6)' + Ext)) then
+                    DeleteFile(Directory + Name + ' (6)' + Ext);
+                  MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (6)' + Ext));
+                end;
                 MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
               end;
               MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
@@ -2314,7 +2318,11 @@ begin
         begin
           MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
           if (FileExists(Directory + Name + ' (5)' + Ext)) then
+          begin
             MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
+            if (FileExists(Directory + Name + ' (6)' + Ext)) then
+              MoveFile(PChar(Directory + Name + ' (6)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
+          end;
         end;
       end;
     end;

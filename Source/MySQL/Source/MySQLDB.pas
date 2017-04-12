@@ -6541,7 +6541,7 @@ begin
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end
-    else if (Length(DeleteBookmarks^) = 0) then
+    else if (not Assigned(DeleteBookmarks)) then
     begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);

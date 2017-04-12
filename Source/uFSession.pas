@@ -1502,10 +1502,13 @@ begin
         on E: Exception do
           E.RaiseOuterException(EAssertionFailed.Create(
             'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
+            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
             + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
             + 'Len: ' + IntToStr(Len) + #13#10
             + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
             + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
+            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
             + E.ClassName + ':' + #13#10
             + E.Message));
       end;
@@ -1516,15 +1519,17 @@ begin
         on E: Exception do
           E.RaiseOuterException(EAssertionFailed.Create(
             'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
-            + 'SelStart: ' + IntToStr(FBCEditor.SelStart) + #13#10
+            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
             + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
             + 'Len: ' + IntToStr(Len) + #13#10
             + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
             + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
+            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
             + E.ClassName + ':' + #13#10
             + E.Message));
       end;
-    end
+    end;
   end
   else
   begin
@@ -4586,6 +4591,9 @@ begin
             ciView,
             CiSystemView:
               begin
+                // Debug 2017-04-11
+                Assert(Assigned(CurrentData), 'Address: ' + CurrentAddress);
+
                 TSTable(CurrentData).Invalidate();
 
                 if ((TSTable(CurrentData) is TSBaseTable) and

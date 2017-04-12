@@ -119,7 +119,6 @@ type
   public
     procedure Clear(); override;
     constructor Create(const ASession: TSSession);
-    function IndexByName(const Name: string): Integer; override;
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
     function Update(): Boolean; overload; virtual;
@@ -2132,13 +2131,6 @@ end;
 function TSEntities.GetValid(): Boolean;
 begin
   Result := FValid;
-end;
-
-function TSEntities.IndexByName(const Name: string): Integer;
-begin
-  Assert(Valid);
-
-  Result := inherited;
 end;
 
 procedure TSEntities.Invalidate();
@@ -5708,15 +5700,15 @@ begin
     end;
 
     if (not Filtered) then
+      FValid := True;
+
+    if (not Filtered) then
       while (DeleteList.Count > 0) do
       begin
         Delete(DeleteList.Items[0]);
         DeleteList.Delete(0);
       end;
     DeleteList.Free();
-
-    if (not Filtered) then
-      FValid := True;
 
     Session.SendEvent(etItemsValid, Session, Session.Databases);
     Session.SendEvent(etItemsValid, Database, Self);
@@ -5835,15 +5827,15 @@ begin
       until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
     if (not Filtered) then
+      FValid := True;
+
+    if (not Filtered) then
       while (DeleteList.Count > 0) do
       begin
         Delete(DeleteList.Items[0]);
         DeleteList.Delete(0);
       end;
     DeleteList.Free();
-
-    if (not Filtered) then
-      FValid := True;
 
     Session.SendEvent(etItemsValid, Session, Session.Databases);
     if (Database.Valid) then
@@ -6712,6 +6704,8 @@ begin
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
   end;
 
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -6728,8 +6722,6 @@ begin
   else
     Session.SendEvent(etItemsValid, Session, Session.Databases);
   Session.SendEvent(etItemsValid, Database, Self);
-
-  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -7124,6 +7116,8 @@ begin
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
+  Result := inherited;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -7139,8 +7133,6 @@ begin
     Session.SendEvent(etItemValid, Database, Self, Item)
   else
     Session.SendEvent(etItemsValid, Database, Self);
-
-  Result := inherited;
 end;
 
 function TSTriggers.GetTrigger(Index: Integer): TSTrigger;
@@ -7399,6 +7391,8 @@ begin
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -7414,8 +7408,6 @@ begin
     Session.SendEvent(etItemsValid, Database, Self, Item)
   else
     Session.SendEvent(etItemsValid, Database, Self);
-
-  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
 
 function TSEvents.GetEvent(Index: Integer): TSEvent;
@@ -9114,6 +9106,19 @@ begin
     end;
   end;
 
+  Result := inherited;
+  if (not Valid and Filtered) then
+    FValid := DataSet.CommandText + ';' = Trim(SQLGetItems());
+
+  if (Filtered) then
+  begin
+    Found := True;
+    for I := 0 to Length(DatabaseNames) - 1 do
+      Found := Found and (IndexByName(DatabaseNames[I]) >= 0);
+
+    FValid := FValid or Found;
+  end;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9121,19 +9126,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited;
-  if (not Valid and Filtered) then
-    FValid := DataSet.CommandText + ';' = Trim(SQLGetItems());
-
-  Found := True;
-  if (Filtered) then
-  begin
-    for I := 0 to Length(DatabaseNames) - 1 do
-      Found := Found and (IndexByName(DatabaseNames[I]) >= 0);
-
-    FValid := FValid or Found;
-  end;
 
   Session.SendEvent(etItemsValid, Session, Self);
   if (DataSet.RecordCount = 1) then
@@ -9345,6 +9337,8 @@ begin
         ItemSearch.Add(Item);
     until (not DataSet.FindNext());
 
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE);
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9352,8 +9346,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE);
 
   if (Valid) then
   begin
@@ -9416,6 +9408,8 @@ begin
       if (Assigned(Session.VariableByName('storage_engine'))) then
         for I := 0 to Session.Engines.Count - 1 do
           Session.Engines[I].FDefault := StrIComp(PChar(Session.Engines[I].Name), PChar(Session.VariableByName('storage_engine').Value)) = 0;
+
+      Session.Engines.FValid := True;
     end;
   end;
 
@@ -9573,6 +9567,8 @@ begin
       end;
     until (not DataSet.FindNext());
 
+  Result := inherited;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9580,8 +9576,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited;
 
   if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
@@ -9661,6 +9655,8 @@ begin
         Plugin[Index].FComment := DataSet.FieldByName('PLUGIN_DESCRIPTION').AsString;
     until (not DataSet.FindNext());
 
+  Result := inherited;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9668,8 +9664,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited;
 
   if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
@@ -9917,6 +9911,8 @@ begin
       end;
     until (not DataSet.FindNext());
 
+  Result := inherited;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9924,8 +9920,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited;
 
   if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
@@ -10008,6 +10002,8 @@ begin
       end;
     until (not DataSet.FindNext());
 
+  Result := inherited;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -10015,8 +10011,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited;
 
   if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
@@ -10158,6 +10152,8 @@ begin
         ItemSearch.Add(Item);
     until (not DataSet.FindNext());
 
+  Result := inherited;
+
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -10165,8 +10161,6 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
-
-  Result := inherited;
 
   Session.SendEvent(etItemsValid, Session, Self);
   if (DataSet.RecordCount = 1) then
@@ -11826,9 +11820,9 @@ begin
       if (Assigned(Databases[I].Events)) then
         Databases[I].Events.FValid := True;
 
-  SendEvent(etItemsValid, Self, Databases);
-
   Result := (Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Connection.ErrorCode = ER_EVENTS_DB_ERROR);
+
+  SendEvent(etItemsValid, Self, Databases);
 end;
 
 function TSSession.BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
@@ -11850,9 +11844,9 @@ begin
       if (Assigned(Databases[I].Routines)) then
         Databases[I].Routines.FValid := True;
 
-  SendEvent(etItemsValid, Self, Databases);
-
   Result := False;
+
+  SendEvent(etItemsValid, Self, Databases);
 end;
 
 function TSSession.BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
@@ -11873,9 +11867,9 @@ begin
     for I := 0 to Databases.Count - 1 do
       Databases[I].Tables.FValid := True;
 
-  SendEvent(etItemsValid, Self, Databases);
-
   Result := False;
+
+  SendEvent(etItemsValid, Self, Databases);
 end;
 
 function TSSession.BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
@@ -11897,9 +11891,9 @@ begin
       if (Assigned(Databases[I].Triggers)) then
         Databases[I].Triggers.FValid := True;
 
-  SendEvent(etItemsValid, Self, Databases);
-
   Result := False;
+
+  SendEvent(etItemsValid, Self, Databases);
 end;
 
 procedure TSSession.BuildManualURL(const DataSet: TMySQLQuery);

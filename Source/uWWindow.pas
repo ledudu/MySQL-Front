@@ -338,8 +338,10 @@ type
     procedure aFCloseExecute(Sender: TObject);
     procedure aFExitExecute(Sender: TObject);
     procedure aFOpenAccountExecute(Sender: TObject);
+    procedure aHDowndateExecute(Sender: TObject);
     procedure aHIndexExecute(Sender: TObject);
     procedure aHInfoExecute(Sender: TObject);
+    procedure aHSupportExecute(Sender: TObject);
     procedure aHUpdateExecute(Sender: TObject);
     procedure aOGlobalsExecute(Sender: TObject);
     procedure aOAccountsExecute(Sender: TObject);
@@ -372,8 +374,6 @@ type
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
-    procedure aHSupportExecute(Sender: TObject);
-    procedure aHDowndateExecute(Sender: TObject);
   const
     tiEmptyWorkingMem = 1;
     tiFormDeactivated = 2;
@@ -1439,6 +1439,13 @@ procedure TWWindow.UMAddTab(var Message: TMessage);
 var
   FSession: TFSession;
 begin
+  if (MsgBoxCheck('Hi, I''m Nils, the developer of MySQL-Front.' + #10#10
+    + 'I don''t know, why I should offer further updates of this software. '
+    + 'Do you want to explain it to me?',
+    'Question', MB_ICONQUESTION + MB_YESNOCANCEL,
+    ID_NO, '{46aa8b98-74ae-4c10-9b64-ceded123b3d4}') = ID_YES) then
+    ShellExecute(Handle, 'open', 'http://www.mysqlfront.de/why.html', '', '', SW_SHOW);
+
   DAccounts.Open := True;
   DAccounts.Account := nil;
   DAccounts.Session := nil;

@@ -18714,7 +18714,9 @@ begin
               else
                 Nodes.Ident := ParseDbIdentToken(True);
             end;
-          end;
+          end
+          else
+            Nodes.Ident := 0;
         end;
     end;
 
