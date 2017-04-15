@@ -826,6 +826,7 @@ var
 begin
   Wanted.Node := nil;
   Wanted.Page := nil;
+  TSExecute.Enabled := False;
 
   if (FSource.Items.Count = 0) then
   begin

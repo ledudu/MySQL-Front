@@ -18959,6 +18959,7 @@ begin
       begin
         PDbIdent(Ident)^.FDbIdentType := ditCompoundVariable;
         Parse.Idents.Add(PDbIdent(PList(NodePtr(IdentList))^.FirstElement)^.Nodes.Ident);
+        Ident := PList(NodePtr(IdentList))^.GetNextElement(Ident);
       end;
 
       Nodes.IdentList := IdentList;
@@ -21919,7 +21920,7 @@ function TSQLParser.ParseRoutineParamIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditRoutineParam, False);
 
-  Parse.Idents.Add(Result);
+  Parse.Idents.Add(PDbIdent(NodePtr(Result))^.Nodes.Ident);
 end;
 
 function TSQLParser.ParseSavepointIdent(): TOffset;

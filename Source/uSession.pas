@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows,
-  SysUtils, Classes, SyncObjs,
+  SysUtils, Classes, SyncObjs, Generics.Collections,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
   BCEditor.Editor, BCEditor.Highlighter,
@@ -1531,11 +1531,11 @@ type
       constructor Create(const ASession: TSSession);
     end;
 
-    TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
-    TEventProc = procedure (const AEvent: TSSession.TEvent) of object;
-    TUpdate = function (): Boolean of object;
+    TCreateDesktop = function(const CObject: TSObject): TSObject.TDesktop of object;
+    TEventProc = procedure(const AEvent: TSSession.TEvent) of object;
+    TUpdate = function(): Boolean of object;
   strict private
-    EventProcs: array of TEventProc;
+    EventProcs: TList<TEventProc>;
     FAccount: TPAccount;
     FCharsets: TSCharsets;
     FSessions: TSSessions;
@@ -10033,26 +10033,18 @@ end;
 
 constructor TSProcess.Create(const ASItems: TSItems; const AName: string = '');
 begin
-  // Debug 2016-12-03
-  if (AName = '') then
-    raise ERangeError.Create(SRangeError);
-
   inherited;
 
-  // Debug 2016-12-03
-  if (Name = '') then
-    raise ERangeError.Create(SRangeError);
+  // Debug 2017-04-12
+  Assert(Name <> '');
 end;
 
 function TSProcess.GetThreadId(): Longword;
 begin
-  // Debug 2016-12-21
-  if (not Assigned(Self)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Self) is TSProcess)) then
-    raise ERangeError.Create(SRangeError);
-  if (Name = '') then
-    raise ERangeError.Create(SRangeError);
+  // Debug 2017-04-12
+  Assert(Assigned(Self));
+  Assert(Self is TSProcess);
+  Assert(Name <> '');
 
   Result := StrToUInt64(Name);
 end;
@@ -12025,7 +12017,7 @@ begin
   Sessions.Add(Self);
 
 
-  SetLength(EventProcs, 0);
+  EventProcs := TList<TEventProc>.Create();
   FCurrentUser := '';
   FInformationSchema := nil;
   FItemSearches := TSItemSearches.Create();
@@ -12316,7 +12308,7 @@ begin
   Connection.UnRegisterClient(Self);
   if (Assigned(Account)) then Account.UnRegisterSession(Self);
 
-  SetLength(EventProcs, 0);
+  EventProcs.Free();
 
   if (Assigned(FCharsets)) then FCharsets.Free();
   if (Assigned(FCollations)) then FCollations.Free();
@@ -12362,7 +12354,7 @@ procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
 begin
-  for I := 0 to Length(EventProcs) - 1 do
+  for I := 0 to EventProcs.Count - 1 do
     EventProcs[I](AEvent);
 end;
 
@@ -13201,15 +13193,12 @@ var
   Index: Integer;
 begin
   Index := -1;
-  for I := 0 to Length(EventProcs) - 1 do
-    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+  for I := 0 to EventProcs.Count - 1 do
+    if (CompareMem(@TMethod(EventProcs.List[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
       Index := I;
 
   if (Index < 0) then
-  begin
-    SetLength(EventProcs, Length(EventProcs) + 1);
-    EventProcs[Length(EventProcs) - 1] := AEventProc;
-  end;
+    EventProcs.Add(AEventProc);
 end;
 
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil);
@@ -13600,16 +13589,12 @@ var
   Index: Integer;
 begin
   Index := -1;
-  for I := 0 to Length(EventProcs) - 1 do
-    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+  for I := 0 to EventProcs.Count - 1 do
+    if (CompareMem(@TMethod(EventProcs.List[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
       Index := I;
 
   if (Index >= 0) then
-  begin
-    if (Index + 1 < Length(EventProcs)) then
-      MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
-    SetLength(EventProcs, Length(EventProcs) - 1);
-  end;
+    EventProcs.Delete(Index);
 end;
 
 function TSSession.Update(): Boolean;

@@ -1519,6 +1519,7 @@ begin
         on E: Exception do
           E.RaiseOuterException(EAssertionFailed.Create(
             'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
+            + 'SelStart: ' + IntToStr(FBCEditor.SelStart) + #13#10
             + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
             + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
             + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
@@ -4572,6 +4573,7 @@ procedure TFSession.aVRefreshExecute(Sender: TObject);
 var
   AllowRefresh: Boolean;
   List: TList;
+  Progress: string;
 begin
   if (GetKeyState(VK_SHIFT) < 0) then
     aVRefreshAllExecute(Sender)
@@ -4644,11 +4646,18 @@ begin
                   ActiveDBGrid.DataSource.DataSet.Resync([]);
                 except
                   on E: Exception do
-                    E.RaiseOuterException(EAssertionFailed.Create(
-                      'ActiveDBGrid: ' + BoolToStr(Assigned(ActiveDBGrid), True) + #13#10
-                      + 'DataSource: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource), True) + #13#10
-                      + 'DataSet: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet), True) + #13#10
-                      + E.ClassName + ':' + #13#10 + E.Message));
+                    begin
+                      if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
+                        Progress := TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Progress;
+
+                      E.RaiseOuterException(EAssertionFailed.Create(
+                        'ActiveDBGrid: ' + BoolToStr(Assigned(ActiveDBGrid), True) + #13#10
+                        + 'DataSource: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource), True) + #13#10
+                        + 'DataSet: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet), True) + #13#10
+                        + 'CommandText: ' + LeftStr(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText, 100) + #13#10
+                        + 'Progress: ' + Progress + #13#10
+                        + E.ClassName + ':' + #13#10 + E.Message));
+                    end;
                 end;
 
                 ActiveDBGrid.DataSource.DataSet.Refresh();

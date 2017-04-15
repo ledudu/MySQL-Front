@@ -1716,11 +1716,12 @@ begin
       begin
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
 
+        // Debug 2017-04-12
         if (not Assigned(Table)) then
-          raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.' + #13#10
+          raise EAssertionFailed.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.' + #13#10
             + 'Structure: ' + BoolToStr(Structure, True));
 
-        ExecuteTableData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
+        ExecuteTableData(TTImport.TItem(Items[I]), Table);
       end;
 
       Items[I].Done := True;
@@ -4301,7 +4302,6 @@ var
   IndexDefs: TIndexDefs;
   SQL: string;
   Table: TSTable;
-  Progress: string; // Debug 2017-03-15
 begin
   Table := TSTable(Item.DBObject);
 
@@ -4310,16 +4310,11 @@ begin
   else
   begin
     DataSet := TMySQLQuery.Create(nil);
-    Progress := Progress + 'a';
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
-      Progress := Progress + 'b';
       DataSet.Open(ResultHandle^);
       if (not DataSet.Active) then
-      begin
-        Progress := Progress + 'c';
         DoError(DatabaseError(Session), Item, False, SQL);
-      end;
     end;
 
     if (Success = daSuccess) then
@@ -4362,25 +4357,7 @@ begin
     Item.RecordsSum := Item.RecordsDone;
 
   if (Assigned(DataSet)) then
-  begin
-    Progress := Progress + 'd';
     DataSet.Free();
-  end;
-
-  // Debug 2017-03-02
-  Assert(not Data
-    or not Assigned(ResultHandle)
-    or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState in [ssFirst, ssNext, ssAfterExecute]),
-    'Success: ' + IntToStr(Ord(Success)) + #13#10
-    + 'Progress: ' + Progress + #13#10
-    + 'Data: ' + BoolToStr(Data, True) + #13#10
-    + 'DataSet: ' + BoolToStr(Assigned(DataSet), True) + #13#10
-    + 'DataSet.State: ' + IntToStr(Ord(DataSet.State)) + #13#10
-    + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
-    + 'DebugResHandle: ' + BoolToStr(Assigned(ResultHandle.SyncThread.DebugResHandle), True) + #13#10
-    + 'ErrorCode: ' + IntToStr(Session.Connection.ErrorCode) + #13#10
-    + 'ErrorMessage: ' + Session.Connection.ErrorMessage);
 
   if ((Table is TSBaseTable) and not (Self is TTExportSQL)) then
     for I := 0 to TSBaseTable(Table).TriggerCount - 1 do

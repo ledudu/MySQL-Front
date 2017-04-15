@@ -719,7 +719,7 @@ begin
   FLEntiered.Left := GProgress.ClientWidth - FLProgressObjects.Left - FLEntiered.Width;
   FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FLDone.Width;
   FEntieredObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredObjects.Width;
-  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
+  FDoneObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
   FEntieredRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredRecords.Width;
   FDoneRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneRecords.Width;
   FEntieredTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredTime.Width;
