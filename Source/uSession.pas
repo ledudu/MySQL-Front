@@ -2197,6 +2197,7 @@ begin
 
   Result := False;
 
+  {$IFDEF EurekaLog}
   if ((GetUTCTime() <= IncDay(GetCompileTime(), 7)) and (SQL <> '')) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
@@ -2206,6 +2207,7 @@ begin
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
+  {$ENDIF}
 end;
 
 constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
@@ -12329,6 +12331,8 @@ begin
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
   SQLParser.Free();
+
+  {$IFDEF EurekaLog}
   if (UnparsableSQL <> '') then
   begin
     if (Connection.AnsiQuotes) then
@@ -12344,6 +12348,7 @@ begin
         + UnparsableSQL;
     SendToDeveloper(UnparsableSQL, 7, True);
   end;
+  {$ENDIF}
 
   FConnection.Free();
 
@@ -12669,6 +12674,7 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
+  {$IFDEF EurekaLog}
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
@@ -12691,6 +12697,7 @@ begin
       SQLParser.Clear();
     end;
   end;
+  {$ENDIF}
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
