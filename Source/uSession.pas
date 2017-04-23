@@ -2203,6 +2203,7 @@ begin
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# Build()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + '# Version: ' + IntToStr(Session.SQLParser.MySQLVersion) + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;

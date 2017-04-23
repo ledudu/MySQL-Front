@@ -2921,7 +2921,13 @@ begin
       end;
 
       if (SelectedDatabase <> '') then
+      begin
+        // Debug 2017-04-23
+        Assert(Assigned(FQueryBuilder));
+        Assert(Assigned(FQueryBuilder.MetadataContainer));
+
         FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
+      end;
 
       if (Window.ActiveControl = FNavigator) then
         try
@@ -3827,7 +3833,7 @@ begin
                          OPEN_EXISTING, 0, 0);
 
     if (Handle = INVALID_HANDLE_VALUE) then
-      RaiseLastOSError()
+      MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
     else
     begin
       FileSize := GetFileSize(Handle, @FileSizeHigh);

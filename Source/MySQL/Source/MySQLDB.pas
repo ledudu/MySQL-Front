@@ -2063,7 +2063,10 @@ begin
         if (not Terminated) then
           if ((Connection.SynchronCount > 0)
             and ((Mode = smSQL) or (State <> ssReceivingResult))) then
-            Connection.SyncThreadExecuted.SetEvent()
+          begin
+            Connection.SyncThreadExecuted.SetEvent();
+            Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end
           else
             MySQLConnectionOnSynchronize(Self);
         Connection.TerminateCS.Leave();
@@ -2665,12 +2668,24 @@ begin
     Result := False
   else if (SynchronCount > 0) then
   begin
+    // Debug 2017-03-24
+    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled,
+      'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
+      + DebugMonitor.CacheText);
+
     repeat
       Sync(SyncThread);
     until (not Assigned(SyncThread)
       or (SyncThread.State in [ssClose, ssResult, ssReady])
       or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
+
+    // Debug 2017-03-25
+    Assert(SyncThreadExecuted.WaitFor(IGNORE) <> wrSignaled,
+      'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
+      + 'Mode: ' + IntToStr(Ord(Mode)) + #13#10
+      + DebugMonitor.CacheText);
+
   end
   else
   begin
@@ -3028,14 +3043,12 @@ begin
 
   if (GetCurrentThreadId() <> MainThreadID) then
   begin
-    if (SynchronCount = 0) then
-      Write;
-
     DebugMonitor.Append('SyncT - start - Mode: ' + IntToStr(Ord(SyncThread.Mode)) + ', State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 
     BesideThreadWaits := True;
     MySQLConnectionOnSynchronize(SyncThread);
     SyncThreadExecuted.WaitFor(INFINITE);
+    DebugMonitor.Append('SyncThreadExecuted.Wait - 1 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
     BesideThreadWaits := False;
 
     DebugMonitor.Append('SyncT - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -3050,7 +3063,10 @@ begin
           SyncThread.State := ssConnecting;
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
+          begin
             SyncThreadExecuted.WaitFor(INFINITE);
+            DebugMonitor.Append('SyncThreadExecuted.Wait - 2 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
         end;
       ssConnecting:
         SyncConnected(SyncThread);
@@ -3061,7 +3077,10 @@ begin
           SyncExecute(SyncThread);
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
+          begin
             SyncThreadExecuted.WaitFor(INFINITE);
+            DebugMonitor.Append('SyncThreadExecuted.Wait - 3 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
         end;
       ssFirst,
       ssNext:
@@ -3069,7 +3088,10 @@ begin
           SyncExecute(SyncThread);
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
+          begin
             SyncThreadExecuted.WaitFor(INFINITE);
+            DebugMonitor.Append('SyncThreadExecuted.Wait - 4 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
         end;
       ssExecutingFirst,
       ssExecutingNext:
@@ -3089,13 +3111,19 @@ begin
                     SyncExecute(SyncThread);
                     SyncThread.RunExecute.SetEvent();
                     if ((SynchronCount > 0) and not BesideThreadWaits) then
+                    begin
                       SyncThreadExecuted.WaitFor(INFINITE);
+                      DebugMonitor.Append('SyncThreadExecuted.Wait - 5 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                    end;
                   end;
                 ssResult,
                 ssReceivingResult,
                 ssReady:
                   if ((SynchronCount > 0) and not InOnResult) then
+                  begin
                     SyncThreadExecuted.SetEvent();
+                    DebugMonitor.Append('SyncThreadExecuted.Set - 2 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                  end;
               end;
             smResultHandle:
               if (KillThreadId > 0) then
@@ -3111,7 +3139,10 @@ begin
 
           if ((SynchronCount > 0) and BesideThreadWaits
             and ((SyncThread.State in [ssReady]) or (SyncThread.Mode = smResultHandle))) then
+          begin
             SyncThreadExecuted.SetEvent();
+            DebugMonitor.Append('SyncThreadExecuted.Set - 3 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
         end;
       ssReceivingResult:
         begin
@@ -3131,16 +3162,25 @@ begin
                       SyncExecute(SyncThread);
                       SyncThread.RunExecute.SetEvent();
                       if ((SynchronCount > 0) and not BesideThreadWaits) then
+                      begin
                         SyncThreadExecuted.WaitFor(INFINITE);
+                        DebugMonitor.Append('SyncThreadExecuted.Wait - 6 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                      end;
                     end;
                   ssReceivingResult:
                     if (SynchronCount > 0) then
+                    begin
                       SyncThreadExecuted.SetEvent();
+                      DebugMonitor.Append('SyncThreadExecuted.Set - 4 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                    end;
                   ssAfterExecuteSQL:
                     begin
                       SyncAfterExecuteSQL(SyncThread);
                       if (BesideThreadWaits) then
+                      begin
                         SyncThreadExecuted.SetEvent();
+                        DebugMonitor.Append('SyncThreadExecuted.Set - 5 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                      end;
                     end;
                   ssReady: ; // Do nothing - and don't report a problem
                   else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
@@ -3149,7 +3189,10 @@ begin
                 case (SyncThread.State) of
                   ssNext,
                   ssAfterExecuteSQL:
-                    SyncThreadExecuted.SetEvent();
+                    begin
+                      SyncThreadExecuted.SetEvent();
+                      DebugMonitor.Append('SyncThreadExecuted.Set - 6 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                    end;
                   else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
                 end;
             end;
@@ -3159,7 +3202,10 @@ begin
           SyncThread.State := ssDisconnecting;
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
+          begin
             SyncThreadExecuted.WaitFor(INFINITE);
+            DebugMonitor.Append('SyncThreadExecuted.Wait - 7 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
         end;
       ssDisconnecting:
         SyncDisconnected(SyncThread);
@@ -3167,8 +3213,12 @@ begin
         begin
           SyncAfterExecuteSQL(SyncThread);
           if (BesideThreadWaits) then
+          begin
             SyncThreadExecuted.SetEvent();
+            DebugMonitor.Append('SyncThreadExecuted.Set - 7 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
         end;
+//      ssResult:
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
 
