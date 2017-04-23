@@ -943,14 +943,8 @@ end;
 
 function TWWindow.DBLogin(const Account: Pointer): Boolean;
 begin
-  DLogin.Username := TPAccount(Account).Connection.Username;
-  DLogin.Password := TPAccount(Account).Connection.Password;
+  DLogin.Account := TPAccount(Account);
   Result := DLogin.Execute();
-  if (Result) then
-  begin
-    TPAccount(Account).Connection.Username := DLogin.Username;
-    TPAccount(Account).Connection.Password := DLogin.Password;
-  end;
 end;
 
 destructor TWWindow.Destroy();

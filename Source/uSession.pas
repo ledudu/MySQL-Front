@@ -2197,7 +2197,6 @@ begin
 
   Result := False;
 
-  {$IFDEF EurekaLog}
   if ((GetUTCTime() <= IncDay(GetCompileTime(), 7)) and (SQL <> '')) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
@@ -2207,7 +2206,6 @@ begin
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
-  {$ENDIF}
 end;
 
 constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
@@ -2562,6 +2560,8 @@ begin
   Assert(Assigned(Source) and (Source is TSDBObject));
 
   inherited;
+
+  if (not Assigned(FDatabase)) then FDatabase := TSDBObject(Source).Database;
 
   if (TSDBObject(Source).Database <> Database) then
   begin
@@ -3941,8 +3941,6 @@ begin
 
 
   inherited Assign(Source);
-
-  if (not Assigned(FDatabase)) then FDatabase := Source.Database;
 
   if (Assigned(FDataSet)) then
     FreeAndNil(FDataSet);
@@ -6131,7 +6129,6 @@ begin
 
   Comment := Source.Comment;
   FCreated := Source.Created;
-  FDatabase := Source.Database;
   FDefiner := Source.Definer;
   if (Assigned(Source.FFunctionResult)) then
   begin
@@ -6746,7 +6743,6 @@ begin
   if (Assigned(Source.FDatabase)) then FDatabase := Source.FDatabase;
 
   FEvent := Source.Event;
-  FDatabase := Source.Database;
   FDatabaseName := Source.FDatabaseName;
   FDefiner := Source.Definer;
   FStmt := Source.Stmt;
@@ -8911,7 +8907,7 @@ begin
   SQL := SQL + Routines.SQLGetItems();
   SQL := SQL + NewRoutine.SQLGetSource();
 
-  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean;
@@ -8931,7 +8927,7 @@ begin
   SQL := SQL + Triggers.SQLGetItems();
   SQL := SQL + NewTrigger.SQLGetSource();
 
-  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateView(const View, NewView: TSView): Boolean;
@@ -8987,7 +8983,7 @@ begin
   if (Session.Connection.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.ViewByName(const TableName: string): TSView;
@@ -12331,8 +12327,6 @@ begin
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
   SQLParser.Free();
-
-  {$IFDEF EurekaLog}
   if (UnparsableSQL <> '') then
   begin
     if (Connection.AnsiQuotes) then
@@ -12348,7 +12342,6 @@ begin
         + UnparsableSQL;
     SendToDeveloper(UnparsableSQL, 7, True);
   end;
-  {$ENDIF}
 
   FConnection.Free();
 
@@ -12674,7 +12667,6 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-  {$IFDEF EurekaLog}
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
@@ -12697,7 +12689,6 @@ begin
       SQLParser.Clear();
     end;
   end;
-  {$ENDIF}
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
@@ -12999,8 +12990,10 @@ begin
             Table := Database.BaseTableByName(ObjectName);
             if (Assigned(Table) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             begin
+              // It's not possible to call Table.InvalidateData, since maybe
+              // we are inside TDataSet.Delete - and we can not close the
+              // DataSet while this
               TSBaseTable(Table).InvalidateStatus();
-              Table.InvalidateData();
               SendEvent(etItemValid, Database, Database.Tables, Table);
             end;
           end;
@@ -13450,8 +13443,11 @@ begin
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
         if (not DataSet.Active) then
+        begin
+          FUserRequested := True;
           Result := (ErrorCode = ER_NONEXISTING_GRANT) // There is no such grant defined for user
             or (ErrorCode = ER_OPTION_PREVENTS_STATEMENT) // The MySQL server is running with the --skip-grant-tables option
+        end
         else if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
           Result := BuildUser(DataSet)
         else

@@ -27,9 +27,7 @@ type
   private
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
-    Password: string;
     Account: TPAccount;
-    Username: string;
     function Execute(): Boolean;
   end;
 
@@ -79,28 +77,15 @@ procedure TDLogin.FormHide(Sender: TObject);
 begin
   if (ModalResult = mrOk) then
   begin
-    if (Assigned(Account)) then
-    begin
-      Account.Connection.Username := Trim(FUsername.Text);
-      Account.Connection.Password := Trim(FPassword.Text);
-    end;
-    Username := Trim(FUsername.Text);
-    Password := Trim(FPassword.Text);
+    Account.Connection.Username := Trim(FUsername.Text);
+    Account.Connection.Password := Trim(FPassword.Text);
   end;
 end;
 
 procedure TDLogin.FormShow(Sender: TObject);
 begin
-  if (not Assigned(Account)) then
-  begin
-    FUsername.Text := '';
-    FPassword.Text := '';
-  end
-  else
-  begin
-    FUsername.Text := Account.Connection.Username;
-    FPassword.Text := Account.Connection.Password;
-  end;
+  FUsername.Text := Account.Connection.Username;
+  FPassword.Text := Account.Connection.Password;
   FBSettings.Visible := Assigned(Account);
 
   ActiveControl := FBCancel;

@@ -538,7 +538,7 @@ begin
   FLEntiered.Left := GProgress.ClientWidth - FLProgressObjects.Left - FLEntiered.Width;
   FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FLDone.Width;
   FEntieredObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredObjects.Width;
-  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
+  FDoneObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
   FEntieredRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredRecords.Width;
   FDoneRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneRecords.Width;
   FEntieredTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredTime.Width;
@@ -574,7 +574,7 @@ var
     if (SkipAnswer = IDNO) then
       SkipAnswer := IDCANCEL;
 
-    if ((SkipAnswer <> IDCANCEL) and (OverrideAnswer <> IDYESALL)) then
+    if ((SkipAnswer <> IDCANCEL) and not (OverrideAnswer in [IDCANCEL, IDYESALL])) then
     begin
       DestinationDatabase := DestinationSession.DatabaseByName(DestinationDatabaseName);
       if (Assigned(DestinationDatabase)) then
@@ -675,6 +675,16 @@ begin
   end;
 
   if (not Assigned(Wanted.Page)) then
+    case (FDestination.Selected.ImageIndex) of
+      iiDatabase:
+        if (not TSDatabase(FDestination.Selected.Data).Update()) then
+          Wanted.Page := TSExecute;
+      iiBaseTable:
+        if (not TSBaseTable(FDestination.Selected.Data).Update()) then
+          Wanted.Page := TSExecute;
+    end;
+
+  if (not Assigned(Wanted.Page)) then
   begin
     List := TList.Create();
 
@@ -705,15 +715,8 @@ begin
         if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Events) < 0) then
           List.Add(TSDatabase(FDestination.Selected.Data).Events);
     end;
-    try
-      if (not DestinationSession.Update(List)) then
-        Wanted.Page := TSExecute;
-    except
-      on E: Exception do
-        raise EAssertionFailed.Create(E.Message + #13#10
-          + 'Source.ImageIndex: ' + IntToStr(FSource.Selected.ImageIndex) + #13#10
-          + 'Destination.ImageIndex: ' + IntToStr(FDestination.Selected.ImageIndex));
-    end;
+    if (not DestinationSession.Update(List)) then
+      Wanted.Page := TSExecute;
     List.Free();
   end;
 
@@ -774,7 +777,6 @@ begin
     begin
       Transfer.Free();
       Transfer := nil;
-      ModalResult := mrCancel;
     end
     else
     begin
@@ -802,7 +804,7 @@ begin
     SetControlCursor(GProgress, crDefault);
 
   CheckActivePageChange(TSExecute);
-  FBBack.Enabled := False;
+  FBBack.Enabled := not Assigned(Wanted.Page) and not Assigned(Transfer);
   ActiveControl := FBCancel;
 end;
 
@@ -1036,7 +1038,7 @@ begin
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
   FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(909) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
   FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';

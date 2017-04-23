@@ -8268,8 +8268,10 @@ begin
     Result := Parser.TokenPtr(Offset)^.Text
   else if (NodeType = ntRoot) then
     Result := Parser.Parse.SQL
+  else if (Parser.IsRange(Offset)) then
+    TSQLParser.PRange(@Self)^.Text
   else
-    TSQLParser.PRange(@Self)^.Text;
+    Assert(False);
 end;
 
 { TSQLParser.TChild ***********************************************************}
@@ -8563,8 +8565,15 @@ begin
 end;
 
 function TSQLParser.TRange.GetText(): string;
+var
+  FT: TSQLParser.PToken;
+  LT: TSQLParser.PToken;
 begin
-  SetString(Result, FirstToken^.FText, Integer(LastToken^.FText - FirstToken^.FText) + LastToken^.FLength);
+  // Why is this needed???
+  // Without this, the Result is invalid
+  FT := FirstToken;
+  LT := LastToken;
+  SetString(Result, FT^.FText, Integer(LT^.FText - FT^.FText) + LT^.FLength);
 end;
 
 { TSQLParser.TStmt ************************************************************}

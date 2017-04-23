@@ -8450,7 +8450,9 @@ begin
           Database := Session.DatabaseByName(DatabaseName);
           if (Assigned(Database) and (TItem(Items[I]).SObject = Database.TableByName(ObjectName))) then
             TItem(Items[I]).RecordsSum := DataSet.Fields[0].AsLargeInt;
-        end;
+        end
+      else
+        Assert(False);
       DataSet.Close();
 
       DoUpdateGUI();
@@ -8784,7 +8786,9 @@ begin
   begin
     DataSet.Open();
     if (Session.Connection.ErrorCode > 0) then
-      DoError(DatabaseError(Session), Item, True, SQL);
+      DoError(DatabaseError(Session), Item, True, SQL)
+    else
+      Assert(DataSet.Active);
   end;
 
   if ((Success = daSuccess) and not DataSet.IsEmpty()) then

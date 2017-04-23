@@ -9,7 +9,7 @@ SET BuildName=MySQL-Front
 SET BuildAWK=%ProgramFiles(x86)%\gawk\bin\gawk.exe
 SET BuildBRCC=%ProgramFiles(x86)%\Embarcadero\RAD Studio\11.0\bin\brcc32.exe
 SET BuildCompiler=%ProgramFiles(x86)%\Embarcadero\RAD Studio\11.0\bin\dcc32.exe
-SET BuildEurekaLog=%ProgramFiles(x86)%\Neos Eureka S.r.l\EurekaLog 7\Packages\Studio18\ecc32.exe_
+SET BuildEurekaLog=%ProgramFiles(x86)%\Neos Eureka S.r.l\EurekaLog 7\Packages\Studio18\ecc32.exe
 SET BuildHelpMan=%ProgramFiles(x86)%\HelpandManual4\HelpMan.exe
 SET BuildInnoSetup=%ProgramFiles(x86)%\Inno Setup 5\iscc.exe
 

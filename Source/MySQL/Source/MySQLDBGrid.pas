@@ -1455,7 +1455,7 @@ end;
 
 function TMySQLDBGrid.PasteText(const Text: string): Boolean;
 var
-  Bookmarks: array of TBookmark;
+  Bookmarks: TMySQLDataSet.TBookmarks;
   I: Integer;
   Index: Integer;
   RecNo: Integer;

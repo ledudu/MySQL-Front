@@ -66,7 +66,10 @@ begin
     ModalResult := mrOk
   else if (((Session.Connection.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR))
     and Assigned(Session.Account) and Accounts.DBLogin(Session.Account)) then
-    PostMessage(Handle, UM_POST_SHOW, 0, 0)
+    if (Assigned(Session.Account)) then
+      Session.Connection.Connect()
+    else
+      Session.Connection.Connect(LibraryType, LibraryName, Host, User, Password, Database, Port, True)
   else
     ModalResult := mrCancel;
 end;

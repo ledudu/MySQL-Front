@@ -1495,41 +1495,8 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      try
-        FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      except
-        // Debug 2017-04-06
-        on E: Exception do
-          E.RaiseOuterException(EAssertionFailed.Create(
-            'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
-            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-            + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
-            + 'Len: ' + IntToStr(Len) + #13#10
-            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
-            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
-            + E.ClassName + ':' + #13#10
-            + E.Message));
-      end;
-      try
-        FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
-      except
-        // Debug 2017-04-06
-        on E: Exception do
-          E.RaiseOuterException(EAssertionFailed.Create(
-            'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
-            + 'SelStart: ' + IntToStr(FBCEditor.SelStart) + #13#10
-            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-            + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
-            + 'Len: ' + IntToStr(Len) + #13#10
-            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
-            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
-            + E.ClassName + ':' + #13#10
-            + E.Message));
-      end;
+      FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end;
   end
   else
@@ -2776,7 +2743,7 @@ end;
 
 procedure TFSession.aDDeleteRecordExecute(Sender: TObject);
 var
-  Bookmarks: array of TBookmark;
+  Bookmarks: TMySQLDataSet.TBookmarks;
   I: Integer;
 begin
   Wanted.Clear();
@@ -8829,7 +8796,6 @@ begin
     MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
     MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
     MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-    MainAction('aDDeleteProcess').Enabled := False;
     MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
     MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
     MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
@@ -12356,8 +12322,6 @@ begin
       aFOpenInNewWindow.Enabled := mlOpen.Enabled;
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
 
-      aDDelete.Enabled := (ListView.SelCount >= 1);
-
       case (Item.ImageIndex) of
         iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
         iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
@@ -12394,6 +12358,7 @@ begin
           MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
           MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiBaseField, iiVirtualField]);
           MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
+          MainAction('aDDeleteUser').Enabled := MainAction('aDDeleteUser').Enabled and (ListView.Items[I].Data <> Session.User);
           MainAction('aDEditDatabase').Enabled := MainAction('aDEditDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
           MainAction('aDEditTable').Enabled := MainAction('aDEditTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
           MainAction('aDEditKey').Enabled := MainAction('aDEditKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
@@ -12412,7 +12377,8 @@ begin
         or MainAction('aDDeleteField').Enabled
         or MainAction('aDDeleteForeignKey').Enabled
         or MainAction('aDDeleteTrigger').Enabled
-        or MainAction('aDDeleteProcess').Enabled;
+        or MainAction('aDDeleteProcess').Enabled
+        or MainAction('aDDeleteUser').Enabled;
     end
     else if (View = vObjects) then
     begin

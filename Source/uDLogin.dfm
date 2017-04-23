@@ -78,7 +78,7 @@ object DLogin: TDLogin
     end
   end
   object FBSettings: TButton
-    Left = 6
+    Left = 8
     Top = 104
     Width = 81
     Height = 25

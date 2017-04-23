@@ -2581,7 +2581,7 @@ begin
     ptr := nil;
     Result := flocal_infile_init(@ptr, my_char(Filename), flocal_infile_userdata^) = 0;
     if (not Result) then
-      Seterror(flocal_infile_error(ptr, @ErrMsg, Length(ErrMsg)), AnsiStrings.StrPas(ErrMsg))
+      Seterror(flocal_infile_error(ptr, @ErrMsg[0], Length(ErrMsg)), AnsiStrings.StrPas(@ErrMsg[0]))
     else
     begin
       BufferSize := MaxFileBufferSize;
@@ -2601,7 +2601,7 @@ begin
           Result := Size >= 0;
 
           if (not Result) then
-            Seterror(flocal_infile_error(ptr, @ErrMsg, Length(ErrMsg)), AnsiStrings.StrPas(ErrMsg))
+            Seterror(flocal_infile_error(ptr, @ErrMsg[0], Length(ErrMsg)), AnsiStrings.StrPas(@ErrMsg[0]))
           else
           begin
             if ((GetPacketSize() > 0) and (GetPacketSize() + Size > 2 * NET_BUFFER_LENGTH)) then

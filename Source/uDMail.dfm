@@ -59,6 +59,7 @@ object DMail: TDMail
     Lines.Strings = (
       'FBody')
     ParentFont = False
+    ScrollBars = ssBoth
     TabOrder = 2
   end
   object FName: TEdit
