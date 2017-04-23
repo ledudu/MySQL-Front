@@ -9,7 +9,7 @@ SET CleanImagesPath=%CleanRootPath%\Images
 SET CleanImagesPureFlatPath=%CleanImagesPath%\PureFlat
 SET CleanSourcePath=%CleanRootPath%\Source
 SET ClearSourceBCEditorPath=%CleanSourcePath%\BCEditor
-SET ClearSourceBCEditorPath=%CleanSourcePath%\BCHexEditor
+SET ClearSourceBCHexEditorPath=%CleanSourcePath%\BCHexEditor
 SET ClearSourceFastMMPath=%CleanSourcePath%\FastMM
 SET ClearSourceMySQLPath=%CleanSourcePath%\MySQL
 SET ClearSourceQueryBuilderPath=%CleanSourcePath%\QueryBuilder
@@ -37,16 +37,13 @@ if not exist "%ClearSourceBCEditorPath%\Resource" MKDIR "%ClearSourceBCEditorPat
 if not exist "%ClearSourceBCEditorPath%\Bin" MKDIR "%ClearSourceBCEditorPath%\Bin"
 if not exist "%ClearSourceBCHexEditorPath%\Source" MKDIR "%ClearSourceBCHexEditorPath%\Source"
 if not exist "%ClearSourceBCHexEditorPath%\Resource" MKDIR "%ClearSourceBCHexEditorPath%\Resource"
-if not exist "%ClearSourceBCHexEditorPath%\Bin" MKDIR "%ClearSourceBCHexEditorPath%\Bin"
+if not exist "%ClearSourceBCHexEditorPath%\Bin" MKDIR "%ClearSourceBCHexEditorPath%\Bin2"
 if not exist "%ClearSourceQueryBuilderPath%\Source" MKDIR "%ClearSourceQueryBuilderPath%\Source"
 if not exist "%ClearSourceQueryBuilderPath%\Resource" MKDIR "%ClearSourceQueryBuilderPath%\Resource"
 if not exist "%ClearSourceQueryBuilderPath%\Bin" MKDIR "%ClearSourceQueryBuilderPath%\Bin"
 if not exist "%ClearSourceShellBrowserPath%\Source" MKDIR "%ClearSourceShellBrowserPath%\Source"
 if not exist "%ClearSourceShellBrowserPath%\Resource" MKDIR "%ClearSourceShellBrowserPath%\Resource"
 if not exist "%ClearSourceShellBrowserPath%\Bin" MKDIR "%ClearSourceShellBrowserPath%\Bin"
-if not exist "%ClearSourceSynEditPath%\Source" MKDIR "%ClearSourceSynEditPath%\Source"
-if not exist "%ClearSourceSynEditPath%\Resource" MKDIR "%ClearSourceSynEditPath%\Resource"
-if not exist "%ClearSourceSynEditPath%\Bin" MKDIR "%ClearSourceSynEditPath%\Bin"
 if not exist "%ClearSourceSynopsePDFPath%\Source" MKDIR "%ClearSourceSynopsePDFPath%\Source"
 if not exist "%ClearSourceSynopsePDFPath%\Resource" MKDIR "%ClearSourceSynopsePDFPath%\Resource"
 if not exist "%ClearSourceSynopsePDFPath%\Bin" MKDIR "%ClearSourceSynopsePDFPath%\Bin"

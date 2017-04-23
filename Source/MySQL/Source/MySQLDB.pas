@@ -3147,6 +3147,7 @@ begin
                 end;
               smResultHandle:
                 case (SyncThread.State) of
+                  ssNext,
                   ssAfterExecuteSQL:
                     SyncThreadExecuted.SetEvent();
                   else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
