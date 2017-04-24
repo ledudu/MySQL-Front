@@ -3119,7 +3119,7 @@ begin
                 ssResult,
                 ssReceivingResult,
                 ssReady:
-                  if ((SynchronCount > 0) and not InOnResult) then
+                  if (BesideThreadWaits and not InOnResult) then
                   begin
                     SyncThreadExecuted.SetEvent();
                     DebugMonitor.Append('SyncThreadExecuted.Set - 2 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -3137,7 +3137,7 @@ begin
           if (SyncThread.State = ssAfterExecuteSQL) then
             SyncAfterExecuteSQL(SyncThread);
 
-          if ((SynchronCount > 0) and BesideThreadWaits
+          if (BesideThreadWaits
             and ((SyncThread.State in [ssReady]) or (SyncThread.Mode = smResultHandle))) then
           begin
             SyncThreadExecuted.SetEvent();
@@ -3168,7 +3168,7 @@ begin
                       end;
                     end;
                   ssReceivingResult:
-                    if (SynchronCount > 0) then
+                    if (BesideThreadWaits) then
                     begin
                       SyncThreadExecuted.SetEvent();
                       DebugMonitor.Append('SyncThreadExecuted.Set - 4 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -3189,6 +3189,7 @@ begin
                 case (SyncThread.State) of
                   ssNext,
                   ssAfterExecuteSQL:
+                    if (BesideThreadWaits) then
                     begin
                       SyncThreadExecuted.SetEvent();
                       DebugMonitor.Append('SyncThreadExecuted.Set - 6 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -3456,7 +3457,7 @@ begin
   else
     SyncThread.State := ssReady;
 
-  if (not Assigned(SQLParser)) then
+  if (Connected) then
     FSQLParser := TSQLParser.Create(MySQLVersion);
 
   if (Connected) then
@@ -3488,6 +3489,9 @@ begin
 
   FThreadId := 0;
   FConnected := False;
+
+  FSQLParser.Free();
+  FSQLParser := nil;
 
   if (Assigned(SyncThread)) then
     SyncThread.State := ssClose;
@@ -7795,6 +7799,10 @@ var
   ValueHandled: Boolean;
 begin
   ExternRecordBuffer := PExternRecordBuffer(ActiveBuffer());
+
+  // Debug 2017-04-24
+  Assert(Assigned(ExternRecordBuffer));
+  Assert(Assigned(ExternRecordBuffer^.InternRecordBuffer));
 
   if (not Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData)) then
     Result := ''

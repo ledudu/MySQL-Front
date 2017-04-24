@@ -1495,8 +1495,40 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      try
+        FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      except
+        // Debug 2017-04-06
+        on E: Exception do
+          E.RaiseOuterException(EAssertionFailed.Create(
+            'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
+            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
+            + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
+            + 'Len: ' + IntToStr(Len) + #13#10
+            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
+            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
+            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
+            + E.ClassName + ':' + #13#10
+            + E.Message));
+      end;
+      try
+        FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      except
+        // Debug 2017-04-06
+        on E: Exception do
+          E.RaiseOuterException(EAssertionFailed.Create(
+            'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
+            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
+            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
+            + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
+            + 'Len: ' + IntToStr(Len) + #13#10
+            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
+            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
+            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
+            + E.ClassName + ':' + #13#10
+            + E.Message));
+      end;
     end;
   end
   else
@@ -8657,6 +8689,8 @@ begin
     // Debug 2017-04-10
     Assert(Assigned(Node),
       'Count: ' + IntToStr(FNavigator.Items.Count));
+    // In UMPostShow is an additional checking too. Remove it, if this problem
+    // is solved!
 
     FNavigator.Items.BeginUpdate();
 
@@ -16539,6 +16573,13 @@ begin
     Node.Data := Session.Variables;
     Node.ImageIndex := iiVariables;
   end;
+
+  // Debug 2017-04-24
+  Node := FNavigator.Items.getFirstNode();
+  while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
+    Node := Node.getNextSibling();
+  Assert(Assigned(Node),
+    'Count: ' + IntToStr(FNavigator.Items.Count));
 
   ServerNode.Expand(False);
 
