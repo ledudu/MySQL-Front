@@ -3490,8 +3490,11 @@ begin
   FThreadId := 0;
   FConnected := False;
 
-  FSQLParser.Free();
-  FSQLParser := nil;
+  if (Assigned(FSQLParser)) then
+  begin
+    FSQLParser.Free();
+    FSQLParser := nil;
+  end;
 
   if (Assigned(SyncThread)) then
     SyncThread.State := ssClose;

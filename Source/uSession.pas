@@ -12327,7 +12327,6 @@ begin
 
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
-  SQLParser.Free();
   if (UnparsableSQL <> '') then
   begin
     if (Connection.AnsiQuotes) then
