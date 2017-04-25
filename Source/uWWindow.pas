@@ -388,13 +388,14 @@ type
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
     FSessions: TList;
     MouseDownPoint: TPoint;
+    OnlineRecommendedUpdateFound: Boolean;
     PreviousForm: TForm;
     QuitAfterShow: Boolean;
     TabControlDragMarkedTabIndex: Integer;
     TabControlDragStartTabIndex: Integer;
     TabControlRepaint: TList;
     UniqueTabNameCounter: Integer;
-    OnlineRecommendedUpdateFound: Boolean;
+    UpdateStarted: Boolean;
     procedure ApplicationActivate(Sender: TObject);
     procedure ApplicationDeactivate(Sender: TObject);
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
@@ -784,14 +785,14 @@ begin
   begin
     PreviousForm := nil;
 
+    if (OnlineRecommendedUpdateFound) then
+    begin
+      OnlineRecommendedUpdateFound := False;
+      InformOnlineUpdateFound();
+    end;
+
     if (Screen.ActiveForm = Self) then
     begin
-      if (OnlineRecommendedUpdateFound) then
-      begin
-        OnlineRecommendedUpdateFound := False;
-        InformOnlineUpdateFound();
-      end;
-
       if (Assigned(ActiveTab)) then
         PostMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
     end;
@@ -981,6 +982,7 @@ begin
   OnlineRecommendedUpdateFound := False;
   QuitAfterShow := False;
   UniqueTabNameCounter := 0;
+  UpdateStarted := True;
 
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
@@ -1146,7 +1148,7 @@ end;
 procedure TWWindow.InformOnlineUpdateFound();
 begin
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(101), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
-    aHUpdate.Execute();
+    UpdateStarted := aHUpdate.Execute();
 end;
 
 procedure TWWindow.miFReopenClick(Sender: TObject);
@@ -1448,7 +1450,7 @@ begin
         DAccounts.Session := DConnecting.Session;
     end;
   end;
-  if (not Assigned(DAccounts.Session) and not DAccounts.Execute()) then
+  if (not Assigned(DAccounts.Session) and not DAccounts.Execute() or UpdateStarted) then
     FSession := nil
   else
   begin

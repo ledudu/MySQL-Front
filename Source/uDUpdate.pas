@@ -29,6 +29,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
+    Canceled: Boolean;
     SetupProgramStream: TFileStream;
     SetupProgramURI: string;
     FullHeight: Integer;
@@ -123,6 +124,7 @@ begin
   begin
     HTTPThread.Terminate();
     CanClose := False;
+    Canceled := True;
   end
   else
     CanClose := True;
@@ -157,6 +159,8 @@ begin
 
   FVersionInfo.Caption := Preferences.LoadStr(663) + ' ...';
   FVersionInfo.Enabled := True;
+
+  Canceled := False;
 
   if (Assigned(HTTPThread)) then
     TerminateThread(HTTPThread.Handle, 0);
@@ -238,25 +242,26 @@ procedure TDUpdate.UMTerminate(var Msg: TMessage);
 begin
   HTTPThread.WaitFor();
 
-  if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
-    MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode) + ')', Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
-  else if (HTTPThread.ErrorCode = 123456) then
-    raise EOSError.Create('ErrorCode: + IntToStr(HTTPThread.ErrorCode) + #13#10'
-      + 'ErrorMessage: ' + HTTPThread.ErrorMessage)
-  else if (HTTPThread.ErrorCode <> 0) then
-    RaiseLastOSError(HTTPThread.ErrorCode)
-  else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
-    MsgBox('HTTP Error #' + IntToStr(HTTPThread.HTTPStatus) + ':' + #10 + HTTPThread.HTTPMessage + #10#10
-      + HTTPThread.URI, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
-  else if ((HTTPThread.DebugReceiveFileSize > 0) and (HTTPThread.DebugReceiveFileSize < HTTPThread.DebugReceivedFileSize)) then
-    raise EAssertionFailed.Create('DebugReceiveFileSize: ' + IntToStr(HTTPThread.DebugReceiveFileSize) + #13#10
-      + 'DebugReceivedFileSize: ' + IntToStr(HTTPThread.DebugReceivedFileSize))
-  else if (Assigned(PADFileStream)) then
-    Perform(UM_PAD_FILE_RECEIVED, 0, 0)
-  else if (Assigned(SetupProgramStream)) then
-    Perform(UM_SETUP_FILE_RECEIVED, 0, 0)
-  else
-    raise ERangeError.Create(SRangeError);
+  if (not Canceled) then
+    if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
+      MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode) + ')', Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+    else if (HTTPThread.ErrorCode = 123456) then
+      raise EOSError.Create('ErrorCode: + IntToStr(HTTPThread.ErrorCode) + #13#10'
+        + 'ErrorMessage: ' + HTTPThread.ErrorMessage)
+    else if (HTTPThread.ErrorCode <> 0) then
+      RaiseLastOSError(HTTPThread.ErrorCode)
+    else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
+      MsgBox('HTTP Error #' + IntToStr(HTTPThread.HTTPStatus) + ':' + #10 + HTTPThread.HTTPMessage + #10#10
+        + HTTPThread.URI, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+    else if ((HTTPThread.DebugReceiveFileSize > 0) and (HTTPThread.DebugReceiveFileSize < HTTPThread.DebugReceivedFileSize)) then
+      raise EAssertionFailed.Create('DebugReceiveFileSize: ' + IntToStr(HTTPThread.DebugReceiveFileSize) + #13#10
+        + 'DebugReceivedFileSize: ' + IntToStr(HTTPThread.DebugReceivedFileSize))
+    else if (Assigned(PADFileStream)) then
+      Perform(UM_PAD_FILE_RECEIVED, 0, 0)
+    else if (Assigned(SetupProgramStream)) then
+      Perform(UM_SETUP_FILE_RECEIVED, 0, 0)
+    else
+      raise ERangeError.Create(SRangeError);
 
   HTTPThread.Free();
   HTTPThread := nil;

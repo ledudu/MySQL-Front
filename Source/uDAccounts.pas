@@ -166,11 +166,6 @@ end;
 function TDAccounts.Execute(): Boolean;
 begin
   Result := ShowModal() = mrOk;
-
-  // Debug 2016-12-23
-  // This is a helper for a problem in TWWindow.UMUpdateToolbar
-  if (Assigned(Session) and not Assigned(Session.Account.Desktop)) then
-    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TDAccounts.FBOkEnabledCheck(Sender: TObject);

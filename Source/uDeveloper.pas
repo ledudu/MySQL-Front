@@ -1184,7 +1184,7 @@ initialization
   begin
     if (Reg.ValueExists('LastUpdateCheck')) then
       LastUpdateCheck := Reg.ReadDateTime('LastUpdateCheck');
-    if (Reg.ValueExists('ObsoleteVersion') and (Reg.ReadInteger('ObsoleteVersion') >= ProgramVersion)) then
+    if (Reg.ValueExists('ObsoleteVersion')) then
       ObsoleteVersion := Reg.ReadInteger('ObsoleteVersion');
     if (Reg.ValueExists('UpdateAvailable')) then
       UpdateAvailable := Reg.ReadBool('UpdateAvailable');
