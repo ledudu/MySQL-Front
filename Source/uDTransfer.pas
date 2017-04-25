@@ -690,15 +690,23 @@ begin
 
     case (FSource.Selected.ImageIndex) of
       iiDatabase:
-        for I := 0 to FSource.Selected.Parent.Count - 1 do
-          if (FSource.Selected.Parent[I].Selected) then
-          begin
-            Database := DestinationSession.DatabaseByName(FSource.Selected.Parent[I].Text);
-            if (Assigned(Database)) then
-              List.Add(Database);
-          end;
+        if (FDestination.Selected.ImageIndex = iiServer) then
+        begin
+          for I := 0 to FSource.Selected.Parent.Count - 1 do
+            if (FSource.Selected.Parent[I].Selected) then
+            begin
+              Database := DestinationSession.DatabaseByName(FSource.Selected.Parent[I].Text);
+              if (Assigned(Database) and (List.IndexOf(Database) < 0)) then
+                List.Add(Database);
+            end;
+        end
+        else if (FDestination.Selected.ImageIndex in [iiDatabase]) then
+          List.Add(TSDatabase(FDestination.Selected.Data))
+        else
+          Assert(False);
       iiBaseTable,
       iiView:
+        if (FDestination.Selected.ImageIndex in [iiDatabase]) then
         begin
           if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Tables) < 0) then
             List.Add(TSDatabase(FDestination.Selected.Data).Tables);
@@ -706,14 +714,28 @@ begin
             and Assigned(TSDatabase(FDestination.Selected.Data).Triggers)
             and (List.IndexOf(TSDatabase(FDestination.Selected.Data).Triggers) < 0)) then
             List.Add(TSDatabase(FDestination.Selected.Data).Triggers);
-        end;
+        end
+        else if (FDestination.Selected.ImageIndex in [iiBaseTable, iiView]) then
+          List.Add(TSTable(FDestination.Selected.Data))
+        else
+          Assert(False);
       iiProcedure,
       iiFunction:
-        if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Routines) < 0) then
-          List.Add(TSDatabase(FDestination.Selected.Data).Routines);
+        if (FDestination.Selected.ImageIndex in [iiDatabase]) then
+        begin
+          if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Routines) < 0) then
+            List.Add(TSDatabase(FDestination.Selected.Data).Routines);
+        end
+        else
+          Assert(False);
       iiEvent:
-        if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Events) < 0) then
-          List.Add(TSDatabase(FDestination.Selected.Data).Events);
+        if (FDestination.Selected.ImageIndex in [iiDatabase]) then
+        begin
+          if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Events) < 0) then
+            List.Add(TSDatabase(FDestination.Selected.Data).Events);
+        end
+        else
+          Assert(False);
     end;
 
     if (not DestinationSession.Update(List)) then

@@ -2310,6 +2310,8 @@ begin
   TerminateCS.Free();
   FDebugMonitor.Free();
   FSQLMonitors.Free();
+  if (Assigned(FSQLParser)) then
+    FSQLParser.Free();
   SyncThreadExecuted.Free();
 
   inherited;
@@ -3047,8 +3049,11 @@ begin
 
     BesideThreadWaits := True;
     MySQLConnectionOnSynchronize(SyncThread);
-    SyncThreadExecuted.WaitFor(INFINITE);
-    DebugMonitor.Append('SyncThreadExecuted.Wait - 1 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+    if (not Assigned(SyncThread.Done)) then
+    begin
+      SyncThreadExecuted.WaitFor(INFINITE);
+      DebugMonitor.Append('SyncThreadExecuted.Wait - 1 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+    end;
     BesideThreadWaits := False;
 
     DebugMonitor.Append('SyncT - end - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -3458,7 +3463,11 @@ begin
     SyncThread.State := ssReady;
 
   if (Connected) then
+  begin
+    if (Assigned(FSQLParser)) then
+      FSQLParser.Free();
     FSQLParser := TSQLParser.Create(MySQLVersion);
+  end;
 
   if (Connected) then
     SendConnectEvent(True);
@@ -3489,9 +3498,6 @@ begin
 
   FThreadId := 0;
   FConnected := False;
-
-  FSQLParser.Free();
-  FSQLParser := nil;
 
   if (Assigned(SyncThread)) then
     SyncThread.State := ssClose;

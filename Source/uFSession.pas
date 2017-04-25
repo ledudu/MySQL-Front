@@ -5991,19 +5991,27 @@ begin
         if (not Assigned(Database)) then
           Result := nil
         else
-          case (ClassIndex) of
-            ciBaseTable,
-            ciView,
-            ciSystemView: Result := Database.TableByName(URI.Table);
-            ciKey: Result := Database.BaseTableByName(URI.Table).KeyByName(URI.Param['object']);
-            ciBaseField: Result := Database.BaseTableByName(URI.Table).FieldByName(URI.Param['object']);
-            ciForeignKey: Result := Database.BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object']);
-            ciViewField: Result := Database.ViewByName(URI.Table).FieldByName(URI.Param['object']);
-            ciProcedure: Result := Database.ProcedureByName(URI.Param['object']);
-            ciFunction: Result := Database.FunctionByName(URI.Param['object']);
-            ciEvent: Result := Database.EventByName(URI.Param['object']);
-            ciTrigger: Result := Database.TriggerByName(URI.Param['object']);
-            else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
+          try
+            // Debug 2017-04-25
+            case (ClassIndex) of
+              ciBaseTable,
+              ciView,
+              ciSystemView: Result := Database.TableByName(URI.Table);
+              ciKey: Result := Database.BaseTableByName(URI.Table).KeyByName(URI.Param['object']);
+              ciBaseField: Result := Database.BaseTableByName(URI.Table).FieldByName(URI.Param['object']);
+              ciForeignKey: Result := Database.BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object']);
+              ciViewField: Result := Database.ViewByName(URI.Table).FieldByName(URI.Param['object']);
+              ciProcedure: Result := Database.ProcedureByName(URI.Param['object']);
+              ciFunction: Result := Database.FunctionByName(URI.Param['object']);
+              ciEvent: Result := Database.EventByName(URI.Param['object']);
+              ciTrigger: Result := Database.TriggerByName(URI.Param['object']);
+              else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
+            end;
+          except
+            on E: Exception do
+              raise EAssertionFailed.Create('Address: ' + Address + #13#10#13#10
+                + E.ClassName + ':' + #13#10
+                + E.Message);
           end;
       end;
     ciProcesses: Result := Session.Processes;
@@ -7751,6 +7759,17 @@ begin
       ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
     except
       AllowChange := False;
+    end;
+
+  if (not AllowChange
+    and (View = vBrowser)
+    and Assigned(ActiveDBGrid)) then
+    case (Node.ImageIndex) of
+      iiBaseField,
+      iiVirtualField,
+      iiSystemViewField,
+      iiViewField:
+        ActiveDBGrid.SelectedField := ActiveDBGrid.DataSource.DataSet.FieldByName(TSField(Node.Data).Name);
     end;
 end;
 
@@ -11646,7 +11665,10 @@ var
           Item.SubItems.Add(TSBaseField(Data).Comment);
           Item.SubItems.Add('');
           Item.SubItems.Add('');
-        end;
+        end
+        else
+          Assert(False, 'Table Source: ' + #13#10
+            + TSBaseField(Data).Table.Source);
       end
       else if (Data is TSForeignKey) then
       begin
