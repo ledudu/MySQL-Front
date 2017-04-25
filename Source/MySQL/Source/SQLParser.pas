@@ -8269,7 +8269,7 @@ begin
   else if (NodeType = ntRoot) then
     Result := Parser.Parse.SQL
   else if (Parser.IsRange(Offset)) then
-    TSQLParser.PRange(@Self)^.Text
+    Result := TSQLParser.PRange(@Self)^.Text
   else
     Assert(False);
 end;
@@ -8569,10 +8569,8 @@ var
   FT: TSQLParser.PToken;
   LT: TSQLParser.PToken;
 begin
-  // Why is this needed???
-  // Without this, the Result is invalid
-  FT := FirstToken;
-  LT := LastToken;
+  FT := FirstToken; // Cache for speeding
+  LT := LastToken; // Cache for speeding
   SetString(Result, FT^.FText, Integer(LT^.FText - FT^.FText) + LT^.FLength);
 end;
 
