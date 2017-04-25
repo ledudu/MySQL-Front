@@ -6,9 +6,6 @@
 		<Program_Version_Minor>{BuildVerMinor}</Program_Version_Minor>
 		<Program_Version_Patch>{BuildVerPatch}</Program_Version_Patch>
 		<Program_Version_Build>{BuildVerBuild}</Program_Version_Build>
-		<Program_Release_Year>{BuildVerYear}</Program_Release_Year>
-		<Program_Release_Month>{BuildVerMonth}</Program_Release_Month>
-		<Program_Release_Day>{BuildVerDay}</Program_Release_Day>
 	</Program_Info>
 	<Recommended_Info>
 		<Program_Version_Major>{BuildRecommendedMajor}</Program_Version_Major>

@@ -982,7 +982,7 @@ begin
   OnlineRecommendedUpdateFound := False;
   QuitAfterShow := False;
   UniqueTabNameCounter := 0;
-  UpdateStarted := True;
+  UpdateStarted := False;
 
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
@@ -1450,7 +1450,7 @@ begin
         DAccounts.Session := DConnecting.Session;
     end;
   end;
-  if (not Assigned(DAccounts.Session) and not DAccounts.Execute() or UpdateStarted) then
+  if ((not Assigned(DAccounts.Session) and not DAccounts.Execute()) or UpdateStarted) then
     FSession := nil
   else
   begin

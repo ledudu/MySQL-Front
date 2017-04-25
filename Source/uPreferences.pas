@@ -470,7 +470,6 @@ type
       procedure Clear(); override;
       constructor Create(const AAccount: TPAccount); reintroduce;
       procedure Delete(Index: Integer);
-      destructor Destroy(); override;
       function IndexOf(const Address: string): Integer; overload;
       procedure Insert(Index: Integer; const Address: string); overload;
       procedure Move(CurIndex, NewIndex: Integer);
@@ -2710,11 +2709,6 @@ begin
   inherited;
 
   Changed();
-end;
-
-destructor TPAccount.TFavorites.Destroy();
-begin
-  inherited;
 end;
 
 function TPAccount.TFavorites.GetFavorite(Index: Integer): TFavorite;
