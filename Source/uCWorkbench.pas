@@ -1243,7 +1243,7 @@ begin
   end;
 
   if (not (Point is TWLink)) then
-    raise Exception.CreateFmt('Point is not TWLink  (%s)', [Point.ClassName])
+    raise Exception.CreateFmt('Point is not TWLink (%s)', [Point.ClassName])
   else
     Result := TWLink(Point);
 end;

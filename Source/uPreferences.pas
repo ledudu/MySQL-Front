@@ -2604,6 +2604,9 @@ begin
 
   XMLNode(XML, 'width').Text := IntToStr(Width);
 
+  // Debug 2017-04-25
+  Assert(Assigned(Database));
+
   Database.SaveToXML(XMLNode(XML, 'database', True));
   Editor.SaveToXML(XMLNode(XML, 'editor', True));
   Event.SaveToXML(XMLNode(XML, 'event', True));

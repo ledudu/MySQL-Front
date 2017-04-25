@@ -3490,11 +3490,8 @@ begin
   FThreadId := 0;
   FConnected := False;
 
-  if (Assigned(FSQLParser)) then
-  begin
-    FSQLParser.Free();
-    FSQLParser := nil;
-  end;
+  FSQLParser.Free();
+  FSQLParser := nil;
 
   if (Assigned(SyncThread)) then
     SyncThread.State := ssClose;
@@ -7389,10 +7386,6 @@ var
   TS: TTimeStamp;
   U: UInt64;
 begin
-  // Debug 2017-01-19
-  if (not Assigned(Field)) then
-    raise ERangeError.Create('CommandText: ' + CommandText);
-
   if ((Field.AutoGenerateValue <> arAutoInc) or (Length(Buffer) > 0)) then
   begin
     // Debug 2017-01-07

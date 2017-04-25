@@ -715,8 +715,10 @@ begin
         if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Events) < 0) then
           List.Add(TSDatabase(FDestination.Selected.Data).Events);
     end;
+
     if (not DestinationSession.Update(List)) then
       Wanted.Page := TSExecute;
+
     List.Free();
   end;
 

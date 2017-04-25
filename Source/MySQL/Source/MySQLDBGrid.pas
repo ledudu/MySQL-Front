@@ -28,20 +28,6 @@ type
       property Grid: TMySQLDBGrid read FGrid;
     end;
 
-    TMySQLDBGridInplaceEdit = class(TInplaceEditList)
-    private
-      DoNotRemove: Integer; // Why is this needed???
-      // Without this, there is Access Violation while freeing TMySQLDBGrid,
-      // if the InplaceEditor has been used in Delphi XE4
-    protected
-      procedure DoEditButtonClick(); override;
-      procedure DropDown(); override;
-      procedure KeyPress(var Key: Char); override;
-    public
-      constructor Create(Owner: TComponent); override;
-      property Font;
-    end;
-
   const
     tiShowHint = 1;
     tiHideHint = 2;
@@ -218,49 +204,6 @@ begin
   inherited Create();
 
   FGrid := AGrid;
-end;
-
-{ TMySQLDBGrid.TDBMySQLInplaceEdit ********************************************}
-
-constructor TMySQLDBGrid.TMySQLDBGridInplaceEdit.Create(Owner: TComponent);
-begin
-  inherited;
-
-  DoNotRemove := 0; // This avoids compiler warning only
-
-  Color := clWindow;
-end;
-
-procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.DoEditButtonClick();
-begin
-  inherited;
-
-  TMySQLDBGrid(Grid).EditButtonClick();
-end;
-
-procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.DropDown();
-var
-  Column: TColumn;
-begin
-  if (not ListVisible) then
-  begin
-    Column := TMySQLDBGrid(Grid).Columns[TMySQLDBGrid(Grid).SelectedIndex];
-    if (ActiveList = PickList) then
-    begin
-      PickList.Items.Assign(Column.PickList);
-      DropDownRows := Column.DropDownRows;
-    end;
-  end;
-
-  inherited;
-end;
-
-procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.KeyPress(var Key: Char);
-begin
-  if (TMySQLDBGrid(Grid).IgnoreKeyPress) then
-    Key := #0
-  else
-    inherited;
 end;
 
 { TMySQLDBGrid ****************************************************************}
@@ -598,8 +541,6 @@ procedure TMySQLDBGrid.ColEnter();
 begin
   if (Assigned(InplaceEditor)) then
   begin
-    if (InplaceEditor is TMySQLDBGridInplaceEdit) then
-      TMySQLDBGridInplaceEdit(InplaceEditor).Font := Columns[SelectedIndex].Font;
     if (Columns[SelectedIndex].Alignment <> taRightJustify) then
       SetWindowLong(InplaceEditor.Handle, GWL_STYLE, GetWindowLong(InplaceEditor.Handle, GWL_STYLE) and not ES_RIGHT)
     else
@@ -643,12 +584,11 @@ end;
 
 function TMySQLDBGrid.CreateEditor(): TInplaceEdit;
 begin
-  Result := TMySQLDBGridInplaceEdit.Create(Self);
+  Result := inherited;
 
   if (Assigned(Result)) then
   begin
     Result.Parent := Self;
-    TMySQLDBGridInplaceEdit(Result).Font := Columns[SelectedIndex].Font;
     if (Columns[SelectedIndex].Alignment <> taRightJustify) then
       SetWindowLong(Result.Handle, GWL_STYLE, GetWindowLong(Result.Handle, GWL_STYLE) and not ES_RIGHT)
     else
@@ -1202,7 +1142,7 @@ begin
 
   if ((Cell.X = -1) and (Cell.Y = -1) and EditorMode) then
     try
-      SelectedField.AsString := TMySQLDBGridInplaceEdit(InplaceEditor).Text;
+      SelectedField.AsString := InplaceEditor.Text;
     except
     end;
 

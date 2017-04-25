@@ -1489,7 +1489,8 @@ begin
 
   if (ErrorCode > 0) then
   begin
-    if ((CommandText <> '') and (FSession.Session.Connection.SuccessfullExecutedSQLLength >= FSession.aDRunExecuteSelStart)) then
+    if ((CommandText <> '')
+      and (FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength >= 0)) then
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
@@ -1525,6 +1526,7 @@ begin
             + 'Len: ' + IntToStr(Len) + #13#10
             + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
             + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
+            + 'Length(Text): ' + IntToStr(Length(FBCEditor.Text)) + #13#10
             + 'SQL: ' + LeftStr(SQL, 100) + #13#10
             + E.ClassName + ':' + #13#10
             + E.Message));

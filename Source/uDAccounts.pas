@@ -192,14 +192,7 @@ begin
     DConnecting.Session := Session;
     CanClose := DConnecting.Execute();
     if (not CanClose) then
-      FreeAndNil(Session)
-    else
-    begin
-      // Debug 2016-12-23
-      // This is a helper for a problem in TWWindow.UMUpdateToolbar
-      if (not Assigned(Session.Account.Desktop)) then
-        raise ERangeError.Create(SRangeError);
-    end;
+      FreeAndNil(Session);
   end;
 end;
 
