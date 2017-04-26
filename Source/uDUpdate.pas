@@ -38,11 +38,11 @@ type
     SetupPrgFilename: TFileName;
     procedure OnProgress(Sender: TObject; const Done, Size: Int64);
     procedure OnTerminate(Sender: TObject);
-    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMPADFileReceived(var Msg: TMessage); message UM_PAD_FILE_RECEIVED;
-    procedure UMSetupFileReceived(var Msg: TMessage); message UM_SETUP_FILE_RECEIVED;
-    procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
-    procedure UMUpdateProgressBar(var Msg: TMessage); message UM_UPDATE_PROGRESSBAR;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
+    procedure UMSetupFileReceived(var Message: TMessage); message UM_SETUP_FILE_RECEIVED;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMUpdateProgressBar(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
     function Execute(): Boolean;
   end;
@@ -187,7 +187,7 @@ begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
 end;
 
-procedure TDUpdate.UMChangePreferences(var Msg: TMessage);
+procedure TDUpdate.UMChangePreferences(var Message: TMessage);
 begin
   Caption := ReplaceStr(Preferences.LoadStr(666), '&', '');
 
@@ -196,7 +196,7 @@ begin
   FBForward.Caption := Preferences.LoadStr(230);
 end;
 
-procedure TDUpdate.UMPADFileReceived(var Msg: TMessage);
+procedure TDUpdate.UMPADFileReceived(var Message: TMessage);
 var
   VersionStr: string;
 begin
@@ -227,7 +227,7 @@ begin
   FreeAndNil(PADFileStream);
 end;
 
-procedure TDUpdate.UMSetupFileReceived(var Msg: TMessage);
+procedure TDUpdate.UMSetupFileReceived(var Message: TMessage);
 begin
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
 
@@ -238,7 +238,7 @@ begin
   ModalResult := mrOk;
 end;
 
-procedure TDUpdate.UMTerminate(var Msg: TMessage);
+procedure TDUpdate.UMTerminate(var Message: TMessage);
 begin
   HTTPThread.WaitFor();
 
@@ -271,16 +271,16 @@ begin
     FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
-procedure TDUpdate.UMUpdateProgressBar(var Msg: TMessage);
+procedure TDUpdate.UMUpdateProgressBar(var Message: TMessage);
 begin
-  if (Msg.LParam <= 0) then
+  if (Message.LParam <= 0) then
   begin
     FProgressBar.Position := 0;
     FProgressBar.Max := 0;
   end
   else
   begin
-    FProgressBar.Position := Integer(Msg.WParam * 100) div Integer(Msg.LParam);
+    FProgressBar.Position := Integer(Message.WParam * 100) div Integer(Message.LParam);
     FProgressBar.Max := 100;
   end;
 end;

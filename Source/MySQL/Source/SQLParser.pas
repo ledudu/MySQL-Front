@@ -6730,6 +6730,7 @@ type
       InCreateEventStmt: Boolean;
       InCreateFunctionStmt: Boolean;
       InCreateProcedureStmt: Boolean;
+      InCreateTableStmt: Boolean;
       InCreateTriggerStmt: Boolean;
       Length: Integer;
       Line: Integer;
@@ -6746,7 +6747,7 @@ type
     {$ENDIF}
     ttIdents: set of TTokenType;
     ttStrings: set of TTokenType;
-    function ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
+    function ApplyCurrentToken(const AUsageType: TUsageType; const AClearCompletionList: Boolean = True): TOffset;
     procedure BeginPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -8085,7 +8086,7 @@ begin
     if (DbIdentType = ditField) then
     begin
       // ditField must be the first in the list, because of the large number
-      // of column names, which will be added to the SynCompletion.ItemList.
+      // of column names, which will be added to the BCEditor.CompletionList.
       Move(FItems[0], FItems[1], FCount * SizeOf(FItems[0]));
       Item := @FItems[0];
     end
@@ -11984,7 +11985,7 @@ end;
 
 { TSQLParser ******************************************************************}
 
-function TSQLParser.ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
+function TSQLParser.ApplyCurrentToken(const AUsageType: TUsageType; const AClearCompletionList: Boolean = True): TOffset;
 begin
   Result := CurrentToken;
 
@@ -11992,7 +11993,7 @@ begin
   begin
     TokenPtr(Result)^.FUsageType := AUsageType;
 
-    if (not ErrorFound) then
+    if (not ErrorFound and AClearCompletionList) then
       CompletionList.Clear();
 
     Dec(TokenBuffer.Count);
@@ -12042,6 +12043,7 @@ begin
   Parse.InCreateEventStmt := False;
   Parse.InCreateFunctionStmt := False;
   Parse.InCreateProcedureStmt := False;
+  Parse.InCreateTableStmt := False;
   Parse.InCreateTriggerStmt := False;
   Parse.Length := 0;
   Parse.Line := 0;
@@ -17252,6 +17254,8 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
+  Parse.InCreateTableStmt := True;
+
   Nodes.CreateTag := CreateTag;
 
   Nodes.OrReplaceTag := OrReplaceTag;
@@ -17513,6 +17517,8 @@ begin
   end;
 
   Result := TCreateTableStmt.Create(Self, Nodes);
+
+  Parse.InCreateTableStmt := False;
 end;
 
 function TSQLParser.ParseCreateTableStmtCheck(): TOffset;
@@ -18599,7 +18605,8 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
     else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
         and (QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
-          or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
+          or (ADbIdentType in [ditField]) and Parse.InCreateTableStmt
+          or (ADbIdentType in [ditCharset]) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
           or (ADbIdentType in [ditVariable, ditConstante]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
@@ -18626,36 +18633,35 @@ begin
   DbIdentType := ADbIdentType;
 
   if (EndOfStmt(CurrentToken)) then
-  begin
-    case (ADbIdentType) of
-      ditDatabase:
-        CompletionList.AddList(ditDatabase);
-      ditTable,
-      ditProcedure,
-      ditFunction,
-      ditTrigger,
-      ditEvent:
-        begin
-          CompletionList.AddList(ditDatabase);
-          CompletionList.AddList(ADbIdentType);
-        end;
-      ditKey,
-      ditField,
-      ditForeignKey:
-        begin
-          CompletionList.AddList(ditDatabase);
-          CompletionList.AddList(ditTable);
-          CompletionList.AddList(ADbIdentType);
-        end;
-      ditEngine,
-      ditCharset,
-      ditCollation:
-        CompletionList.AddList(ADbIdentType);
-    end;
-    SetError(PE_IncompleteStmt);
-  end
+    SetError(PE_IncompleteStmt)
   else
     Nodes.Ident := ParseDbIdentToken(False);
+
+  case (ADbIdentType) of
+    ditDatabase:
+      CompletionList.AddList(ditDatabase);
+    ditTable,
+    ditProcedure,
+    ditFunction,
+    ditTrigger,
+    ditEvent:
+      begin
+        CompletionList.AddList(ditDatabase);
+        CompletionList.AddList(ADbIdentType);
+      end;
+    ditKey,
+    ditField,
+    ditForeignKey:
+      begin
+        CompletionList.AddList(ditDatabase);
+        CompletionList.AddList(ditTable);
+        CompletionList.AddList(ADbIdentType);
+      end;
+    ditEngine,
+    ditCharset,
+    ditCollation:
+      CompletionList.AddList(ADbIdentType);
+  end;
 
   if (not ErrorFound
     and FullQualified
@@ -18671,14 +18677,14 @@ begin
           Nodes.DatabaseDot := ApplyCurrentToken(utSymbol);
 
           if (EndOfStmt(CurrentToken)) then
-          begin
-            CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString);
-            Nodes.Ident := 0;
-          end
+            Nodes.Ident := 0
           else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
             Nodes.Ident := ApplyCurrentToken(utDbIdent)
           else
             Nodes.Ident := ParseDbIdentToken(True);
+
+          CompletionList.Clear();
+          CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString);
         end;
       ditKey,
       ditField,
@@ -18687,18 +18693,18 @@ begin
           Nodes.TableIdent := Nodes.Ident;
           Nodes.TableDot := ApplyCurrentToken(utSymbol);
 
+          CompletionList.Clear();
+          CompletionList.AddList(ditTable, TokenPtr(Nodes.TableIdent)^.AsString);
+          CompletionList.AddList(ADbIdentType, '', TokenPtr(Nodes.TableIdent)^.AsString);
+
           if (EndOfStmt(CurrentToken)) then
-          begin
-            CompletionList.AddList(ditTable, TokenPtr(Nodes.TableIdent)^.AsString);
-            CompletionList.AddList(ADbIdentType, '', TokenPtr(Nodes.TableIdent)^.AsString);
-            Nodes.Ident := SetError(PE_IncompleteStmt);
-          end
+            Nodes.Ident := SetError(PE_IncompleteStmt)
           else if (not ErrorFound) then
           begin
             if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
               DbIdentType := ditAllFields;
             if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
-              Nodes.Ident := ApplyCurrentToken(utDbIdent)
+              Nodes.Ident := ApplyCurrentToken(utDbIdent, False)
             else
               Nodes.Ident := ParseDbIdentToken(True);
 
@@ -18711,13 +18717,13 @@ begin
               Nodes.TableIdent := Nodes.Ident;
               Nodes.TableDot := ApplyCurrentToken(utSymbol);
 
+              CompletionList.Clear();
+              CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString, TokenPtr(Nodes.TableIdent)^.AsString);
+
               if (EndOfStmt(CurrentToken)) then
-              begin
-                CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString, TokenPtr(Nodes.TableIdent)^.AsString);
-                Nodes.Ident := SetError(PE_IncompleteStmt);
-              end
+                Nodes.Ident := SetError(PE_IncompleteStmt)
               else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
-                Nodes.Ident := ApplyCurrentToken(utDbIdent)
+                Nodes.Ident := ApplyCurrentToken(utDbIdent, False)
               else
                 Nodes.Ident := ParseDbIdentToken(True);
             end;
@@ -24636,6 +24642,38 @@ function TSQLParser.ParseTag(const KeywordIndex1: TWordList.TIndex;
   const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
   const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
   const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset;
+
+  procedure RemoveFromCompletitionListIs(const KeywordIndex1: TWordList.TIndex;
+    const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
+    const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
+    const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1);
+  var
+    I: Integer;
+  begin
+    for I := CompletionList.Count - 1 downto 0 do
+      if ((CompletionList[I]^.ItemType = itTag)
+        and ((KeywordIndex1 < 0) or (CompletionList[I]^.KeywordIndices[0] <> KeywordIndex1))
+        and ((KeywordIndex2 < 0) or (CompletionList[I]^.KeywordIndices[1] <> KeywordIndex2))
+        and ((KeywordIndex3 < 0) or (CompletionList[I]^.KeywordIndices[2] <> KeywordIndex3))
+        and ((KeywordIndex4 < 0) or (CompletionList[I]^.KeywordIndices[3] <> KeywordIndex4))
+        and ((KeywordIndex5 < 0) or (CompletionList[I]^.KeywordIndices[4] <> KeywordIndex5))
+        and ((KeywordIndex6 < 0) or (CompletionList[I]^.KeywordIndices[5] <> KeywordIndex6))
+        and ((KeywordIndex7 < 0) or (CompletionList[I]^.KeywordIndices[6] <> KeywordIndex7))) then
+        CompletionList.Delete(I);
+
+    for I := 0 to CompletionList.Count - 1 do
+      if (CompletionList[I]^.ItemType = itTag) then
+      begin
+        CompletionList[I]^.KeywordIndices[0] := CompletionList[I]^.KeywordIndices[1];
+        CompletionList[I]^.KeywordIndices[1] := CompletionList[I]^.KeywordIndices[2];
+        CompletionList[I]^.KeywordIndices[2] := CompletionList[I]^.KeywordIndices[3];
+        CompletionList[I]^.KeywordIndices[3] := CompletionList[I]^.KeywordIndices[4];
+        CompletionList[I]^.KeywordIndices[4] := CompletionList[I]^.KeywordIndices[5];
+        CompletionList[I]^.KeywordIndices[5] := CompletionList[I]^.KeywordIndices[6];
+        CompletionList[I]^.KeywordIndices[6] := -1;
+      end;
+  end;
+
 var
   Nodes: TTag.TNodes;
 begin
@@ -24650,7 +24688,9 @@ begin
     SetError(PE_UnexpectedToken)
   else
   begin
-    Nodes.Keyword1Token := ApplyCurrentToken(utKeyword);
+    RemoveFromCompletitionListIs(KeywordIndex1);
+
+    Nodes.Keyword1Token := ApplyCurrentToken(utKeyword, False);
 
     if (KeywordIndex2 >= 0) then
     begin
@@ -24663,7 +24703,9 @@ begin
         SetError(PE_UnexpectedToken)
       else
       begin
-        Nodes.Keyword2Token := ApplyCurrentToken(utKeyword);
+        RemoveFromCompletitionListIs(KeywordIndex1);
+
+        Nodes.Keyword2Token := ApplyCurrentToken(utKeyword, False);
 
         if (KeywordIndex3 >= 0) then
         begin
@@ -24676,7 +24718,9 @@ begin
             SetError(PE_UnexpectedToken)
           else
           begin
-            Nodes.Keyword3Token := ApplyCurrentToken(utKeyword);
+            RemoveFromCompletitionListIs(KeywordIndex2);
+
+            Nodes.Keyword3Token := ApplyCurrentToken(utKeyword, False);
 
             if (KeywordIndex4 >= 0) then
             begin
@@ -24689,7 +24733,9 @@ begin
                 SetError(PE_UnexpectedToken)
               else
               begin
-                Nodes.Keyword4Token := ApplyCurrentToken(utKeyword);
+                RemoveFromCompletitionListIs(KeywordIndex3);
+
+                Nodes.Keyword4Token := ApplyCurrentToken(utKeyword, False);
 
                 if (KeywordIndex5 >= 0) then
                 begin
@@ -24702,7 +24748,9 @@ begin
                     SetError(PE_UnexpectedToken)
                   else
                   begin
-                    Nodes.Keyword5Token := ApplyCurrentToken(utKeyword);
+                    RemoveFromCompletitionListIs(KeywordIndex4);
+
+                    Nodes.Keyword5Token := ApplyCurrentToken(utKeyword, False);
 
                     if (KeywordIndex6 >= 0) then
                     begin
@@ -24715,7 +24763,9 @@ begin
                         SetError(PE_UnexpectedToken)
                       else
                       begin
-                        Nodes.Keyword6Token := ApplyCurrentToken(utKeyword);
+                        RemoveFromCompletitionListIs(KeywordIndex5);
+
+                        Nodes.Keyword6Token := ApplyCurrentToken(utKeyword, False);
 
                         if (KeywordIndex7 >= 0) then
                         begin
@@ -24728,7 +24778,9 @@ begin
                             SetError(PE_UnexpectedToken)
                           else
                           begin
-                            Nodes.Keyword7Token := ApplyCurrentToken(utKeyword);
+                            RemoveFromCompletitionListIs(KeywordIndex6);
+
+                            Nodes.Keyword7Token := ApplyCurrentToken(utKeyword, False);
                           end;
                         end;
                       end;
@@ -24741,6 +24793,9 @@ begin
         end;
       end;
     end;
+
+    if (not ErrorFound) then
+      CompletionList.Clear();
   end;
 
   Result := TTag.Create(Self, Nodes);

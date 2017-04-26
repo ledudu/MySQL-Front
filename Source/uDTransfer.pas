@@ -90,11 +90,11 @@ type
     function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMPostAfterExecuteSQL(var Msg: TMessage); message UM_POST_AFTEREXECUTESQL;
-    procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
-    procedure UMToolError(var Msg: TMessage); message UM_TOOL_ERROR;
-    procedure UMUpdateProgressInfo(var Msg: TMessage); message UM_UPDATEPROGRESSINFO;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
+    procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     DestinationAddress: string;
     DestinationSession: TSSession;
@@ -1045,7 +1045,7 @@ begin
   CheckActivePageChange(TSWhat);
 end;
 
-procedure TDTransfer.UMChangePreferences(var Msg: TMessage);
+procedure TDTransfer.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiTransfer, Icon);
 
@@ -1073,7 +1073,7 @@ begin
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
 end;
 
-procedure TDTransfer.UMPostAfterExecuteSQL(var Msg: TMessage);
+procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
 var
   Node: TTreeNode;
 begin
@@ -1087,11 +1087,11 @@ begin
     Wanted.Page.OnShow(nil);
 end;
 
-procedure TDTransfer.UMTerminate(var Msg: TMessage);
+procedure TDTransfer.UMTerminate(var Message: TMessage);
 var
   Success: Boolean;
 begin
-  Success := Boolean(Msg.WParam);
+  Success := Boolean(Message.WParam);
 
   Transfer.WaitFor();
 
@@ -1115,14 +1115,14 @@ begin
     FBCancel.ModalResult := mrCancel;
 end;
 
-procedure TDTransfer.UMToolError(var Msg: TMessage);
+procedure TDTransfer.UMToolError(var Message: TMessage);
 var
   Details: ^TTool.TErrorDetails;
   ErrorMsg: string;
   Flags: Integer;
   Text: string;
 begin
-  Details := Pointer(Msg.LParam);
+  Details := Pointer(Message.LParam);
 
   ErrorMsg := '';
   case (Details^.Error.ErrorType) of
@@ -1155,26 +1155,26 @@ begin
   case (MsgBox(Text, Preferences.LoadStr(45), Flags)) of
     IDOK,
     IDCANCEL,
-    IDABORT: Msg.Result := LRESULT(daAbort);
+    IDABORT: Message.Result := LRESULT(daAbort);
     IDRETRY,
-    IDTRYAGAIN: Msg.Result := LRESULT(daRetry);
+    IDTRYAGAIN: Message.Result := LRESULT(daRetry);
     IDCONTINUE,
-    IDIGNORE: Msg.Result := LRESULT(daFail);
+    IDIGNORE: Message.Result := LRESULT(daFail);
     else raise ERangeError.Create(SRangeError);
   end;
 
-  if ((TDataAction(Msg.Result) in [daAbort, daFail]) and (ErrorMsg <> '')) then
+  if ((TDataAction(Message.Result) in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(Details^.Tool.ErrorCount);
     FErrorMessages.Text := FErrorMessages.Text + Trim(ErrorMsg);
   end;
 end;
 
-procedure TDTransfer.UMUpdateProgressInfo(var Msg: TMessage);
+procedure TDTransfer.UMUpdateProgressInfo(var Message: TMessage);
 var
   Infos: TTool.PProgressInfos;
 begin
-  Infos := TTool.PProgressInfos(Msg.LParam);
+  Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'

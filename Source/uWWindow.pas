@@ -16,7 +16,7 @@ const
   cWindowClassName = 'MySQL-Front.Application';
 
 const
-  UM_ACTIVATETAB = WM_USER + 600;
+  UM_ACTIVATEFRAME = WM_USER + 601;
   UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 602;
 
 type
@@ -389,13 +389,14 @@ type
     FSessions: TList;
     MouseDownPoint: TPoint;
     OnlineRecommendedUpdateFound: Boolean;
-    PreviousForm: TForm;
+    ModalForm: TForm;
     QuitAfterShow: Boolean;
     TabControlDragMarkedTabIndex: Integer;
     TabControlDragStartTabIndex: Integer;
     TabControlRepaint: TList;
     UniqueTabNameCounter: Integer;
     UpdateStarted: Boolean;
+    procedure ActivateTab(const Tab: TFSession);
     procedure ApplicationActivate(Sender: TObject);
     procedure ApplicationDeactivate(Sender: TObject);
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
@@ -404,6 +405,7 @@ type
     function CloseAll(): Boolean;
     procedure CloseTab(const Tab: TFSession);
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    procedure DeactivateTab(const Tab: TFSession);
     procedure EmptyWorkingMem();
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
@@ -415,11 +417,10 @@ type
     procedure OnlineVersionChecked(Sender: TObject);
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
-    procedure UMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
+    procedure UMActivateFrame(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCrashRescue(var Message: TMessage); message UM_CRASH_RESCUE;
-    procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
@@ -462,6 +463,32 @@ uses
   uDConnecting, uDInfo, uDUpdate, uDMail, uDDowndate;
 
 { TWWindow ********************************************************************}
+
+procedure TWWindow.ActivateTab(const Tab: TFSession);
+begin
+  ActiveTab := Tab;
+
+  Color := clBtnFace;
+
+  if (ActiveTab.Visible) then
+    ActiveTab.FrameActivate(Self);
+
+  tbDBPrev.Action := ActiveTab.aDPrev;
+  tbDBFirst.Action := ActiveTab.DataSetFirst;
+  tbDBLast.Action := ActiveTab.DataSetLast;
+  tbDBNext.Action := ActiveTab.aDNext;
+  tbPostRecord.Action := ActiveTab.DataSetPost;
+  tbCancelRecord.Action := ActiveTab.DataSetCancel;
+
+  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_PRIOR) + ')';
+  tbDBFirst.Hint := ActiveTab.DataSetFirst.Caption + ' (' + ShortCutToText(scCtrl + VK_HOME) + ')';
+  tbDBLast.Hint := ActiveTab.DataSetLast.Caption + ' (' + ShortCutToText(scCtrl + VK_END) + ')';
+  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_NEXT) + ')';
+
+  aFClose.Enabled := True;
+
+  Perform(UM_UPDATETOOLBAR, 0, LPARAM(Tab));
+end;
 
 procedure TWWindow.aDCreateParentExecute(Sender: TObject);
 begin
@@ -512,8 +539,14 @@ begin
 end;
 
 procedure TWWindow.aFCloseExecute(Sender: TObject);
+var
+  CanClose: Boolean;
 begin
-  if (Assigned(ActiveTab) and Boolean(SendMessage(ActiveTab.Handle, UM_FRAME_CLOSE_QUERY, 0, 0))) then
+  Assert(Assigned(ActiveTab));
+
+  CanClose := True;
+  ActiveTab.FrameCloseQuery(Sender, CanClose);
+  if (CanClose) then
     CloseTab(ActiveTab);
 end;
 
@@ -759,8 +792,8 @@ begin
 
       if (NewTabIndex <> TabControl.TabIndex) then
       begin
-        Perform(UM_DEACTIVATETAB, 0, 0);
-        Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
+        DeactivateTab(FSessions[NewTabIndex]);
+        ActivateTab(FSessions[NewTabIndex]);
       end;
     end;
   end;
@@ -768,22 +801,20 @@ end;
 
 procedure TWWindow.ApplicationModalBegin(Sender: TObject);
 begin
-  if (Assigned(Screen.ActiveForm) and Screen.ActiveForm.Active and (Screen.ActiveForm is TForm_Ext)) then
+  if (Assigned(Screen.ActiveForm) and Screen.ActiveForm.Active) then
   begin
-    PreviousForm := Screen.ActiveForm;
+    ModalForm := Screen.ActiveForm;
 
     if ((Screen.ActiveForm = Self) and Assigned(ActiveTab)) then
-      SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
-  end
-  else
-    PreviousForm := nil;
+      ActiveTab.FrameDeactivate(Self);
+  end;
 end;
 
 procedure TWWindow.ApplicationModalEnd(Sender: TObject);
 begin
-  if (Assigned(PreviousForm) and (PreviousForm is TForm_Ext)) then
+  if (Assigned(ModalForm)) then
   begin
-    PreviousForm := nil;
+    ModalForm := nil;
 
     if (OnlineRecommendedUpdateFound) then
     begin
@@ -791,11 +822,8 @@ begin
       InformOnlineUpdateFound();
     end;
 
-    if (Screen.ActiveForm = Self) then
-    begin
-      if (Assigned(ActiveTab)) then
-        PostMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
-    end;
+    if ((Screen.ActiveForm = Self) and Assigned(ActiveTab)) then
+      PostMessage(Handle, UM_ACTIVATEFRAME, 0, LPARAM(ActiveTab));
   end;
 end;
 
@@ -818,11 +846,15 @@ var
 begin
   Result := True;
   for I := FSessions.Count - 1 downto 0 do
-  begin
-    Result := Result and (SendMessage(TFSession(FSessions[I]).Handle, UM_FRAME_CLOSE_QUERY, 0, 0) = 1);
     if (Result) then
-      CloseTab(TFSession(FSessions[I]));
-  end;
+    begin
+      // Debug 2017-04-26
+      Assert(Assigned(FSessions[I]));
+
+      TFSession(FSessions[I]).FrameCloseQuery(Self, Result);
+      if (Result) then
+        CloseTab(TFSession(FSessions[I]));
+    end;
 end;
 
 procedure TWWindow.CloseTab(const Tab: TFSession);
@@ -830,7 +862,7 @@ var
   Session: TSSession;
   NewTabIndex: Integer;
 begin
-  Perform(UM_DEACTIVATETAB, 0, 0);
+  DeactivateTab(Tab);
 
   NewTabIndex := FSessions.IndexOf(Tab);
 
@@ -845,7 +877,7 @@ begin
     if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
       NewTabIndex := 0;
     if (NewTabIndex >= 0) then
-      Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
+      ActivateTab(FSessions[NewTabIndex]);
 
     Session := Tab.Session;
 
@@ -892,6 +924,8 @@ begin
   Wnd := FindWindow(PChar(cWindowClassName), nil);
 
   inherited;
+
+  ModalForm := nil;
 
   WindowPlacement.length := SizeOf(WindowPlacement);
   if ((Wnd > 0) and GetWindowPlacement(Wnd, @WindowPlacement)) then
@@ -946,6 +980,66 @@ function TWWindow.DBLogin(const Account: Pointer): Boolean;
 begin
   DLogin.Account := TPAccount(Account);
   Result := DLogin.Execute();
+end;
+
+procedure TWWindow.DeactivateTab(const Tab: TFSession);
+var
+  I: Integer;
+begin
+  Assert(Assigned(Tab));
+
+  Tab.FrameDeactivate(Self);
+
+  TabControl.TabIndex := -1;
+
+  Caption := LoadStr(1000);
+
+  aFClose.Enabled := False;
+
+
+  aVObjects.Checked := False;
+  aVBrowser.Checked := False;
+  aVIDE.Checked := False;
+  aVBuilder.Checked := False;
+  aVSQLEditor.Checked := False;
+  aVSQLEditor2.Checked := False;
+  aVSQLEditor3.Checked := False;
+  aVNavigator.Checked := False;
+  aVExplorer.Checked := False;
+  aVSQLHistory.Checked := False;
+  aVSQLLog.Checked := False;
+  tbVRefresh.Enabled := False;
+
+  aFOpen.Enabled := False;
+  aFSave.Enabled := False;
+  aFSaveAs.Enabled := False;
+  aECopy.Enabled := False;
+  aEPaste.Enabled := False;
+  aVObjects.Enabled := False;
+  aVBrowser.Enabled := False;
+  aVIDE.Enabled := False;
+  aVBuilder.Enabled := False;
+  aVDiagram.Enabled := False;
+  aVSQLEditor.Enabled := False;
+  aVSQLEditor2.Enabled := False;
+  aVSQLEditor3.Enabled := False;
+  aVNavigator.Enabled := False;
+  aVExplorer.Enabled := False;
+  aVSQLHistory.Enabled := False;
+  aVSQLLog.Enabled := False;
+  aDCancel.Enabled := False;
+  aDInsertRecord.Enabled := False;
+  aDDeleteRecord.Enabled := False;
+  aDRun.Enabled := False;
+  aDRunSelection.Enabled := False;
+  aHManual.Enabled := False;
+
+  miVRefresh.Enabled := False;
+  miVRefreshAll.Enabled := False;
+
+  Perform(UM_UPDATETOOLBAR, 0, 0);
+  for I := 0 to StatusBar.Panels.Count - 1 do
+    StatusBar.Panels[I].Text := '';
 end;
 
 destructor TWWindow.Destroy();
@@ -1161,8 +1255,8 @@ begin
   if (Sender is TMenuItem) then
   begin
     if (Assigned(ActiveTab)) then
-      Perform(UM_DEACTIVATETAB, 0, 0);
-    Perform(UM_ACTIVATETAB, 0, LPARAM(TFSession(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))])));
+      DeactivateTab(ActiveTab);
+    ActivateTab(TFSession(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))]));
   end;
 end;
 
@@ -1240,22 +1334,16 @@ begin
 end;
 
 procedure TWWindow.TabControlChange(Sender: TObject);
-var
-  Tab: TFSession;
 begin
   if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
-  begin
-    Tab := TFSession(FSessions[TabControl.TabIndex]);
-
-    Perform(UM_ACTIVATETAB, 0, LPARAM(Tab));
-  end;
+    ActivateTab(TFSession(FSessions[TabControl.TabIndex]));
 end;
 
 procedure TWWindow.TabControlChanging(Sender: TObject;
   var AllowChange: Boolean);
 begin
   if (Assigned(ActiveTab)) then
-    Perform(UM_DEACTIVATETAB, 0, 0);
+    DeactivateTab(ActiveTab);
 end;
 
 procedure TWWindow.TabControlContextPopup(Sender: TObject; MousePos: TPoint;
@@ -1403,32 +1491,9 @@ begin
   ActiveTab.ToolBarData.tbPropertiesAction.Execute();
 end;
 
-procedure TWWindow.UMActivateTab(var Message: TMessage);
+procedure TWWindow.UMActivateFrame(var Message: TMessage);
 begin
-  ActiveTab := TFSession(Message.LParam);
-
-  Color := clBtnFace;
-
-  if (ActiveTab.Visible) then
-    ActiveTab.Perform(UM_ACTIVATEFRAME, 0, 0);
-
-  tbDBPrev.Action := ActiveTab.aDPrev;
-  tbDBFirst.Action := ActiveTab.DataSetFirst;
-  tbDBLast.Action := ActiveTab.DataSetLast;
-  tbDBNext.Action := ActiveTab.aDNext;
-  tbPostRecord.Action := ActiveTab.DataSetPost;
-  tbCancelRecord.Action := ActiveTab.DataSetCancel;
-
-  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_PRIOR) + ')';
-  tbDBFirst.Hint := ActiveTab.DataSetFirst.Caption + ' (' + ShortCutToText(scCtrl + VK_HOME) + ')';
-  tbDBLast.Hint := ActiveTab.DataSetLast.Caption + ' (' + ShortCutToText(scCtrl + VK_END) + ')';
-  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_NEXT) + ')';
-
-  aFClose.Enabled := True;
-
-  Perform(UM_UPDATETOOLBAR, 0, Message.LParam);
-
-  Message.Result := 1;
+  TFSession(Message.LParam).FrameActivate(Self);
 end;
 
 procedure TWWindow.UMAddTab(var Message: TMessage);
@@ -1454,7 +1519,8 @@ begin
     FSession := nil
   else
   begin
-    Perform(UM_DEACTIVATETAB, 0, 0);
+    if (Assigned(ActiveTab)) then
+      DeactivateTab(ActiveTab);
 
     if (FSessions.Count = 0) then
     begin
@@ -1488,7 +1554,7 @@ begin
 
     FSessions.Add(FSession);
 
-    Perform(UM_ACTIVATETAB, 0, LPARAM(FSession));
+    ActivateTab(FSession);
 
     TBTabControl.Visible := TabControl.Visible;
   end;
@@ -1690,67 +1756,6 @@ begin
 
     try Preferences.Save(); except end;
   end;
-end;
-
-procedure TWWindow.UMDeactivateTab(var Message: TMessage);
-var
-  I: Integer;
-begin
-  if (Assigned(ActiveTab)) then
-  begin
-    SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
-
-    TabControl.TabIndex := -1;
-
-    Caption := LoadStr(1000);
-
-    aFClose.Enabled := False;
-
-
-    aVObjects.Checked := False;
-    aVBrowser.Checked := False;
-    aVIDE.Checked := False;
-    aVBuilder.Checked := False;
-    aVSQLEditor.Checked := False;
-    aVSQLEditor2.Checked := False;
-    aVSQLEditor3.Checked := False;
-    aVNavigator.Checked := False;
-    aVExplorer.Checked := False;
-    aVSQLHistory.Checked := False;
-    aVSQLLog.Checked := False;
-    tbVRefresh.Enabled := False;
-
-    aFOpen.Enabled := False;
-    aFSave.Enabled := False;
-    aFSaveAs.Enabled := False;
-    aECopy.Enabled := False;
-    aEPaste.Enabled := False;
-    aVObjects.Enabled := False;
-    aVBrowser.Enabled := False;
-    aVIDE.Enabled := False;
-    aVBuilder.Enabled := False;
-    aVDiagram.Enabled := False;
-    aVSQLEditor.Enabled := False;
-    aVSQLEditor2.Enabled := False;
-    aVSQLEditor3.Enabled := False;
-    aVNavigator.Enabled := False;
-    aVExplorer.Enabled := False;
-    aVSQLHistory.Enabled := False;
-    aVSQLLog.Enabled := False;
-    aDCancel.Enabled := False;
-    aDInsertRecord.Enabled := False;
-    aDDeleteRecord.Enabled := False;
-    aDRun.Enabled := False;
-    aDRunSelection.Enabled := False;
-    aHManual.Enabled := False;
-
-    miVRefresh.Enabled := False;
-    miVRefreshAll.Enabled := False;
-  end;
-
-  Perform(UM_UPDATETOOLBAR, 0, 0);
-  for I := 0 to StatusBar.Panels.Count - 1 do
-    StatusBar.Panels[I].Text := '';
 end;
 
 procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);

@@ -11274,7 +11274,8 @@ begin
     Assert(Assigned(DataHandle));
     Assert(MySQLSyncThreads.IndexOf(DataHandle) >= 0);
     Assert(Assigned(Session));
-    Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27, 2017-04-01
+    Assert(Sessions.IndexOf(Session) >= 0,
+      'Count: ' + IntToStr(Sessions.Count)); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27, 2017-04-01, 2017-04-26
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);

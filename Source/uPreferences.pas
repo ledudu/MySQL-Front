@@ -1891,8 +1891,6 @@ end;
 { TPPreferences ***************************************************************}
 
 procedure TPPreferences.ApplyToBCEditor(const BCEditor: TBCEditor);
-var
-  S: string;
 begin
   BCEditor.ActiveLine.Visible := Editor.CurrRowBGColorEnabled;
   BCEditor.ActiveLine.Color := Editor.CurrRowBGColor;
@@ -1900,10 +1898,7 @@ begin
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
   BCEditor.Font.Size := SQLFontSize;
-  S := BCEditor.Font.Name; {$MESSAGE 'Nils'}
-  BCEditor.LeftMargin.Font.Name := S;
-  BCEditor.LeftMargin.Font.Charset := BCEditor.Font.Charset;
-  BCEditor.LeftMargin.Font.Size := BCEditor.Font.Size;
+  BCEditor.LeftMargin.Font.Handle := BCEditor.Font.Handle;
 end;
 
 constructor TPPreferences.Create();

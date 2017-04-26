@@ -20,7 +20,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FOperatorChange(Sender: TObject);
   private
-    procedure CMShowingChanged(var Msg: TMessage); message CM_SHOWINGCHANGED;
+    procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
@@ -41,7 +41,7 @@ uses
 
 { TPDBGridFilter **************************************************************}
 
-procedure TPDBGridFilter.CMShowingChanged(var Msg: TMessage);
+procedure TPDBGridFilter.CMShowingChanged(var Message: TMessage);
 var
   Animation: BOOL;
 begin

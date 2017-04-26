@@ -2773,7 +2773,15 @@ begin
       for I := 0 to Length(CSVValues) - 1 do
         if (CSVValues[I].Length > 0) then
         begin
-          Value := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
+          try
+            Value := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
+          except
+            on E: Exception do
+              raise Exception.Create(
+                'Text: ' + CSVValues[I].Text + #13#10#13#10
+                + E.ClassName + ':' + #13#10
+                + E.Message);
+          end;
           if ((SQL_INTEGER in FileFields[I].FieldTypes) and not TryStrToInt(Value, Int)) then
             Exclude(FileFields[I].FieldTypes, SQL_INTEGER);
           if ((SQL_FLOAT in FileFields[I].FieldTypes) and not TryStrToFloat(Value, F, Session.Connection.FormatSettings)) then

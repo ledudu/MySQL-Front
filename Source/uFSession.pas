@@ -22,9 +22,7 @@ uses
 
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
-  UM_ACTIVATEFRAME = WM_USER + 501;
   UM_ACTIVATEFTEXT = WM_USER + 502;
-  UM_FRAME_CLOSE = WM_USER + 503;
   UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 505;
   UM_SYNCOMPLETION_TIMER = WM_USER + 506;
   UM_WANTED_SYNCHRONIZE = WM_USER + 507;
@@ -489,7 +487,6 @@ type
     procedure FObjectSearchStartClick(Sender: TObject);
     procedure FOffsetChange(Sender: TObject);
     procedure FOffsetKeyPress(Sender: TObject; var Key: Char);
-    procedure FormResize(Sender: TObject);
     procedure FQueryBuilderBCEditorChange(Sender: TObject);
     procedure FQueryBuilderBCEditorEnter(Sender: TObject);
     procedure FQueryBuilderBCEditorExit(Sender: TObject);
@@ -507,6 +504,7 @@ type
     procedure FQuickSearchChange(Sender: TObject);
     procedure FQuickSearchEnabledClick(Sender: TObject);
     procedure FQuickSearchKeyPress(Sender: TObject; var Key: Char);
+    procedure FrameResize(Sender: TObject);
     procedure FRTFChange(Sender: TObject);
     procedure FRTFEnter(Sender: TObject);
     procedure FRTFExit(Sender: TObject);
@@ -619,7 +617,7 @@ type
       var Accept: Boolean);
     procedure SSideBarMoved(Sender: TObject);
     procedure BCEditorBeforeCompletionProposalExecute(Sender: TObject;
-      Columns: TBCEditorCompletionProposal.TColumns; const Input: string;
+      const Columns: TBCEditorCompletionProposalColumns; const Input: string;
       var CanExecute: Boolean);
     procedure ToolBarResize(Sender: TObject);
     procedure ToolBarTabsClick(Sender: TObject);
@@ -886,6 +884,7 @@ type
     FNavigatorDragDisabled: Boolean;
     FNavigatorHotTrackDisabled: Boolean;
     FNavigatorIgnoreChange: Boolean;
+    FNavigatorIgnoreMouseClick: Boolean;
     FNavigatorKeyDownNode: TTreeNode;
     FNavigatorMenuNode: TTreeNode;
     FNavigatorNodeAfterActivate: TTreeNode;
@@ -935,7 +934,8 @@ type
     procedure aDCancelExecute(Sender: TObject);
     function AddressByData(const Data: TCustomData): string;
     procedure AddressChanged(Sender: TObject);
-    procedure AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
+    procedure AddressChanging(const Sender: TObject; const NewAddress: String;
+      var AllowChange: Boolean);
     procedure aDPostObjectExecute(Sender: TObject);
     procedure aDRunExecute(Sender: TObject);
     procedure aDRunSelectionExecute(Sender: TObject);
@@ -979,7 +979,7 @@ type
     function ClassIndexByData(const Data: TCustomData): TClassIndex;
     function ChangeCurrentAddress(const AAddress: string): Boolean;
     function ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
-    procedure CMSysFontChanged(var Msg: TMessage); message CM_SYSFONTCHANGED;
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function CreateBCEditor(SObject: TSObject): TBCEditor;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
@@ -1084,18 +1084,14 @@ type
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-    procedure UMActivateDBGrid(var Msg: TMessage); message UM_ACTIVATE_DBGRID;
-    procedure UMActivateFText(var Msg: TMessage); message UM_ACTIVATEFTEXT;
-    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMFrameActivate(var Msg: TMessage); message UM_ACTIVATEFRAME;
-    procedure UMFrameClose(var Msg: TMessage); message UM_FRAME_CLOSE;
-    procedure UMFrameCloseQuery(var Msg: TMessage); message UM_FRAME_CLOSE_QUERY;
-    procedure UMFrameDeactivate(var Msg: TMessage); message UM_DEACTIVATEFRAME;
-    procedure UMPostBuilderQueryChange(var Msg: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
-    procedure UMPostShow(var Msg: TMessage); message UM_POST_SHOW;
-    procedure UMStausBarRefresh(var Msg: TMessage); message UM_STATUS_BAR_REFRESH;
-    procedure UMSynCompletionTime(var Msg: TMessage); message UM_SYNCOMPLETION_TIMER;
-    procedure UMWantedSynchronize(var Msg: TMessage); message UM_WANTED_SYNCHRONIZE;
+    procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
+    procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
+    procedure UMSynCompletionTime(var Message: TMessage); message UM_SYNCOMPLETION_TIMER;
+    procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     function UpdateAfterAddressChanged(): Boolean;
     procedure ViewChanged(Sender: TObject);
     function ViewToParam(const AView: TView): Variant;
@@ -1138,6 +1134,9 @@ type
     procedure aEReplaceExecute(Sender: TObject);
     procedure aETransferExecute(Sender: TObject);
     procedure CrashRescue();
+    procedure FrameActivate(Sender: TObject);
+    procedure FrameCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure FrameDeactivate(Sender: TObject);
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
     procedure StatusBarRefresh(const Immediately: Boolean = False);
@@ -3062,7 +3061,8 @@ begin
   end;
 end;
 
-procedure TFSession.AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
+procedure TFSession.AddressChanging(const Sender: TObject; const NewAddress: String;
+  var AllowChange: Boolean);
 var
   Database: TSDatabase;
   DBObject: TSDBObject;
@@ -3097,7 +3097,9 @@ begin
 
   if (AllowChange) then
   begin
-    if (URI.Param['system'] = 'processes') then
+    if (URI.Param['system'] = 'quick') then
+      Session.Update()
+    else if (URI.Param['system'] = 'processes') then
     begin
       Session.Processes.Invalidate();
       Session.Update();
@@ -3105,8 +3107,6 @@ begin
     else if (URI.Param['system'] = 'users') then
       Session.Update()
     else if (URI.Param['system'] = 'variables') then
-      Session.Update()
-    else if (URI.Param['system'] = 'quick') then
       Session.Update()
     else if (URI.Database = '') then
       Session.Update(nil, URI.Param['view'] = Null)
@@ -3117,7 +3117,7 @@ begin
       Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
-      else if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update(URI.Param['view'] = Null)) then
+      else if ((ParamToView(URI.Param['view']) in [vObjects, vBrowser, vIDE, vBuilder, vDiagram]) and (ParamToView(URI.Param['view']) in [vBrowser])) then
         AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
@@ -4193,13 +4193,20 @@ begin
 end;
 
 procedure TFSession.aFOpenExecute(Sender: TObject);
+var
+  CanClose: Boolean;
 begin
   Wanted.Clear();
 
   if (View = vDiagram) then
     OpenDiagram()
-  else if (Boolean(Perform(UM_FRAME_CLOSE_QUERY, 0, 0))) then
-    OpenSQLFile('');
+  else
+  begin
+    CanClose := True;
+    FrameCloseQuery(Sender, CanClose);
+    if (CanClose) then
+      OpenSQLFile('');
+  end;
 end;
 
 procedure TFSession.aFOpenInNewTabExecute(Sender: TObject);
@@ -4726,7 +4733,7 @@ begin
 
   if (PSideBar.Visible) then
   begin
-    FormResize(Sender);
+    FrameResize(Sender);
     PSideBar.EnableAlign();
 
     if (MainAction('aVNavigator').Checked) then
@@ -4784,7 +4791,7 @@ begin
   else
     FLog.Lines.Clear();
 
-  FormResize(Sender);
+  FrameResize(Sender);
 end;
 
 procedure TFSession.BeforeExecuteSQL(Sender: TObject);
@@ -5153,6 +5160,7 @@ begin
   FNavigatorDragDisabled := False;
   FNavigatorHotTrackDisabled := False;
   FNavigatorIgnoreChange := False;
+  FNavigatorIgnoreMouseClick := False;
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
@@ -5415,7 +5423,7 @@ begin
     and not (WS_THICKFRAME or WS_SYSMENU or WS_DLGFRAME or WS_BORDER);
 end;
 
-procedure TFSession.CMSysFontChanged(var Msg: TMessage);
+procedure TFSession.CMSysFontChanged(var Message: TMessage);
 var
   Color: TColor;
   LogFont: TLogFont;
@@ -5527,7 +5535,7 @@ begin
   SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PLogHeader.Width := CloseButtonNormal.Width + 2 * GetSystemMetrics(SM_CXEDGE);
 
-  FormResize(nil);
+  FrameResize(nil);
 
   PDataBrowserSpacer.Top := FFilter.Height;
   PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
@@ -7760,17 +7768,6 @@ begin
     except
       AllowChange := False;
     end;
-
-  if (not AllowChange
-    and (View = vBrowser)
-    and Assigned(ActiveDBGrid)) then
-    case (Node.ImageIndex) of
-      iiBaseField,
-      iiVirtualField,
-      iiSystemViewField,
-      iiViewField:
-        ActiveDBGrid.SelectedField := ActiveDBGrid.DataSource.DataSet.FieldByName(TSField(Node.Data).Name);
-    end;
 end;
 
 procedure TFSession.FNavigatorDragDrop(Sender, Source: TObject; X, Y: Integer);
@@ -8151,10 +8148,6 @@ var
   Database: TSDatabase;
   Table: TSTable;
 begin
-  // Debug 2017-01-22
-  if (not Assigned(Node)) then
-    raise ERangeError.Create(SRangeError);
-
   if (Node.ImageIndex = iiQuickAccess) then
     AllowExpansion := True
   else if (Node.HasChildren) then
@@ -8191,6 +8184,8 @@ begin
       else if (Assigned(Database)) then
         Database.PushBuildEvents();
     end;
+
+    FNavigatorIgnoreMouseClick := True;
   end;
 end;
 
@@ -8481,10 +8476,7 @@ var
     else if ((TObject(Item1.Data) is TSItem) and (TObject(Item2.Data) is TSItem)) then
       Result := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
     else
-      raise ERangeError.Create('Item1.ImageIndex: ' + IntToStr(Item1.ImageIndex) + #13#10
-        + 'Item1.Text: ' + Item1.Text + #13#10
-        + 'Item2.ImageIndex: ' + IntToStr(Item2.ImageIndex) + #13#10
-        + 'Item2.Text: ' + Item2.Text);
+      Result := 0;
   end;
 
   function InsertOrUpdateChild(const Parent: TTreeNode; const Data: TObject): TTreeNode;
@@ -9122,31 +9114,6 @@ begin
     end;
 end;
 
-procedure TFSession.FormResize(Sender: TObject);
-var
-  MaxHeight: Integer;
-begin
-  PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
-  PHeaderResize(Sender);
-
-  if (PSideBar.Visible) then
-  begin
-    PSideBar.Constraints.MaxWidth := ClientWidth - PContent.Constraints.MinWidth - SSideBar.Width;
-
-    MaxHeight := ClientHeight;
-    if (PLog.Visible) then Dec(MaxHeight, PLog.Height);
-    if (SLog.Visible) then Dec(MaxHeight, SLog.Height);
-    PSideBar.Constraints.MaxHeight := MaxHeight;
-    PanelResize(PSideBar);
-  end;
-
-  if (PLog.Visible) then
-  begin
-    PLog.Constraints.MaxHeight := ClientHeight - PHeader.Height - PContent.Constraints.MinHeight - SLog.Height;
-    PLogResize(Sender);
-  end;
-end;
-
 function TFSession.FQueryBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
 begin
   if (not Assigned(FQueryBuilderEditorPageControl())) then
@@ -9435,6 +9402,287 @@ begin
     FQuickSearch.SelStart := 0;
     FQuickSearch.SelLength := Length(FQuickSearch.Text);
     Key := #0;
+  end;
+end;
+
+procedure TFSession.FrameActivate(Sender: TObject);
+begin
+  Include(FrameState, fsActive);
+
+  FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
+  FormatSettings.DecimalSeparator := Session.Connection.FormatSettings.DecimalSeparator;
+  FormatSettings.ShortDateFormat := Session.Connection.FormatSettings.ShortDateFormat;
+  FormatSettings.LongTimeFormat := Session.Connection.FormatSettings.LongTimeFormat;
+  FormatSettings.DateSeparator := Session.Connection.FormatSettings.DateSeparator;
+  FormatSettings.TimeSeparator := Session.Connection.FormatSettings.TimeSeparator;
+
+  Session.Connection.OnConvertError := OnConvertError;
+
+  if (Window.ActiveControl is TWinControl) then
+    Perform(CM_ENTER, 0, 0);
+
+  if (Assigned(MainActionList)) then
+  begin
+    MainAction('aVNavigator').Checked := PNavigator.Visible;
+    MainAction('aVExplorer').Checked := PExplorer.Visible;
+    MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
+    MainAction('aVSQLLog').Checked := PLog.Visible;
+
+    MainAction('aFOpen').OnExecute := aFOpenExecute;
+    MainAction('aFSave').OnExecute := aFSaveExecute;
+    MainAction('aFSaveAs').OnExecute := aFSaveAsExecute;
+    MainAction('aFImportSQL').OnExecute := aFImportSQLExecute;
+    MainAction('aFImportText').OnExecute := aFImportTextExecute;
+    MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
+    MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
+    MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
+    MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
+    MainAction('aFExportText').OnExecute := aFExportTextExecute;
+    MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
+    MainAction('aFExportAccess').OnExecute := aFExportAccessExecute;
+    MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
+    MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
+    MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
+    MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
+    MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
+    MainAction('aERedo').OnExecute := aERedoExecute;
+    MainAction('aECopy').OnExecute := aECopyExecute;
+    MainAction('aEPaste').OnExecute := aEPasteExecute;
+    MainAction('aERename').OnExecute := aERenameExecute;
+    MainAction('aVObjects').OnExecute := aViewExecute;
+    MainAction('aVBrowser').OnExecute := aViewExecute;
+    MainAction('aVIDE').OnExecute := aViewExecute;
+    MainAction('aVBuilder').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor2').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor3').OnExecute := aViewExecute;
+    MainAction('aVDiagram').OnExecute := aViewExecute;
+    MainAction('aVNavigator').OnExecute := aVSideBarExecute;
+    MainAction('aVExplorer').OnExecute := aVSideBarExecute;
+    MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
+    MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
+    MainAction('aVRefresh').OnExecute := aVRefreshExecute;
+    MainAction('aVRefreshAll').OnExecute := aVRefreshAllExecute;
+    MainAction('aDCancel').OnExecute := aDCancelExecute;
+    MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
+    MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
+    MainAction('aDCreateView').OnExecute := aDCreateViewExecute;
+    MainAction('aDCreateProcedure').OnExecute := aDCreateRoutineExecute;
+    MainAction('aDCreateFunction').OnExecute := aDCreateRoutineExecute;
+    MainAction('aDCreateKey').OnExecute := aDCreateKeyExecute;
+    MainAction('aDCreateField').OnExecute := aDCreateFieldExecute;
+    MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
+    MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
+    MainAction('aDCreateEvent').OnExecute := aDCreateEventExecute;
+    MainAction('aDCreateUser').OnExecute := aDCreateUserExecute;
+    MainAction('aDEditServer').OnExecute := PropertiesServerExecute;
+    MainAction('aDEditDatabase').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditTable').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditView').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditRoutine').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditEvent').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditTrigger').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditKey').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditField').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditForeignKey').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditProcess').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditUser').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditVariable').OnExecute := aDPropertiesExecute;
+    MainAction('aDDeleteDatabase').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteTable').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteView').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteRoutine').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteKey').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteField').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteForeignKey').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteTrigger').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteEvent').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteUser').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteProcess').OnExecute := aDDeleteExecute;
+    MainAction('aDInsertRecord').OnExecute := aDInsertRecordExecute;
+    MainAction('aDDeleteRecord').OnExecute := aDDeleteRecordExecute;
+    MainAction('aDRun').OnExecute := aDRunExecute;
+    MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
+    MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
+    MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
+    MainAction('aHSQL').OnExecute := aHSQLExecute;
+    MainAction('aHManual').OnExecute := aHManualExecute;
+
+
+    MainAction('aVObjects').Enabled := True;
+    MainAction('aVBrowser').Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
+    MainAction('aVIDE').Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
+    MainAction('aVBuilder').Enabled := LastSelectedDatabase <> '';
+    MainAction('aVSQLEditor').Enabled := True;
+    MainAction('aVSQLEditor2').Enabled := True;
+    MainAction('aVSQLEditor3').Enabled := True;
+    MainAction('aVDiagram').Enabled := LastSelectedDatabase <> '';
+    MainAction('aVNavigator').Enabled := True;
+    MainAction('aVExplorer').Enabled := True;
+    MainAction('aVSQLHistory').Enabled := True;
+    MainAction('aVSQLLog').Enabled := True;
+    MainAction('aVRefresh').Enabled := True;
+    MainAction('aVRefreshAll').Enabled := True;
+    MainAction('aDCancel').Enabled := Session.Connection.InUse();
+    MainAction('aHSQL').Enabled := Session.Connection.MySQLVersion >= 40100;
+    MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
+
+    aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
+
+    if (Assigned(ActiveControlOnDeactivate) and ActiveControlOnDeactivate.Visible) then
+      try Window.FocusControl(ActiveControlOnDeactivate); except end;
+
+    if (Assigned(Window.ActiveControl)) then
+      if (Window.ActiveControl = FNavigator) then FNavigatorEnter(FNavigator)
+      else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
+      else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
+      else if (Window.ActiveControl is TBCEditor) then BCEditorEnter(Window.ActiveControl)
+      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid);
+
+    if (Assigned(FNavigatorNodeAfterActivate)) then
+      FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
+
+    if (Assigned(FFolders) and (Path <> FFolders.SelectedFolder)) then
+      FFolders.SelectedFolder := Path;
+  end;
+
+  if (Assigned(StatusBar)) then
+    StatusBarRefresh(True);
+end;
+
+procedure TFSession.FrameCloseQuery(Sender: TObject; var CanClose: Boolean);
+var
+  I: Integer;
+  J: Integer;
+  SObject: TSObject;
+  BCEditor: TBCEditor;
+  View: TView;
+begin
+  CanClose := True;
+
+  if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
+    ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+
+  for I := 0 to PBCEditor.ControlCount - 1 do
+    if (CanClose) then
+      if (PBCEditor.Controls[I] is TBCEditor) then
+      begin
+        BCEditor := TBCEditor(PBCEditor.Controls[I]);
+        if (BCEditor.Modified) then
+        begin
+          SObject := TSObject(BCEditor.Tag);
+          if (Assigned(SObject)) then
+            for J := 0 to FNavigator.Items.Count - 1 do
+              if (FNavigator.Items[J].Data = SObject) then
+              begin
+                CurrentAddress := AddressByData(FNavigator.Items[J].Data);
+                if (BCEditor = SQLEditors[vEditor].BCEditor) then Self.View := vEditor
+                else if (Assigned(SQLEditor2) and (BCEditor = SQLEditor2.BCEditor)) then Self.View := vEditor2
+                else if (Assigned(SQLEditor3) and (BCEditor = SQLEditor3.BCEditor)) then Self.View := vEditor3
+                else Self.View := vIDE;
+                Window.ActiveControl := ActiveBCEditor;
+                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+                  IDYES: MainAction('aDPostObject').Execute();
+                  IDCANCEL: CanClose := False;
+                end;
+              end;
+        end;
+      end;
+
+  if (CanClose) then
+    for View in [vEditor, vEditor2, vEditor3] do
+      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
+      begin
+        Self.View := View;
+        // Debug 2017-04-26
+        Assert(Self.View = View);
+
+        Window.ActiveControl := ActiveBCEditor;
+        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+          IDYES:
+            begin
+              // Debug 2017-04-26
+              Assert(Self.View = View);
+
+              SaveSQLFile(MainAction('aFSave'));
+            end;
+          IDCANCEL: CanClose := False;
+        end;
+      end;
+
+  for I := 0 to Session.Databases.Count - 1 do
+    if (CanClose) then
+    begin
+      if (not Assigned(Session.Databases[I])) then
+        raise ERangeError.Create(SRangeError);
+      if (not Assigned(Desktop(Session.Databases[I]))) then
+        raise ERangeError.Create('Database: ' + Session.Databases[I].Name);
+
+      Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
+    end;
+end;
+
+procedure TFSession.FrameDeactivate(Sender: TObject);
+begin
+  KillTimer(Handle, tiNavigator);
+  KillTimer(Handle, tiStatusBar);
+
+  ActiveControlOnDeactivate := Window.ActiveControl;
+
+  MainAction('aVObjects').Enabled := False;
+  MainAction('aVBrowser').Enabled := False;
+  MainAction('aVIDE').Enabled := False;
+  MainAction('aVBuilder').Enabled := False;
+  MainAction('aVSQLEditor').Enabled := False;
+  MainAction('aVSQLEditor2').Enabled := False;
+  MainAction('aVSQLEditor3').Enabled := False;
+  MainAction('aVDiagram').Enabled := False;
+  MainAction('aVNavigator').Enabled := False;
+  MainAction('aVExplorer').Enabled := False;
+  MainAction('aVSQLHistory').Enabled := False;
+  MainAction('aVSQLLog').Enabled := False;
+  MainAction('aVRefresh').Enabled := False;
+  MainAction('aVRefreshAll').Enabled := False;
+  MainAction('aDCancel').Enabled := False;
+  MainAction('aHSQL').Enabled := False;
+  MainAction('aHManual').Enabled := False;
+
+  MainAction('aECopy').OnExecute := nil;
+  MainAction('aEPaste').OnExecute := nil;
+
+  aPResult.ShortCut := 0;
+
+  if (Window.ActiveControl = FNavigator) then FNavigatorExit(Window.ActiveControl)
+  else if (Window.ActiveControl = ActiveListView) then ListViewExit(Window.ActiveControl)
+  else if (Window.ActiveControl = FLog) then FLogExit(Window.ActiveControl)
+  else if (Window.ActiveControl is TBCEditor) then BCEditorExit(Window.ActiveControl)
+  else if (Window.ActiveControl = ActiveDBGrid) then DBGridExit(Window.ActiveControl);
+
+  Exclude(FrameState, fsActive);
+end;
+
+procedure TFSession.FrameResize(Sender: TObject);
+var
+  MaxHeight: Integer;
+begin
+  PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
+  PHeaderResize(Sender);
+
+  if (PSideBar.Visible) then
+  begin
+    PSideBar.Constraints.MaxWidth := ClientWidth - PContent.Constraints.MinWidth - SSideBar.Width;
+
+    MaxHeight := ClientHeight;
+    if (PLog.Visible) then Dec(MaxHeight, PLog.Height);
+    if (SLog.Visible) then Dec(MaxHeight, SLog.Height);
+    PSideBar.Constraints.MaxHeight := MaxHeight;
+    PanelResize(PSideBar);
+  end;
+
+  if (PLog.Visible) then
+  begin
+    PLog.Constraints.MaxHeight := ClientHeight - PHeader.Height - PContent.Constraints.MinHeight - SLog.Height;
+    PLogResize(Sender);
   end;
 end;
 
@@ -12581,13 +12829,17 @@ begin
 end;
 
 procedure TFSession.mfOpenClick(Sender: TObject);
+var
+  CanClose: Boolean;
 begin
   if (Assigned(FFiles.Selected) and (LowerCase(ExtractFileExt(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)) = '.sql')) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
 
-    if (Boolean(Perform(UM_FRAME_CLOSE_QUERY, 0, 0))) then
+    CanClose := True;
+    FrameCloseQuery(Sender, CanClose);
+    if (CanClose) then
       OpenSQLFile(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption);
   end
   else
@@ -12726,19 +12978,25 @@ begin
 end;
 
 procedure TFSession.miHOpenClick(Sender: TObject);
+var
+  CanClose: Boolean;
 begin
   Wanted.Clear();
 
-  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])
-    and Boolean(Perform(UM_FRAME_CLOSE_QUERY, 0, 0))) then
+  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])) then
   begin
-    if (not (View in [vEditor, vEditor2, vEditor3])) then
-      View := vEditor;
-    if (View in [vEditor, vEditor2, vEditor3]) then
+    CanClose := True;
+    FrameCloseQuery(Sender, CanClose);
+    if (CanClose) then
     begin
-      ActiveBCEditor.Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
+      if (not (View in [vEditor, vEditor2, vEditor3])) then
+        View := vEditor;
+      if (View in [vEditor, vEditor2, vEditor3]) then
+      begin
+        ActiveBCEditor.Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
 
-      Window.ActiveControl := ActiveBCEditor;
+        Window.ActiveControl := ActiveBCEditor;
+      end;
     end;
   end;
 end;
@@ -12877,6 +13135,11 @@ begin
   end
   else
     FNavigatorMenuNode := FNavigatorNodeByAddress(CurrentAddress);
+
+  // Debug 2017-04-26
+  Assert(Assigned(FNavigatorMenuNode),
+    'Popup: ' + BoolToStr(Sender = FNavigator.PopupMenu, True) + #13#10
+    + 'CurrentAddress: ' + CurrentAddress);
 
   AllowChange := True;
   FNavigatorChanging(Sender, FNavigatorMenuNode, AllowChange);
@@ -15026,7 +15289,7 @@ end;
 
 procedure TFSession.SLogMoved(Sender: TObject);
 begin
-  FormResize(Sender);
+  FrameResize(Sender);
 end;
 
 procedure TFSession.smEEmptyClick(Sender: TObject);
@@ -15080,6 +15343,8 @@ var
 begin
   if (E is EDatabasePostError) then
     Msg := Preferences.LoadStr(675)
+  else if (E is EDatabaseUpdateError) then
+    Msg := Preferences.LoadStr(945)
   else if (E is EMySQLError) then
     case (EMySQLError(E).ErrorCode) of
       CR_CONN_HOST_ERROR: if (EMySQLError(E).Connection.Host <> '') then Msg := Preferences.LoadStr(495, EMySQLError(E).Connection.Host) else Msg := Preferences.LoadStr(495);
@@ -15120,7 +15385,7 @@ end;
 
 procedure TFSession.SSideBarMoved(Sender: TObject);
 begin
-  FormResize(Sender);
+  FrameResize(Sender);
 end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
@@ -15220,7 +15485,7 @@ begin
 end;
 
 procedure TFSession.BCEditorBeforeCompletionProposalExecute(Sender: TObject;
-  Columns: TBCEditorCompletionProposal.TColumns; const Input: string; var CanExecute: Boolean);
+  const Columns: TBCEditorCompletionProposalColumns; const Input: string; var CanExecute: Boolean);
 
   procedure AddItem(const Display: string; const Insert: string);
   type
@@ -15636,47 +15901,36 @@ var
   S: string;
   SelStart: Integer;
 begin
-  if ((Source = FNavigator) and (Sender is TBCEditor)) then
+  if (Sender is TBCEditor) then
   begin
-    case (MouseDownNode.ImageIndex) of
-      iiKey: S := TSKey(MouseDownNode.Data).Name;
-      iiForeignKey: S := TSForeignKey(MouseDownNode.Data).Name;
-      else S := MouseDownNode.Text;
+    if (Source = FNavigator) then
+      case (MouseDownNode.ImageIndex) of
+        iiKey: S := TSKey(MouseDownNode.Data).Name;
+        iiForeignKey: S := TSForeignKey(MouseDownNode.Data).Name;
+        else S := MouseDownNode.Text;
+      end
+    else if (Source = FSQLHistory) then
+    begin
+      S := XMLNode(IXMLNode(MouseDownNode.Data), 'sql').Text;
+
+      DatabaseName := XMLNode(IXMLNode(MouseDownNode.Data), 'database').Text;
+      if (DatabaseName <> SelectedDatabase) then
+        S := Session.Connection.SQLUse(DatabaseName) + S;
+      S := ReplaceStr(ReplaceStr(S, #13#10, #10), #10, #13#10);
+    end
+    else if (Source = ActiveDBGrid) then
+      S := ActiveDBGrid.SelectedField.AsString
+    else
+      S := '';
+
+    if (S <> '') then
+    begin
+      SelStart := TBCEditor(Sender).SelStart;
+      TBCEditor(Sender).SelText := S;
+      TBCEditor(Sender).SelStart := SelStart;
+      TBCEditor(Sender).SelLength := Length(S);
+      TBCEditor(Sender).AlwaysShowCaret := False;
     end;
-    SelStart := TBCEditor(Sender).SelStart;
-    TBCEditor(Sender).SelText := Session.Connection.EscapeIdentifier(S);
-    TBCEditor(Sender).SelStart := SelStart;
-    TBCEditor(Sender).SelLength := Length(Session.Connection.EscapeIdentifier(S));
-    TBCEditor(Sender).AlwaysShowCaret := False;
-
-    Window.ActiveControl := TBCEditor(Sender);
-  end
-  else if ((Source = FSQLHistory) and (Sender is TBCEditor)) then
-  begin
-    S := XMLNode(IXMLNode(MouseDownNode.Data), 'sql').Text;
-
-    DatabaseName := XMLNode(IXMLNode(MouseDownNode.Data), 'database').Text;
-    if (DatabaseName <> SelectedDatabase) then
-      S := Session.Connection.SQLUse(DatabaseName) + S;
-    S := ReplaceStr(ReplaceStr(S, #13#10, #10), #10, #13#10);
-
-    SelStart := TBCEditor(Sender).SelStart;
-    TBCEditor(Sender).SelText := S;
-    TBCEditor(Sender).SelStart := SelStart;
-    TBCEditor(Sender).SelLength := Length(S);
-    TBCEditor(Sender).AlwaysShowCaret := False;
-
-    Window.ActiveControl := TBCEditor(Sender);
-  end
-  else if ((Source = ActiveDBGrid) and (Sender = ActiveBCEditor)) then
-  begin
-    S := ActiveDBGrid.SelectedField.AsString;
-
-    SelStart := TBCEditor(Sender).SelStart;
-    TBCEditor(Sender).SelText := S;
-    TBCEditor(Sender).SelStart := SelStart;
-    TBCEditor(Sender).SelLength := Length(S);
-    TBCEditor(Sender).AlwaysShowCaret := False;
 
     Window.ActiveControl := TBCEditor(Sender);
   end;
@@ -16013,37 +16267,73 @@ end;
 
 procedure TFSession.TreeViewMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  Node: TTreeNode;
 begin
+  if (not LeftMousePressed) then
+    Node := nil
+  else
+    Node := TTreeView(Sender).GetNodeAt(X, Y);
+  if (Assigned(Node) and (Node.Text = '')) then
+    Node := nil;
+
+
+  if ((Sender = FNavigator)
+    and not FNavigatorIgnoreMouseClick
+    and Assigned(Node)
+    and not Assigned(FNavigatorNodeToExpand)
+    and (View = vBrowser)
+    and Assigned(ActiveDBGrid)
+    and ActiveDBGrid.DataSource.DataSet.Active) then
+    case (Node.ImageIndex) of
+      iiBaseField,
+      iiVirtualField,
+      iiSystemViewField,
+      iiViewField:
+        try
+          ActiveDBGrid.SelectedField := ActiveDBGrid.DataSource.DataSet.FieldByName(TSField(Node.Data).Name);
+        except
+          on E: Exception do
+            raise EAssertionFailed.Create('Active: ' + BoolToStr(ActiveDBGrid.DataSource.DataSet.Active, True) + #13#10
+              + 'CommandText: ' + TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText + #13#10
+              + 'CurrentAddress: ' + CurrentAddress + #13#10
+              + 'Columns: ' + IntToStr(ActiveDBGrid.Columns.Count) + #13#10
+              + 'Fields: ' + IntToStr(ActiveDBGrid.DataSource.DataSet.FieldCount) + #13#10
+              + 'Field: ' + TSField(Node.Data).Name);
+        end;
+    end;
+
   LeftMousePressed := False;
+  FNavigatorIgnoreMouseClick := False;
 end;
 
-procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
+procedure TFSession.UMActivateDBGrid(var Message: TMessage);
 begin
-  if (PResult.Visible and (TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
+  if (PResult.Visible and (TWinControl(Message.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
   begin
     Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.EditorMode := False;
   end;
 end;
 
-procedure TFSession.UMActivateFText(var Msg: TMessage);
+procedure TFSession.UMActivateFText(var Message: TMessage);
 const
   KEYEVENTF_UNICODE = 4;
 var
   Input: TInput;
 begin
-  if (Msg.WParam <> 0) then
+  if (Message.WParam <> 0) then
   begin
     ZeroMemory(@Input, SizeOf(Input));
     Input.Itype := INPUT_KEYBOARD;
-    Input.ki.wVk := Msg.WParam;
+    Input.ki.wVk := Message.WParam;
     Input.ki.dwFlags := KEYEVENTF_UNICODE;
     SendInput(1, Input, SizeOf(Input));
   end;
   FText.SelStart := Length(FText.Text);
 end;
 
-procedure TFSession.UMChangePreferences(var Msg: TMessage);
+procedure TFSession.UMChangePreferences(var Message: TMessage);
 var
   I: Integer;
   ItemEx: TTVItemEx;
@@ -16274,270 +16564,12 @@ begin
   PasteMode := False;
 end;
 
-procedure TFSession.UMFrameActivate(var Msg: TMessage);
-begin
-  Include(FrameState, fsActive);
-
-  FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
-  FormatSettings.DecimalSeparator := Session.Connection.FormatSettings.DecimalSeparator;
-  FormatSettings.ShortDateFormat := Session.Connection.FormatSettings.ShortDateFormat;
-  FormatSettings.LongTimeFormat := Session.Connection.FormatSettings.LongTimeFormat;
-  FormatSettings.DateSeparator := Session.Connection.FormatSettings.DateSeparator;
-  FormatSettings.TimeSeparator := Session.Connection.FormatSettings.TimeSeparator;
-
-  Session.Connection.OnConvertError := OnConvertError;
-
-  if (Window.ActiveControl is TWinControl) then
-    Perform(CM_ENTER, 0, 0);
-
-  if (Assigned(MainActionList)) then
-  begin
-    MainAction('aVNavigator').Checked := PNavigator.Visible;
-    MainAction('aVExplorer').Checked := PExplorer.Visible;
-    MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
-    MainAction('aVSQLLog').Checked := PLog.Visible;
-
-    MainAction('aFOpen').OnExecute := aFOpenExecute;
-    MainAction('aFSave').OnExecute := aFSaveExecute;
-    MainAction('aFSaveAs').OnExecute := aFSaveAsExecute;
-    MainAction('aFImportSQL').OnExecute := aFImportSQLExecute;
-    MainAction('aFImportText').OnExecute := aFImportTextExecute;
-    MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
-    MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
-    MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
-    MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
-    MainAction('aFExportText').OnExecute := aFExportTextExecute;
-    MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
-    MainAction('aFExportAccess').OnExecute := aFExportAccessExecute;
-    MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
-    MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
-    MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
-    MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
-    MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
-    MainAction('aERedo').OnExecute := aERedoExecute;
-    MainAction('aECopy').OnExecute := aECopyExecute;
-    MainAction('aEPaste').OnExecute := aEPasteExecute;
-    MainAction('aERename').OnExecute := aERenameExecute;
-    MainAction('aVObjects').OnExecute := aViewExecute;
-    MainAction('aVBrowser').OnExecute := aViewExecute;
-    MainAction('aVIDE').OnExecute := aViewExecute;
-    MainAction('aVBuilder').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor2').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor3').OnExecute := aViewExecute;
-    MainAction('aVDiagram').OnExecute := aViewExecute;
-    MainAction('aVNavigator').OnExecute := aVSideBarExecute;
-    MainAction('aVExplorer').OnExecute := aVSideBarExecute;
-    MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
-    MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
-    MainAction('aVRefresh').OnExecute := aVRefreshExecute;
-    MainAction('aVRefreshAll').OnExecute := aVRefreshAllExecute;
-    MainAction('aDCancel').OnExecute := aDCancelExecute;
-    MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
-    MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
-    MainAction('aDCreateView').OnExecute := aDCreateViewExecute;
-    MainAction('aDCreateProcedure').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateFunction').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateKey').OnExecute := aDCreateKeyExecute;
-    MainAction('aDCreateField').OnExecute := aDCreateFieldExecute;
-    MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
-    MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
-    MainAction('aDCreateEvent').OnExecute := aDCreateEventExecute;
-    MainAction('aDCreateUser').OnExecute := aDCreateUserExecute;
-    MainAction('aDEditServer').OnExecute := PropertiesServerExecute;
-    MainAction('aDEditDatabase').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditTable').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditView').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditRoutine').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditEvent').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditTrigger').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditField').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditForeignKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditProcess').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditUser').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditVariable').OnExecute := aDPropertiesExecute;
-    MainAction('aDDeleteDatabase').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteTable').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteView').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteRoutine').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteKey').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteField').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteForeignKey').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteTrigger').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteEvent').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteUser').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteProcess').OnExecute := aDDeleteExecute;
-    MainAction('aDInsertRecord').OnExecute := aDInsertRecordExecute;
-    MainAction('aDDeleteRecord').OnExecute := aDDeleteRecordExecute;
-    MainAction('aDRun').OnExecute := aDRunExecute;
-    MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
-    MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
-    MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
-    MainAction('aHSQL').OnExecute := aHSQLExecute;
-    MainAction('aHManual').OnExecute := aHManualExecute;
-
-
-    MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
-    MainAction('aVIDE').Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
-    MainAction('aVBuilder').Enabled := LastSelectedDatabase <> '';
-    MainAction('aVSQLEditor').Enabled := True;
-    MainAction('aVSQLEditor2').Enabled := True;
-    MainAction('aVSQLEditor3').Enabled := True;
-    MainAction('aVDiagram').Enabled := LastSelectedDatabase <> '';
-    MainAction('aVNavigator').Enabled := True;
-    MainAction('aVExplorer').Enabled := True;
-    MainAction('aVSQLHistory').Enabled := True;
-    MainAction('aVSQLLog').Enabled := True;
-    MainAction('aVRefresh').Enabled := True;
-    MainAction('aVRefreshAll').Enabled := True;
-    MainAction('aDCancel').Enabled := Session.Connection.InUse();
-    MainAction('aHSQL').Enabled := Session.Connection.MySQLVersion >= 40100;
-    MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
-
-    aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
-
-    if (Assigned(ActiveControlOnDeactivate) and ActiveControlOnDeactivate.Visible) then
-      try Window.FocusControl(ActiveControlOnDeactivate); except end;
-
-    if (Assigned(Window.ActiveControl)) then
-      if (Window.ActiveControl = FNavigator) then FNavigatorEnter(FNavigator)
-      else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
-      else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
-      else if (Window.ActiveControl is TBCEditor) then BCEditorEnter(Window.ActiveControl)
-      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid);
-
-    if (Assigned(FNavigatorNodeAfterActivate)) then
-      FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
-
-    if (Assigned(FFolders) and (Path <> FFolders.SelectedFolder)) then
-      FFolders.SelectedFolder := Path;
-  end;
-
-  if (Assigned(StatusBar)) then
-    StatusBarRefresh(True);
-end;
-
-procedure TFSession.UMFrameClose(var Msg: TMessage);
-begin
-  MainAction('aFClose').Execute();
-end;
-
-procedure TFSession.UMFrameCloseQuery(var Msg: TMessage);
-var
-  CanClose: Boolean;
-  I: Integer;
-  J: Integer;
-  SObject: TSObject;
-  BCEditor: TBCEditor;
-  View: TView;
-begin
-  CanClose := True;
-
-  if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
-    ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-
-  for I := 0 to PBCEditor.ControlCount - 1 do
-    if (CanClose) then
-      if (PBCEditor.Controls[I] is TBCEditor) then
-      begin
-        BCEditor := TBCEditor(PBCEditor.Controls[I]);
-        if (BCEditor.Modified) then
-        begin
-          SObject := TSObject(BCEditor.Tag);
-          if (Assigned(SObject)) then
-            for J := 0 to FNavigator.Items.Count - 1 do
-              if (FNavigator.Items[J].Data = SObject) then
-              begin
-                CurrentAddress := AddressByData(FNavigator.Items[J].Data);
-                if (BCEditor = SQLEditors[vEditor].BCEditor) then Self.View := vEditor
-                else if (Assigned(SQLEditor2) and (BCEditor = SQLEditor2.BCEditor)) then Self.View := vEditor2
-                else if (Assigned(SQLEditor3) and (BCEditor = SQLEditor3.BCEditor)) then Self.View := vEditor3
-                else Self.View := vIDE;
-                Window.ActiveControl := ActiveBCEditor;
-                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-                  IDYES: MainAction('aDPostObject').Execute();
-                  IDCANCEL: CanClose := False;
-                end;
-              end;
-        end;
-      end;
-
-  if (CanClose) then
-    for View in [vEditor, vEditor2, vEditor3] do
-      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
-      begin
-        Self.View := View;
-        Window.ActiveControl := ActiveBCEditor;
-        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-          IDYES: SaveSQLFile(MainAction('aFSave'));
-          IDCANCEL: CanClose := False;
-        end;
-      end;
-
-  for I := 0 to Session.Databases.Count - 1 do
-    if (CanClose) then
-    begin
-      if (not Assigned(Session.Databases[I])) then
-        raise ERangeError.Create(SRangeError);
-      if (not Assigned(Desktop(Session.Databases[I]))) then
-        raise ERangeError.Create('Database: ' + Session.Databases[I].Name);
-
-      Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
-    end;
-
-  if (not CanClose) then
-    Msg.Result := 0
-  else
-    Msg.Result := 1;
-end;
-
-procedure TFSession.UMFrameDeactivate(var Msg: TMessage);
-begin
-  KillTimer(Handle, tiNavigator);
-  KillTimer(Handle, tiStatusBar);
-
-  ActiveControlOnDeactivate := Window.ActiveControl;
-
-  MainAction('aVObjects').Enabled := False;
-  MainAction('aVBrowser').Enabled := False;
-  MainAction('aVIDE').Enabled := False;
-  MainAction('aVBuilder').Enabled := False;
-  MainAction('aVSQLEditor').Enabled := False;
-  MainAction('aVSQLEditor2').Enabled := False;
-  MainAction('aVSQLEditor3').Enabled := False;
-  MainAction('aVDiagram').Enabled := False;
-  MainAction('aVNavigator').Enabled := False;
-  MainAction('aVExplorer').Enabled := False;
-  MainAction('aVSQLHistory').Enabled := False;
-  MainAction('aVSQLLog').Enabled := False;
-  MainAction('aVRefresh').Enabled := False;
-  MainAction('aVRefreshAll').Enabled := False;
-  MainAction('aDCancel').Enabled := False;
-  MainAction('aHSQL').Enabled := False;
-  MainAction('aHManual').Enabled := False;
-
-  MainAction('aECopy').OnExecute := nil;
-  MainAction('aEPaste').OnExecute := nil;
-
-  aPResult.ShortCut := 0;
-
-  if (Window.ActiveControl = FNavigator) then FNavigatorExit(Window.ActiveControl)
-  else if (Window.ActiveControl = ActiveListView) then ListViewExit(Window.ActiveControl)
-  else if (Window.ActiveControl = FLog) then FLogExit(Window.ActiveControl)
-  else if (Window.ActiveControl is TBCEditor) then BCEditorExit(Window.ActiveControl)
-  else if (Window.ActiveControl = ActiveDBGrid) then DBGridExit(Window.ActiveControl);
-
-  Exclude(FrameState, fsActive);
-end;
-
-procedure TFSession.UMPostBuilderQueryChange(var Msg: TMessage);
+procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
 begin
   FQueryBuilderEditorPageControlCheckStyle();
 end;
 
-procedure TFSession.UMPostShow(var Msg: TMessage);
+procedure TFSession.UMPostShow(var Message: TMessage);
 var
   AllowChange: Boolean;
   Node: TTreeNode;
@@ -16570,10 +16602,10 @@ begin
 
   FQueryBuilderEditorPageControlCheckStyle();
 
-  FormResize(nil);
+  FrameResize(nil);
   PHeaderCheckElements(nil);
 
-  Perform(UM_ACTIVATEFRAME, 0, 0);
+  FrameActivate(Self);
 
   ServerNode := FNavigator.Items.Add(nil, Session.Caption);
   ServerNode.Data := Session;
@@ -16640,18 +16672,18 @@ begin
   end;
 end;
 
-procedure TFSession.UMStausBarRefresh(var Msg: TMessage);
+procedure TFSession.UMStausBarRefresh(var Message: TMessage);
 begin
   StatusBarRefresh();
 end;
 
-procedure TFSession.UMSynCompletionTime(var Msg: TMessage);
+procedure TFSession.UMSynCompletionTime(var Message: TMessage);
 begin
   // SetTimer must be set after BCEditorStatusChange
-  SetTimer(Handle, Msg.WParam, Msg.LParam, nil);
+  SetTimer(Handle, Message.WParam, Message.LParam, nil);
 end;
 
-procedure TFSession.UMWantedSynchronize(var Msg: TMessage);
+procedure TFSession.UMWantedSynchronize(var Message: TMessage);
 begin
   if (not (csDestroying in ComponentState)) then
     Wanted.Synchronize();

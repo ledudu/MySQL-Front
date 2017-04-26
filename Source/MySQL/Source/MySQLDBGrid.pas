@@ -104,7 +104,7 @@ type
     procedure Resize(); override;
     procedure TitleClick(Column: TColumn); override;
     procedure TopLeftChanged(); override;
-    procedure WndProc(var Msg: TMessage); override;
+    procedure WndProc(var Message: TMessage); override;
     property HeaderControl: THeaderControl read FHeaderControl;
     property IgnoreKeyPress: Boolean read FIgnoreKeyPress;
   public
@@ -1754,10 +1754,10 @@ begin
   end;
 end;
 
-procedure TMySQLDBGrid.WndProc(var Msg: TMessage);
+procedure TMySQLDBGrid.WndProc(var Message: TMessage);
 begin
-  if ((Msg.Msg = WM_LBUTTONDOWN) and (DragMode = dmAutomatic)) then
-    MouseDown(mbLeft, KeysToShiftState(TWMLButtonDown(Msg).Keys), TWMLButtonDown(Msg).XPos, TWMLButtonDown(Msg).YPos)
+  if ((Message.Msg = WM_LBUTTONDOWN) and (DragMode = dmAutomatic)) then
+    MouseDown(mbLeft, KeysToShiftState(TWMLButtonDown(Message).Keys), TWMLButtonDown(Message).XPos, TWMLButtonDown(Message).YPos)
   else
     inherited;
 end;

@@ -22,7 +22,7 @@ type
   private
     FLocation: TObject;
     FSession: TSSession;
-    procedure CMShowingChanged(var Msg: TMessage); message CM_SHOWINGCHANGED;
+    procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
     function GetComment(): Boolean;
     function GetDatabases(): Boolean;
     function GetEvents(): Boolean;
@@ -32,7 +32,7 @@ type
     function GetTables(): Boolean;
     function GetTriggers(): Boolean;
     procedure SetLocation(ALocation: TObject);
-    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
@@ -59,7 +59,7 @@ uses
 
 { TPObjectSearch **************************************************************}
 
-procedure TPObjectSearch.CMShowingChanged(var Msg: TMessage);
+procedure TPObjectSearch.CMShowingChanged(var Message: TMessage);
 var
   Animation: BOOL;
 begin
@@ -159,7 +159,7 @@ begin
     FName.Checked := True;
 end;
 
-procedure TPObjectSearch.UMChangePreferences(var Msg: TMessage);
+procedure TPObjectSearch.UMChangePreferences(var Message: TMessage);
 begin
   FLWhat.Caption := Preferences.LoadStr(227) + ':';
   FDatabases.Caption := Preferences.LoadStr(265);

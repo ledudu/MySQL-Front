@@ -2562,7 +2562,6 @@ end;
 
 procedure TWLink.SetTable(Index: Integer; ATable: TWTable);
 begin
-  // Debug 2017-02-12
   Assert(Assigned(ATable));
 
   Workbench.State := wsAutoCreate;
@@ -3940,16 +3939,18 @@ begin
     end;
 
     for J := 0 to BaseTable.ForeignKeys.Count - 1 do
-      if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))
-        and Assigned(TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName))) then
+      if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then
+      begin
+        Table := TableByBaseTable(BaseTable);
+        if (Assigned(Table)) then
         begin
           Link := TWForeignKey.Create(Self, Coord(-1, -1));
           TWForeignKey(Link).BaseForeignKey := BaseTable.ForeignKeys[J];
-          Table := TableByBaseTable(BaseTable);
           Link.ChildTable := Table;
           Table := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
           Link.ParentTable := Table;
         end;
+      end;
 
     for I := 0 to Tables.Count - 1 do
       for J := 0 to Tables[I].BaseTable.ForeignKeys.Count - 1 do
