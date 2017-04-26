@@ -3117,7 +3117,7 @@ begin
       Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
-      else if ((ParamToView(URI.Param['view']) in [vObjects, vBrowser, vIDE, vBuilder, vDiagram]) and (ParamToView(URI.Param['view']) in [vBrowser])) then
+      else if ((ParamToView(URI.Param['view']) in [vObjects, vBrowser, vIDE, vBuilder, vDiagram]) and not Database.Update(URI.Param['view'] = Null) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
         AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
@@ -6657,6 +6657,9 @@ begin
       HDItem.fmt := HDItem.fmt and not HDF_SPLITBUTTON;
       SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
       ReleaseCapture();
+
+      inherited;
+      exit;
     end;
 
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)
@@ -6852,12 +6855,6 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  // Debug 2017-01-02
-  if (not Assigned(Column)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Column.Field)) then
-    raise ERangeError.Create(SRangeError);
-
   if (not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
   begin
     SortDef := TIndexDef.Create(nil, '', '', []);
