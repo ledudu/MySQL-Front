@@ -82,10 +82,6 @@ object DTable: TDTable
     TabOrder = 4
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)

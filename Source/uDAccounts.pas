@@ -165,6 +165,9 @@ end;
 
 function TDAccounts.Execute(): Boolean;
 begin
+  // Debug 2017-04-27
+  Assert(not Visible);
+
   Result := ShowModal() = mrOk;
 end;
 

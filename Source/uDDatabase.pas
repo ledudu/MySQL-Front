@@ -73,6 +73,7 @@ type
     procedure TSInformationShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
   private
+    NewName: string;
     SessionState: (ssCreate, ssInit, ssStatus, ssValid, ssAlter);
     procedure Built();
     procedure BuiltStatus();
@@ -83,7 +84,7 @@ type
     Session: TSSession;
     Database: TSDatabase;
     function Execute(): Boolean;
-    property Name: string read GetName;
+    property Name: string read GetName write NewName;
   end;
 
 function DDatabase(): TDDatabase;
@@ -336,7 +337,9 @@ begin
     else
       SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemRenamed])) then
+  else if ((SessionState = ssAlter)
+    and ((NewName = '') and (Event.EventType in [etItemValid, etItemCreated, etItemRenamed])
+      or (NewName <> '') and (Event.EventType in [etAfterExecuteSQL]))) then
     ModalResult := mrOk;
 
   if (SessionState in [ssCreate, ssValid]) then
@@ -414,7 +417,10 @@ begin
 
   if (not Assigned(Database)) then
   begin
-    FName.Text := Preferences.LoadStr(145);
+    if (NewName <> '') then
+      FName.Text := NewName
+    else
+      FName.Text := Preferences.LoadStr(145);
     while (Assigned(Session.DatabaseByName(FName.Text))) do
     begin
       DatabaseName := FName.Text;

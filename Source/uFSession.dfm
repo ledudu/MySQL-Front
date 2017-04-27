@@ -1181,7 +1181,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 40682
+      Left = 77930
       Top = 0
       Width = 140
       Height = 22
@@ -1196,7 +1196,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 40667
+      Left = 77847
       Top = 0
       Width = 23
       Height = 22
@@ -1669,8 +1669,8 @@ object FSession: TFSession
     Left = 136
     Top = 472
   end
-  object MGrid: TPopupMenu
-    OnPopup = MGridPopup
+  object MDBGrid: TPopupMenu
+    OnPopup = MDBGridPopup
     Left = 184
     Top = 472
     object gmDInsertRecord: TMenuItem
@@ -1748,6 +1748,10 @@ object FSession: TFSession
       Caption = 'gmFilter'
     end
   end
+  object MDBGridOverflow: TPopupMenu
+    Left = 144
+    Top = 96
+  end
   object MSQLEditor: TPopupMenu
     OnPopup = MSQLEditorPopup
     Left = 152
@@ -1812,16 +1816,9 @@ object FSession: TFSession
       Caption = 'aESelectAll'
     end
   end
-  object MGridHeader: TPopupMenu
-    OnPopup = MGridHeaderPopup
+  object MDBGridHeader: TPopupMenu
     Left = 217
     Top = 472
-    object ghmGoto: TMenuItem
-      Caption = 'ghmGoto'
-    end
-    object N1: TMenuItem
-      Caption = '-'
-    end
     object ghmCopy: TMenuItem
       Caption = 'ghmCopy'
       OnClick = ghmCopyClick

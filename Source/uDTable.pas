@@ -1019,7 +1019,7 @@ begin
       NewTable.AutoIncrement := 0;
     end;
 
-      SessionState := ssAlter;
+    SessionState := ssAlter;
 
     if (not Assigned(Table)) then
       CanClose := Database.AddBaseTable(NewTable)

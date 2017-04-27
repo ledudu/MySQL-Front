@@ -7088,7 +7088,6 @@ type
     function ParseShowProcedureStatusStmt(): TOffset;
     function ParseShowProcessListStmt(): TOffset;
     function ParseShowProfileStmt(): TOffset;
-    function ParseShowProfileStmtType(): TOffset;
     function ParseShowProfilesStmt(): TOffset;
     function ParseShowRelaylogEventsStmt(): TOffset;
     function ParseShowRoutineCodeStmt(): TOffset;
@@ -15590,7 +15589,6 @@ end;
 
 function TSQLParser.ParseAlterTableStmt(const AlterTag, IgnoreTag: TOffset): TOffset;
 var
-  Comma: TOffset;
   Found: Boolean;
   Found2: Boolean;
   ListNodes: TList.TNodes;
@@ -15899,16 +15897,9 @@ begin
     else
       Found := False;
 
+    Found := Found and not ErrorFound and IsSymbol(ttComma);
     if (Found) then
-    begin
-      Found := not ErrorFound and IsSymbol(ttComma);
-      if (Found) then
-      begin
-        Comma := ParseSymbol(ttComma);
-        if (Comma > 0) then
-          Specifications.Add(Comma);
-      end;
-    end;
+      Specifications.Add(ParseSymbol(ttComma));
   end;
 
   if (not ErrorFound and Found) then
@@ -15918,8 +15909,12 @@ begin
     if (IsTag(kiPARTITION, kiBY)) then
       Nodes.PartitionOptions := ParseCreateTableStmtPartitionOptions();
 
-  FillChar(ListNodes, SizeOf(ListNodes), 0);
-  Nodes.SpecificationList := TList.Create(Self, ListNodes, ttComma, @Specifications);
+  if (Specifications.Count > 0) then
+  begin
+    FillChar(ListNodes, SizeOf(ListNodes), 0);
+    Nodes.SpecificationList := TList.Create(Self, ListNodes, ttComma, @Specifications);
+  end;
+
   Result := TAlterTableStmt.Create(Self, Nodes);
 end;
 
@@ -23577,14 +23572,54 @@ end;
 
 function TSQLParser.ParseShowProfileStmt(): TOffset;
 var
+  Found: Boolean;
+  ListNodes: TList.TNodes;
   Nodes: TShowProfileStmt.TNodes;
+  Types: TOffsetList;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
+  Types.Init();
+
   Nodes.StmtTag := ParseTag(kiSHOW, kiPROFILE);
 
-  if (not ErrorFound) then
-    Nodes.TypeList := ParseList(False, ParseShowProfileStmtType);
+  Found := not EndOfStmt(CurrentToken);
+  while (not ErrorFound and Found and not EndOfStmt(CurrentToken)) do
+  begin
+    if (IsTag(kiALL)) then
+      Types.Add(ParseTag(kiALL))
+    else if (IsTag(kiBLOCK, kiIO)) then
+      Types.Add(ParseTag(kiBLOCK, kiIO))
+    else if (IsTag(kiCONTEXT, kiSWITCHES)) then
+      Types.Add(ParseTag(kiCONTEXT, kiSWITCHES))
+    else if (IsTag(kiCPU)) then
+      Types.Add(ParseTag(kiCPU))
+    else if (IsTag(kiIPC)) then
+      Types.Add(ParseTag(kiIPC))
+    else if (IsTag(kiMEMORY)) then
+      Types.Add(ParseTag(kiMEMORY))
+    else if (IsTag(kiPAGE, kiFAULTS)) then
+      Types.Add(ParseTag(kiPAGE, kiFAULTS))
+    else if (IsTag(kiSOURCE)) then
+      Types.Add(ParseTag(kiSOURCE))
+    else if (IsTag(kiSWAPS)) then
+      Types.Add(ParseTag(kiSWAPS))
+    else
+      Found := False;
+
+    Found := Found and not ErrorFound and IsSymbol(ttComma);
+    if (Found) then
+      Types.Add(ParseSymbol(ttComma));
+  end;
+
+  if (not ErrorFound and Found) then
+    SetError(PE_UnexpectedToken);
+
+  if (Types.Count > 0) then
+  begin
+    FillChar(ListNodes, SizeOf(ListNodes), 0);
+    Nodes.TypeList := TList.Create(Self, ListNodes, ttComma, @Types);
+  end;
 
   if (not ErrorFound) then
     if (IsTag(kiFOR, kiQUERY)) then
@@ -23620,32 +23655,6 @@ begin
   Nodes.StmtTag := ParseTag(kiSHOW, kiPROFILES);
 
   Result := TShowProfilesStmt.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseShowProfileStmtType(): TOffset;
-begin
-  if (IsTag(kiALL)) then
-    Result := ParseTag(kiALL)
-  else if (IsTag(kiBLOCK, kiIO)) then
-    Result := ParseTag(kiBLOCK, kiIO)
-  else if (IsTag(kiCONTEXT, kiSWITCHES)) then
-    Result := ParseTag(kiCONTEXT, kiSWITCHES)
-  else if (IsTag(kiCPU)) then
-    Result := ParseTag(kiCPU)
-  else if (IsTag(kiIPC)) then
-    Result := ParseTag(kiIPC)
-  else if (IsTag(kiMEMORY)) then
-    Result := ParseTag(kiMEMORY)
-  else if (IsTag(kiPAGE, kiFAULTS)) then
-    Result := ParseTag(kiPAGE, kiFAULTS)
-  else if (IsTag(kiSOURCE)) then
-    Result := ParseTag(kiSOURCE)
-  else if (IsTag(kiSWAPS)) then
-    Result := ParseTag(kiSWAPS)
-  else if (EndOfStmt(CurrentToken)) then
-    Result := SetError(PE_IncompleteStmt)
-  else
-    Result := SetError(PE_UnexpectedToken);
 end;
 
 function TSQLParser.ParseShowRelaylogEventsStmt(): TOffset;

@@ -73,6 +73,7 @@ type
     procedure TSWhatShow(Sender: TObject);
     procedure TSExecuteResize(Sender: TObject);
   private
+    FirstShow: Boolean;
     ProgressInfos: TTool.TProgressInfos;
     Sessions: array of record
       Created: Boolean;
@@ -114,7 +115,6 @@ uses
   StrUtils, Consts, SysConst, Variants,
   SQLUtils,
   uPreferences, uURI,
-uDeveloper,
   uDConnecting, uDExecutingSQL;
 
 var
@@ -317,6 +317,8 @@ begin
     Sessions[I].Session := nil;
   end;
 
+
+  FirstShow := True;
 
   TSSelect.Enabled := True;
   TSWhat.Enabled := False;
@@ -991,10 +993,19 @@ begin
   end;
 
   if (not Assigned(Wanted.Page)) then
-    if ((FSource.SelectionCount > 0) and (FDestination.SelectionCount > 0)) then
-      PageControl.ActivePage := TSWhat
+  begin
+    if ((FSource.SelectionCount > 0) and (FDestination.SelectionCount > 0) and FirstShow) then
+    begin
+      PageControl.ActivePage := TSWhat;
+      if (not FBForward.Enabled) then
+        ActiveControl := FStructure
+      else
+        ActiveControl := FBForward;
+    end
     else
       CheckActivePageChange(TSSelect);
+    FirstShow := False;
+  end;
 end;
 
 procedure TDTransfer.TSWhatShow(Sender: TObject);
@@ -1037,7 +1048,7 @@ begin
         FData.Enabled := True;
   end;
 
-  FStructure.Checked := FStructure.Checked and (FSource.Selected.ImageIndex <> FDestination.Selected.ImageIndex);
+  FStructure.Checked := FStructure.Checked and ((FDestination.Selected.ImageIndex = iiDatabase) or (FSource.Selected.ImageIndex <> FDestination.Selected.ImageIndex));
   FData.Checked := FData.Checked and FData.Enabled;
 
   TSExecute.Enabled := not Assigned(Wanted.Page) and FStructure.Checked;
@@ -1084,7 +1095,7 @@ begin
     Node.Expand(False);
   end;
   if (not Assigned(Wanted.Node) and Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
-    Wanted.Page.OnShow(nil);
+    Wanted.Page.OnShow(Wanted.Page);
 end;
 
 procedure TDTransfer.UMTerminate(var Message: TMessage);

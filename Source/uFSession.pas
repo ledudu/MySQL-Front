@@ -86,7 +86,6 @@ type
     FUDLimit: TUpDown;
     FUDOffset: TUpDown;
     ghmCopy: TMenuItem;
-    ghmGoto: TMenuItem;
     ghmSelectAll: TMenuItem;
     gmDDeleteRecord: TMenuItem;
     gmDEditRecord: TMenuItem;
@@ -119,8 +118,9 @@ type
     mfOpen: TMenuItem;
     mfProperties: TMenuItem;
     mfRename: TMenuItem;
-    MGrid: TPopupMenu;
-    MGridHeader: TPopupMenu;
+    MDBGrid: TPopupMenu;
+    MDBGridHeader: TPopupMenu;
+    MDBGridOverflow: TPopupMenu;
     miHCollapse: TMenuItem;
     miHCopy: TMenuItem;
     miHExpand: TMenuItem;
@@ -258,7 +258,6 @@ type
     mwFImportSQL: TMenuItem;
     mwFImportText: TMenuItem;
     MWorkbench: TPopupMenu;
-    N1: TMenuItem;
     N02: TMenuItem;
     N03: TMenuItem;
     N04: TMenuItem;
@@ -440,6 +439,7 @@ type
       Shift: TShiftState);
     procedure DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure DBGridOverflowClick(Sender: TObject; Column: TColumn);
     procedure DBGridTitleClick(Column: TColumn);
     procedure FBlobResize(Sender: TObject);
     procedure PDataBrowserResize(Sender: TObject);
@@ -529,7 +529,6 @@ type
     procedure FTextMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure ghmCopyClick(Sender: TObject);
-    procedure ghmGotoClick(Sender: TObject);
     procedure ghmSelectAllClick(Sender: TObject);
     procedure ListViewAdvancedCustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
@@ -568,8 +567,7 @@ type
     procedure mfRenameClick(Sender: TObject);
     procedure mfPropertiesClick(Sender: TObject);
     procedure MFilesPopup(Sender: TObject);
-    procedure MGridHeaderPopup(Sender: TObject);
-    procedure MGridPopup(Sender: TObject);
+    procedure MDBGridPopup(Sender: TObject);
     procedure miHOpenClick(Sender: TObject);
     procedure miHPropertiesClick(Sender: TObject);
     procedure miHStatementIntoSQLEditorClick(Sender: TObject);
@@ -1063,6 +1061,7 @@ type
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
+    procedure MDBGridOverflowClick(Sender: TObject);
     function ObjectSearchFinish(): Boolean;
     function ObjectSearchStep2(): Boolean;
     procedure OnConvertError(Sender: TObject; Text: string);
@@ -2494,6 +2493,7 @@ begin
 
   DDatabase.Session := Session;
   DDatabase.Database := nil;
+  DDatabase.Name := '';
   DDatabase.Execute();
 end;
 
@@ -5082,7 +5082,7 @@ begin
   else if (TObject(ListView.Tag) is TSVariables) then
     Result := lkVariables
   else if (TObject(ListView.Tag) is TSItemSearch) then
-    Result := lkObjectSearch
+    Result := lkItemSearch
   else if (TObject(ListView.Tag) is TSQuickAccess) then
     Result := lkQuickAccess
   else
@@ -5754,6 +5754,7 @@ begin
   Result.HelpType := htContext;
   Result.HelpContext := 1155;
   Result.Options := [dgEditing, dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
+  Result.Overflow := True;
   Result.ParentFont := False;
   Result.Font.Name := Preferences.GridFontName;
   Result.Font.Style := Preferences.GridFontStyle;
@@ -5775,7 +5776,7 @@ begin
   Result.Canvas.Font := Result.Font;
   for I := 0 to Result.Columns.Count - 1 do
     Result.Columns[I].Font := Result.Font;
-  Result.PopupMenu := MGrid;
+  Result.PopupMenu := MDBGrid;
   Result.TabOrder := 0;
   Result.OnCanEditShow := DBGridCanEditShow;
   Result.OnCellClick := DBGridCellEnter;
@@ -5789,6 +5790,7 @@ begin
   Result.OnHeaderSplitButton := DBGridHeaderSplitButton;
   Result.OnKeyDown := DBGridKeyDown;
   Result.OnMouseMove := DBGridMouseMove;
+  Result.OnOverflow := DBGridOverflowClick;
   Result.OnTitleClick := DBGridTitleClick;
 
   Result.DataSource := DataSource;
@@ -6657,15 +6659,12 @@ begin
       HDItem.fmt := HDItem.fmt and not HDF_SPLITBUTTON;
       SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
       ReleaseCapture();
-
-      inherited;
-      exit;
     end;
 
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)
       and not (DBGrid.Columns[GridCoord.X].Field.DataType in BinaryDataTypes)) then
     begin
-      DBGrid.PopupMenu := MGridHeader;
+      DBGrid.PopupMenu := MDBGridHeader;
       MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
       if (BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))
         and (HDItem.fmt and HDF_SPLITBUTTON = 0)) then
@@ -6682,7 +6681,7 @@ begin
         and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
         ReleaseCapture();
 
-      DBGrid.PopupMenu := MGrid;
+      DBGrid.PopupMenu := MDBGrid;
       MGridHeaderColumn := nil;
     end;
 
@@ -6790,7 +6789,7 @@ begin
     DBGrid := TMySQLDBGrid(Sender);
 
   if (Key = VK_APPS) then
-    DBGrid.PopupMenu := MGrid
+    DBGrid.PopupMenu := MDBGrid
   else if ((Key = VK_INSERT) and (Shift = []) and not DBGrid.EditorMode) then
     MainAction('aDInsertRecord').Execute()
   else if ((Key = VK_DELETE) and (Shift = [ssCtrl]) and not DBGrid.EditorMode) then
@@ -6845,6 +6844,31 @@ begin
 
     if (not (ssLeft in Shift) and DBGrid.Dragging()) then
       DBGrid.EndDrag(False);
+  end;
+end;
+
+procedure TFSession.DBGridOverflowClick(Sender: TObject; Column: TColumn);
+var
+  Coord: TPoint;
+  DBGrid: TMySQLDBGrid;
+  I: Integer;
+  MenuItem: TMenuItem;
+begin
+  DBGrid := TMySQLDBGrid(Sender);
+
+  MDBGridOverflow.Items.Clear();
+  if (Assigned(Column)) then
+  begin
+    for I := Column.Index to DBGrid.Columns.Count - 1 do
+    begin
+      MenuItem := TMenuItem.Create(Self);
+      MenuItem.Caption := DBGrid.Columns[I].DisplayName;
+      MenuItem.Tag := NativeInt(DBGrid.Columns[I]);
+      MenuItem.OnClick := MDBGridOverflowClick;
+      MDBGridOverflow.Items.Add(MenuItem);
+    end;
+    Coord := DBGrid.ClientToScreen(Point(DBGrid.ClientWidth, 0));
+    MDBGridOverflow.Popup(Coord.X, Coord.Y);
   end;
 end;
 
@@ -8823,7 +8847,7 @@ begin
     MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
     MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
     MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-    MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField]);
+    MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiForeignKey]);
     MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
     MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
     MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
@@ -10416,18 +10440,6 @@ begin
     end;
 end;
 
-procedure TFSession.ghmGotoClick(Sender: TObject);
-var
-  Item: TMenuItem;
-begin
-  if (Sender is TMenuItem) then
-  begin
-    Item := TMenuItem(Sender);
-
-    ActiveDBGrid.SelectedIndex := Item.Parent.IndexOf(Item);
-  end;
-end;
-
 procedure TFSession.ghmSelectAllClick(Sender: TObject);
 begin
   if (ActiveDBGrid.SelectedFields.IndexOf(MGridHeaderColumn.Field) < 0) then
@@ -10926,7 +10938,7 @@ begin
           else
             raise ERangeError.Create(SRangeError);
         end;
-      lkObjectSearch:
+      lkItemSearch:
         case (SortRec^.ColumnIndex) of
           0:
             begin
@@ -10934,9 +10946,9 @@ begin
               if (Compare = 0) then
               begin
                 // Debug 2017-04-03
-                Assert(Item1.SubItems.Count < 2,
+                Assert(Item1.SubItems.Count >= 2,
                   'ImageIndex: ' + IntToStr(Item1.ImageIndex));
-                Assert(Item2.SubItems.Count < 2,
+                Assert(Item2.SubItems.Count >= 2,
                   'ImageIndex: ' + IntToStr(Item2.ImageIndex));
 
                 Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
@@ -11290,7 +11302,7 @@ begin
       ListView.Columns.Add();
       ListView.Columns.Add();
       ListView.Columns.EndUpdate();
-      SetColumnWidths(ListView, lkObjectSearch);
+      SetColumnWidths(ListView, lkItemSearch);
 
       ListView.Groups.Add().GroupID := giDatabases;
       ListView.Groups.Add().GroupID := giTables;
@@ -12460,15 +12472,15 @@ begin
       end;
     end;
 
-    if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSDatabases)) then
+    if ((Kind in [lkServer, lkItemSearch]) and (Event.Items is TSDatabases)) then
       UpdateGroup(Kind, giDatabases, Event.Items)
-    else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSTables)) then
+    else if ((Kind in [lkDatabase, lkItemSearch, lkQuickAccess]) and (Event.Items is TSTables)) then
       UpdateGroup(Kind, giTables, Event.Items)
-    else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSRoutines)) then
+    else if ((Kind in [lkDatabase, lkItemSearch, lkQuickAccess]) and (Event.Items is TSRoutines)) then
       UpdateGroup(Kind, giRoutines, Event.Items)
-    else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSEvents)) then
+    else if ((Kind in [lkDatabase, lkItemSearch, lkQuickAccess]) and (Event.Items is TSEvents)) then
       UpdateGroup(Kind, giEvents, Event.Items)
-    else if ((Kind in [lkTable, lkObjectSearch]) and (Event.Sender is TSTable)) then
+    else if ((Kind in [lkTable, lkItemSearch]) and (Event.Sender is TSTable)) then
     begin
       if (TObject(ListView.Tag) is TSBaseTable) then
         UpdateGroup(Kind, giKeys, TSBaseTable(ListView.Tag).Keys);
@@ -12478,17 +12490,17 @@ begin
       if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
         UpdateGroup(Kind, giTriggers, TSBaseTable(ListView.Tag).Database.Triggers);
     end
-    else if ((Kind in [lkTable, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSTriggers)) then
+    else if ((Kind in [lkTable, lkItemSearch, lkQuickAccess]) and (Event.Items is TSTriggers)) then
       UpdateGroup(Kind, giTriggers, Event.Items)
-    else if ((Kind in [lkProcesses, lkObjectSearch]) and (Event.Items is TSProcesses)) then
+    else if ((Kind in [lkProcesses, lkItemSearch]) and (Event.Items is TSProcesses)) then
       UpdateGroup(Kind, giProcesses, Event.Items)
-    else if ((Kind in [lkUsers, lkObjectSearch]) and (Event.Items is TSUsers)) then
+    else if ((Kind in [lkUsers, lkItemSearch]) and (Event.Items is TSUsers)) then
       UpdateGroup(Kind, giUsers, Event.Items)
-    else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
+    else if ((Kind in [lkVariables, lkItemSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items)
     else if (Kind in [lkQuickAccess]) then
       UpdateQuickAccess()
-    else if ((Kind in [lkObjectSearch]) and (Event.Items is TSItemSearch)) then
+    else if ((Kind in [lkItemSearch]) and (Event.Items is TSItemSearch)) then
     begin
       for I := ListView.Items.Count to Event.Items.Count - 1 do
         AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I]);
@@ -12589,7 +12601,7 @@ begin
       MainAction('aFExportXML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
       MainAction('aFExportHTML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       MainAction('aFExportPDF').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-      MainAction('aECopy').Enabled := ListView.SelCount >= 1;
+      MainAction('aECopy').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]) or (ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiForeignKey]);
       MainAction('aEPaste').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Item.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and IsClipboardFormatAvailable(CF_MYSQLVIEW));
       MainAction('aERename').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiBaseField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
       MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
@@ -12630,6 +12642,9 @@ begin
       mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
       aFOpenInNewWindow.Enabled := mlOpen.Enabled;
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
+
+      // Debug 2017-04-27
+      Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
 
       case (Item.ImageIndex) of
         iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
@@ -12723,6 +12738,14 @@ begin
     if (Sender <> MList) then
       StatusBarRefresh();
   end;
+end;
+
+procedure TFSession.MDBGridOverflowClick(Sender: TObject);
+var
+  Column: TColumn;
+begin
+  Column := TColumn(TMenuItem(Sender).Tag);
+  Column.Grid.SelectedField := Column.Field;
 end;
 
 procedure TFSession.MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
@@ -12853,24 +12876,7 @@ begin
   FFiles.Selected.EditCaption();
 end;
 
-procedure TFSession.MGridHeaderPopup(Sender: TObject);
-var
-  I: Integer;
-  Item: TMenuItem;
-begin
-  ghmGoto.Clear();
-  for I := 0 to ActiveDBGrid.Columns.Count - 1 do
-  begin
-    Item := TMenuItem.Create(ghmGoto);
-    Item.Caption := ActiveDBGrid.Columns[I].DisplayName;
-    Item.Checked := I = ActiveDBGrid.SelectedIndex;
-    Item.RadioItem := True;
-    Item.OnClick := ghmGotoClick;
-    ghmGoto.Add(Item);
-  end;
-end;
-
-procedure TFSession.MGridPopup(Sender: TObject);
+procedure TFSession.MDBGridPopup(Sender: TObject);
 
   procedure AddFilterMenuItem(const Field: TField; const Value: string; const FilterIndex: Integer);
   var
@@ -12896,13 +12902,13 @@ var
   NewMenuItem: TMenuItem;
   Value: string;
 begin
-  ClientCoord := ActiveDBGrid.ScreenToClient(MGrid.PopupPoint);
+  ClientCoord := ActiveDBGrid.ScreenToClient(MDBGrid.PopupPoint);
   GridCoord := ActiveDBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
 
   if (GridCoord.X < 0) then
   begin
-    for I := 0 to MGrid.Items.Count - 1 do
-      MGrid.Items[I].Visible := False;
+    for I := 0 to MDBGrid.Items.Count - 1 do
+      MDBGrid.Items[I].Visible := False;
 
     ShowEnabledItems(gmFExport);
     gmFExport.Visible := not ActiveDBGrid.EditorMode;
@@ -12964,7 +12970,7 @@ begin
         AddFilterMenuItem(ActiveDBGrid.SelectedField, Value, 11);
     end;
 
-    ShowEnabledItems(MGrid.Items);
+    ShowEnabledItems(MDBGrid.Items);
 
     gmDInsertRecord.Visible := gmDInsertRecord.Visible and not ActiveDBGrid.EditorMode;
     gmDDeleteRecord.Visible := gmDDeleteRecord.Visible and not ActiveDBGrid.EditorMode;
@@ -13133,16 +13139,15 @@ begin
   else
     FNavigatorMenuNode := FNavigatorNodeByAddress(CurrentAddress);
 
-  // Debug 2017-04-26
-  Assert(Assigned(FNavigatorMenuNode),
-    'Popup: ' + BoolToStr(Sender = FNavigator.PopupMenu, True) + #13#10
-    + 'CurrentAddress: ' + CurrentAddress);
+  AllowChange := Assigned(FNavigatorMenuNode);
+  if (AllowChange) then
+    FNavigatorChanging(Sender, FNavigatorMenuNode, AllowChange);
 
-  AllowChange := True;
-  FNavigatorChanging(Sender, FNavigatorMenuNode, AllowChange);
-
-  aFOpenInNewWindow.Enabled := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
+  aFOpenInNewWindow.Enabled := AllowChange and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
   aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
+
+  // Debug 2017-04-27
+  Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
 
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
@@ -13667,6 +13672,7 @@ var
   Found: Boolean;
   I: Integer;
   J: Integer;
+  List: TList;
   Name: string;
   NewField: TSTableField;
   NewForeignKey: TSForeignKey;
@@ -13674,6 +13680,7 @@ var
   NewTable: TSBaseTable;
   NewTrigger: TSTrigger;
   SourceDatabase: TSDatabase;
+  SourceEvent: TSEvent;
   SourceField: TSField;
   SourceForeignKey: TSForeignKey;
   SourceKey: TSKey;
@@ -13717,6 +13724,35 @@ begin
       URI := TUURI.Create(StringList[0]);
 
       case (Node.ImageIndex) of
+        iiServer:
+          begin
+            DExecutingSQL.Session := SourceSession;
+            DExecutingSQL.Update := SourceSession.Databases.Update;
+
+            if (SourceSession.Databases.Valid or DExecutingSQL.Execute()) then
+              if (SourceSession <> Session) then
+              begin
+                DTransfer.SourceSession := SourceSession;
+                DTransfer.SourceAddresses := Addresses;
+                DTransfer.DestinationSession := Session;
+                DTransfer.DestinationAddress := '';
+                DTransfer.Execute();
+              end
+              else
+              begin
+                DDatabase.Session := Session;
+                DDatabase.Database := nil;
+                DDatabase.Name := CopyName(TSItem(DataByAddress(StringList[0])).Name, Session.Databases);
+                if (DDatabase.Execute()) then
+                begin
+                  DTransfer.SourceSession := SourceSession;
+                  DTransfer.SourceAddresses := StringList[0];
+                  DTransfer.DestinationSession := Session;
+                  DTransfer.DestinationAddress := Session.DatabaseByName(DDatabase.Name).Address;
+                  DTransfer.Execute();
+                end;
+              end;
+          end;
         iiDatabase:
           begin
             DExecutingSQL.Session := SourceSession;
@@ -13740,124 +13776,83 @@ begin
               begin
                 Database := TSDatabase(Node.Data);
 
+                List := TList.Create();
+
                 Found := False;
                 for I := 0 to StringList.Count - 1 do
-                  Found := Found or (ClassIndexByAddress(StringList[I]) in [ciBaseTable, ciView]);
+                begin
+                  List.Add(DataByAddress(StringList[I]));
+                  Found := Found or (TObject(List[List.Count - 1]) is TSTable);
+                end;
 
                 DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
                 if (not Assigned(Database) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
                   MessageBeep(MB_ICONERROR)
                 else if (not Found or DPaste.Execute()) then
                 begin
-                  for I := 0 to StringList.Count - 1 do
+                  Session.SortDBObjects(List, False);
+
+                  for I := 0 to List.Count - 1 do
                     if (Success) then
-                      if (ClassIndexByAddress(StringList[I]) = ciBaseTable) then
+                      if (TObject(List[I]) is TSBaseTable) then
                       begin
-                        SourceTable := DataByAddress(StringList[I]);
+                        SourceTable := TSBaseTable(List[I]);
 
-                        if (not Assigned(SourceTable)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
+                        DExecutingSQL.Session := SourceSession;
+                        DExecutingSQL.Update := SourceTable.Update;
+                        if (SourceTable.Valid or DExecutingSQL.Execute()) then
                         begin
-                          DExecutingSQL.Session := SourceSession;
-                          DExecutingSQL.Update := SourceTable.Update;
-                          if (SourceTable.Valid or DExecutingSQL.Execute()) then
-                          begin
-                            Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
-
-                            Session.Connection.BeginSynchron();
-                            Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
-                            Session.Connection.EndSynchron();
-                          end;
-                        end;
-                      end;
-                  for I := 0 to StringList.Count - 1 do
-                    if (Success) then
-                      if (ClassIndexByAddress(StringList[I]) = ciView) then
-                      begin
-                        SourceView := DataByAddress(StringList[I]);
-
-                        if (not Assigned(SourceView)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          DExecutingSQL.Session := SourceSession;
-                          DExecutingSQL.Update := SourceView.Update;
-                          if (SourceView.Valid or DExecutingSQL.Execute()) then
-                          begin
-                            Name := CopyName(SourceView.Name, Database.Tables);
-                            if (Session.LowerCaseTableNames = 1) then
-                              Name := LowerCase(Name);
-
-                            Session.Connection.BeginSynchron();
-                            Success := Database.CloneTable(SourceView, Name, False);
-                            Session.Connection.EndSynchron();
-                          end;
-                        end;
-                      end;
-                  for I := 0 to StringList.Count - 1 do
-                    if (Success) then
-                      if (ClassIndexByAddress(StringList[I]) = ciProcedure) then
-                      begin
-                        SourceRoutine := DataByAddress(StringList[I]);
-
-                        if (not Assigned(SourceRoutine)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          DExecutingSQL.Session := SourceSession;
-                          DExecutingSQL.Update := SourceRoutine.Update;
-                          if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
-                          begin
-                            Name := SourceRoutine.Name;
-                            J := 1;
-                            while (Assigned(Database.ProcedureByName(Name))) do
-                            begin
-                              if (J = 1) then
-                                Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                              else
-                                Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                              Name := ReplaceStr(Name, ' ', '_');
-                              Inc(J);
-                            end;
-
-                            Session.Connection.BeginSynchron();
-                            Success := Database.CloneRoutine(SourceRoutine, Name);
-                            Session.Connection.EndSynchron();
-                          end;
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneTable(SourceTable, CopyName(SourceTable.Name, Database.Tables), DPaste.Data);
+                          Session.Connection.EndSynchron();
                         end;
                       end
-                      else if (ClassIndexByAddress(StringList[I]) = ciFunction) then
+                      else if (TObject(List[I]) is TSView) then
                       begin
-                        SourceRoutine := DataByAddress(StringList[I]);
+                        SourceView := TSView(List[I]);
 
-                        if (not Assigned(SourceRoutine)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
+                        DExecutingSQL.Session := SourceSession;
+                        DExecutingSQL.Update := SourceView.Update;
+                        if (SourceView.Valid or DExecutingSQL.Execute()) then
                         begin
-                          DExecutingSQL.Session := SourceSession;
-                          DExecutingSQL.Update := SourceRoutine.Update;
-                          if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
-                          begin
-                            Name := SourceRoutine.Name;
-                            J := 1;
-                            while (Assigned(Database.FunctionByName(Name))) do
-                            begin
-                              if (J = 1) then
-                                Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                              else
-                                Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                              Name := ReplaceStr(Name, ' ', '_');
-                              Inc(J);
-                            end;
+                          Name := CopyName(SourceView.Name, Database.Tables);
+                          if (Session.LowerCaseTableNames = 1) then
+                            Name := LowerCase(Name);
 
-                            Session.Connection.BeginSynchron();
-                            Success := Database.CloneRoutine(SourceRoutine, Name);
-                            Session.Connection.EndSynchron();
-                          end;
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneTable(SourceView, Name, False);
+                          Session.Connection.EndSynchron();
+                        end;
+                      end
+                      else if (TObject(List[I]) is TSRoutine) then
+                      begin
+                        SourceRoutine := TSRoutine(List[I]);
+
+                        DExecutingSQL.Session := SourceSession;
+                        DExecutingSQL.Update := SourceRoutine.Update;
+                        if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
+                        begin
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneRoutine(SourceRoutine, CopyName(SourceRoutine.Name, Database.Routines));
+                          Session.Connection.EndSynchron();
+                        end;
+                      end
+                      else if (TObject(List[I]) is TSEvent) then
+                      begin
+                        SourceEvent := TSEvent(List[I]);
+
+                        DExecutingSQL.Session := SourceSession;
+                        DExecutingSQL.Update := SourceEvent.Update;
+                        if (SourceEvent.Valid or DExecutingSQL.Execute()) then
+                        begin
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneEvent(SourceEvent, CopyName(SourceEvent.Name, Database.Events));
+                          Session.Connection.EndSynchron();
                         end;
                       end;
                 end;
+
+                List.Free();
               end;
             end;
           end;
@@ -13871,6 +13866,7 @@ begin
             begin
               DExecutingSQL.Session := SourceSession;
               DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
+
               if (SourceDatabase.Tables.Valid or DExecutingSQL.Execute()) then
               begin
                 SourceTable := SourceDatabase.BaseTableByName(URI.Table);
@@ -15387,13 +15383,10 @@ end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
-  Control: TWinControl; // Debug 2017-02-12
   Count: Integer;
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
-  Control := Window.ActiveControl;
-
   if (Assigned(StatusBar) and (Immediately or (fsActive in FrameState)) and not (csDestroying in ComponentState) and Assigned(Window)) then
   begin
     if (not Assigned(Window.ActiveControl)) then
@@ -15402,11 +15395,6 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveBCEditor.CaretPos.X + 1) + ':' + IntToStr(ActiveBCEditor.CaretPos.Y)
     else if (Window.ActiveControl = ActiveListView) then
     begin
-      // Debug 2017-02-12
-      Assert(Window.ActiveControl = Control);
-      Assert(not Assigned(ActiveListView.Selected) or Assigned(ActiveListView.Selected.Data),
-        'Count: ' + IntToStr(ActiveListView.Items.Count));
-    
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
       else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then
@@ -16266,6 +16254,7 @@ procedure TFSession.TreeViewMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Node: TTreeNode;
+  SortDef: TIndexDef;
 begin
   if (not LeftMousePressed) then
     Node := nil
@@ -16283,6 +16272,14 @@ begin
     and Assigned(ActiveDBGrid)
     and ActiveDBGrid.DataSource.DataSet.Active) then
     case (Node.ImageIndex) of
+      iiKey:
+        begin
+          SortDef := TIndexDef.Create(nil, '', '', []);
+          TSKey(Node.Data).GetSortDef(SortDef);
+          TSKey(Node.Data).Table.DataSet.Sort(SortDef);
+          SortDef.Free();
+          ActiveDBGrid.UpdateHeader();
+        end;
       iiBaseField,
       iiVirtualField,
       iiSystemViewField,
@@ -16296,7 +16293,12 @@ begin
               + 'CurrentAddress: ' + CurrentAddress + #13#10
               + 'Columns: ' + IntToStr(ActiveDBGrid.Columns.Count) + #13#10
               + 'Fields: ' + IntToStr(ActiveDBGrid.DataSource.DataSet.FieldCount) + #13#10
-              + 'Field: ' + TSField(Node.Data).Name);
+              + 'Field: ' + TSField(Node.Data).Name
+              + 'Table: ' + TSTableField(Node.Data).Table.Name + #13#10
+              + 'Objects.Field[0]: ' + TSTableField(Node.Data).Table.Fields[0].Name + #13#10
+              + 'DataSet.Field[0]: ' + ActiveDBGrid.DataSource.DataSet.Fields[0].Name + #13#10#13#10
+              + E.ClassName + ':' + #13#10
+              + E.Message);
         end;
     end;
 
@@ -16432,7 +16434,6 @@ begin
   gmFExport.Caption := Preferences.LoadStr(200);
   gmFilter.Caption := Preferences.LoadStr(209);
 
-  ghmGoto.Caption := Preferences.LoadStr(676);
   ghmCopy.Caption := Preferences.LoadStr(64);
   ghmSelectAll.Caption := Preferences.LoadStr(572);
 
@@ -16863,12 +16864,12 @@ begin
     GridCoord := ActiveDBGrid.MouseCoord(GridPoint.X, GridPoint.Y);
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)) then
     begin
-      ActiveDBGrid.PopupMenu := MGridHeader;
+      ActiveDBGrid.PopupMenu := MDBGridHeader;
       MGridHeaderColumn := ActiveDBGrid.Columns[GridCoord.X];
     end
     else
     begin
-      ActiveDBGrid.PopupMenu := MGrid;
+      ActiveDBGrid.PopupMenu := MDBGrid;
       MGridHeaderColumn := nil;
     end;
   end;

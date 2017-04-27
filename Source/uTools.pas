@@ -1029,16 +1029,7 @@ begin
       if (TTool.TItem(Item1) is TTExport.TDBGridItem) then
         Result := Sign(TTExport.TDBGridItem(Item1).Index - TTExport.TDBGridItem(Item2).Index)
       else
-      begin
-        if (not (TObject(Item1) is TTExport.TDBObjectItem)) then
-          Write;
-
-        // Debug 2017-02-28
-        Assert(TObject(Item1) is TTExport.TDBObjectItem);
-        Assert(TObject(Item2) is TTExport.TDBObjectItem);
-
         Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
-      end;
   end;
 end;
 

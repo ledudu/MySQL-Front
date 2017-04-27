@@ -513,7 +513,7 @@ type
 
     TDesktop = class
     type
-      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch, lkQuickAccess);
+      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkItemSearch, lkQuickAccess);
     private
       FAccount: TPAccount;
       FAddresses: TAddresses;
@@ -3041,11 +3041,11 @@ begin
   if (Assigned(XMLNode(XML, 'objects/users/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2])) then ColumnWidths[lkUsers][2] := Round(ColumnWidths[lkUsers][2] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/variables/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0])) then ColumnWidths[lkVariables][0] := Round(ColumnWidths[lkVariables][0] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/variables/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1])) then ColumnWidths[lkVariables][1] := Round(ColumnWidths[lkVariables][1] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/name').Text, ColumnWidths[lkObjectSearch][0])) then ColumnWidths[lkObjectSearch][0] := Round(ColumnWidths[lkObjectSearch][0] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/type').Text, ColumnWidths[lkObjectSearch][1])) then ColumnWidths[lkObjectSearch][1] := Round(ColumnWidths[lkObjectSearch][1] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/location')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/location').Text, ColumnWidths[lkObjectSearch][2])) then ColumnWidths[lkObjectSearch][2] := Round(ColumnWidths[lkObjectSearch][2] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/date')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/date').Text, ColumnWidths[lkObjectSearch][3])) then ColumnWidths[lkObjectSearch][3] := Round(ColumnWidths[lkObjectSearch][3] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/comment').Text, ColumnWidths[lkObjectSearch][4])) then ColumnWidths[lkObjectSearch][4] := Round(ColumnWidths[lkObjectSearch][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/name').Text, ColumnWidths[lkItemSearch][0])) then ColumnWidths[lkItemSearch][0] := Round(ColumnWidths[lkItemSearch][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/type').Text, ColumnWidths[lkItemSearch][1])) then ColumnWidths[lkItemSearch][1] := Round(ColumnWidths[lkItemSearch][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/location')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/location').Text, ColumnWidths[lkItemSearch][2])) then ColumnWidths[lkItemSearch][2] := Round(ColumnWidths[lkItemSearch][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/date')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/date').Text, ColumnWidths[lkItemSearch][3])) then ColumnWidths[lkItemSearch][3] := Round(ColumnWidths[lkItemSearch][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/comment').Text, ColumnWidths[lkItemSearch][4])) then ColumnWidths[lkItemSearch][4] := Round(ColumnWidths[lkItemSearch][4] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/quickaccess/mfu'))) then TryStrToBool(XMLNode(XML, 'objects/quickaccess/mfu').Attributes['visible'], QuickAccessMFUVisible);
   if (Assigned(XMLNode(XML, 'objects/quickaccess/mru'))) then TryStrToBool(XMLNode(XML, 'objects/quickaccess/mru').Attributes['visible'], QuickAccessMRUVisible);
   if (Assigned(XMLNode(XML, 'objects/quickaccess/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/quickaccess/widths/name').Text, ColumnWidths[lkQuickAccess][0])) then ColumnWidths[lkQuickAccess][0] := Round(ColumnWidths[lkQuickAccess][0] * Screen.PixelsPerInch / PixelsPerInch);
@@ -3121,11 +3121,11 @@ begin
   XMLNode(XML, 'objects/users/widths/comment').Text := IntToStr(ColumnWidths[lkUsers][2]);
   XMLNode(XML, 'objects/variables/widths/name').Text := IntToStr(ColumnWidths[lkVariables][0]);
   XMLNode(XML, 'objects/variables/widths/value').Text := IntToStr(ColumnWidths[lkVariables][1]);
-  XMLNode(XML, 'objects/objectsearch/widths/name').Text := IntToStr(ColumnWidths[lkObjectSearch][0]);
-  XMLNode(XML, 'objects/objectsearch/widths/type').Text := IntToStr(ColumnWidths[lkObjectSearch][1]);
-  XMLNode(XML, 'objects/objectsearch/widths/location').Text := IntToStr(ColumnWidths[lkObjectSearch][2]);
-  XMLNode(XML, 'objects/objectsearch/widths/date').Text := IntToStr(ColumnWidths[lkObjectSearch][3]);
-  XMLNode(XML, 'objects/objectsearch/widths/comment').Text := IntToStr(ColumnWidths[lkObjectSearch][4]);
+  XMLNode(XML, 'objects/objectsearch/widths/name').Text := IntToStr(ColumnWidths[lkItemSearch][0]);
+  XMLNode(XML, 'objects/objectsearch/widths/type').Text := IntToStr(ColumnWidths[lkItemSearch][1]);
+  XMLNode(XML, 'objects/objectsearch/widths/location').Text := IntToStr(ColumnWidths[lkItemSearch][2]);
+  XMLNode(XML, 'objects/objectsearch/widths/date').Text := IntToStr(ColumnWidths[lkItemSearch][3]);
+  XMLNode(XML, 'objects/objectsearch/widths/comment').Text := IntToStr(ColumnWidths[lkItemSearch][4]);
   XMLNode(XML, 'objects/quickaccess/mfu').Attributes['visible'] := BoolToStr(QuickAccessMFUVisible, True);
   XMLNode(XML, 'objects/quickaccess/mru').Attributes['visible'] := BoolToStr(QuickAccessMRUVisible, True);
   XMLNode(XML, 'objects/quickaccess/widths/name').Text := IntToStr(ColumnWidths[lkQuickAccess][0]);

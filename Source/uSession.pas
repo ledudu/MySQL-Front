@@ -1061,8 +1061,9 @@ type
     procedure Assign(const Source: TSObject); reintroduce; virtual;
     function BaseTableByName(const TableName: string): TSBaseTable; overload; virtual;
     function CheckTables(const Tables: TList): Boolean; virtual;
-    function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; virtual;
-    function CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean; virtual;
+    function CloneEvent(const Event: TSEvent; const NewEventName: string): Boolean;
+    function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean;
+    function CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean;
     constructor Create(const ADatabases: TSDatabases; const AName: string = ''); reintroduce; virtual;
     function DeleteObject(const DBObject: TSDBObject): Boolean; virtual;
     destructor Destroy(); override;
@@ -1624,6 +1625,7 @@ type
     procedure PushBuildEvents();
     procedure RegisterEventProc(const AEventProc: TEventProc);
     function SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
+    procedure SortDBObjects(const List: TList; const Asc: Boolean = True);
     function TableName(const Name: string): string;
     function TableNameCmp(const Name1, Name2: string): Integer; inline;
     function UnescapeValue(const Value: string; const FieldType: TSField.TFieldType = mfVarChar): string; overload;
@@ -2419,7 +2421,7 @@ begin
   Result := FDBObject.Session;
 end;
 
-{ TSDependencySearch **********************************************************}
+{ TSDependenciesSearch ********************************************************}
 
 function TSDependenciesSearch.BuildBaseTableReferences(const DataSet: TMySQLQuery): Boolean;
 var
@@ -4313,18 +4315,14 @@ begin
     on E: Exception do
       begin
         // Debug 2017-01-04
-        if (not Assigned(Field)) then
-          raise ERangeError.Create(E.Message);
-        // Debug 2016-12-16
-        if (not Assigned(Field.DataSet)) then
-          raise ERangeError.Create(E.Message);
-        if (not Assigned(TMySQLQuery(Field.DataSet).LibRow)) then
-          raise ERangeError.Create(E.Message);
-        if (not Assigned(TMySQLQuery(Field.DataSet).LibLengths)) then
-          raise ERangeError.Create(E.Message);
+        Assert(Assigned(E));
+        Assert(Assigned(Field), E.Message);
+        Assert(Assigned(Field.DataSet), E.Message);
+        Assert(Assigned(TMySQLQuery(Field.DataSet).LibRow), E.Message);
+        Assert(Assigned(TMySQLQuery(Field.DataSet).LibLengths), E.Message);
 
         // Sometimes, the MySQL server sends wrong encoded field comments.
-        // This code allow the user to handle this table - but the comments are wrong.
+        // This code allow the user to handle this table - but the comments are still wrong...
         SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
         SetSource(string(RBS));
 
@@ -7605,6 +7603,26 @@ begin
   end;
 
   Result := False;
+end;
+
+function TSDatabase.CloneEvent(const Event: TSEvent; const NewEventName: string): Boolean;
+var
+  SQL: string;
+begin
+  Session.Connection.BeginSynchron();
+  Event.Update();
+  Session.Connection.EndSynchron();
+
+  if (not Session.Connection.SQLParser.ParseSQL(Event.Source)) then
+    SQL := ''
+  else
+    SQL := SQLParser.RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Event.Database.Name, Session.LowerCaseTableNames = 0);
+  Session.Connection.SQLParser.Clear();
+
+  if (Session.Connection.DatabaseName <> Name) then
+    SQL := SQLUse() + SQL;
+
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean;
@@ -12156,46 +12174,13 @@ end;
 
 function TSSession.DeleteEntities(const List: TList): Boolean;
 var
-  CycleProtection: Integer;
   Database: TSDatabase;
   FlushPrivileges: Boolean;
   I: Integer;
   Identifiers: string;
-  J: Integer;
-  K: Integer;
   SQL: string;
 begin
-  Connection.BeginSynchron();
-  Update(List); // We need the sources for the dependencies to place the DROP statements into the correct order
-  Connection.EndSynchron();
-
-  List.Sort(Compare);
-
-  I := 0; CycleProtection := List.Count * List.Count;
-  while ((I < List.Count) and (CycleProtection >= 0)) do
-  begin
-    if (TObject(List[I]) is TSDBObject) then
-      for J := 0 to TSDBObject(List[I]).References.Count - 1 do
-        for K := I - 1 downto 0 do
-        begin
-          // Debug 2017-03-27
-          Assert(Assigned(TSDBObject(List[I]).References));
-
-          // Debug 2017-02-19
-          Assert(not (TObject(List[K]) is TSDBObject)
-            or (J < TSDBObject(List[I]).References.Count) and Assigned(TSDBObject(List[I]).References[J]));
-
-          if ((TObject(List[K]) is TSDBObject)
-            and (TSDBObject(List[K]) = TSDBObject(List[I]).References[J].DBObject)) then
-          begin
-            List.Move(K, I);
-            Dec(I);
-          end;
-        end;
-
-    Inc(I);
-    Dec(CycleProtection);
-  end;
+  SortDBObjects(List);
 
   Database := nil; FlushPrivileges := False;
   SQL := '';
@@ -12353,6 +12338,9 @@ procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
 begin
+  // Debug 2017-04-27
+  Assert(Assigned(EventProcs));
+
   for I := 0 to EventProcs.Count - 1 do
     EventProcs[I](AEvent);
 end;
@@ -13550,6 +13538,41 @@ begin
       Databases[I].FreeDesktop();
 
   FCreateDesktop := ACreateDesktop;
+end;
+
+procedure TSSession.SortDBObjects(const List: TList; const Asc: Boolean = True);
+var
+  CycleProtection: Integer;
+  I: Integer;
+  J: Integer;
+  K: Integer;
+begin
+  Connection.BeginSynchron();
+  Update(List); // We need the sources for the dependencies
+  Connection.EndSynchron();
+
+  List.Sort(Compare);
+
+  I := 0; CycleProtection := List.Count * List.Count;
+  while ((I < List.Count) and (CycleProtection >= 0)) do
+  begin
+    if (TObject(List[I]) is TSDBObject) then
+      for J := 0 to TSDBObject(List[I]).References.Count - 1 do
+        for K := I - 1 downto 0 do
+          if ((TObject(List[K]) is TSDBObject)
+            and (TSDBObject(List[K]) = TSDBObject(List[I]).References[J].DBObject)) then
+          begin
+            List.Move(K, I);
+            Dec(I);
+          end;
+
+    Inc(I);
+    Dec(CycleProtection);
+  end;
+
+  if (not Asc and (List.Count > 1)) then
+    for I := List.Count - 2 to 0 do
+      List.Move(I, List.Count - 1);
 end;
 
 function TSSession.TableName(const Name: string): string;

@@ -2744,9 +2744,7 @@ var
   I: Integer;
 begin
   while (Length(FLinkPoints) > 0) do
-    FLinkPoints[0].Free();
-
-  Workbench.Tables.Delete(Workbench.Tables.IndexOf(Self));
+    FLinkPoints[0].Link.Free();
 
   // Debug 2017-01-17
   for I := 0 to Workbench.Links.Count - 1 do
@@ -2754,6 +2752,8 @@ begin
     Assert(Assigned(Workbench.Links[I]));
     Assert((Workbench.Links[I].ParentTable <> Self) and (Workbench.Links[I].ChildTable = Self));
   end;
+
+  Workbench.Tables.Delete(Workbench.Tables.IndexOf(Self));
 
   inherited;
 end;

@@ -14,6 +14,7 @@ type
   type
 
     THeaderSplitBottonEvent = procedure(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState) of object;
+    TOverflowEvent = procedure(Sender: TObject; Column: TColumn) of object;
 
     TDBMySQLGridColumns = class(TDBGridColumns)
     protected
@@ -44,7 +45,9 @@ type
     FMouseMoveCell: TGridCoord;
     FOnCanEditShow: TNotifyEvent;
     FOnCanEditShowExecuted: Boolean;
+    FOnOverflow: TOverflowEvent;
     FOnSelect: TNotifyEvent;
+    FOverflow: Boolean;
     FSelectedFields: TMySQLDBGridFieldList;
     IgnoreTitleClick: Boolean;
     LeftClickAnchor: record
@@ -79,6 +82,7 @@ type
     procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
     procedure HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure SetHeaderColumnArrows();
+    procedure SetOverflow(const AValue: Boolean);
     procedure WMNotify(var Msg: TWMNotify); message WM_NOTIFY;
     procedure WMTimer(var Msg: TWMTimer); message WM_TIMER;
   protected
@@ -136,8 +140,10 @@ type
     property TopRow;
     property VisibleColCount;
   published
+    property Overflow: Boolean read FOverflow write SetOverflow;
     property OnCanEditShow: TNotifyEvent read FOnCanEditShow write FOnCanEditShow;
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
+    property OnOverflow: TOverflowEvent read FOnOverflow write FOnOverflow;
   end;
 
 const
@@ -562,6 +568,7 @@ begin
   FIgnoreKeyPress := False;
   FListView := 0;
   FOnCanEditShowExecuted := False;
+  FOverflow := False;
   FSelectedFields := TMySQLDBGridFieldList.Create(Self);
   IgnoreTitleClick := False;
   LeftClickAnchor.Col := -1;
@@ -629,6 +636,8 @@ begin
   else
     FHeaderControl.Style := hsButtons;
   FHeaderControl.Parent := Self;
+  if (FOverflow) then
+    SetWindowLong(FHeaderControl.Handle, GWL_STYLE, GetWindowLong(FHeaderControl.Handle, GWL_STYLE) or HDS_OVERFLOW);
 
   SetColumnAttributes();
   Resize();
@@ -1572,6 +1581,19 @@ begin
     end;
 end;
 
+procedure TMySQLDBGrid.SetOverflow(const AValue: Boolean);
+begin
+  if (AValue <> FOverflow) then
+  begin
+    FOverflow := AValue;
+    if (Assigned(FHeaderControl)) then
+      if (not FOverflow) then
+        SetWindowLong(FHeaderControl.Handle, GWL_STYLE, GetWindowLong(FHeaderControl.Handle, GWL_STYLE) and not HDS_OVERFLOW)
+      else
+        SetWindowLong(FHeaderControl.Handle, GWL_STYLE, GetWindowLong(FHeaderControl.Handle, GWL_STYLE) or HDS_OVERFLOW);
+  end;
+end;
+
 procedure TMySQLDBGrid.TitleClick(Column: TColumn);
 begin
   if (not IgnoreTitleClick) then
@@ -1632,10 +1654,6 @@ var
   Shift: TShiftState;
 begin
   HDNotify := PHDNotify(Msg.NMHdr);
-
-  // Debug 2016-12-11
-  if (not Assigned(HDNotify)) then
-    raise ERangeError.Create(SRangeError);
 
   if (not Assigned(FHeaderControl)
     or not Assigned(FHeaderControl.Parent)
@@ -1724,6 +1742,12 @@ begin
           if (GetKeyState(VK_MENU) < 0) then Shift := Shift + [ssAlt];
           FHeaderSplitButton(Self, Columns[LeftCol + HDNotify^.Item], Shift);
         end;
+      HDN_OVERFLOWCLICK:
+        if (Assigned(FOnOverflow)) then
+          if (HDNotify^.Item < 0) then
+            FOnOverflow(Self, nil)
+          else
+            FOnOverflow(Self, Columns[LeftCol + HDNotify^.Item]);
       else
         inherited;
     end;
