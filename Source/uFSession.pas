@@ -12646,7 +12646,8 @@ begin
       // Debug 2017-04-27
       Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem),
         'ImageIndex: ' + IntToStr(Item.ImageIndex) + #13#10
-        + 'Address: ' + CurrentAddress);
+        + 'Address: ' + CurrentAddress + #13#10
+        + 'ActiveControl: ' + Window.ActiveControl.ClassName);
 
       case (Item.ImageIndex) of
         iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
@@ -16850,6 +16851,9 @@ begin
     LVN_BEGINLABELEDIT:
       begin
         MainAction('aECopy').ShortCut := 0;
+        MainAction('aECut').ShortCut := 0;
+        MainAction('aEDelete').ShortCut := 0;
+        MainAction('aEPaste').ShortCut := 0;
         BeginEditLabel(Window.ActiveControl);
       end;
     TVN_ENDLABELEDIT,
@@ -16857,6 +16861,9 @@ begin
       begin
         EndEditLabel(Window.ActiveControl);
         MainAction('aECopy').ShortCut := 16451;
+        MainAction('aECut').ShortCut := 16472;
+        MainAction('aEDelete').ShortCut := 16430;
+        MainAction('aEPaste').ShortCut := 16470;
       end;
     LVN_ITEMCHANGING: NMListView := PNMListView(Msg.NMHdr);
   end;
