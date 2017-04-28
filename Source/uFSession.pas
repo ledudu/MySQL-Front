@@ -12643,12 +12643,6 @@ begin
       aFOpenInNewWindow.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
 
-      // Debug 2017-04-27
-      Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem),
-        'ImageIndex: ' + IntToStr(Item.ImageIndex) + #13#10
-        + 'Address: ' + CurrentAddress + #13#10
-        + 'ActiveControl: ' + Window.ActiveControl.ClassName);
-
       case (Item.ImageIndex) of
         iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
         iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
@@ -13148,11 +13142,6 @@ begin
 
   aFOpenInNewWindow.Enabled := AllowChange and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
-
-  // Debug 2017-04-27
-  Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem),
-    'ImageIndex: ' + IntToStr(FNavigatorMenuNode.ImageIndex) + #13#10
-    + 'Text: ' + FNavigatorMenuNode.Text);
 
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);

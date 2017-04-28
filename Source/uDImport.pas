@@ -963,6 +963,9 @@ var
 
   procedure ImportAdd(TableName: string; const SourceTableName: string = '');
   begin
+    // Debug 2017-04-28
+    Assert(Assigned(Database));
+
     TableName := Session.ApplyIdentifierName(TableName);
     if ((Answer <> IDYESALL) and not (SObject is TSTable) and Assigned(Database.TableByName(TableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);

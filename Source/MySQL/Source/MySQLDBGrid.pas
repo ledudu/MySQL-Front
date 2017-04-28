@@ -1036,7 +1036,7 @@ begin
     if not (dgAlwaysShowEditor in Options) then
       HideEditor();
   end
-  else if ((Key = VK_DELETE) and (Shift = []) and not ReadOnly and not SelectedField.ReadOnly) then
+  else if ((Key = VK_DELETE) and (Shift = []) and not ReadOnly and not SelectedField.ReadOnly and DataLink.DataSet.CanModify) then
     EditDeleteExecute()
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
@@ -1126,9 +1126,6 @@ end;
 
 procedure TMySQLDBGrid.LayoutChanged();
 begin
-  if (Assigned(DataLink.DataSet)) then
-    ReadOnly := not DataLink.DataSet.CanModify;
-
   inherited;
 
   FOnCanEditShowExecuted := False;
