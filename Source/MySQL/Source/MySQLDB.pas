@@ -2446,7 +2446,8 @@ function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolea
 begin
   if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL])) then
     raise EAssertionFailed.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)) + #13#10
-      + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+      + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+      + DebugMonitor.CacheText);
 
   Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]));
 
@@ -2635,7 +2636,7 @@ begin
     if (StmtLength > 0) then
     begin
       // Debug 2017-04-12
-      Assert(Assigned(SyncThread));
+      Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
       Assert(Assigned(SyncThread.StmtLengths));
       Assert(TObject(SyncThread.StmtLengths) is TList);
 

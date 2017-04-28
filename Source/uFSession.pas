@@ -2463,7 +2463,7 @@ begin
     TempAddress := Address;
     Clear();
     if (not FSession.ChangeCurrentAddress(TempAddress) and not FSession.Session.Connection.InUse()) then
-      FSession.ChangeCurrentAddress(FSession.Session.Account.ExpandAddress('/'));
+      FSession.ChangeCurrentAddress(FSession.Session.Address);
   end
   else if (Assigned(Update)) then
   begin
@@ -2804,7 +2804,7 @@ function TFSession.AddressByData(const Data: TCustomData): string;
 var
   URI: TUURI;
 begin
-  URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+  URI := TUURI.Create(Session.Address);
 
   if (TObject(Data) is TSSession) then
     // nothing to do...
@@ -4962,7 +4962,7 @@ begin
     Node := FNavigatorNodeByAddress(NewAddress);
     Result := Assigned(Node);
     if (not Result) then
-      Wanted.Address := Session.Account.ExpandAddress('/');
+      Wanted.Address := Session.Address;
   end;
   if (Result) then
   begin
@@ -5138,7 +5138,7 @@ begin
   CloseButtonNormal := nil;
   CloseButtonPushed := nil;
   CloseButtonHot := nil;
-  FCurrentAddress := Session.Account.ExpandAddress('/');
+  FCurrentAddress := Session.Address;
   ObjectSearch := nil;
   ObjectSearchListView := nil;
   ProcessesListView := nil;
@@ -7699,27 +7699,27 @@ begin
   FNavigatorNodeAfterActivate := nil;
 
   if (not Assigned(Node) or (Node.ImageIndex = iiServer)) then
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'))
+    URI := TUURI.Create(Session.Address)
   else if (Node.ImageIndex = iiQuickAccess) then
   begin
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+    URI := TUURI.Create(Session.Address);
     URI.Param['system'] := 'quick';
   end
   else if (TObject(Node.Data) is TPAccount.TFavorite) then
     URI := TUURI.Create(TPAccount.TFavorite(Node.Data).Address)
   else if (Node.ImageIndex = iiProcesses) then
   begin
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+    URI := TUURI.Create(Session.Address);
     URI.Param['system'] := 'processes';
   end
   else if (Node.ImageIndex = iiUsers) then
   begin
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+    URI := TUURI.Create(Session.Address);
     URI.Param['system'] := 'users';
   end
   else if (Node.ImageIndex = iiVariables) then
   begin
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+    URI := TUURI.Create(Session.Address);
     URI.Param['system'] := 'variables';
   end
   else if (TObject(Node.Data) is TSItem) then
@@ -12355,7 +12355,7 @@ var
           begin
             URI1.Address := Session.Account.Desktop.Addresses[I];
 
-            URI2.Address := Session.Account.ExpandAddress('/');
+            URI2.Address := Session.Address;
             URI2.Database := URI1.Database;
             URI2.Table := URI1.Table;
             URI2.Param['objecttype'] := URI1.Param['objecttype'];
@@ -12640,11 +12640,13 @@ begin
       MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and ((Item.ImageIndex in [iiDatabase, iiBaseTable]) or (Item.ImageIndex in [iiBaseField]) and TSBaseField(Item.Data).NullAllowed);
 
       mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
-      aFOpenInNewWindow.Enabled := mlOpen.Enabled;
+      aFOpenInNewWindow.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
 
       // Debug 2017-04-27
-      Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
+      Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem),
+        'ImageIndex: ' + IntToStr(Item.ImageIndex) + #13#10
+        + 'Address: ' + CurrentAddress);
 
       case (Item.ImageIndex) of
         iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
@@ -13143,11 +13145,13 @@ begin
   if (AllowChange) then
     FNavigatorChanging(Sender, FNavigatorMenuNode, AllowChange);
 
-  aFOpenInNewWindow.Enabled := AllowChange and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
+  aFOpenInNewWindow.Enabled := AllowChange and (FNavigatorMenuNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
 
   // Debug 2017-04-27
-  Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem));
+  Assert(not aFOpenInNewTab.Enabled or Assigned(FocusedSItem),
+    'ImageIndex: ' + IntToStr(FNavigatorMenuNode.ImageIndex) + #13#10
+    + 'Text: ' + FNavigatorMenuNode.Text);
 
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
@@ -14496,7 +14500,7 @@ begin
   begin
     URI1.Address := Session.Account.Desktop.Addresses[I];
 
-    URI2.Address := Session.Account.ExpandAddress('/');
+    URI2.Address := Session.Address;
     URI2.Database := URI1.Database;
     URI2.Table := URI1.Table;
     URI2.Param['objecttype'] := URI1.Param['objecttype'];
@@ -14976,7 +14980,7 @@ begin
         case (Event.EventType) of
           etItemDeleted:
             if (DataByAddress(URI.Address) = Event.Item) then
-              FCurrentAddress := Session.Account.ExpandAddress('/');
+              FCurrentAddress := Session.Address;
           etItemRenamed:
             if (ApplyObjectRenamed(ClassIndex, URI)) then
             begin
@@ -15123,7 +15127,7 @@ begin
   if (CurrentAddress <> '') then
     URI := TUURI.Create(CurrentAddress)
   else if (CurrentClassIndex = ciSession) then
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'))
+    URI := TUURI.Create(Session.Address)
   else if (TObject(CurrentData) is TSItem) then
     URI := TUURI.Create(AddressByData(CurrentData))
   else
@@ -16255,6 +16259,8 @@ procedure TFSession.TreeViewMouseUp(Sender: TObject;
 var
   Node: TTreeNode;
   SortDef: TIndexDef;
+  FieldNames: string;
+  I: Integer;
 begin
   if (not LeftMousePressed) then
     Node := nil
@@ -16288,17 +16294,26 @@ begin
           ActiveDBGrid.SelectedField := ActiveDBGrid.DataSource.DataSet.FieldByName(TSField(Node.Data).Name);
         except
           on E: Exception do
-            raise EAssertionFailed.Create('Active: ' + BoolToStr(ActiveDBGrid.DataSource.DataSet.Active, True) + #13#10
-              + 'CommandText: ' + TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText + #13#10
-              + 'CurrentAddress: ' + CurrentAddress + #13#10
-              + 'Columns: ' + IntToStr(ActiveDBGrid.Columns.Count) + #13#10
-              + 'Fields: ' + IntToStr(ActiveDBGrid.DataSource.DataSet.FieldCount) + #13#10
-              + 'Field: ' + TSField(Node.Data).Name
-              + 'Table: ' + TSTableField(Node.Data).Table.Name + #13#10
-              + 'Objects.Field[0]: ' + TSTableField(Node.Data).Table.Fields[0].Name + #13#10
-              + 'DataSet.Field[0]: ' + ActiveDBGrid.DataSource.DataSet.Fields[0].Name + #13#10#13#10
-              + E.ClassName + ':' + #13#10
-              + E.Message);
+            begin
+              for I := 0 to ActiveDBGrid.DataSource.DataSet.Fields.Count - 1 do
+              begin
+                if (I > 0) then FieldNames := FieldNames + ',';
+                FieldNames := FieldNames + ActiveDBGrid.DataSource.DataSet.Fields[I].Name;
+              end;
+              raise EAssertionFailed.Create('Active: ' + BoolToStr(ActiveDBGrid.DataSource.DataSet.Active, True) + #13#10
+                + 'CommandText: ' + TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText + #13#10
+                + 'CurrentAddress: ' + CurrentAddress + #13#10
+                + 'Columns: ' + IntToStr(ActiveDBGrid.Columns.Count) + #13#10
+                + 'Fields: ' + IntToStr(ActiveDBGrid.DataSource.DataSet.FieldCount) + #13#10
+                + 'Field: ' + TSField(Node.Data).Name + #13#10
+                + 'Table: ' + TSTableField(Node.Data).Table.Name + #13#10
+                + 'Objects.Field[0]: ' + TSTableField(Node.Data).Table.Fields[0].Name + #13#10
+                + 'DataSet.Field[0]: ' + ActiveDBGrid.DataSource.DataSet.Fields[0].Name + #13#10
+                + 'FieldNames: ' + FieldNames + #13#10
+                + TSTableField(Node.Data).Table.Source + #13#10
+                + E.ClassName + ':' + #13#10
+                + E.Message);
+            end;
         end;
     end;
 
@@ -16644,7 +16659,7 @@ begin
     CurrentAddress := Param
   else if (Param <> '') then
   begin
-    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+    URI := TUURI.Create(Session.Address);
     URI.Param['view'] := 'editor';
     URI.Table := '';
     URI.Param['system'] := Null;
@@ -16663,7 +16678,7 @@ begin
   begin
     AllowChange := True;
     if (Session.Account.Desktop.Address = '') then
-      AddressChanging(nil, Session.Account.ExpandAddress('/'), AllowChange)
+      AddressChanging(nil, Session.Address, AllowChange)
     else
       AddressChanging(nil, Session.Account.Desktop.Address, AllowChange);
     Wanted.Address := Session.Account.Desktop.Address;
@@ -16832,9 +16847,17 @@ procedure TFSession.WMNotify(var Msg: TWMNotify);
 begin
   case (Msg.NMHdr^.code) of
     TVN_BEGINLABELEDIT,
-    LVN_BEGINLABELEDIT: BeginEditLabel(Window.ActiveControl);
+    LVN_BEGINLABELEDIT:
+      begin
+        MainAction('aECopy').ShortCut := 0;
+        BeginEditLabel(Window.ActiveControl);
+      end;
     TVN_ENDLABELEDIT,
-    LVN_ENDLABELEDIT: EndEditLabel(Window.ActiveControl);
+    LVN_ENDLABELEDIT:
+      begin
+        EndEditLabel(Window.ActiveControl);
+        MainAction('aECopy').ShortCut := 16451;
+      end;
     LVN_ITEMCHANGING: NMListView := PNMListView(Msg.NMHdr);
   end;
 

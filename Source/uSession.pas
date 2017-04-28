@@ -1564,6 +1564,7 @@ type
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TSSession.TEvent);
+    function GetAddress(): string; inline;
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
@@ -1640,6 +1641,7 @@ type
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
     property Account: TPAccount read FAccount;
+    property Address: string read GetAddress;
     property Caption: string read GetCaption;
     property Charset: string read GetCharset;
     property Charsets: TSCharsets read FCharsets;
@@ -1868,7 +1870,7 @@ function TSItem.GetAddress(): string;
 var
   URI: TUURI;
 begin
-  URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+  URI := TUURI.Create(Session.Address);
 
   if (Self is TSDatabase) then
     URI.Database := Name
@@ -7607,16 +7609,42 @@ end;
 
 function TSDatabase.CloneEvent(const Event: TSEvent; const NewEventName: string): Boolean;
 var
+  DatabaseName: string;
+  EventName: string;
   SQL: string;
+  Parse: TSQLParse;
 begin
   Session.Connection.BeginSynchron();
   Event.Update();
   Session.Connection.EndSynchron();
 
   if (not Session.Connection.SQLParser.ParseSQL(Event.Source)) then
-    SQL := ''
+    raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source])
   else
-    SQL := SQLParser.RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Event.Database.Name, Session.LowerCaseTableNames = 0);
+  begin
+    SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Event.Database.Name, Session.LowerCaseTableNames = 0);
+    if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source])
+    else
+    begin
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source]);
+
+      if (SQLParseKeyword(Parse, 'DEFINER')) then
+      begin
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source]);
+        SQLParseValue(Parse);
+      end;
+
+      if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source]);
+
+      DatabaseName := Name;
+      if (not SQLParseObjectName(Parse, DatabaseName, EventName)) then raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source]);
+
+      SQL := 'CREATE EVENT ';
+      SQL := SQL + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewEventName);
+      SQL := SQL + RightStr(Event.Source, Length(Event.Source) - (SQLParseGetIndex(Parse) - 1));
+    end;
+  end;
   Session.Connection.SQLParser.Clear();
 
   if (Session.Connection.DatabaseName <> Name) then
@@ -7637,30 +7665,35 @@ begin
   Routine.Update();
   Session.Connection.EndSynchron();
 
-  SQL := '';
-  if (not SQLCreateParse(Parse, PChar(Routine.Source), Length(Routine.Source), Session.Connection.MySQLVersion)) then
+  if (not Session.Connection.SQLParser.ParseSQL(Routine.Source)) then
     raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source])
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
-
-    if (SQLParseKeyword(Parse, 'DEFINER')) then
-    begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
-      SQLParseValue(Parse);
-    end;
-
-    if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
-
-    DatabaseName := Name;
-    if (not SQLParseObjectName(Parse, DatabaseName, RoutineName)) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
-
-    if (Routine.RoutineType = rtProcedure) then
-      SQL := 'CREATE PROCEDURE '
+    SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Routine.Database.Name, Session.LowerCaseTableNames = 0);
+    if (not SQLCreateParse(Parse, PChar(Routine.Source), Length(Routine.Source), Session.Connection.MySQLVersion)) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source])
     else
-      SQL := 'CREATE FUNCTION ';
-    SQL := SQL + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutineName);
-    SQL := SQL + RightStr(Routine.Source, Length(Routine.Source) - (SQLParseGetIndex(Parse) - 1));
+    begin
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
+
+      if (SQLParseKeyword(Parse, 'DEFINER')) then
+      begin
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
+        SQLParseValue(Parse);
+      end;
+
+      if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
+
+      DatabaseName := Name;
+      if (not SQLParseObjectName(Parse, DatabaseName, RoutineName)) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
+
+      if (Routine.RoutineType = rtProcedure) then
+        SQL := 'CREATE PROCEDURE '
+      else
+        SQL := 'CREATE FUNCTION ';
+      SQL := SQL + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutineName);
+      SQL := SQL + RightStr(Routine.Source, Length(Routine.Source) - (SQLParseGetIndex(Parse) - 1));
+    end;
   end;
 
   if (Routine.RoutineType = rtProcedure) then
@@ -12490,6 +12523,11 @@ begin
       Result := FieldTypes[I];
 end;
 
+function TSSession.GetAddress(): string;
+begin
+  Result := Account.ExpandAddress('/');
+end;
+
 function TSSession.GetCaption(): string;
 begin
   Result := Connection.Host;
@@ -12668,7 +12706,9 @@ begin
 //          + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
 //          + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end
-      else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
+      else if ((Connection.ErrorCode = 0)
+        and not SQLParser.ParseSQL(SQL)
+        and not (SQLParser.ErrorCode in [PE_IncompleteToken])) then
       begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10

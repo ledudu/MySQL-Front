@@ -3942,13 +3942,13 @@ begin
       if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then
       begin
         Table := TableByBaseTable(BaseTable);
-        if (Assigned(Table)) then
+        ParentTable := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
+        if (Assigned(Table) and Assigned(ParentTable)) then
         begin
           Link := TWForeignKey.Create(Self, Coord(-1, -1));
           TWForeignKey(Link).BaseForeignKey := BaseTable.ForeignKeys[J];
           Link.ChildTable := Table;
-          Table := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
-          Link.ParentTable := Table;
+          Link.ParentTable := ParentTable;
         end;
       end;
 

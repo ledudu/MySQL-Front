@@ -1037,12 +1037,7 @@ begin
       HideEditor();
   end
   else if ((Key = VK_DELETE) and (Shift = []) and not ReadOnly and not SelectedField.ReadOnly) then
-  begin
-    // Debug 2017-04-10
-    Assert(DataLink.DataSet.CanModify);
-
-    EditDeleteExecute();
-  end
+    EditDeleteExecute()
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
   else if ((Key = VK_DOWN) and (ssShift in Shift) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)) then
@@ -1131,6 +1126,9 @@ end;
 
 procedure TMySQLDBGrid.LayoutChanged();
 begin
+  if (Assigned(DataLink.DataSet)) then
+    ReadOnly := not DataLink.DataSet.CanModify;
+
   inherited;
 
   FOnCanEditShowExecuted := False;

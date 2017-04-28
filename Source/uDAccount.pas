@@ -60,8 +60,9 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
-    Password: string;
+    Progress: string; // Debug 2017-04-28
     Account: TPAccount;
+    Password: string;
     ShowType: TDAccountShowType;
     Username: string;
     function Execute(): Boolean;
@@ -171,6 +172,8 @@ var
 begin
   if (CheckConnectInfos()) then
   begin
+    Progress := Progress + 'a';
+
     Session := TSSession.Create(Sessions);
     if (Assigned(Session)) then
     begin
@@ -184,6 +187,9 @@ begin
         2: LibraryName := FHTTPTunnelURI.Text;
         else LibraryName := '';
       end;
+
+      Assert(not DConnecting.Visible,
+        'Progress: ' + Progress);
 
       Session.Connection.BeginSilent();
       DConnecting.LibraryType := LibraryType;
@@ -208,6 +214,8 @@ begin
     end;
 
     ActiveControl := FDatabase;
+
+    Progress := Progress + 'b';
   end;
 end;
 
@@ -368,6 +376,8 @@ end;
 
 procedure TDAccount.FormShow(Sender: TObject);
 begin
+  Progress := '';
+
   if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
   begin
     Width := Preferences.Account.Width;
