@@ -3194,6 +3194,7 @@ begin
                 end;
               smResultHandle:
                 case (SyncThread.State) of
+                  ssFirst,
                   ssNext,
                   ssAfterExecuteSQL:
                     if (BesideThreadWaits) then
@@ -5109,6 +5110,9 @@ begin
     Result := grEOF
   else
   begin
+    // Debug 2017-04-29
+    Assert(Assigned(Connection.SyncThread.LibHandle));
+
     PRecordBufferData(ActiveBuffer())^.LibRow := Connection.Lib.mysql_fetch_row(SyncThread.ResHandle);
     if (Assigned(PRecordBufferData(ActiveBuffer())^.LibRow)) then
     begin

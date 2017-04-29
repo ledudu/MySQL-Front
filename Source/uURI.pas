@@ -346,6 +346,11 @@ begin
 
   if (Value = Null) then
     Items.Values[AName] := ''
+  else if (Value = '') then
+  begin
+    Items.Values[AName] := '';
+    Items.Add(AName + '=');
+  end
   else
     Items.Values[AName] := Value;
 

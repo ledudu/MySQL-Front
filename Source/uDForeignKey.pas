@@ -101,7 +101,7 @@ begin
 
   for I := 0 to FFields.Items.Count - 1 do
     for J := 0 to Length(ForeignKey.Fields) - 1 do
-      if (lstrcmpi(PChar(FFields.Items.Strings[I]), PChar(ForeignKey.Fields[J].Name)) = 0) then
+      if (lstrcmpi(PChar(FFields.Items[I]), PChar(ForeignKey.Fields[J].Name)) = 0) then
         FFields.Selected[I] := True;
 
   FParentDatabase.ItemIndex := FParentDatabase.Items.IndexOf(ForeignKey.Parent.DatabaseName);

@@ -2413,22 +2413,10 @@ begin
 end;
 
 procedure TFSession.TWanted.SetAddress(const AAddress: string);
-var
-  URI: TUURI;
 begin
   if (AAddress <> FAddress) then
   begin
     Clear();
-
-    // Debug 2017-02-06
-    URI := TUURI.Create(AAddress);
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'URI.Address: ' + URI.Address);
-    if ((URI.Param['view'] = 'objectsearch') and (URI.Param['text'] = Null)) then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'URI.Address: ' + URI.Address);
-    URI.Free();
 
     if (not FSession.Session.Connection.InUse()) then
       FSession.CurrentAddress := AAddress
@@ -2904,7 +2892,8 @@ begin
     ToolBarData.View := View;
     Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
-    if (Assigned(FNavigator.Selected) and (FNavigator.Selected <> LastFNavigatorSelected)) then
+    if (Assigned(FNavigator.Selected)
+      and ((FNavigator.Selected <> LastFNavigatorSelected) or (CurrentClassIndex in [ciKey, ciBaseField, ciViewField]))) then
     begin
       if (FNavigator.AutoExpand and Assigned(FNavigator.Selected)) then
       begin
@@ -2923,12 +2912,26 @@ begin
         end;
       end;
 
-      if ((fsActive in FrameState) and not (fsLoading in FrameState) and Wanted.Nothing) then
+      if ((fsActive in FrameState)
+        and not (fsLoading in FrameState)
+        and Wanted.Nothing
+        and (FNavigator.Selected <> LastFNavigatorSelected)) then
         PlaySound(PChar(Preferences.SoundFileNavigating), Handle, SND_FILENAME or SND_ASYNC);
 
-      if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView])) then
+      if (View = vBrowser) then
       begin
-        Table := TSTable(CurrentData);
+        case (CurrentClassIndex) of
+          ciKey:
+            Table := TSKey(CurrentData).Table;
+          ciBaseField,
+          ciViewField:
+            Table := TSTableField(CurrentData).Table;
+          ciBaseTable,
+          ciView,
+          ciSystemView:
+            Table := TSTable(CurrentData);
+          else raise ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
+        end;
 
         if (not (Table.DataSet is TSTable.TDataSet) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TSTable.TDataSet(Table.DataSet).Limit < 1)) then
         begin
@@ -3135,6 +3138,8 @@ begin
         if (not Assigned(DBObject)) then
           NotFound := True
         else if ((DBObject is TSBaseTable) and (URI.Param['objecttype'] = 'trigger') and (not TSBaseTable(DBObject).Update() or not Database.Triggers.Update())) then
+          AllowChange := False
+        else if ((DBObject is TSTable) and ((URI.Param['objecttype'] = 'key') or (URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'foreignkey') or (URI.Param['objecttype'] = 'viewfield')) and not DBObject.Update()) then
           AllowChange := False;
       end;
     end;
@@ -4966,6 +4971,15 @@ begin
   end;
   if (Result) then
   begin
+    case (Node.ImageIndex) of
+      iiKey,
+      iiBaseField,
+      iiVirtualField,
+      iiSystemViewField,
+      iiViewField:
+        Node := Node.Parent;
+    end;
+
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
     FNavigator.Selected := Node;
@@ -4996,12 +5010,6 @@ begin
       vBrowser:
         begin
           Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
-
-          // Debug 2017-01-30
-          if (not Assigned(Table)) then
-            raise ERangeError.Create('Table: ' + URI.Table + #13#10
-              + 'URI.Address: ' + URI.Address + #13#10
-              + 'AAddress: ' + AAddress);
 
           FUDOffset.Position := 0;
           FUDLimit.Position := Desktop(Table).Limit;
@@ -6070,12 +6078,24 @@ begin
 end;
 
 procedure TFSession.DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
+var
+  URI: TUURI;
 begin
   PContentChange(nil);
 
   DBGrid.DataSource.Enabled := False;
   DBGrid.DataSource.DataSet := DataSet;
   DBGridInitialize(DBGrid);
+
+  case (CurrentClassIndex) of
+    ciBaseField,
+    ciViewField:
+      begin
+        URI := TUURI.Create(CurrentAddress);
+        DBGrid.SelectedField := DBGrid.DataSource.DataSet.FieldByName(URI.Param['object']);
+        URI.Free();
+      end;
+  end;
 end;
 
 procedure TFSession.DataSetAfterPost(DataSet: TDataSet);
@@ -8200,9 +8220,9 @@ begin
     if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
     begin
       FNavigatorNodeToExpand := Node;
-      if (Assigned(Table)) then
+      if (Assigned(Table) and Table.ValidSource) then
         Table.PushBuildEvent()
-      else if (Assigned(Database)) then
+      else if (Assigned(Database) and Database.Valid) then
         Database.PushBuildEvents();
     end;
 
@@ -8416,7 +8436,7 @@ begin
             end;
             Child := TableNode.getFirstChild();
             while (Assigned(Child) and not Assigned(Result)) do
-              if ((Child.ImageIndex in [iiKey]) and ((URI.Param['object'] = Null) and TSKey(Child.Data).PrimaryKey or (TSBaseTable(TableNode.Data).Keys.NameCmp(URI.Param['object'], Child.Text) = 0))
+              if ((Child.ImageIndex in [iiKey]) and ((URI.Param['object'] = '') and TSKey(Child.Data).PrimaryKey or (TSBaseTable(TableNode.Data).Keys.NameCmp(URI.Param['object'], Child.Text) = 0))
                 or (Child.ImageIndex in [iiBaseField]) and (URI.Param['object'] <> Null) and (TSBaseTable(TableNode.Data).Fields.NameCmp(URI.Param['object'], Child.Text) = 0)
                 or (Child.ImageIndex in [iiForeignKey]) and (URI.Param['object'] <> Null) and (TSBaseTable(TableNode.Data).ForeignKeys.NameCmp(URI.Param['object'], Child.Text) = 0)
                 or (Child.ImageIndex in [iiTrigger]) and (URI.Param['object'] <> Null) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)
@@ -10122,18 +10142,17 @@ var
 begin
   case (View) of
     vBrowser:
-      begin
-        // Debug 2017-01-26
-        if (not (TObject(CurrentData) is TSTable)) then
-          if (not Assigned(CurrentData)) then
-            raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
-              + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)))
-          else
-            raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
-              + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
-              + 'CurrentData Class: ' + TObject(CurrentData).ClassName);
-
-        Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
+      case (CurrentClassIndex) of
+        ciKey:
+          Result := Desktop(TSKey(CurrentData).Table).CreateDBGrid();
+        ciBaseField,
+        ciViewField:
+          Result := Desktop(TSTableField(CurrentData).Table).CreateDBGrid();
+        ciBaseTable,
+        ciView,
+        ciSystemView:
+          Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
+        else Result := nil;
       end;
     vIDE:
       case (CurrentClassIndex) of
@@ -15073,7 +15092,7 @@ begin
           PContentChange(nil);
         end;
 
-        if ((View = vBrowser) and (Event.Item = CurrentData)) then
+        if ((View = vBrowser) and (Event.Item = CurrentData) and not Assigned(FNavigatorNodeToExpand)) then
           Wanted.Update := UpdateAfterAddressChanged;
 
         if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
@@ -16045,8 +16064,24 @@ var
   QuickSearch: string;
   SortDef: TIndexDef;
   Table: TSTable;
+  URI: TUURI;
 begin
-  Table := TSTable(CurrentData);
+  case (CurrentClassIndex) of
+    ciKey:
+      Table := TSKey(CurrentData).Table;
+    ciBaseField,
+    ciViewField:
+      Table := TSTableField(CurrentData).Table;
+    ciBaseTable,
+    ciView,
+    ciSystemView:
+      Table := TSTable(CurrentData);
+    else
+      begin
+        ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
+        Table := nil;
+      end;
+  end;
 
   if (not FLimitEnabled.Down) then
   begin
@@ -16070,17 +16105,29 @@ begin
     QuickSearch := FQuickSearch.Text;
 
   SortDef := TIndexDef.Create(nil, '', '', []);
+  URI := TUURI.Create(CurrentAddress);
 
   if (not Table.DataSet.Active) then
   begin
-    if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
-      TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
+    if (Table is TSBaseTable) then
+      if (URI.Param['objecttype'] = 'key') then
+        TSBaseTable(Table).KeyByName(URI.Param['object']).GetSortDef(SortDef)
+      else if (Assigned(TSBaseTable(Table).PrimaryKey)) then
+        TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
     if (Table is TSView) then
       Table.DataSet.BeforeOpen := Desktop(TSView(Table)).DataSetBeforeOpen;
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
+  else if (URI.Param['objecttype'] = 'key') then
+  begin
+    TSBaseTable(Table).KeyByName(URI.Param['object']).GetSortDef(SortDef);
+    Table.DataSet.Sort(SortDef);
+    ActiveDBGrid.UpdateHeader();
+  end
+  else if ((URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'viewfield')) then
+    ActiveDBGrid.SelectedField := Table.DataSet.FieldByName(URI.Param['object'])
   else
   begin
     Table.DataSet.FilterSQL := FilterSQL;
@@ -16090,6 +16137,7 @@ begin
     Table.DataSet.Refresh();
   end;
 
+  URI.Free();
   SortDef.Free();
 end;
 
@@ -16248,9 +16296,7 @@ procedure TFSession.TreeViewMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Node: TTreeNode;
-  SortDef: TIndexDef;
-  FieldNames: string;
-  I: Integer;
+  URI: TUURI;
 begin
   if (not LeftMousePressed) then
     Node := nil
@@ -16268,42 +16314,16 @@ begin
     and Assigned(ActiveDBGrid)
     and ActiveDBGrid.DataSource.DataSet.Active) then
     case (Node.ImageIndex) of
-      iiKey:
-        begin
-          SortDef := TIndexDef.Create(nil, '', '', []);
-          TSKey(Node.Data).GetSortDef(SortDef);
-          TSKey(Node.Data).Table.DataSet.Sort(SortDef);
-          SortDef.Free();
-          ActiveDBGrid.UpdateHeader();
-        end;
+      iiKey,
       iiBaseField,
       iiVirtualField,
       iiSystemViewField,
       iiViewField:
-        try
-          ActiveDBGrid.SelectedField := ActiveDBGrid.DataSource.DataSet.FieldByName(TSField(Node.Data).Name);
-        except
-          on E: Exception do
-            begin
-              for I := 0 to ActiveDBGrid.DataSource.DataSet.Fields.Count - 1 do
-              begin
-                if (I > 0) then FieldNames := FieldNames + ',';
-                FieldNames := FieldNames + ActiveDBGrid.DataSource.DataSet.Fields[I].Name;
-              end;
-              raise EAssertionFailed.Create('Active: ' + BoolToStr(ActiveDBGrid.DataSource.DataSet.Active, True) + #13#10
-                + 'CommandText: ' + TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText + #13#10
-                + 'CurrentAddress: ' + CurrentAddress + #13#10
-                + 'Columns: ' + IntToStr(ActiveDBGrid.Columns.Count) + #13#10
-                + 'Fields: ' + IntToStr(ActiveDBGrid.DataSource.DataSet.FieldCount) + #13#10
-                + 'Field: ' + TSField(Node.Data).Name + #13#10
-                + 'Table: ' + TSTableField(Node.Data).Table.Name + #13#10
-                + 'Objects.Field[0]: ' + TSTableField(Node.Data).Table.Fields[0].Name + #13#10
-                + 'DataSet.Field[0]: ' + ActiveDBGrid.DataSource.DataSet.Fields[0].Name + #13#10
-                + 'FieldNames: ' + FieldNames + #13#10
-                + TSTableField(Node.Data).Table.Source + #13#10
-                + E.ClassName + ':' + #13#10
-                + E.Message);
-            end;
+        begin
+          URI := TUURI.Create(TSItem(Node.Data).Address);
+          URI.Param['view'] := 'browser';
+          Wanted.Address := URI.Address;
+          URI.Free();
         end;
     end;
 
@@ -16698,6 +16718,7 @@ var
   Database: TSDatabase;
   I: Integer;
   List: TList;
+  Table: TSTable;
   URI: TUURI;
 begin
   Result := False;
@@ -16739,11 +16760,29 @@ begin
           QuickAccessStep1();
       end;
     vBrowser:
-      if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
-        or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
-        Wanted.Update := UpdateAfterAddressChanged
-      else if ((TObject(CurrentData) is TSTable) and not TSTable(CurrentData).DataSet.Active) then
-        TableOpen(nil);
+      begin
+        case (CurrentClassIndex) of
+          ciKey:
+            Table := TSKey(CurrentData).Table;
+          ciBaseField,
+          ciViewField:
+            Table := TSTableField(CurrentData).Table;
+          ciBaseTable,
+          ciView,
+          ciSystemView:
+            Table := TSTable(CurrentData);
+          else
+            begin
+              ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
+              Table := nil;
+            end;
+        end;
+        if ((Table is TSView and not TSView(Table).Update())
+          or (Table is TSBaseTable) and not TSBaseTable(Table).Update(True)) then
+          Wanted.Update := UpdateAfterAddressChanged
+        else if (Assigned(Table) and (not Table.DataSet.Active or (CurrentClassIndex in [ciKey, ciBaseTable, ciView]))) then
+          TableOpen(nil);
+      end;
     vIDE:
       TSDBObject(CurrentData).Update();
     vDiagram:

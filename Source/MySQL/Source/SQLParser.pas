@@ -18947,7 +18947,7 @@ begin
       end;
       Result := ParseDeclareConditionStmt(StmtTag, IdentList);
     end
-    else if (not ErrorFound and IsTag(kiCURSOR, kiFOR)) then
+    else if (IsTag(kiCURSOR, kiFOR)) then
     begin
       if (PList(NodePtr(IdentList)).ElementCount <> 1) then
         SetError(PE_UnexpectedToken)
@@ -19353,7 +19353,12 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.LabelToken := ApplyCurrentToken(utLabel);
+  if (EndOfStmt(CurrentToken)) then
+    SetError(PE_IncompleteStmt)
+  else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
+    SetError(PE_IncompleteStmt)
+  else
+    Nodes.LabelToken := ApplyCurrentToken(utLabel);
 
   Result := TEndLabel.Create(Self, Nodes);
 end;
@@ -20538,7 +20543,7 @@ begin
       if (not ErrorFound) then
         if (EndOfStmt(CurrentToken)) then
           SetError(PE_IncompleteStmt)
-        else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and AnsiQuotes) then
+        else if (TokenPtr(CurrentToken)^.TokenType = ttIdent) then
           Nodes.PluginIdent := ParseDbIdent(ditPlugin)
         else if ((TokenPtr(CurrentToken)^.TokenType = ttString) or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes) then
           Nodes.PluginIdent := ParseString()

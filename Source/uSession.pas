@@ -1888,53 +1888,53 @@ begin
     URI.Database := TSKey(Self).Table.Database.Name;
     URI.Table := TSKey(Self).Table.Name;
     URI.Param['objecttype'] := 'key';
-    URI.Param['object'] := TSKey(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSBaseField) then
   begin
     URI.Database := TSBaseField(Self).Table.Database.Name;
     URI.Table := TSBaseField(Self).Table.Name;
     URI.Param['objecttype'] := 'basefield';
-    URI.Param['object'] := TSBaseField(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSForeignKey) then
   begin
     URI.Database := TSForeignKey(Self).Table.Database.Name;
     URI.Table := TSForeignKey(Self).Table.Name;
     URI.Param['objecttype'] := 'foreignkey';
-    URI.Param['object'] := TSForeignKey(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSViewField) then
   begin
     URI.Database := TSViewField(Self).Table.Database.Name;
     URI.Table := TSViewField(Self).Table.Name;
     URI.Param['objecttype'] := 'viewfield';
-    URI.Param['object'] := TSViewField(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSProcedure) then
   begin
     URI.Database := TSProcedure(Self).Database.Name;
     URI.Param['objecttype'] := 'procedure';
-    URI.Param['object'] := TSProcedure(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSFunction) then
   begin
     URI.Database := TSFunction(Self).Database.Name;
     URI.Param['objecttype'] := 'function';
-    URI.Param['object'] := TSFunction(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSEvent) then
   begin
     URI.Database := TSEvent(Self).Database.Name;
     URI.Param['objecttype'] := 'event';
-    URI.Param['object'] := TSEvent(Self).Name;
+    URI.Param['object'] := Name;
   end
   else if (TObject(Self) is TSTrigger) then
   begin
     URI.Database := TSTrigger(Self).Database.Name;
     URI.Table := TSTrigger(Self).TableName;
     URI.Param['objecttype'] := 'trigger';
-    URI.Param['object'] := TSTrigger(Self).Name;
+    URI.Param['object'] := Name;
   end;
 
   Result := URI.Address;
@@ -2207,7 +2207,6 @@ begin
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# Build()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Version: ' + IntToStr(Session.SQLParser.MySQLVersion) + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
@@ -4053,16 +4052,6 @@ begin
     Session.SendEvent(etItemValid, Database, Items, Self);
   end;
 
-  // Debug 2017-02-03
-  if (not Assigned(Fields)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Fields) is TSTableFields)) then
-    try
-      raise ERangeError.Create('ClassType: ' + TObject(Fields).ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-
   if (Fields.Count > 0) then
     Session.SendEvent(etItemsValid, Self, Fields);
 end;
@@ -5009,7 +4998,10 @@ begin
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       repeat
         SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
-        NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := FieldByName(SQLParseValue(Parse));
+        Field := FieldByName(SQLParseValue(Parse));
+        if (not Assigned(Field)) then
+          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+        NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := Field;
 
         SQLParseChar(Parse, ',');
       until (SQLParseChar(Parse, ')'));
@@ -11289,6 +11281,9 @@ end;
 
 constructor TSItemSearch.Create(const ASession: TSSession);
 begin
+  // Debug 2017-04-29
+  Assert(Assigned(ASession));
+
   inherited;
 
   FSession := ASession;
