@@ -14458,6 +14458,10 @@ end;
 
 procedure TFSession.PropertiesServerExecute(Sender: TObject);
 begin
+  // Debug 2017-04-30
+  Assert(not (csDestroying in ComponentState));
+  Assert(Assigned(Wanted));
+
   Wanted.Clear();
 
   DServer.Session := Session;

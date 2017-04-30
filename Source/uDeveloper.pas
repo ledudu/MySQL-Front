@@ -59,7 +59,7 @@ function GetUTCTime(): TDateTime;
 function LocationToStr(Location: TELLocationInfo): string;
 {$ENDIF}
 function ProcAddrToStr(const Proc: Pointer): string;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 4;
   const HideSource: Boolean = False);
 
 const
@@ -271,7 +271,7 @@ begin
   {$ENDIF}
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 4;
   const HideSource: Boolean = False);
 {$IFNDEF Debug}
 {$IFDEF EurekaLog}
@@ -1093,7 +1093,7 @@ begin
   begin
     ShowDialog := False;
 
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 4, True);
   end
   else
   begin
@@ -1113,7 +1113,7 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 4, True);
 
       ExceptionInfo.Options.SendShellSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +
@@ -1140,13 +1140,13 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-//  if (GetUTCTime() < IncHour(GetCompileTime(), 12)) then
-//  begin
-//    FreezeThreadClass := TMainThreadFreezeDetectionThread;
-//    CurrentEurekaLogOptions().FreezeTimeout := 15; { seconds }
-//    CurrentEurekaLogOptions().FreezeActivate := True;
-//    InitCheckFreeze();
-//  end;
+  if (GetUTCTime() < IncHour(GetCompileTime(), 12)) then
+  begin
+    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+    CurrentEurekaLogOptions().FreezeTimeout := 15; { seconds }
+    CurrentEurekaLogOptions().FreezeActivate := True;
+    InitCheckFreeze();
+  end;
   {$ENDIF}
 
   InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);

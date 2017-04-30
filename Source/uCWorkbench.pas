@@ -4,7 +4,7 @@ interface
 
 uses
   Messages, Windows,
-  SysUtils, Classes, Types, Variants,
+  SysUtils, Classes, Types, Variants, Generics.Collections,
   XMLDoc, XMLIntf,
   Controls, Graphics, Forms,
   uSession;
@@ -213,7 +213,7 @@ type
     FData: TCustomData;
     FilePosition: TPoint;
     FFocused: Boolean;
-    FLinkPoints: array of TWLinkPoint;
+    FLinkPoints: TObjectList<TWLinkPoint>;
     function GetCaption(): TCaption;
     function GetIndex(): Integer;
     function GetLinkPoint(AIndex: Integer): TWLinkPoint;
@@ -2728,7 +2728,7 @@ begin
 
   FilePosition := Point(-1, -1);
   FDoubleBuffered := True;
-  SetLength(FLinkPoints, 0);
+  FLinkPoints := TObjectList<TWLinkPoint>.Create();
 
   Canvas.Font := Font;
   Canvas.Font.Color := Font.Color;
@@ -2743,8 +2743,9 @@ destructor TWTable.Destroy();
 var
   I: Integer;
 begin
-  while (Length(FLinkPoints) > 0) do
+  while (FLinkPoints.Count > 0) do
     FLinkPoints[0].Link.Free();
+  FLinkPoints.Free();
 
   // Debug 2017-01-17
   for I := 0 to Workbench.Links.Count - 1 do
@@ -2780,7 +2781,7 @@ end;
 
 function TWTable.GetLinkPointCount(): Integer;
 begin
-  Result := Length(FLinkPoints);
+  Result := FLinkPoints.Count;
 end;
 
 function TWTable.GetIndex(): Integer;
@@ -2845,7 +2846,7 @@ procedure TWTable.MoveTo(const Sender: TWControl; const Shift: TShiftState; NewP
 var
   I: Integer;
 begin
-  for I := 0 to Length(FLinkPoints) - 1 do
+  for I := 0 to FLinkPoints.Count - 1 do
     if (not FLinkPoints[I].Selected) then
       FLinkPoints[I].MoveTo(Self, Shift, Coord(FLinkPoints[I].Position.X + NewPosition.X - Position.X, FLinkPoints[I].Position.Y + NewPosition.Y - Position.Y));
 
@@ -2859,7 +2860,7 @@ var
 begin
   inherited;
 
-  for I := 0 to Length(FLinkPoints) - 1 do
+  for I := 0 to FLinkPoints.Count - 1 do
   begin
     TempCoord := Coord(FLinkPoints[I].Position.X + (NewPosition.X - Position.X), FLinkPoints[I].Position.Y + (NewPosition.Y - Position.Y));
     FLinkPoints[I].Moving(Self, Shift, TempCoord);
@@ -2953,38 +2954,17 @@ begin
 end;
 
 procedure TWTable.RegisterLinkPoint(const APoint: TWLinkPoint);
-var
-  Found: Boolean;
-  I: Integer;
 begin
-  Found := False;
-  for I := 0 to Length(FLinkPoints) - 1 do
-    Found := Found or (FLinkPoints[I] = APoint);
+  Assert(FLinkPoints.IndexOf(APoint) < 0);
 
-  if (not Found) then
-  begin
-    SetLength(FLinkPoints, Length(FLinkPoints) + 1);
-    FLinkPoints[Length(FLinkPoints) - 1] := APoint;
-  end;
+  FLinkPoints.Add(APoint);
 end;
 
 procedure TWTable.ReleaseLinkPoint(const APoint: TWLinkPoint);
-var
-  I: Integer;
-  Index: Integer;
 begin
-  Index := -1;
-  for I := 0 to Length(FLinkPoints) - 1 do
-    if (FLinkPoints[I] = APoint) then
-      Index := I;
+  Assert(FLinkPoints.IndexOf(APoint) >= 0);
 
-  if (Index >= 0) then
-  begin
-    for I := Index to Length(FLinkPoints) - 2 do
-      FLinkPoints[I] := FLinkPoints[I + 1];
-
-    SetLength(FLinkPoints, Length(FLinkPoints) - 1);
-  end;
+  FLinkPoints.Delete(FLinkPoints.IndexOf(APoint));
 end;
 
 procedure TWTable.SetFocused(AFocused: Boolean);
