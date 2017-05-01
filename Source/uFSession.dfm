@@ -780,6 +780,7 @@ object FSession: TFSession
         OnDrawColumnCell = DBGridDrawColumnCell
         OnEnter = DBGridEnter
         OnExit = DBGridExit
+        Overflow = False
       end
       object PObjectIDETrigger: TPanel_Ext
         Left = 0
@@ -1181,7 +1182,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 185290
+      Left = 440422
       Top = 0
       Width = 140
       Height = 22
@@ -1196,7 +1197,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 185012
+      Left = 439681
       Top = 0
       Width = 23
       Height = 22

@@ -5982,64 +5982,68 @@ end;
 
 function TFSession.DataByAddress(const Address: string): TCustomData;
 var
-  ClassIndex: TClassIndex;
-  Database: TSDatabase;
+  Account: TPAccount;
+  Session: TSSession;
+  SessionCreated: Boolean;
   URI: TUURI;
 begin
   URI := TUURI.Create(Address);
 
-  ClassIndex := ClassIndexByAddress(URI.Address);
-  case (ClassIndex) of
-    ciSession: Result := Session;
-    ciDatabase,
-    ciSystemDatabase: Result := Session.DatabaseByName(URI.Database);
-    ciBaseTable,
-    ciKey,
-    ciBaseField,
-    ciForeignKey,
-    ciView,
-    ciSystemView,
-    ciViewField,
-    ciProcedure,
-    ciFunction,
-    ciEvent,
-    ciTrigger:
+  SessionCreated := False;
+  Account := Accounts.AccountByURI(Address);
+  if (not Assigned(Account)) then
+    raise ERangeError.Create('No account for: ' + Address)
+  else
+  begin
+    if (Account = Self.Session.Account) then
+      Session := Self.Session
+    else
+    begin
+      Session := Sessions.SessionByAccount(Account);
+      if (not Assigned(Session)) then
       begin
-        Database := Session.DatabaseByName(URI.Database);
-        if (not Assigned(Database)) then
-          Result := nil
-        else
-          try
-            // Debug 2017-04-25
-            case (ClassIndex) of
-              ciBaseTable,
-              ciView,
-              ciSystemView: Result := Database.TableByName(URI.Table);
-              ciKey: Result := Database.BaseTableByName(URI.Table).KeyByName(URI.Param['object']);
-              ciBaseField: Result := Database.BaseTableByName(URI.Table).FieldByName(URI.Param['object']);
-              ciForeignKey: Result := Database.BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object']);
-              ciViewField: Result := Database.ViewByName(URI.Table).FieldByName(URI.Param['object']);
-              ciProcedure: Result := Database.ProcedureByName(URI.Param['object']);
-              ciFunction: Result := Database.FunctionByName(URI.Param['object']);
-              ciEvent: Result := Database.EventByName(URI.Param['object']);
-              ciTrigger: Result := Database.TriggerByName(URI.Param['object']);
-              else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
-            end;
-          except
-            on E: Exception do
-              raise EAssertionFailed.Create('Address: ' + Address + #13#10#13#10
-                + E.ClassName + ':' + #13#10
-                + E.Message);
-          end;
+        DConnecting.Session := TSSession.Create(Sessions, Account);
+        SessionCreated := Assigned(Session);
+        DConnecting.Execute();
       end;
-    ciProcesses: Result := Session.Processes;
-    ciUsers: Result := Session.Users;
-    ciVariables: Result := Session.Variables;
-    ciQuickAccess: Result := Session.QuickAccess;
-    else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
-  end;
+    end;
+
+    if (not Assigned(Session)) then
+      Result := nil
+    else
+      case (ClassIndexByAddress(URI.Address)) of
+        ciSession:
+          Result := Session;
+        ciDatabase,
+        ciSystemDatabase,
+        ciBaseTable,
+        ciKey,
+        ciBaseField,
+        ciForeignKey,
+        ciView,
+        ciSystemView,
+        ciViewField,
+        ciProcedure,
+        ciFunction,
+        ciEvent,
+        ciTrigger:
+          Result := Session.ItemByAddress(Address);
+        ciProcesses: Result :=
+          Session.Processes;
+        ciUsers:
+          Result := Session.Users;
+        ciVariables:
+          Result := Session.Variables;
+        ciQuickAccess:
+          Result := Session.QuickAccess;
+        else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
+      end;
+    end;
 
   URI.Free();
+
+  if (SessionCreated) then
+    Session.Free();
 end;
 
 procedure TFSession.DataSetAfterCancel(DataSet: TDataSet);

@@ -786,7 +786,7 @@ type
     procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
-    function SQLGetFields(): string;
+    function SQLGetFields(const Table: TSTable = nil): string;
   public
     function AddTable(const NewTable: TSTable): Integer; virtual;
     procedure Invalidate(); override;
@@ -4293,6 +4293,10 @@ end;
 
 function TSBaseTable.Build(const DataSet: TMySQLQuery): Boolean;
 begin
+  // Debug 2017-05-01
+  Assert(Assigned(DataSet.FindField('Create Table')),
+    'CommandText: ' + DataSet.CommandText);
+
   Result := Build(DataSet.FindField('Create Table'));
 end;
 
@@ -6061,21 +6065,27 @@ begin
   Tables.Free();
 end;
 
-function TSTables.SQLGetFields(): string;
+function TSTables.SQLGetFields(const Table: TSTable = nil): string;
 var
   I: Integer;
   SQL: string;
 begin
   SQL := '';
+
   for I := 0 to Count - 1 do
-    if (((Table[I] is TSView) and not TSView(Table[I]).ValidFields)
-      or ((Table[I] is TSSystemView) and not TSSystemView(Table[I]).ValidFields)) then
+    if ((Self.Table[I] <> Table)
+      and ((Self.Table[I] is TSView) and not TSView(Self.Table[I]).ValidFields)
+        or ((Self.Table[I] is TSSystemView) and not TSSystemView(Self.Table[I]).ValidFields)) then
     begin
       if (SQL <> '') then SQL := SQL + ',';
-      SQL := SQL + SQLEscape(Table[I].Name);
+      SQL := SQL + SQLEscape(Self.Table[I].Name);
     end;
   if (SQL <> '') then
     SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
+
+  if (Assigned(Table)) then
+    SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + '=' + SQLEscape(Table.Name) + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10
+      + SQL;
 
   Result := SQL;
 end;
@@ -9015,7 +9025,7 @@ begin
     SQL := SQL + ';';
   SQL := SQL + #13#10;
 
-  SQL := SQL + Tables.SQLGetFields();
+  SQL := SQL + Tables.SQLGetFields(NewView);
   SQL := SQL + NewView.SQLGetSource();
 
   if (Assigned(View) and (View.Name <> NewView.Name)) then
@@ -12627,33 +12637,73 @@ end;
 
 function TSSession.ItemByAddress(const Address: string): TSItem;
 var
+  Database: TSDatabase;
+  Table: TSTable;
   URI: TUURI;
 begin
   URI := TUURI.Create(Address);
 
+  Connection.BeginSynchron();
+  Databases.Update();
+  Database := DatabaseByName(URI.Database);
+  if (not Assigned(Database)) then
+    Table := nil
+  else
+  begin
+    Database.Update();
+    Table := Database.TableByName(URI.Table);
+    if (Assigned(Table)) then
+      Table.Update();
+  end;
+  Connection.EndSynchron();
+
   if ((URI.Param['objecttype'] = 'view')
     or (URI.Param['objecttype'] = 'systemview')) then
-    Result := DatabaseByName(URI.Database).ViewByName(URI.Table)
+    Result := Table
   else if (URI.Param['objecttype'] = 'procedure') then
-    Result := DatabaseByName(URI.Database).ProcedureByName(URI.Param['object'])
+    if (not Assigned(Database)) then
+      Result := nil
+    else
+      Result := Database.ProcedureByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'function') then
-    Result := DatabaseByName(URI.Database).FunctionByName(URI.Param['object'])
+    if (not Assigned(Database)) then
+      Result := nil
+    else
+      Result := Database.FunctionByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'trigger') then
-    Result := DatabaseByName(URI.Database).TriggerByName(URI.Param['object'])
+    if (not Assigned(Database)) then
+      Result := nil
+    else
+      Result := Database.TriggerByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'event') then
-    Result := DatabaseByName(URI.Database).EventByName(URI.Param['object'])
+    if (not Assigned(Database)) then
+      Result := nil
+    else
+      Result := Database.EventByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'key') then
-    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table).KeyByName(URI.Param['object'])
+    if (not (Table is TSBaseTable)) then
+      Result := nil
+    else
+      Result := TSBaseTable(Table).KeyByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'basefield') then
-    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table).FieldByName(URI.Param['object'])
+    if (not (Table is TSBaseTable)) then
+      Result := nil
+    else
+      Result := Database.BaseTableByName(URI.Table).FieldByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'foreignkey') then
-    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object'])
+    if (not (Table is TSBaseTable)) then
+      Result := nil
+    else
+      Result := Database.BaseTableByName(URI.Table).ForeignKeyByName(URI.Param['object'])
   else if (URI.Param['objecttype'] = 'viewfield') then
-    Result := DatabaseByName(URI.Database).ViewByName(URI.Table).FieldByName(URI.Param['object'])
+    if (not (Table is TSView)) then
+      Result := nil
+    else
+      Result := TSView(Table).FieldByName(URI.Param['object'])
   else if (URI.Table <> '') then
-    Result := DatabaseByName(URI.Database).BaseTableByName(URI.Table)
+    Result := Table
   else if (URI.Database <> '') then
-    Result := DatabaseByName(URI.Database)
+    Result := Database
   else
     raise ERangeError.Create('Unknown Item for: ' + URI.Address);
 
@@ -13672,11 +13722,11 @@ function TSSession.Update(const Objects: TList; const Status: Boolean = False): 
 var
   BaseTableInTables: Boolean;
   Database: TSDatabase;
+  FirstView: TSTable;
   I: Integer;
   List: TList;
   SQL: string;
   Tables: TList;
-  ViewInTables: Boolean;
 begin
   SQL := '';
 
@@ -13713,7 +13763,7 @@ begin
 
   Tables := TList.Create();
   BaseTableInTables := False;
-  ViewInTables := False;
+  FirstView := nil;
 
   Database := nil;
   for I := 0 to List.Count - 1 do
@@ -13740,11 +13790,11 @@ begin
         begin
           if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then
             SQL := SQL + Database.Tables.SQLGetStatus(Tables);
-          if (ViewInTables) then
-            SQL := SQL + Database.Tables.SQLGetFields();
+          if (Assigned(FirstView)) then
+            SQL := SQL + Database.Tables.SQLGetFields(FirstView);
           Tables.Clear();
           BaseTableInTables := False;
-          ViewInTables := False;
+          FirstView := nil;
         end;
       Database := TSDBObject(List[I]).Database;
 
@@ -13755,7 +13805,8 @@ begin
       else if (((TSObject(List[I]) is TSView) or (TSObject(List[I]) is TSSystemView)) and not TSView(List[I]).ValidFields) then
         Tables.Add(List[I]);
       BaseTableInTables := BaseTableInTables or (TSObject(List[I]) is TSBaseTable);
-      ViewInTables := ViewInTables or (TSObject(List[I]) is TSView) or (TSObject(List[I]) is TSSystemView);
+      if (not Assigned(FirstView) and ((TSObject(List[I]) is TSView) or (TSObject(List[I]) is TSSystemView))) then
+        FirstView := TSTable(List[I]);
     end
     else if ((TObject(List[I]) is TSUser) and not TSUser(List[I]).Valid) then
       SQL := SQL + TSUser(List[I]).SQLGetSource()
@@ -13765,8 +13816,8 @@ begin
   begin
     if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then
       SQL := SQL + Database.Tables.SQLGetStatus(Tables);
-    if (ViewInTables) then
-      SQL := SQL + Database.Tables.SQLGetFields();
+    if (Assigned(FirstView)) then
+      SQL := SQL + Database.Tables.SQLGetFields(FirstView);
     Tables.Clear();
   end;
 

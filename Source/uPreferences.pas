@@ -2109,6 +2109,9 @@ end;
 
 destructor TPPreferences.Destroy();
 begin
+  // Debug 2017-05-01
+  Assert(Assigned(Database));
+
   SaveToRegistry();
 
   Database.Free();

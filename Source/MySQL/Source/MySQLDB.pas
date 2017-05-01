@@ -198,6 +198,7 @@ type
       StmtIndex: Integer;
       StmtLengths: TList;
       State: TState;
+      SynchronCount: Integer;
       WarningCount: Integer;
       procedure Execute(); override;
       property CommandText: string read GetCommandText;
@@ -2061,7 +2062,7 @@ begin
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (not Terminated) then
-          if ((Connection.SynchronCount > 0)
+          if ((SynchronCount > 0)
             and ((Mode = smSQL) or (State <> ssReceivingResult))) then
           begin
             Connection.SyncThreadExecuted.SetEvent();
@@ -3068,6 +3069,7 @@ begin
       ssConnect:
         begin
           SyncThread.State := ssConnecting;
+          SyncThread.SynchronCount := SynchronCount;
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
           begin
@@ -3082,6 +3084,7 @@ begin
         begin
           SyncBeforeExecuteSQL(SyncThread);
           SyncExecute(SyncThread);
+          SyncThread.SynchronCount := SynchronCount;
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
           begin
@@ -3093,7 +3096,7 @@ begin
       ssNext:
         begin
           SyncExecute(SyncThread);
-          SyncThread.RunExecute.SetEvent();
+          SyncThread.SynchronCount := SynchronCount;
           if ((SynchronCount > 0) and not BesideThreadWaits) then
           begin
             SyncThreadExecuted.WaitFor(INFINITE);
@@ -3209,6 +3212,7 @@ begin
       ssDisconnect:
         begin
           SyncThread.State := ssDisconnecting;
+          SyncThread.SynchronCount := SynchronCount;
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
           begin

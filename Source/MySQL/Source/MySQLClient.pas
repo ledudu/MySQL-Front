@@ -2999,9 +2999,6 @@ var
   I: my_int;
   Next_Row: MYSQL_RES.PRow;
 begin
-  if ((mysql.CLIENT_STATUS = MYSQL_STATUS_USE_RESULT)) then
-    MysqlClient.ReadRows(Self);
-
   if (mysql.fres = Self) then
     mysql.fres := nil;
 
