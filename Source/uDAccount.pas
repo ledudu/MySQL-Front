@@ -188,7 +188,8 @@ begin
         else LibraryName := '';
       end;
 
-      Assert(DConnecting.Visible,
+      // Debug 2017-04-30
+      Assert(not DConnecting.Visible,
         'Progress: ' + Progress);
 
       Session.Connection.BeginSilent();
@@ -383,6 +384,10 @@ begin
     Width := Preferences.Account.Width;
     Height := Preferences.Account.Height;
   end;
+
+  // Debug 2017-05-01
+  Assert(not DConnecting.Visible,
+    'Progress: ' + Progress);
 
   if (not Assigned(Account)) then
     Caption := Preferences.LoadStr(204)

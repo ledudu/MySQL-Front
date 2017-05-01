@@ -12646,13 +12646,15 @@ begin
   Connection.BeginSynchron();
   Databases.Update();
   Database := DatabaseByName(URI.Database);
-  if (not Assigned(Database)) then
+  if (not Assigned(Database)
+    and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
     Table := nil
   else
   begin
     Database.Update();
     Table := Database.TableByName(URI.Table);
-    if (Assigned(Table)) then
+    if (Assigned(Table)
+      and ((URI.Param['objecttype'] = 'key') or (URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'foreigkey') or (URI.Param['objecttype'] = 'viewfield'))) then
       Table.Update();
   end;
   Connection.EndSynchron();
