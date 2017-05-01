@@ -12646,12 +12646,11 @@ begin
   Connection.BeginSynchron();
   Databases.Update();
   Database := DatabaseByName(URI.Database);
-  if (not Assigned(Database)
-    and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
+  if (not Assigned(Database)) then
     Table := nil
   else
   begin
-    if (Update) then
+    if (Update and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
       Database.Update();
     Table := Database.TableByName(URI.Table);
     if (Update
