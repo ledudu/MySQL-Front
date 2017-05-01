@@ -786,7 +786,7 @@ type
     procedure Delete(const AItem: TSItem; const FreeItem: Boolean = True); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
-    function SQLGetFields(const Table: TSTable = nil): string;
+    function SQLGetFields(const FirstTable: TSTable = nil): string;
   public
     function AddTable(const NewTable: TSTable): Integer; virtual;
     procedure Invalidate(); override;
@@ -6065,7 +6065,7 @@ begin
   Tables.Free();
 end;
 
-function TSTables.SQLGetFields(const Table: TSTable = nil): string;
+function TSTables.SQLGetFields(const FirstTable: TSTable = nil): string;
 var
   I: Integer;
   SQL: string;
@@ -6073,18 +6073,18 @@ begin
   SQL := '';
 
   for I := 0 to Count - 1 do
-    if ((Self.Table[I] <> Table)
-      and ((Self.Table[I] is TSView) and not TSView(Self.Table[I]).ValidFields)
-        or ((Self.Table[I] is TSSystemView) and not TSSystemView(Self.Table[I]).ValidFields)) then
+    if ((Table[I] <> FirstTable)
+      and ((Table[I] is TSView) and not TSView(Table[I]).ValidFields)
+        or ((Table[I] is TSSystemView) and not TSSystemView(Table[I]).ValidFields)) then
     begin
       if (SQL <> '') then SQL := SQL + ',';
-      SQL := SQL + SQLEscape(Self.Table[I].Name);
+      SQL := SQL + SQLEscape(Table[I].Name);
     end;
   if (SQL <> '') then
     SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
 
-  if (Assigned(Table)) then
-    SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + '=' + SQLEscape(Table.Name) + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10
+  if (Assigned(FirstTable)) then
+    SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + '=' + SQLEscape(FirstTable.Name) + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10
       + SQL;
 
   Result := SQL;
@@ -12744,6 +12744,9 @@ begin
     SQL := SQLTrimStmt(Text, Len);
     if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
     begin
+      // Debug 2017-05-01
+      Assert(Assigned(SQLParser));
+
       if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
       begin
 //        UnparsableSQL := UnparsableSQL

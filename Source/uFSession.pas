@@ -5128,6 +5128,9 @@ begin
   Parent := TWinControl(AParent);
   OleCheck(RegisterDragDrop(Handle, Self));
 
+  // Debug 2017-05-01
+  Assert(Assigned(Window),
+    'AOwner: ' + BoolToStr(Assigned(AOwner), True));
 
   Width := Window.ClientWidth;
   Height := Window.ClientHeight;
@@ -10268,7 +10271,13 @@ begin
         end;
       ciDatabase,
       ciSystemDatabase:
-        Result := Desktop(TSDatabase(CurrentData)).CreateListView();
+        begin
+          // Debug 2017-05-01
+          Assert(Assigned(CurrentData),
+            'Address: ' + CurrentAddress);
+
+          Result := Desktop(TSDatabase(CurrentData)).CreateListView();
+        end;
       ciBaseTable,
       ciView,
       ciSystemView:
@@ -10948,7 +10957,17 @@ begin
       lkUsers:
         case (SortRec^.ColumnIndex) of
           0:
-            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+            begin
+              Assert(Assigned(Item1));
+              Assert(Assigned(Item2));
+              Assert(Assigned(Item1.Data),
+                'Caption: ' + Item1.Caption + #13#10
+                + 'ImageIndex: ' + IntToStr(Item1.ImageIndex));
+              Assert(Assigned(Item2.Data),
+                'Caption: ' + Item2.Caption + #13#10
+                + 'ImageIndex: ' + IntToStr(Item2.ImageIndex));
+              Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+            end;
           else
             raise ERangeError.Create(SRangeError);
         end;

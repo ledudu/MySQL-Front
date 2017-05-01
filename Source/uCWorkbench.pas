@@ -2962,6 +2962,7 @@ end;
 
 procedure TWTable.ReleaseLinkPoint(const APoint: TWLinkPoint);
 begin
+  // Debug 2017-04-30
   Assert(FLinkPoints.IndexOf(APoint) >= 0);
 
   FLinkPoints.Delete(FLinkPoints.IndexOf(APoint));

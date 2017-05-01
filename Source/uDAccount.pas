@@ -188,7 +188,7 @@ begin
         else LibraryName := '';
       end;
 
-      Assert(not DConnecting.Visible,
+      Assert(DConnecting.Visible,
         'Progress: ' + Progress);
 
       Session.Connection.BeginSilent();
