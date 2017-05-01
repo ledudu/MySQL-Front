@@ -1620,7 +1620,7 @@ type
     function FieldTypeByMySQLFieldType(const MySQLFieldType: TSField.TFieldType): TSFieldType;
     procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
     procedure Invalidate();
-    function ItemByAddress(const Address: string): TSItem;
+    function ItemByAddress(const Address: string; const Update: Boolean = False): TSItem;
     function PluginByName(const PluginName: string): TSPlugin;
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
     procedure PushBuildEvents();
@@ -5874,8 +5874,8 @@ begin
         and SQLParseValue(Parse, PChar(Database.Name))
         and SQLParseKeyword(Parse, 'AND')
         and SQLParseValue(Parse, 'TABLE_NAME')
-        and SQLParseKeyword(Parse, 'IN')
-        and SQLParseChar(Parse, '(')) then
+        and (SQLParseKeyword(Parse, 'IN') and SQLParseChar(Parse, '('))
+          or (SQLParseChar(Parse, '='))) then
         repeat
           Table := Database.TableByName(SQLParseValue(Parse));
           if (Assigned(Table)) then
@@ -12635,7 +12635,7 @@ begin
   if (Assigned(Users)) then Users.Invalidate();
 end;
 
-function TSSession.ItemByAddress(const Address: string): TSItem;
+function TSSession.ItemByAddress(const Address: string; const Update: Boolean = False): TSItem;
 var
   Database: TSDatabase;
   Table: TSTable;
@@ -12651,9 +12651,11 @@ begin
     Table := nil
   else
   begin
-    Database.Update();
+    if (Update) then
+      Database.Update();
     Table := Database.TableByName(URI.Table);
-    if (Assigned(Table)
+    if (Update
+      and Assigned(Table)
       and ((URI.Param['objecttype'] = 'key') or (URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'foreigkey') or (URI.Param['objecttype'] = 'viewfield'))) then
       Table.Update();
   end;

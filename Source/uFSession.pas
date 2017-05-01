@@ -986,7 +986,7 @@ type
     function CreatePDBGrid(): TPanel_Ext;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
     function CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
-    function DataByAddress(const Address: string): TCustomData;
+    function DataByAddress(const Address: string; const Update: Boolean = False): TCustomData;
     procedure DataSetAfterCancel(DataSet: TDataSet);
     procedure DataSetAfterClose(DataSet: TDataSet);
     procedure DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
@@ -5983,7 +5983,7 @@ begin
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 end;
 
-function TFSession.DataByAddress(const Address: string): TCustomData;
+function TFSession.DataByAddress(const Address: string; const Update: Boolean = False): TCustomData;
 var
   Account: TPAccount;
   Session: TSSession;
@@ -6030,7 +6030,7 @@ begin
         ciFunction,
         ciEvent,
         ciTrigger:
-          Result := Session.ItemByAddress(Address);
+          Result := Session.ItemByAddress(Address, Update);
         ciProcesses: Result :=
           Session.Processes;
         ciUsers:
