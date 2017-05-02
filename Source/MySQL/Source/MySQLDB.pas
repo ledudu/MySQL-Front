@@ -3285,7 +3285,6 @@ begin
   Assert(Assigned(DataSet));
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
-  Assert(not Assigned(SyncThread.DataSet));
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
