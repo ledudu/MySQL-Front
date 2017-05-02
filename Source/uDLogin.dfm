@@ -25,7 +25,7 @@ object DLogin: TDLogin
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
-    TabOrder = 2
+    TabOrder = 1
   end
   object FBCancel: TButton
     Left = 206
@@ -35,7 +35,7 @@ object DLogin: TDLogin
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
-    TabOrder = 3
+    TabOrder = 2
   end
   object GAccount: TGroupBox_Ext
     Left = 8
@@ -76,14 +76,5 @@ object DLogin: TDLogin
       TabOrder = 1
       Text = 'FPassword'
     end
-  end
-  object FBSettings: TButton
-    Left = 8
-    Top = 104
-    Width = 81
-    Height = 25
-    Caption = 'FBSettings'
-    TabOrder = 1
-    OnClick = FBSettingsClick
   end
 end

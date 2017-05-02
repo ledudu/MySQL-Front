@@ -4612,9 +4612,6 @@ begin
             ciView,
             CiSystemView:
               begin
-                // Debug 2017-04-11
-                Assert(Assigned(CurrentData), 'Address: ' + CurrentAddress);
-
                 TSTable(CurrentData).Invalidate();
 
                 if ((TSTable(CurrentData) is TSBaseTable) and
@@ -5985,68 +5982,42 @@ end;
 
 function TFSession.DataByAddress(const Address: string; const Update: Boolean = False): TCustomData;
 var
-  Account: TPAccount;
-  Session: TSSession;
-  SessionCreated: Boolean;
   URI: TUURI;
 begin
   URI := TUURI.Create(Address);
 
-  SessionCreated := False;
-  Account := Accounts.AccountByURI(Address);
-  if (not Assigned(Account)) then
-    raise ERangeError.Create('No account for: ' + Address)
+  if (LeftStr(Address, Length(Session.Address)) <> LeftStr(Session.Address, Length(Session.Address))) then
+    raise ERangeError.Create('Invalid Account for: ' + Address)
   else
-  begin
-    if (Account = Self.Session.Account) then
-      Session := Self.Session
-    else
-    begin
-      Session := Sessions.SessionByAccount(Account);
-      if (not Assigned(Session)) then
-      begin
-        DConnecting.Session := TSSession.Create(Sessions, Account);
-        SessionCreated := Assigned(Session);
-        DConnecting.Execute();
-      end;
-    end;
-
-    if (not Assigned(Session)) then
-      Result := nil
-    else
-      case (ClassIndexByAddress(URI.Address)) of
-        ciSession:
-          Result := Session;
-        ciDatabase,
-        ciSystemDatabase,
-        ciBaseTable,
-        ciKey,
-        ciBaseField,
-        ciForeignKey,
-        ciView,
-        ciSystemView,
-        ciViewField,
-        ciProcedure,
-        ciFunction,
-        ciEvent,
-        ciTrigger:
-          Result := Session.ItemByAddress(Address, Update);
-        ciProcesses: Result :=
-          Session.Processes;
-        ciUsers:
-          Result := Session.Users;
-        ciVariables:
-          Result := Session.Variables;
-        ciQuickAccess:
-          Result := Session.QuickAccess;
-        else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
-      end;
+    case (ClassIndexByAddress(URI.Address)) of
+      ciSession:
+        Result := Session;
+      ciDatabase,
+      ciSystemDatabase,
+      ciBaseTable,
+      ciKey,
+      ciBaseField,
+      ciForeignKey,
+      ciView,
+      ciSystemView,
+      ciViewField,
+      ciProcedure,
+      ciFunction,
+      ciEvent,
+      ciTrigger:
+        Result := Session.ItemByAddress(Address, Update);
+      ciProcesses:
+        Result := Session.Processes;
+      ciUsers:
+        Result := Session.Users;
+      ciVariables:
+        Result := Session.Variables;
+      ciQuickAccess:
+        Result := Session.QuickAccess;
+      else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
     end;
 
   URI.Free();
-
-  if (SessionCreated) then
-    Session.Free();
 end;
 
 procedure TFSession.DataSetAfterCancel(DataSet: TDataSet);
@@ -10276,15 +10247,8 @@ begin
         end;
       ciDatabase,
       ciSystemDatabase:
-        begin
-          // Debug 2017-05-01
-          Assert(Assigned(CurrentData),
-            'Address: ' + CurrentAddress + #13#10
-            + 'Databases.Valid: ' + BoolToStr(Session.Databases.Valid, True));
-
-          Result := Desktop(TSDatabase(CurrentData)).CreateListView();
-        end;
-      ciBaseTable,
+        Result := Desktop(TSDatabase(CurrentData)).CreateListView();
+     ciBaseTable,
       ciView,
       ciSystemView:
         Result := Desktop(TSTable(CurrentData)).CreateListView();
@@ -13721,6 +13685,7 @@ var
   NewKey: TSKey;
   NewTable: TSBaseTable;
   NewTrigger: TSTrigger;
+  SourceAddresses: TStringList;
   SourceDatabase: TSDatabase;
   SourceEvent: TSEvent;
   SourceField: TSField;
@@ -13733,22 +13698,20 @@ var
   SourceTrigger: TSTrigger;
   SourceUser: TSUser;
   SourceView: TSView;
-  StringList: TStringList;
   Success: Boolean;
   Table: TSBaseTable;
   URI: TUURI;
 begin
-  StringList := TStringList.Create();
-  StringList.Text := Addresses;
+  SourceAddresses := TStringList.Create();
+  SourceAddresses.Text := Addresses;
 
-  if (StringList.Count > 0) then
+  if (SourceAddresses.Count > 0) then
   begin
-    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(StringList[0], Session.Account));
-    if (Assigned(SourceSession) or not Assigned(Accounts.AccountByURI(StringList[0]))) then
+    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceAddresses[0], Session.Account));
+    if (Assigned(SourceSession)) then
       SourceSessionCreated := False
     else
     begin
-      SourceSession := TSSession.Create(Sessions, Accounts.AccountByURI(StringList[0]));
       DConnecting.Session := SourceSession;
       if (not DConnecting.Execute()) then
       begin
@@ -13763,7 +13726,7 @@ begin
     begin
       Success := True;
 
-      URI := TUURI.Create(StringList[0]);
+      URI := TUURI.Create(SourceAddresses[0]);
 
       case (Node.ImageIndex) of
         iiServer:
@@ -13784,11 +13747,11 @@ begin
               begin
                 DDatabase.Session := Session;
                 DDatabase.Database := nil;
-                DDatabase.Name := CopyName(TSItem(DataByAddress(StringList[0])).Name, Session.Databases);
+                DDatabase.Name := CopyName(SourceSession.ItemByAddress(SourceAddresses[0]).Name, Session.Databases);
                 if (DDatabase.Execute()) then
                 begin
                   DTransfer.SourceSession := SourceSession;
-                  DTransfer.SourceAddresses := StringList[0];
+                  DTransfer.SourceAddresses := SourceAddresses[0];
                   DTransfer.DestinationSession := Session;
                   DTransfer.DestinationAddress := Session.DatabaseByName(DDatabase.Name).Address;
                   DTransfer.Execute();
@@ -13821,9 +13784,9 @@ begin
                 List := TList.Create();
 
                 Found := False;
-                for I := 0 to StringList.Count - 1 do
+                for I := 0 to SourceAddresses.Count - 1 do
                 begin
-                  List.Add(DataByAddress(StringList[I]));
+                  List.Add(SourceSession.ItemByAddress(SourceAddresses[I]));
                   Found := Found or (TObject(List[List.Count - 1]) is TSTable);
                 end;
 
@@ -13928,84 +13891,88 @@ begin
                     NewTable := TSBaseTable.Create(Database.Tables);
                     NewTable.Assign(Table);
 
-                    for I := 0 to StringList.Count - 1 do
-                      if (ClassIndexByAddress(StringList[I]) = ciBaseField) then
-                      begin
-                        SourceField := DataByAddress(StringList[I]);
+                    for I := 0 to SourceAddresses.Count - 1 do
+                      case (ClassIndexByAddress(SourceAddresses[I])) of
+                        ciKey:
+                          begin
+                            SourceField := TSBaseField(SourceSession.ItemByAddress(SourceAddresses[I]));
 
-                        if (not Assigned(SourceField)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          NewField := TSBaseField.Create(NewTable.Fields);
-                          NewField.Assign(SourceField);
-                          NewField.Name := CopyName(SourceField.Name, NewTable.Fields);
-                          NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-                          NewTable.Fields.AddField(NewField);
-                          NewField.Free();
-                        end;
+                            if (not Assigned(SourceField)) then
+                              MessageBeep(MB_ICONERROR)
+                            else
+                            begin
+                              NewField := TSBaseField.Create(NewTable.Fields);
+                              NewField.Assign(SourceField);
+                              NewField.Name := CopyName(SourceField.Name, NewTable.Fields);
+                              NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+                              NewTable.Fields.AddField(NewField);
+                              NewField.Free();
+                            end;
+                          end;
                       end;
 
-                    for I := 0 to StringList.Count - 1 do
-                      if (ClassIndexByAddress(StringList[I]) = ciKey) then
-                      begin
-                        SourceKey := SourceTable.KeyByName(StringList.ValueFromIndex[I]);
-
-                        if (not Assigned(SourceKey)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          Found := True;
-                          for J := 0 to SourceKey.Columns.Count - 1 do
-                            if (not Assigned(NewTable.FieldByName(SourceKey.Columns[J].Field.Name))) then
-                              Found := False;
-                          if (not Found) then
-                            MessageBeep(MB_ICONERROR)
-                          else
+                    for I := 0 to SourceAddresses.Count - 1 do
+                      case (ClassIndexByAddress(SourceAddresses[I])) of
+                        ciKey:
                           begin
-                            NewKey := TSKey.Create(NewTable.Keys);
-                            NewKey.Assign(SourceKey);
-                            NewKey.Name := CopyName(SourceKey.Name, NewTable.Keys);
-                            NewTable.Keys.AddKey(NewKey);
-                            NewKey.Free();
-                          end;
-                        end;
-                      end
-                      else if (ClassIndexByAddress(StringList[I]) = ciForeignKey) then
-                      begin
-                        SourceForeignKey := SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]);
+                            SourceKey := TSKey(SourceSession.ItemByAddress(SourceAddresses[I]));
 
-                        if (not Assigned(SourceForeignKey)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
-                          NewForeignKey.Assign(SourceForeignKey);
-                          NewForeignKey.Name := CopyName(SourceForeignKey.Name, NewTable.ForeignKeys);
-                          NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
-                          NewForeignKey.Free();
-                        end;
+                            if (not Assigned(SourceKey)) then
+                              MessageBeep(MB_ICONERROR)
+                            else
+                            begin
+                              Found := True;
+                              for J := 0 to SourceKey.Columns.Count - 1 do
+                                if (not Assigned(NewTable.FieldByName(SourceKey.Columns[J].Field.Name))) then
+                                  Found := False;
+                              if (not Found) then
+                                MessageBeep(MB_ICONERROR)
+                              else
+                              begin
+                                NewKey := TSKey.Create(NewTable.Keys);
+                                NewKey.Assign(SourceKey);
+                                NewKey.Name := CopyName(SourceKey.Name, NewTable.Keys);
+                                NewTable.Keys.AddKey(NewKey);
+                                NewKey.Free();
+                              end;
+                            end;
+                          end;
+                        ciForeignKey:
+                          begin
+                            SourceForeignKey := TSForeignKey(SourceSession.ItemByAddress(SourceAddresses[I]));
+
+                            if (not Assigned(SourceForeignKey)) then
+                              MessageBeep(MB_ICONERROR)
+                            else
+                            begin
+                              NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
+                              NewForeignKey.Assign(SourceForeignKey);
+                              NewForeignKey.Name := CopyName(SourceForeignKey.Name, NewTable.ForeignKeys);
+                              NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
+                              NewForeignKey.Free();
+                            end;
+                          end;
                       end;
 
                     Session.Connection.BeginSynchron();
                     Database.UpdateBaseTable(Table, NewTable);
                     Session.Connection.EndSynchron();
 
-                    for I := 0 to StringList.Count - 1 do
-                      if (ClassIndexByAddress(StringList[I]) = ciTrigger) then
+                    for I := 0 to SourceAddresses.Count - 1 do
+                      if (ClassIndexByAddress(SourceAddresses[I]) = ciTrigger) then
                       begin
                         DExecutingSQL.Session := SourceSession;
                         DExecutingSQL.Update := SourceDatabase.Triggers.Update;
                         if (not Assigned(SourceDatabase) or not SourceDatabase.Triggers.Valid and not DExecutingSQL.Execute()) then
                           SourceTrigger := nil
                         else
-                          SourceTrigger := SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]);
+                          SourceTrigger := SourceDatabase.TriggerByName(SourceAddresses.ValueFromIndex[I]);
 
                         if (not Assigned(SourceTrigger)) then
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+                          Name := CopyName(SourceTrigger.Name, Database.Triggers);
 
                           NewTrigger := TSTrigger.Create(Database.Triggers);
                           NewTrigger.Assign(SourceTrigger);
@@ -14032,7 +13999,7 @@ begin
     if (SourceSessionCreated) then
       SourceSession.Free();
   end;
-  StringList.Free();
+  SourceAddresses.Free();
 end;
 
 procedure TFSession.PContentChange(Sender: TObject);
@@ -17272,3 +17239,4 @@ initialization
 finalization
   OleUninitialize();
 end.
+

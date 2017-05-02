@@ -15,13 +15,11 @@ type
   TDLogin = class (TForm_Ext)
     FBCancel: TButton;
     FBOk: TButton;
-    FBSettings: TButton;
     FLPassword: TLabel;
     FLUsername: TLabel;
     FPassword: TEdit;
     FUsername: TEdit;
     GAccount: TGroupBox_Ext;
-    procedure FBSettingsClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
@@ -61,18 +59,6 @@ begin
   Result := ShowModal() = mrOk;
 end;
 
-procedure TDLogin.FBSettingsClick(Sender: TObject);
-begin
-  DAccount.Account := Account;
-  DAccount.Username := Trim(FUsername.Text);
-  DAccount.Password := Trim(FPassword.Text);
-  DAccount.ShowType := stLogin;
-  if (not DAccount.Execute()) then
-    ActiveControl := FPassword
-  else
-    FormShow(Sender);
-end;
-
 procedure TDLogin.FormHide(Sender: TObject);
 begin
   if (ModalResult = mrOk) then
@@ -86,7 +72,6 @@ procedure TDLogin.FormShow(Sender: TObject);
 begin
   FUsername.Text := Account.Connection.Username;
   FPassword.Text := Account.Connection.Password;
-  FBSettings.Visible := Assigned(Account);
 
   ActiveControl := FBCancel;
   if (not Assigned(Account)) then
@@ -102,7 +87,6 @@ begin
   GAccount.Caption := Preferences.LoadStr(34);
   FLUsername.Caption := Preferences.LoadStr(561) + ':';
   FLPassword.Caption := Preferences.LoadStr(40) + ':';
-  FBSettings.Caption := Preferences.LoadStr(27) + '...';
 
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30);
