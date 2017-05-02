@@ -1373,7 +1373,7 @@ object WWindow: TWWindow
       object miECopyToFile: TMenuItem
         Action = aECopyToFile
       end
-      object aEPasteFrom1: TMenuItem
+      object miEPasteFrom: TMenuItem
         Action = aEPasteFromFile
       end
       object N21: TMenuItem
@@ -1479,7 +1479,7 @@ object WWindow: TWWindow
         object miDCreateRoutine: TMenuItem
           Action = aDCreateProcedure
         end
-        object aDCreateFunction1: TMenuItem
+        object miDCreateFunction: TMenuItem
           Action = aDCreateFunction
         end
         object miDCreateEvent: TMenuItem

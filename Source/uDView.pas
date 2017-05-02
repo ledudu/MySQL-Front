@@ -389,12 +389,12 @@ begin
 
   BorderStyle := bsSizeable;
 
-  msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
-  msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msPaste.Action := MainAction('aEPaste'); msPaste.ShortCut := 0;
-  msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+  msUndo.Action := aEUndo; msCut.ShortCut := 0;
+  msCut.Action := aECut; msCut.ShortCut := 0;
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msPaste.Action := aEPaste; msPaste.ShortCut := 0;
+  msDelete.Action := aEDelete; msDelete.ShortCut := 0;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   PageControl.ActivePage := TSBasics;
 
@@ -570,7 +570,7 @@ end;
 
 procedure TDView.FSourceSelectionChanged(Sender: TObject);
 begin
-  MainAction('aECopyToFile').Enabled := FSource.SelText <> '';
+  aECopyToFile.Enabled := FSource.SelText <> '';
 end;
 
 procedure TDView.FStatementChange(Sender: TObject);

@@ -109,8 +109,8 @@ begin
 
   BorderStyle := bsSizeable;
 
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll');
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msSelectAll.Action := aESelectAll;
 end;
 
 procedure TDStatement.FormHide(Sender: TObject);

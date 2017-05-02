@@ -1847,8 +1847,8 @@ begin
   aPDeletePartition.Caption := Preferences.LoadStr(28);
   aPEditPartition.Caption := Preferences.LoadStr(97) + '...';
 
-  msCopy.Action := MainAction('aECopy');
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+  msCopy.Action := aECopy;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

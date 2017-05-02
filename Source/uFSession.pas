@@ -2469,7 +2469,7 @@ begin
 
   Session.Connection.Terminate();
 
-  MainAction('aDCancel').Enabled := False;
+  aDCancel.Enabled := False;
 
   StatusBar.Panels[sbMessage].Text := '';
   StatusBarRefresh();
@@ -2503,16 +2503,16 @@ begin
 
   if ((Window.ActiveControl = FNavigator) or (Window.ActiveControl = ActiveListView)) then
   begin
-    if (MainAction('aDCreateDatabase').Enabled) then MainAction('aDCreateDatabase').Execute()
-    else if (MainAction('aDCreateDatabase').Enabled) then MainAction('aDCreateDatabase').Execute()
-    else if (MainAction('aDCreateTable').Enabled) then MainAction('aDCreateTable').Execute()
-    else if (MainAction('aDCreateField').Enabled) then MainAction('aDCreateField').Execute()
-    else if (MainAction('aDCreateUser').Enabled) then MainAction('aDCreateUser').Execute();
+    if (aDCreateDatabase.Enabled) then aDCreateDatabase.Execute()
+    else if (aDCreateDatabase.Enabled) then aDCreateDatabase.Execute()
+    else if (aDCreateTable.Enabled) then aDCreateTable.Execute()
+    else if (aDCreateField.Enabled) then aDCreateField.Execute()
+    else if (aDCreateUser.Enabled) then aDCreateUser.Execute();
   end
   else if (Window.ActiveControl = ActiveBCEditor) then
     ActiveBCEditor.CommandProcessor(ecToggleMode, #0, nil)
   else if (Window.ActiveControl = ActiveDBGrid) and (not ActiveDBGrid.EditorMode) then
-    MainAction('aDInsertRecord').Execute();
+    aDInsertRecord.Execute();
 end;
 
 procedure TFSession.aDCreateFieldExecute(Sender: TObject);
@@ -2573,9 +2573,9 @@ begin
   if (FocusedSItem is TSDatabase) then
   begin
     DRoutine.Database := TSDatabase(FocusedSItem);
-    if (Sender = MainAction('aDCreateProcedure')) then
+    if (Sender = aDCreateProcedure) then
       DRoutine.RoutineType := TSRoutine.TRoutineType.rtProcedure
-    else if (Sender = MainAction('aDCreateFunction')) then
+    else if (Sender = aDCreateFunction) then
       DRoutine.RoutineType := TSRoutine.TRoutineType.rtFunction
     else
       DRoutine.RoutineType := TSRoutine.TRoutineType.rtUnknown;
@@ -2995,27 +2995,27 @@ begin
     Empty := not Assigned(ActiveBCEditor) or (ActiveBCEditor.Lines.Count <= 1) and (ActiveBCEditor.Text = ''); // Takes a lot of time
     if (not Empty and (View = vIDE)) then SQL := ActiveBCEditor.Text else SQL := '';
 
-    MainAction('aFOpen').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]);
-    MainAction('aFSave').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveBCEditor.Modified);
-    MainAction('aFSaveAs').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
-    MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
-    MainAction('aVIDE').Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
-    MainAction('aVBuilder').Enabled := LastSelectedDatabase <> '';
-    MainAction('aVSQLEditor').Enabled := True;
-    MainAction('aVSQLEditor2').Enabled := True;
-    MainAction('aVSQLEditor3').Enabled := True;
-    MainAction('aVDiagram').Enabled := LastSelectedDatabase <> '';
-    MainAction('aDRun').Enabled :=
+    aFOpen.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]);
+    aFSave.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveBCEditor.Modified);
+    aFSaveAs.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
+    aVObjects.Enabled := True;
+    aVBrowser.Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
+    aVIDE.Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
+    aVBuilder.Enabled := LastSelectedDatabase <> '';
+    aVSQLEditor.Enabled := True;
+    aVSQLEditor2.Enabled := True;
+    aVSQLEditor3.Enabled := True;
+    aVDiagram.Enabled := LastSelectedDatabase <> '';
+    aDRun.Enabled :=
       ((View in [vEditor, vEditor2, vEditor3])
       or ((View = vBuilder) and FQueryBuilder.Visible)
       or ((View = vIDE) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
-    MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveBCEditor) and (Trim(ActiveBCEditor.SelText) <> ''));
-    MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveBCEditor) and ActiveBCEditor.Modified and SQLSingleStmt(SQL)
+    aDRunSelection.Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveBCEditor) and (Trim(ActiveBCEditor.SelText) <> ''));
+    aDPostObject.Enabled := (View = vIDE) and Assigned(ActiveBCEditor) and ActiveBCEditor.Modified and SQLSingleStmt(SQL)
       and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
         or (CurrentClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
         or (CurrentClassIndex in [ciEvent, ciTrigger]));
-    MainAction('aEFormatSQL').Enabled := not Empty;
+    aEFormatSQL.Enabled := not Empty;
 
     if (View <> vObjectSearch) then
     begin
@@ -3476,7 +3476,7 @@ begin
   else if (Window.ActiveControl = ActiveBCEditor) then
   begin
     ActiveBCEditor.Text := '';
-    MainAction('aEDelete').Execute();
+    aEDelete.Execute();
   end;
 end;
 
@@ -3591,7 +3591,7 @@ begin
   end
   else if (Window.ActiveControl = FHexEditor) then
   begin
-    FHexEditor.ExecuteAction(MainAction('aECopy'));
+    FHexEditor.ExecuteAction(aECopy);
     exit;
   end
   else if (Window.ActiveControl = ActiveBCEditor) then
@@ -4260,7 +4260,7 @@ var
   Msg: string;
   Second: Word;
 begin
-  MainAction('aDCancel').Enabled := False;
+  aDCancel.Enabled := False;
 
   if (Session.Connection.RowsAffected < 0) then
     Msg := Preferences.LoadStr(382)
@@ -4514,21 +4514,21 @@ var
   Control: TWinControl; // Debug 2016-12-12
   NewView: TView;
 begin
-  if (Sender = MainAction('aVObjects')) then
+  if (Sender = aVObjects) then
     NewView := vObjects
-  else if (Sender = MainAction('aVBrowser')) then
+  else if (Sender = aVBrowser) then
     NewView := vBrowser
-  else if (Sender = MainAction('aVIDE')) then
+  else if (Sender = aVIDE) then
     NewView := vIDE
-  else if (Sender = MainAction('aVBuilder')) then
+  else if (Sender = aVBuilder) then
     NewView := vBuilder
-  else if (Sender = MainAction('aVDiagram')) then
+  else if (Sender = aVDiagram) then
     NewView := vDiagram
-  else if (Sender = MainAction('aVSQLEditor')) then
+  else if (Sender = aVSQLEditor) then
     NewView := vEditor
-  else if (Sender = MainAction('aVSQLEditor2')) then
+  else if (Sender = aVSQLEditor2) then
     NewView := vEditor2
-  else if (Sender = MainAction('aVSQLEditor3')) then
+  else if (Sender = aVSQLEditor3) then
     NewView := vEditor3
   else
     raise ERangeError.Create(SRangeError);
@@ -4711,13 +4711,13 @@ procedure TFSession.aVSideBarExecute(Sender: TObject);
 begin
   PSideBar.DisableAlign();
 
-  MainAction('aVNavigator').Checked := (Sender = MainAction('aVNavigator')) and MainAction('aVNavigator').Checked;
-  MainAction('aVExplorer').Checked := (Sender = MainAction('aVExplorer')) and MainAction('aVExplorer').Checked;
-  MainAction('aVSQLHistory').Checked := (Sender = MainAction('aVSQLHistory')) and MainAction('aVSQLHistory').Checked;
+  aVNavigator.Checked := (Sender = aVNavigator) and aVNavigator.Checked;
+  aVExplorer.Checked := (Sender = aVExplorer) and aVExplorer.Checked;
+  aVSQLHistory.Checked := (Sender = aVSQLHistory) and aVSQLHistory.Checked;
 
-  PNavigator.Visible := MainAction('aVNavigator').Checked;
-  PExplorer.Visible := MainAction('aVExplorer').Checked;
-  PSQLHistory.Visible := MainAction('aVSQLHistory').Checked;
+  PNavigator.Visible := aVNavigator.Checked;
+  PExplorer.Visible := aVExplorer.Checked;
+  PSQLHistory.Visible := aVSQLHistory.Checked;
 
   if (PExplorer.Visible and not Assigned(FFolders)) then
     CreateExplorer()
@@ -4741,11 +4741,11 @@ begin
     FrameResize(Sender);
     PSideBar.EnableAlign();
 
-    if (MainAction('aVNavigator').Checked) then
+    if (aVNavigator.Checked) then
       Window.ActiveControl := FNavigator
-    else if (MainAction('aVExplorer').Checked) then
+    else if (aVExplorer.Checked) then
       Window.ActiveControl := FFolders
-    else if (MainAction('aVSQLHistory').Checked) then
+    else if (aVSQLHistory.Checked) then
       Window.ActiveControl := FSQLHistory;
   end;
 end;
@@ -4781,7 +4781,7 @@ end;
 
 procedure TFSession.aVSQLLogExecute(Sender: TObject);
 begin
-  PLog.Visible := MainAction('aVSQLLog').Checked;
+  PLog.Visible := aVSQLLog.Checked;
   SLog.Visible := PLog.Visible;
 
   if (PLog.Visible) then
@@ -4804,7 +4804,7 @@ begin
   StatusBar.Panels[sbMessage].Text := Preferences.LoadStr(196) + '...';
   KillTimer(Handle, tiStatusBar);
 
-  MainAction('aDCancel').Enabled := True;
+  aDCancel.Enabled := True;
 end;
 
 procedure TFSession.BeginEditLabel(Sender: TObject);
@@ -4997,14 +4997,14 @@ begin
       Session.Account.Desktop.Addresses.Add(FCurrentAddress);
 
     NewView := ParamToView(URI.Param['view']);
-    MainAction('aVObjects').Checked := NewView = vObjects;
-    MainAction('aVBrowser').Checked := NewView = vBrowser;
-    MainAction('aVIDE').Checked := NewView = vIDE;
-    MainAction('aVBuilder').Checked := NewView = vBuilder;
-    MainAction('aVDiagram').Checked := NewView = vDiagram;
-    MainAction('aVSQLEditor').Checked := NewView = vEditor;
-    MainAction('aVSQLEditor2').Checked := NewView = vEditor2;
-    MainAction('aVSQLEditor3').Checked := NewView = vEditor3;
+    aVObjects.Checked := NewView = vObjects;
+    aVBrowser.Checked := NewView = vBrowser;
+    aVIDE.Checked := NewView = vIDE;
+    aVBuilder.Checked := NewView = vBuilder;
+    aVDiagram.Checked := NewView = vDiagram;
+    aVSQLEditor.Checked := NewView = vEditor;
+    aVSQLEditor2.Checked := NewView = vEditor2;
+    aVSQLEditor3.Checked := NewView = vEditor3;
 
     case (NewView) of
       vBrowser:
@@ -5193,136 +5193,136 @@ begin
   FUDLimit.HandleNeeded();
   FLimit.HandleNeeded();
 
-  tbNavigator.Action := MainAction('aVNavigator');
-  tbExplorer.Action := MainAction('aVExplorer');
-  tbSQLHistory.Action := MainAction('aVSQLHistory');
+  tbNavigator.Action := aVNavigator;
+  tbExplorer.Action := aVExplorer;
+  tbSQLHistory.Action := aVSQLHistory;
 
-  tbObjects.Action := MainAction('aVObjects'); tbObjects.Caption := tbObjects.Caption;
-  tbBrowser.Action := MainAction('aVBrowser'); tbBrowser.Caption := tbBrowser.Caption;
-  tbIDE.Action := MainAction('aVIDE'); tbIDE.Caption := tbIDE.Caption;
-  tbBuilder.Action := MainAction('aVBuilder'); tbBuilder.Caption := tbBuilder.Caption;
-  tbDiagram.Action := MainAction('aVDiagram'); tbDiagram.Caption := tbDiagram.Caption;
-  tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := tbEditor.Caption;
-  tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor2.Caption := tbEditor2.Caption;
-  tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor3.Caption := tbEditor3.Caption;
+  tbObjects.Action := aVObjects; tbObjects.Caption := tbObjects.Caption;
+  tbBrowser.Action := aVBrowser; tbBrowser.Caption := tbBrowser.Caption;
+  tbIDE.Action := aVIDE; tbIDE.Caption := tbIDE.Caption;
+  tbBuilder.Action := aVBuilder; tbBuilder.Caption := tbBuilder.Caption;
+  tbDiagram.Action := aVDiagram; tbDiagram.Caption := tbDiagram.Caption;
+  tbEditor.Action := aVSQLEditor; tbEditor.Caption := tbEditor.Caption;
+  tbEditor2.Action := aVSQLEditor2; tbEditor2.Caption := tbEditor2.Caption;
+  tbEditor3.Action := aVSQLEditor3; tbEditor3.Caption := tbEditor3.Caption;
 
-  miSNavigator.Action := MainAction('aVNavigator');
-  miSSQLHistory.Action := MainAction('aVSQLHistory');
+  miSNavigator.Action := aVNavigator;
+  miSSQLHistory.Action := aVSQLHistory;
 
-  miNImportSQL.Action := MainAction('aFImportSQL');
-  miNImportText.Action := MainAction('aFImportText');
-  miNImportExcel.Action := MainAction('aFImportExcel');
-  miNImportAccess.Action := MainAction('aFImportAccess');
-  miNImportODBC.Action := MainAction('aFImportODBC');
-  miNExportSQL.Action := MainAction('aFExportSQL');
-  miNExportText.Action := MainAction('aFExportText');
-  miNExportExcel.Action := MainAction('aFExportExcel');
-  miNExportAccess.Action := MainAction('aFExportAccess');
-  miNExportODBC.Action := MainAction('aFExportODBC');
-  miNExportXML.Action := MainAction('aFExportXML');
-  miNExportHTML.Action := MainAction('aFExportHTML');
-  miNExportPDF.Action := MainAction('aFExportPDF');
-  miNCopy.Action := MainAction('aECopy');
-  miNPaste.Action := MainAction('aEPaste');
-  miNRename.Action := MainAction('aERename');
-  miNCreateDatabase.Action := MainAction('aDCreateDatabase');
-  miNCreateTable.Action := MainAction('aDCreateTable');
-  miNCreateView.Action := MainAction('aDCreateView');
-  miNCreateProcedure.Action := MainAction('aDCreateProcedure');
-  miNCreateFunction.Action := MainAction('aDCreateFunction');
-  miNCreateIndex.Action := MainAction('aDCreateKey');
-  miNCreateField.Action := MainAction('aDCreateField');
-  miNCreateForeignKey.Action := MainAction('aDCreateForeignKey');
-  miNCreateTrigger.Action := MainAction('aDCreateTrigger');
-  miNCreateEvent.Action := MainAction('aDCreateEvent');
-  miNCreateUser.Action := MainAction('aDCreateUser');
-  miNEmpty.Action := MainAction('aDEmpty');
+  miNImportSQL.Action := aFImportSQL;
+  miNImportText.Action := aFImportText;
+  miNImportExcel.Action := aFImportExcel;
+  miNImportAccess.Action := aFImportAccess;
+  miNImportODBC.Action := aFImportODBC;
+  miNExportSQL.Action := aFExportSQL;
+  miNExportText.Action := aFExportText;
+  miNExportExcel.Action := aFExportExcel;
+  miNExportAccess.Action := aFExportAccess;
+  miNExportODBC.Action := aFExportODBC;
+  miNExportXML.Action := aFExportXML;
+  miNExportHTML.Action := aFExportHTML;
+  miNExportPDF.Action := aFExportPDF;
+  miNCopy.Action := aECopy;
+  miNPaste.Action := aEPaste;
+  miNRename.Action := aERename;
+  miNCreateDatabase.Action := aDCreateDatabase;
+  miNCreateTable.Action := aDCreateTable;
+  miNCreateView.Action := aDCreateView;
+  miNCreateProcedure.Action := aDCreateProcedure;
+  miNCreateFunction.Action := aDCreateFunction;
+  miNCreateIndex.Action := aDCreateKey;
+  miNCreateField.Action := aDCreateField;
+  miNCreateForeignKey.Action := aDCreateForeignKey;
+  miNCreateTrigger.Action := aDCreateTrigger;
+  miNCreateEvent.Action := aDCreateEvent;
+  miNCreateUser.Action := aDCreateUser;
+  miNEmpty.Action := aDEmpty;
 
-  miHCopy.Action := MainAction('aECopy');
+  miHCopy.Action := aECopy;
 
-  mlFImportSQL.Action := MainAction('aFImportSQL');
-  mlFImportText.Action := MainAction('aFImportText');
-  mlFImportExcel.Action := MainAction('aFImportExcel');
-  mlFImportAccess.Action := MainAction('aFImportAccess');
-  mlFImportODBC.Action := MainAction('aFImportODBC');
-  mlFExportSQL.Action := MainAction('aFExportSQL');
-  mlFExportText.Action := MainAction('aFExportText');
-  mlFExportExcel.Action := MainAction('aFExportExcel');
-  mlFExportAccess.Action := MainAction('aFExportAccess');
-  mlFExportODBC.Action := MainAction('aFExportODBC');
-  mlFExportXML.Action := MainAction('aFExportXML');
-  mlFExportHTML.Action := MainAction('aFExportHTML');
-  mlFExportPDF.Action := MainAction('aFExportPDF');
-  mlECopy.Action := MainAction('aECopy');
-  mlEPaste.Action := MainAction('aEPaste');
-  mlERename.Action := MainAction('aERename');
-  mlDCreateDatabase.Action := MainAction('aDCreateDatabase');
-  mlDCreateTable.Action := MainAction('aDCreateTable');
-  mlDCreateView.Action := MainAction('aDCreateView');
-  mlDCreateProcedure.Action := MainAction('aDCreateProcedure');
-  mlDCreateFunction.Action := MainAction('aDCreateFunction');
-  mlDCreateIndex.Action := MainAction('aDCreateKey');
-  mlDCreateField.Action := MainAction('aDCreateField');
-  mlDCreateForeignKey.Action := MainAction('aDCreateForeignKey');
-  mlDCreateTrigger.Action := MainAction('aDCreateTrigger');
-  mlDCreateEvent.Action := MainAction('aDCreateEvent');
-  mlDCreateUser.Action := MainAction('aDCreateUser');
-  mlDEmpty.Action := MainAction('aDEmpty');
+  mlFImportSQL.Action := aFImportSQL;
+  mlFImportText.Action := aFImportText;
+  mlFImportExcel.Action := aFImportExcel;
+  mlFImportAccess.Action := aFImportAccess;
+  mlFImportODBC.Action := aFImportODBC;
+  mlFExportSQL.Action := aFExportSQL;
+  mlFExportText.Action := aFExportText;
+  mlFExportExcel.Action := aFExportExcel;
+  mlFExportAccess.Action := aFExportAccess;
+  mlFExportODBC.Action := aFExportODBC;
+  mlFExportXML.Action := aFExportXML;
+  mlFExportHTML.Action := aFExportHTML;
+  mlFExportPDF.Action := aFExportPDF;
+  mlECopy.Action := aECopy;
+  mlEPaste.Action := aEPaste;
+  mlERename.Action := aERename;
+  mlDCreateDatabase.Action := aDCreateDatabase;
+  mlDCreateTable.Action := aDCreateTable;
+  mlDCreateView.Action := aDCreateView;
+  mlDCreateProcedure.Action := aDCreateProcedure;
+  mlDCreateFunction.Action := aDCreateFunction;
+  mlDCreateIndex.Action := aDCreateKey;
+  mlDCreateField.Action := aDCreateField;
+  mlDCreateForeignKey.Action := aDCreateForeignKey;
+  mlDCreateTrigger.Action := aDCreateTrigger;
+  mlDCreateEvent.Action := aDCreateEvent;
+  mlDCreateUser.Action := aDCreateUser;
+  mlDEmpty.Action := aDEmpty;
 
-  mpDRun.Action := MainAction('aDRun');
-  mpDRunSelection.Action := MainAction('aDRunSelection');
-  mpECut.Action := MainAction('aECut');
-  mpECopy.Action := MainAction('aECopy');
-  mpEPaste.Action := MainAction('aEPaste');
-  mpEDelete.Action := MainAction('aEDelete');
-  mpECopyToFile.Action := MainAction('aECopyToFile');
-  mpEPasteFromFile.Action := MainAction('aEPasteFromFile');
-  mpESelectAll.Action := MainAction('aESelectAll');
+  mpDRun.Action := aDRun;
+  mpDRunSelection.Action := aDRunSelection;
+  mpECut.Action := aECut;
+  mpECopy.Action := aECopy;
+  mpEPaste.Action := aEPaste;
+  mpEDelete.Action := aEDelete;
+  mpECopyToFile.Action := aECopyToFile;
+  mpEPasteFromFile.Action := aEPasteFromFile;
+  mpESelectAll.Action := aESelectAll;
 
-  gmECut.Action := MainAction('aECut');
-  gmECopy.Action := MainAction('aECopy');
-  gmEPaste.Action := MainAction('aEPaste');
-  gmEDelete.Action := MainAction('aEDelete');
-  gmEmpty.Action := MainAction('aDEmpty');
-  gmECopyToFile.Action := MainAction('aECopyToFile');
-  gmEPasteFromFile.Action := MainAction('aEPasteFromFile');
-  gmFExportSQL.Action := MainAction('aFExportSQL');
-  gmFExportText.Action := MainAction('aFExportText');
-  gmFExportExcel.Action := MainAction('aFExportExcel');
-  gmFExportXML.Action := MainAction('aFExportXML');
-  gmFExportHTML.Action := MainAction('aFExportHTML');
-  gmFExportPDF.Action := MainAction('aFExportPDF');
-  gmDInsertRecord.Action := MainAction('aDInsertRecord');
-  gmDDeleteRecord.Action := MainAction('aDDeleteRecord');
-  gmDEditRecord.Action := MainAction('aDEditRecord');
+  gmECut.Action := aECut;
+  gmECopy.Action := aECopy;
+  gmEPaste.Action := aEPaste;
+  gmEDelete.Action := aEDelete;
+  gmEmpty.Action := aDEmpty;
+  gmECopyToFile.Action := aECopyToFile;
+  gmEPasteFromFile.Action := aEPasteFromFile;
+  gmFExportSQL.Action := aFExportSQL;
+  gmFExportText.Action := aFExportText;
+  gmFExportExcel.Action := aFExportExcel;
+  gmFExportXML.Action := aFExportXML;
+  gmFExportHTML.Action := aFExportHTML;
+  gmFExportPDF.Action := aFExportPDF;
+  gmDInsertRecord.Action := aDInsertRecord;
+  gmDDeleteRecord.Action := aDDeleteRecord;
+  gmDEditRecord.Action := aDEditRecord;
 
-  mwFImportSQL.Action := MainAction('aFImportSQL');
-  mwFImportText.Action := MainAction('aFImportText');
-  mwFImportExcel.Action := MainAction('aFImportExcel');
-  mwFImportAccess.Action := MainAction('aFImportAccess');
-  mwFImportODBC.Action := MainAction('aFImportODBC');
-  mwFExportSQL.Action := MainAction('aFExportSQL');
-  mwFExportText.Action := MainAction('aFExportText');
-  mwFExportExcel.Action := MainAction('aFExportExcel');
-  mwFExportAccess.Action := MainAction('aFExportAccess');
-  mwFExportODBC.Action := MainAction('aFExportODBC');
-  mwFExportXML.Action := MainAction('aFExportXML');
-  mwFExportHTML.Action := MainAction('aFExportHTML');
-  mwFExportPDF.Action := MainAction('aFExportPDF');
-  mwFExportBitmap.Action := MainAction('aFExportBitmap');
-  mwECopy.Action := MainAction('aECopy');
-  mwDCreateField.Action := MainAction('aDCreateField');
-  mwDCreateForeignKey.Action := MainAction('aDCreateForeignKey');
-  mwDEmpty.Action := MainAction('aDEmpty');
+  mwFImportSQL.Action := aFImportSQL;
+  mwFImportText.Action := aFImportText;
+  mwFImportExcel.Action := aFImportExcel;
+  mwFImportAccess.Action := aFImportAccess;
+  mwFImportODBC.Action := aFImportODBC;
+  mwFExportSQL.Action := aFExportSQL;
+  mwFExportText.Action := aFExportText;
+  mwFExportExcel.Action := aFExportExcel;
+  mwFExportAccess.Action := aFExportAccess;
+  mwFExportODBC.Action := aFExportODBC;
+  mwFExportXML.Action := aFExportXML;
+  mwFExportHTML.Action := aFExportHTML;
+  mwFExportPDF.Action := aFExportPDF;
+  mwFExportBitmap.Action := aFExportBitmap;
+  mwECopy.Action := aECopy;
+  mwDCreateField.Action := aDCreateField;
+  mwDCreateForeignKey.Action := aDCreateForeignKey;
+  mwDEmpty.Action := aDEmpty;
 
-  tmECut.Action := MainAction('aECut');
-  tmECopy.Action := MainAction('aECopy');
-  tmEPaste.Action := MainAction('aEPaste');
-  tmEDelete.Action := MainAction('aEDelete');
-  tmESelectAll.Action := MainAction('aESelectAll');
+  tmECut.Action := aECut;
+  tmECopy.Action := aECopy;
+  tmEPaste.Action := aEPaste;
+  tmEDelete.Action := aEDelete;
+  tmESelectAll.Action := aESelectAll;
 
-  smECopy.Action := MainAction('aECopy');
-  smESelectAll.Action := MainAction('aESelectAll');
+  smECopy.Action := aECopy;
+  smESelectAll.Action := aESelectAll;
 
 
   if (not StyleServices.Enabled and not CheckWin32Version(6)) then
@@ -6076,12 +6076,12 @@ begin
   aDPrev.Enabled := False;
   aDNext.Enabled := False;
 
-  MainAction('aFExportSQL').Enabled := False;
-  MainAction('aFExportText').Enabled := False;
-  MainAction('aFExportExcel').Enabled := False;
-  MainAction('aFExportXML').Enabled := False;
-  MainAction('aFExportHTML').Enabled := False;
-  MainAction('aFExportPDF').Enabled := False;
+  aFExportSQL.Enabled := False;
+  aFExportText.Enabled := False;
+  aFExportExcel.Enabled := False;
+  aFExportXML.Enabled := False;
+  aFExportHTML.Enabled := False;
+  aFExportPDF.Enabled := False;
 end;
 
 procedure TFSession.DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
@@ -6133,8 +6133,8 @@ begin
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
-    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = DBGrid) and Assigned(DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and (DBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = DBGrid) and Assigned(DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    aDInsertRecord.Enabled := (Window.ActiveControl = DBGrid) and Assigned(DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and (DBGrid.SelectedRows.Count < 1) and not InputDataSet;
+    aDDeleteRecord.Enabled := (Window.ActiveControl = DBGrid) and Assigned(DBGrid) and DBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -6231,12 +6231,12 @@ begin
       FText.OnChange := FTextChange;
     end;
 
-    DBGrid.UpdateAction(MainAction('aEPaste'));
-    MainAction('aECopyToFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
-    MainAction('aEPasteFromFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
-    MainAction('aDCreateField').Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
-    MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and DBGrid.DataSource.DataSet.CanModify and (View <> vIDE);
-    MainAction('aDEmpty').Enabled := (DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
+    DBGrid.UpdateAction(aEPaste);
+    aECopyToFile.Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
+    aEPasteFromFile.Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
+    aDCreateField.Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
+    aDEditRecord.Enabled := Assigned(DBGrid.SelectedField) and DBGrid.DataSource.DataSet.CanModify and (View <> vIDE);
+    aDEmpty.Enabled := (DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
   end;
 
   StatusBarRefresh();
@@ -6246,11 +6246,11 @@ procedure TFSession.DBGridColExit(Sender: TObject);
 var
   Trigger: TSTrigger;
 begin
-  MainAction('aECopyToFile').Enabled := False;
-  MainAction('aEPasteFromFile').Enabled := False;
-  MainAction('aDCreateField').Enabled := False;
-  MainAction('aDEditRecord').Enabled := False;
-  MainAction('aDEmpty').Enabled := False;
+  aECopyToFile.Enabled := False;
+  aEPasteFromFile.Enabled := False;
+  aDCreateField.Enabled := False;
+  aDEditRecord.Enabled := False;
+  aDEmpty.Enabled := False;
 
   if ((Sender = FObjectIDEGrid) and (CurrentClassIndex = ciTrigger) and (TMySQLDBGrid(Sender).DataSource.DataSet is TMySQLDataSet)) then
   begin
@@ -6583,23 +6583,23 @@ begin
 
     DBGrid := TMySQLDBGrid(Sender);
 
-    MainAction('aFExportSQL').Enabled := DBGrid.DataSource.DataSet.CanModify;
-    MainAction('aFExportText').Enabled := True;
-    MainAction('aFExportExcel').Enabled := True;
-    MainAction('aFExportXML').Enabled := True;
-    MainAction('aFExportHTML').Enabled := True;
-    MainAction('aFExportPDF').Enabled := True;
-    MainAction('aECopyToFile').OnExecute := DBGridCopyToExecute;
-    MainAction('aEPasteFromFile').OnExecute := aEPasteFromFileExecute;
-    MainAction('aDEditRecord').OnExecute := DBGridEditExecute;
-    MainAction('aDEmpty').OnExecute := DBGridEmptyExecute;
+    aFExportSQL.Enabled := DBGrid.DataSource.DataSet.CanModify;
+    aFExportText.Enabled := True;
+    aFExportExcel.Enabled := True;
+    aFExportXML.Enabled := True;
+    aFExportHTML.Enabled := True;
+    aFExportPDF.Enabled := True;
+    aECopyToFile.OnExecute := DBGridCopyToExecute;
+    aEPasteFromFile.OnExecute := aEPasteFromFileExecute;
+    aDEditRecord.OnExecute := DBGridEditExecute;
+    aDEmpty.OnExecute := DBGridEmptyExecute;
 
-    MainAction('aERename').ShortCut := 0;
-    MainAction('aEDelete').ShortCut := 0;
+    aERename.ShortCut := 0;
+    aEDelete.ShortCut := 0;
 
-    MainAction('aDInsertRecord').ShortCut := VK_INSERT;
-    MainAction('aDDeleteRecord').ShortCut := ShortCut(VK_DELETE, [ssCtrl]);
-    MainAction('aDEditRecord').ShortCut := VK_F2;
+    aDInsertRecord.ShortCut := VK_INSERT;
+    aDDeleteRecord.ShortCut := ShortCut(VK_DELETE, [ssCtrl]);
+    aDEditRecord.ShortCut := VK_F2;
 
     DataSetAfterScroll(DBGrid.DataSource.DataSet);
   end;
@@ -6627,30 +6627,30 @@ begin
       DBGridColExit(Sender);
       DBGrid.Repaint();
 
-      MainAction('aFExportSQL').Enabled := False;
-      MainAction('aFExportText').Enabled := False;
-      MainAction('aFExportExcel').Enabled := False;
-      MainAction('aFExportXML').Enabled := False;
-      MainAction('aFExportHTML').Enabled := False;
-      MainAction('aFExportPDF').Enabled := False;
-      MainAction('aFImportText').Enabled := False;
-      MainAction('aFImportExcel').Enabled := False;
-      MainAction('aFImportAccess').Enabled := False;
-      MainAction('aFImportODBC').Enabled := False;
-      MainAction('aECopyToFile').Enabled := False;
-      MainAction('aEPasteFromFile').Enabled := False;
-      MainAction('aDInsertRecord').Enabled := False;
-      MainAction('aDDeleteRecord').Enabled := False;
-      MainAction('aDEditRecord').Enabled := False;
-      MainAction('aDPostObject').Enabled := False;
-      MainAction('aDEmpty').Enabled := False;
+      aFExportSQL.Enabled := False;
+      aFExportText.Enabled := False;
+      aFExportExcel.Enabled := False;
+      aFExportXML.Enabled := False;
+      aFExportHTML.Enabled := False;
+      aFExportPDF.Enabled := False;
+      aFImportText.Enabled := False;
+      aFImportExcel.Enabled := False;
+      aFImportAccess.Enabled := False;
+      aFImportODBC.Enabled := False;
+      aECopyToFile.Enabled := False;
+      aEPasteFromFile.Enabled := False;
+      aDInsertRecord.Enabled := False;
+      aDDeleteRecord.Enabled := False;
+      aDEditRecord.Enabled := False;
+      aDPostObject.Enabled := False;
+      aDEmpty.Enabled := False;
 
-      MainAction('aDInsertRecord').ShortCut := 0;
-      MainAction('aDDeleteRecord').ShortCut := 0;
-      MainAction('aDEditRecord').ShortCut := 0;
+      aDInsertRecord.ShortCut := 0;
+      aDDeleteRecord.ShortCut := 0;
+      aDEditRecord.ShortCut := 0;
 
-      MainAction('aERename').ShortCut := VK_F2;
-      MainAction('aEDelete').ShortCut := ShortCut(VK_DELETE, [ssCtrl]);
+      aERename.ShortCut := VK_F2;
+      aEDelete.ShortCut := ShortCut(VK_DELETE, [ssCtrl]);
     end;
   end;
 end;
@@ -6818,10 +6818,10 @@ begin
   if (Key = VK_APPS) then
     DBGrid.PopupMenu := MDBGrid
   else if ((Key = VK_INSERT) and (Shift = []) and not DBGrid.EditorMode) then
-    MainAction('aDInsertRecord').Execute()
+    aDInsertRecord.Execute()
   else if ((Key = VK_DELETE) and (Shift = [ssCtrl]) and not DBGrid.EditorMode) then
   begin
-    MainAction('aDDeleteRecord').Execute();
+    aDDeleteRecord.Execute();
     Key := 0;
   end
   else if (Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
@@ -7678,19 +7678,19 @@ end;
 
 procedure TFSession.FLogEnter(Sender: TObject);
 begin
-  MainAction('aHIndex').ShortCut := 0;
-  MainAction('aHSQL').ShortCut := ShortCut(VK_F1, []);
+  aHIndex.ShortCut := 0;
+  aHSQL.ShortCut := ShortCut(VK_F1, []);
 end;
 
 procedure TFSession.FLogExit(Sender: TObject);
 begin
-  MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
-  MainAction('aHSQL').ShortCut := 0;
+  aHIndex.ShortCut := ShortCut(VK_F1, []);
+  aHSQL.ShortCut := 0;
 end;
 
 procedure TFSession.FLogUpdate();
 begin
-  if (MainAction('aVSQLLog').Checked) then
+  if (aVSQLLog.Checked) then
   begin
     FLog.Text := Session.SQLMonitor.CacheText;
     PLogResize(nil);
@@ -7753,8 +7753,7 @@ begin
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
     raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-      + 'Text: ' + Node.Text + #13#10
-      + 'ClassType: ' + TObject(Node.Data).ClassName)
+      + 'Text: ' + Node.Text + #13#10)
   else
     raise ERangeError.Create(SRangeError);
 
@@ -8124,7 +8123,7 @@ end;
 
 procedure TFSession.FNavigatorEnter(Sender: TObject);
 begin
-  MainAction('aDEmpty').OnExecute := FNavigatorEmptyExecute;
+  aDEmpty.OnExecute := FNavigatorEmptyExecute;
 
   aDDelete.ShortCut := VK_DELETE;
 
@@ -8134,56 +8133,56 @@ end;
 
 procedure TFSession.FNavigatorExit(Sender: TObject);
 begin
-  MainAction('aFImportSQL').Enabled := False;
-  MainAction('aFImportText').Enabled := False;
-  MainAction('aFImportExcel').Enabled := False;
-  MainAction('aFImportAccess').Enabled := False;
-  MainAction('aFImportODBC').Enabled := False;
-  MainAction('aFExportSQL').Enabled := False;
-  MainAction('aFExportText').Enabled := False;
-  MainAction('aFExportExcel').Enabled := False;
-  MainAction('aFExportAccess').Enabled := False;
-  MainAction('aFExportODBC').Enabled := False;
-  MainAction('aFExportXML').Enabled := False;
-  MainAction('aFExportHTML').Enabled := False;
-  MainAction('aFExportPDF').Enabled := False;
-  MainAction('aECopy').Enabled := False;
-  MainAction('aEPaste').Enabled := False;
-  MainAction('aERename').Enabled := False;
-  MainAction('aDCreateDatabase').Enabled := False;
-  MainAction('aDCreateTable').Enabled := False;
-  MainAction('aDCreateView').Enabled := False;
-  MainAction('aDCreateProcedure').Enabled := False;
-  MainAction('aDCreateFunction').Enabled := False;
-  MainAction('aDCreateEvent').Enabled := False;
-  MainAction('aDCreateTrigger').Enabled := False;
-  MainAction('aDCreateKey').Enabled := False;
-  MainAction('aDCreateField').Enabled := False;
-  MainAction('aDCreateForeignKey').Enabled := False;
-  MainAction('aDCreateUser').Enabled := False;
-  MainAction('aDDeleteDatabase').Enabled := False;
-  MainAction('aDDeleteTable').Enabled := False;
-  MainAction('aDDeleteView').Enabled := False;
-  MainAction('aDDeleteRoutine').Enabled := False;
-  MainAction('aDDeleteEvent').Enabled := False;
-  MainAction('aDDeleteKey').Enabled := False;
-  MainAction('aDDeleteField').Enabled := False;
-  MainAction('aDDeleteForeignKey').Enabled := False;
-  MainAction('aDDeleteTrigger').Enabled := False;
-  MainAction('aDEditServer').Enabled := False;
-  MainAction('aDEditDatabase').Enabled := False;
-  MainAction('aDEditTable').Enabled := False;
-  MainAction('aDEditView').Enabled := False;
-  MainAction('aDEditRoutine').Enabled := False;
-  MainAction('aDEditEvent').Enabled := False;
-  MainAction('aDEditTrigger').Enabled := False;
-  MainAction('aDEditKey').Enabled := False;
-  MainAction('aDEditField').Enabled := False;
-  MainAction('aDEditForeignKey').Enabled := False;
-  MainAction('aDEditProcess').Enabled := False;
-  MainAction('aDEditUser').Enabled := False;
-  MainAction('aDEditVariable').Enabled := False;
-  MainAction('aDEmpty').Enabled := False;
+  aFImportSQL.Enabled := False;
+  aFImportText.Enabled := False;
+  aFImportExcel.Enabled := False;
+  aFImportAccess.Enabled := False;
+  aFImportODBC.Enabled := False;
+  aFExportSQL.Enabled := False;
+  aFExportText.Enabled := False;
+  aFExportExcel.Enabled := False;
+  aFExportAccess.Enabled := False;
+  aFExportODBC.Enabled := False;
+  aFExportXML.Enabled := False;
+  aFExportHTML.Enabled := False;
+  aFExportPDF.Enabled := False;
+  aECopy.Enabled := False;
+  aEPaste.Enabled := False;
+  aERename.Enabled := False;
+  aDCreateDatabase.Enabled := False;
+  aDCreateTable.Enabled := False;
+  aDCreateView.Enabled := False;
+  aDCreateProcedure.Enabled := False;
+  aDCreateFunction.Enabled := False;
+  aDCreateEvent.Enabled := False;
+  aDCreateTrigger.Enabled := False;
+  aDCreateKey.Enabled := False;
+  aDCreateField.Enabled := False;
+  aDCreateForeignKey.Enabled := False;
+  aDCreateUser.Enabled := False;
+  aDDeleteDatabase.Enabled := False;
+  aDDeleteTable.Enabled := False;
+  aDDeleteView.Enabled := False;
+  aDDeleteRoutine.Enabled := False;
+  aDDeleteEvent.Enabled := False;
+  aDDeleteKey.Enabled := False;
+  aDDeleteField.Enabled := False;
+  aDDeleteForeignKey.Enabled := False;
+  aDDeleteTrigger.Enabled := False;
+  aDEditServer.Enabled := False;
+  aDEditDatabase.Enabled := False;
+  aDEditTable.Enabled := False;
+  aDEditView.Enabled := False;
+  aDEditRoutine.Enabled := False;
+  aDEditEvent.Enabled := False;
+  aDEditTrigger.Enabled := False;
+  aDEditKey.Enabled := False;
+  aDEditField.Enabled := False;
+  aDEditForeignKey.Enabled := False;
+  aDEditProcess.Enabled := False;
+  aDEditUser.Enabled := False;
+  aDEditVariable.Enabled := False;
+  aDEmpty.Enabled := False;
 
   aFOpenInNewTab.Enabled := False;
 
@@ -8861,83 +8860,83 @@ procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
 begin
   if (not Assigned(Node) or not (TObject(Node.Data) is TPAccount.TFavorite)) then
   begin
-    MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
-    MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-    MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-    MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-    MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-    MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-    MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
-    MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-    MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-    MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-    MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
-    MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-    MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-    MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiForeignKey]);
-    MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
-    MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
-    MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
-    MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-    MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
-    MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
-    MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-    MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
-    MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
-    MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-    MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-    MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
-    MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
-    MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-    MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-    MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-    MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-    MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
-    MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-    MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
-    MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
-    MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-    MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
-    MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-    MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-    MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-    MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-    MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
-    MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-    MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]);
-    MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
-    MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-    MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiBaseField]) and TSTableField(Node.Data).NullAllowed));
+    aFImportSQL.Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
+    aFImportText.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    aFImportExcel.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    aFImportAccess.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    aFImportODBC.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    aFExportSQL.Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    aFExportText.Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
+    aFExportExcel.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+    aFExportAccess.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    aFExportODBC.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    aFExportXML.Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
+    aFExportHTML.Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    aFExportPDF.Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    aECopy.Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiForeignKey]);
+    aEPaste.Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
+    aERename.Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
+    aDCreateDatabase.Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
+    aDCreateTable.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    aDCreateView.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
+    aDCreateProcedure.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
+    aDCreateFunction.Enabled := aDCreateProcedure.Enabled;
+    aDCreateEvent.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
+    aDCreateTrigger.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
+    aDCreateKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    aDCreateField.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    aDCreateForeignKey.Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
+    aDCreateUser.Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
+    aDDeleteDatabase.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    aDDeleteTable.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    aDDeleteView.Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    aDDeleteRoutine.Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+    aDDeleteEvent.Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+    aDDeleteKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
+    aDDeleteField.Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
+    aDDeleteForeignKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
+    aDDeleteTrigger.Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
+    aDEditServer.Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
+    aDEditDatabase.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    aDEditTable.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    aDEditView.Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    aDEditRoutine.Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+    aDEditEvent.Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+    aDEditKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
+    aDEditField.Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]);
+    aDEditForeignKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
+    aDEditTrigger.Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
+    aDEmpty.Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiBaseField]) and TSTableField(Node.Data).NullAllowed));
 
     miNExpand.Default := aPExpand.Enabled;
     miNCollapse.Default := aPCollapse.Enabled;
-    aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
-      or MainAction('aDDeleteTable').Enabled
-      or MainAction('aDDeleteView').Enabled
-      or MainAction('aDDeleteRoutine').Enabled
-      or MainAction('aDDeleteEvent').Enabled
-      or MainAction('aDDeleteKey').Enabled
-      or MainAction('aDDeleteField').Enabled
-      or MainAction('aDDeleteForeignKey').Enabled
-      or MainAction('aDDeleteTrigger').Enabled;
+    aDDelete.Enabled := aDDeleteDatabase.Enabled
+      or aDDeleteTable.Enabled
+      or aDDeleteView.Enabled
+      or aDDeleteRoutine.Enabled
+      or aDDeleteEvent.Enabled
+      or aDDeleteKey.Enabled
+      or aDDeleteField.Enabled
+      or aDDeleteForeignKey.Enabled
+      or aDDeleteTrigger.Enabled;
     if (not Assigned(Node)) then
       miNProperties.Action := nil
     else
       case (Node.ImageIndex) of
-        iiServer: miNProperties.Action := MainAction('aDEditServer');
-        iiDatabase: miNProperties.Action := MainAction('aDEditDatabase');
-        iiBaseTable: miNProperties.Action := MainAction('aDEditTable');
-        iiView: miNProperties.Action := MainAction('aDEditView');
+        iiServer: miNProperties.Action := aDEditServer;
+        iiDatabase: miNProperties.Action := aDEditDatabase;
+        iiBaseTable: miNProperties.Action := aDEditTable;
+        iiView: miNProperties.Action := aDEditView;
         iiProcedure,
-        iiFunction: miNProperties.Action := MainAction('aDEditRoutine');
-        iiEvent: miNProperties.Action := MainAction('aDEditEvent');
-        iiTrigger: miNProperties.Action := MainAction('aDEditTrigger');
-        iiKey: miNProperties.Action := MainAction('aDEditKey');
+        iiFunction: miNProperties.Action := aDEditRoutine;
+        iiEvent: miNProperties.Action := aDEditEvent;
+        iiTrigger: miNProperties.Action := aDEditTrigger;
+        iiKey: miNProperties.Action := aDEditKey;
         iiBaseField,
-        iiVirtualField: miNProperties.Action := MainAction('aDEditField');
-        iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
-        iiProcess: miNProperties.Action := MainAction('aDEditProcess');
-        iiVariable: miNProperties.Action := MainAction('aDEditVariable');
+        iiVirtualField: miNProperties.Action := aDEditField;
+        iiForeignKey: miNProperties.Action := aDEditForeignKey;
+        iiProcess: miNProperties.Action := aDEditProcess;
+        iiVariable: miNProperties.Action := aDEditVariable;
         else miNProperties.Action := nil;
       end;
     miNProperties.Enabled := Assigned(miNProperties.Action) and (miNProperties.Action is TAction) and TAction(miNProperties.Action).Enabled;
@@ -8947,7 +8946,7 @@ begin
     ToolBarData.tbPropertiesAction := miNProperties.Action;
     Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
-    FNavigator.ReadOnly := not MainAction('aERename').Enabled;
+    FNavigator.ReadOnly := not aERename.Enabled;
   end;
 end;
 
@@ -9471,109 +9470,109 @@ begin
 
   if (Assigned(MainActionList)) then
   begin
-    MainAction('aVNavigator').Checked := PNavigator.Visible;
-    MainAction('aVExplorer').Checked := PExplorer.Visible;
-    MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
-    MainAction('aVSQLLog').Checked := PLog.Visible;
+    aVNavigator.Checked := PNavigator.Visible;
+    aVExplorer.Checked := PExplorer.Visible;
+    aVSQLHistory.Checked := PSQLHistory.Visible;
+    aVSQLLog.Checked := PLog.Visible;
 
-    MainAction('aFOpen').OnExecute := aFOpenExecute;
-    MainAction('aFSave').OnExecute := aFSaveExecute;
-    MainAction('aFSaveAs').OnExecute := aFSaveAsExecute;
-    MainAction('aFImportSQL').OnExecute := aFImportSQLExecute;
-    MainAction('aFImportText').OnExecute := aFImportTextExecute;
-    MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
-    MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
-    MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
-    MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
-    MainAction('aFExportText').OnExecute := aFExportTextExecute;
-    MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
-    MainAction('aFExportAccess').OnExecute := aFExportAccessExecute;
-    MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
-    MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
-    MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
-    MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
-    MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
-    MainAction('aERedo').OnExecute := aERedoExecute;
-    MainAction('aECopy').OnExecute := aECopyExecute;
-    MainAction('aEPaste').OnExecute := aEPasteExecute;
-    MainAction('aERename').OnExecute := aERenameExecute;
-    MainAction('aVObjects').OnExecute := aViewExecute;
-    MainAction('aVBrowser').OnExecute := aViewExecute;
-    MainAction('aVIDE').OnExecute := aViewExecute;
-    MainAction('aVBuilder').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor2').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor3').OnExecute := aViewExecute;
-    MainAction('aVDiagram').OnExecute := aViewExecute;
-    MainAction('aVNavigator').OnExecute := aVSideBarExecute;
-    MainAction('aVExplorer').OnExecute := aVSideBarExecute;
-    MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
-    MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
-    MainAction('aVRefresh').OnExecute := aVRefreshExecute;
-    MainAction('aVRefreshAll').OnExecute := aVRefreshAllExecute;
-    MainAction('aDCancel').OnExecute := aDCancelExecute;
-    MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
-    MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
-    MainAction('aDCreateView').OnExecute := aDCreateViewExecute;
-    MainAction('aDCreateProcedure').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateFunction').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateKey').OnExecute := aDCreateKeyExecute;
-    MainAction('aDCreateField').OnExecute := aDCreateFieldExecute;
-    MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
-    MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
-    MainAction('aDCreateEvent').OnExecute := aDCreateEventExecute;
-    MainAction('aDCreateUser').OnExecute := aDCreateUserExecute;
-    MainAction('aDEditServer').OnExecute := PropertiesServerExecute;
-    MainAction('aDEditDatabase').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditTable').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditView').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditRoutine').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditEvent').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditTrigger').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditField').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditForeignKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditProcess').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditUser').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditVariable').OnExecute := aDPropertiesExecute;
-    MainAction('aDDeleteDatabase').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteTable').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteView').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteRoutine').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteKey').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteField').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteForeignKey').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteTrigger').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteEvent').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteUser').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteProcess').OnExecute := aDDeleteExecute;
-    MainAction('aDInsertRecord').OnExecute := aDInsertRecordExecute;
-    MainAction('aDDeleteRecord').OnExecute := aDDeleteRecordExecute;
-    MainAction('aDRun').OnExecute := aDRunExecute;
-    MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
-    MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
-    MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
-    MainAction('aHSQL').OnExecute := aHSQLExecute;
-    MainAction('aHManual').OnExecute := aHManualExecute;
+    aFOpen.OnExecute := aFOpenExecute;
+    aFSave.OnExecute := aFSaveExecute;
+    aFSaveAs.OnExecute := aFSaveAsExecute;
+    aFImportSQL.OnExecute := aFImportSQLExecute;
+    aFImportText.OnExecute := aFImportTextExecute;
+    aFImportExcel.OnExecute := aFImportExcelExecute;
+    aFImportAccess.OnExecute := aFImportAccessExecute;
+    aFImportODBC.OnExecute := aFImportODBCExecute;
+    aFExportSQL.OnExecute := aFExportSQLExecute;
+    aFExportText.OnExecute := aFExportTextExecute;
+    aFExportExcel.OnExecute := aFExportExcelExecute;
+    aFExportAccess.OnExecute := aFExportAccessExecute;
+    aFExportODBC.OnExecute := aFExportODBCExecute;
+    aFExportXML.OnExecute := aFExportXMLExecute;
+    aFExportHTML.OnExecute := aFExportHTMLExecute;
+    aFExportPDF.OnExecute := aFExportPDFExecute;
+    aFExportBitmap.OnExecute := aFExportBitmapExecute;
+    aERedo.OnExecute := aERedoExecute;
+    aECopy.OnExecute := aECopyExecute;
+    aEPaste.OnExecute := aEPasteExecute;
+    aERename.OnExecute := aERenameExecute;
+    aVObjects.OnExecute := aViewExecute;
+    aVBrowser.OnExecute := aViewExecute;
+    aVIDE.OnExecute := aViewExecute;
+    aVBuilder.OnExecute := aViewExecute;
+    aVSQLEditor.OnExecute := aViewExecute;
+    aVSQLEditor2.OnExecute := aViewExecute;
+    aVSQLEditor3.OnExecute := aViewExecute;
+    aVDiagram.OnExecute := aViewExecute;
+    aVNavigator.OnExecute := aVSideBarExecute;
+    aVExplorer.OnExecute := aVSideBarExecute;
+    aVSQLHistory.OnExecute := aVSideBarExecute;
+    aVSQLLog.OnExecute := aVSQLLogExecute;
+    aVRefresh.OnExecute := aVRefreshExecute;
+    aVRefreshAll.OnExecute := aVRefreshAllExecute;
+    aDCancel.OnExecute := aDCancelExecute;
+    aDCreateDatabase.OnExecute := aDCreateDatabaseExecute;
+    aDCreateTable.OnExecute := aDCreateTableExecute;
+    aDCreateView.OnExecute := aDCreateViewExecute;
+    aDCreateProcedure.OnExecute := aDCreateRoutineExecute;
+    aDCreateFunction.OnExecute := aDCreateRoutineExecute;
+    aDCreateKey.OnExecute := aDCreateKeyExecute;
+    aDCreateField.OnExecute := aDCreateFieldExecute;
+    aDCreateForeignKey.OnExecute := aDCreateForeignKeyExecute;
+    aDCreateTrigger.OnExecute := aDCreateTriggerExecute;
+    aDCreateEvent.OnExecute := aDCreateEventExecute;
+    aDCreateUser.OnExecute := aDCreateUserExecute;
+    aDEditServer.OnExecute := PropertiesServerExecute;
+    aDEditDatabase.OnExecute := aDPropertiesExecute;
+    aDEditTable.OnExecute := aDPropertiesExecute;
+    aDEditView.OnExecute := aDPropertiesExecute;
+    aDEditRoutine.OnExecute := aDPropertiesExecute;
+    aDEditEvent.OnExecute := aDPropertiesExecute;
+    aDEditTrigger.OnExecute := aDPropertiesExecute;
+    aDEditKey.OnExecute := aDPropertiesExecute;
+    aDEditField.OnExecute := aDPropertiesExecute;
+    aDEditForeignKey.OnExecute := aDPropertiesExecute;
+    aDEditProcess.OnExecute := aDPropertiesExecute;
+    aDEditUser.OnExecute := aDPropertiesExecute;
+    aDEditVariable.OnExecute := aDPropertiesExecute;
+    aDDeleteDatabase.OnExecute := aDDeleteExecute;
+    aDDeleteTable.OnExecute := aDDeleteExecute;
+    aDDeleteView.OnExecute := aDDeleteExecute;
+    aDDeleteRoutine.OnExecute := aDDeleteExecute;
+    aDDeleteKey.OnExecute := aDDeleteExecute;
+    aDDeleteField.OnExecute := aDDeleteExecute;
+    aDDeleteForeignKey.OnExecute := aDDeleteExecute;
+    aDDeleteTrigger.OnExecute := aDDeleteExecute;
+    aDDeleteEvent.OnExecute := aDDeleteExecute;
+    aDDeleteUser.OnExecute := aDDeleteExecute;
+    aDDeleteProcess.OnExecute := aDDeleteExecute;
+    aDInsertRecord.OnExecute := aDInsertRecordExecute;
+    aDDeleteRecord.OnExecute := aDDeleteRecordExecute;
+    aDRun.OnExecute := aDRunExecute;
+    aDRunSelection.OnExecute := aDRunSelectionExecute;
+    aDPostObject.OnExecute := aDPostObjectExecute;
+    aEFormatSQL.OnExecute := aEFormatSQLExecute;
+    aHSQL.OnExecute := aHSQLExecute;
+    aHManual.OnExecute := aHManualExecute;
 
 
-    MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
-    MainAction('aVIDE').Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
-    MainAction('aVBuilder').Enabled := LastSelectedDatabase <> '';
-    MainAction('aVSQLEditor').Enabled := True;
-    MainAction('aVSQLEditor2').Enabled := True;
-    MainAction('aVSQLEditor3').Enabled := True;
-    MainAction('aVDiagram').Enabled := LastSelectedDatabase <> '';
-    MainAction('aVNavigator').Enabled := True;
-    MainAction('aVExplorer').Enabled := True;
-    MainAction('aVSQLHistory').Enabled := True;
-    MainAction('aVSQLLog').Enabled := True;
-    MainAction('aVRefresh').Enabled := True;
-    MainAction('aVRefreshAll').Enabled := True;
-    MainAction('aDCancel').Enabled := Session.Connection.InUse();
-    MainAction('aHSQL').Enabled := Session.Connection.MySQLVersion >= 40100;
-    MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
+    aVObjects.Enabled := True;
+    aVBrowser.Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
+    aVIDE.Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
+    aVBuilder.Enabled := LastSelectedDatabase <> '';
+    aVSQLEditor.Enabled := True;
+    aVSQLEditor2.Enabled := True;
+    aVSQLEditor3.Enabled := True;
+    aVDiagram.Enabled := LastSelectedDatabase <> '';
+    aVNavigator.Enabled := True;
+    aVExplorer.Enabled := True;
+    aVSQLHistory.Enabled := True;
+    aVSQLLog.Enabled := True;
+    aVRefresh.Enabled := True;
+    aVRefreshAll.Enabled := True;
+    aDCancel.Enabled := Session.Connection.InUse();
+    aHSQL.Enabled := Session.Connection.MySQLVersion >= 40100;
+    aHManual.Enabled := Session.Account.ManualURL <> '';
 
     aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
 
@@ -9630,7 +9629,7 @@ begin
                 else Self.View := vIDE;
                 Window.ActiveControl := ActiveBCEditor;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-                  IDYES: MainAction('aDPostObject').Execute();
+                  IDYES: aDPostObject.Execute();
                   IDCANCEL: CanClose := False;
                 end;
               end;
@@ -9652,7 +9651,7 @@ begin
               // Debug 2017-04-26
               Assert(Self.View = View);
 
-              SaveSQLFile(MainAction('aFSave'));
+              SaveSQLFile(aFSave);
             end;
           IDCANCEL: CanClose := False;
         end;
@@ -9677,26 +9676,26 @@ begin
 
   ActiveControlOnDeactivate := Window.ActiveControl;
 
-  MainAction('aVObjects').Enabled := False;
-  MainAction('aVBrowser').Enabled := False;
-  MainAction('aVIDE').Enabled := False;
-  MainAction('aVBuilder').Enabled := False;
-  MainAction('aVSQLEditor').Enabled := False;
-  MainAction('aVSQLEditor2').Enabled := False;
-  MainAction('aVSQLEditor3').Enabled := False;
-  MainAction('aVDiagram').Enabled := False;
-  MainAction('aVNavigator').Enabled := False;
-  MainAction('aVExplorer').Enabled := False;
-  MainAction('aVSQLHistory').Enabled := False;
-  MainAction('aVSQLLog').Enabled := False;
-  MainAction('aVRefresh').Enabled := False;
-  MainAction('aVRefreshAll').Enabled := False;
-  MainAction('aDCancel').Enabled := False;
-  MainAction('aHSQL').Enabled := False;
-  MainAction('aHManual').Enabled := False;
+  aVObjects.Enabled := False;
+  aVBrowser.Enabled := False;
+  aVIDE.Enabled := False;
+  aVBuilder.Enabled := False;
+  aVSQLEditor.Enabled := False;
+  aVSQLEditor2.Enabled := False;
+  aVSQLEditor3.Enabled := False;
+  aVDiagram.Enabled := False;
+  aVNavigator.Enabled := False;
+  aVExplorer.Enabled := False;
+  aVSQLHistory.Enabled := False;
+  aVSQLLog.Enabled := False;
+  aVRefresh.Enabled := False;
+  aVRefreshAll.Enabled := False;
+  aDCancel.Enabled := False;
+  aHSQL.Enabled := False;
+  aHManual.Enabled := False;
 
-  MainAction('aECopy').OnExecute := nil;
-  MainAction('aEPaste').OnExecute := nil;
+  aECopy.OnExecute := nil;
+  aEPaste.OnExecute := nil;
 
   aPResult.ShortCut := 0;
 
@@ -9845,7 +9844,7 @@ end;
 
 procedure TFSession.FSQLHistoryExit(Sender: TObject);
 begin
-  MainAction('aECopy').Enabled := False;
+  aECopy.Enabled := False;
 
   miHProperties.ShortCut := 0;
 end;
@@ -10158,7 +10157,13 @@ begin
         ciBaseTable,
         ciView,
         ciSystemView:
-          Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
+          begin
+            // Debug 2017-05-02
+            Assert(Assigned(CurrentData),
+              'CurrentAddress: ' + CurrentAddress + #13#10
+              + 'Tables.Valid: ' + BoolToStr(TSDatabase(FNavigator.Selected.Data).Tables.Valid, True));
+            Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
+          end;
         else Result := nil;
       end;
     vIDE:
@@ -10274,7 +10279,8 @@ begin
         begin
           // Debug 2017-05-01
           Assert(Assigned(CurrentData),
-            'Address: ' + CurrentAddress);
+            'Address: ' + CurrentAddress + #13#10
+            + 'Databases.Valid: ' + BoolToStr(Session.Databases.Valid, True));
 
           Result := Desktop(TSDatabase(CurrentData)).CreateListView();
         end;
@@ -11506,7 +11512,7 @@ begin
       else
         CurrentAddress := AddressByData(Session)
     else if ((Key = Ord('A')) and (Shift = [ssCtrl])) then
-      MainAction('aESelectAll').Execute()
+      aESelectAll.Execute()
     else if ((Key = Ord('C')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssCtrl])) then
       begin aECopyExecute(Sender); Key := 0; end
     else if ((Key = Ord('V')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssShift])) then
@@ -11571,8 +11577,8 @@ end;
 
 procedure TFSession.ListViewEnter(Sender: TObject);
 begin
-  MainAction('aESelectAll').OnExecute := aESelectAllExecute;
-  MainAction('aDEmpty').OnExecute := ListViewEmpty;
+  aESelectAll.OnExecute := aESelectAllExecute;
+  aDEmpty.OnExecute := ListViewEmpty;
 
   aDCreate.ShortCut := VK_INSERT;
   aDDelete.ShortCut := VK_DELETE;
@@ -11606,56 +11612,56 @@ begin
     end;
   end;
 
-  MainAction('aESelectAll').OnExecute := nil;
-  MainAction('aDEmpty').OnExecute := nil;
+  aESelectAll.OnExecute := nil;
+  aDEmpty.OnExecute := nil;
 
-  MainAction('aFImportSQL').Enabled := False;
-  MainAction('aFImportText').Enabled := False;
-  MainAction('aFImportExcel').Enabled := False;
-  MainAction('aFImportAccess').Enabled := False;
-  MainAction('aFImportODBC').Enabled := False;
-  MainAction('aFExportSQL').Enabled := False;
-  MainAction('aFExportText').Enabled := False;
-  MainAction('aFExportExcel').Enabled := False;
-  MainAction('aFExportAccess').Enabled := False;
-  MainAction('aFExportODBC').Enabled := False;
-  MainAction('aFExportXML').Enabled := False;
-  MainAction('aFExportHTML').Enabled := False;
-  MainAction('aFExportPDF').Enabled := False;
-  MainAction('aERename').Enabled := False;
-  MainAction('aDCreateDatabase').Enabled := False;
-  MainAction('aDCreateTable').Enabled := False;
-  MainAction('aDCreateView').Enabled := False;
-  MainAction('aDCreateProcedure').Enabled := False;
-  MainAction('aDCreateFunction').Enabled := False;
-  MainAction('aDCreateEvent').Enabled := False;
-  MainAction('aDCreateTrigger').Enabled := False;
-  MainAction('aDCreateKey').Enabled := False;
-  MainAction('aDCreateField').Enabled := False;
-  MainAction('aDCreateForeignKey').Enabled := False;
-  MainAction('aDCreateUser').Enabled := False;
-  MainAction('aDDeleteDatabase').Enabled := False;
-  MainAction('aDDeleteTable').Enabled := False;
-  MainAction('aDDeleteView').Enabled := False;
-  MainAction('aDDeleteRoutine').Enabled := False;
-  MainAction('aDDeleteEvent').Enabled := False;
-  MainAction('aDDeleteKey').Enabled := False;
-  MainAction('aDDeleteField').Enabled := False;
-  MainAction('aDDeleteForeignKey').Enabled := False;
-  MainAction('aDDeleteTrigger').Enabled := False;
-  MainAction('aDDeleteUser').Enabled := False;
-  MainAction('aDEditDatabase').Enabled := False;
-  MainAction('aDEditTable').Enabled := False;
-  MainAction('aDEditView').Enabled := False;
-  MainAction('aDEditRoutine').Enabled := False;
-  MainAction('aDEditEvent').Enabled := False;
-  MainAction('aDEditKey').Enabled := False;
-  MainAction('aDEditField').Enabled := False;
-  MainAction('aDEditForeignKey').Enabled := False;
-  MainAction('aDEditTrigger').Enabled := False;
-  MainAction('aDEditUser').Enabled := False;
-  MainAction('aDEditVariable').Enabled := False;
-  MainAction('aDEmpty').Enabled := False;
+  aFImportSQL.Enabled := False;
+  aFImportText.Enabled := False;
+  aFImportExcel.Enabled := False;
+  aFImportAccess.Enabled := False;
+  aFImportODBC.Enabled := False;
+  aFExportSQL.Enabled := False;
+  aFExportText.Enabled := False;
+  aFExportExcel.Enabled := False;
+  aFExportAccess.Enabled := False;
+  aFExportODBC.Enabled := False;
+  aFExportXML.Enabled := False;
+  aFExportHTML.Enabled := False;
+  aFExportPDF.Enabled := False;
+  aERename.Enabled := False;
+  aDCreateDatabase.Enabled := False;
+  aDCreateTable.Enabled := False;
+  aDCreateView.Enabled := False;
+  aDCreateProcedure.Enabled := False;
+  aDCreateFunction.Enabled := False;
+  aDCreateEvent.Enabled := False;
+  aDCreateTrigger.Enabled := False;
+  aDCreateKey.Enabled := False;
+  aDCreateField.Enabled := False;
+  aDCreateForeignKey.Enabled := False;
+  aDCreateUser.Enabled := False;
+  aDDeleteDatabase.Enabled := False;
+  aDDeleteTable.Enabled := False;
+  aDDeleteView.Enabled := False;
+  aDDeleteRoutine.Enabled := False;
+  aDDeleteEvent.Enabled := False;
+  aDDeleteKey.Enabled := False;
+  aDDeleteField.Enabled := False;
+  aDDeleteForeignKey.Enabled := False;
+  aDDeleteTrigger.Enabled := False;
+  aDDeleteUser.Enabled := False;
+  aDEditDatabase.Enabled := False;
+  aDEditTable.Enabled := False;
+  aDEditView.Enabled := False;
+  aDEditRoutine.Enabled := False;
+  aDEditEvent.Enabled := False;
+  aDEditKey.Enabled := False;
+  aDEditField.Enabled := False;
+  aDEditForeignKey.Enabled := False;
+  aDEditTrigger.Enabled := False;
+  aDEditUser.Enabled := False;
+  aDEditVariable.Enabled := False;
+  aDEmpty.Enabled := False;
 
   aFOpenInNewTab.Enabled := False;
 
@@ -12575,54 +12581,54 @@ begin
 
   if (Assigned(ListView)) then
   begin
-    MainAction('aFImportSQL').Enabled := False;
-    MainAction('aFImportText').Enabled := False;
-    MainAction('aFImportExcel').Enabled := False;
-    MainAction('aFImportAccess').Enabled := False;
-    MainAction('aFImportODBC').Enabled := False;
-    MainAction('aFExportSQL').Enabled := False;
-    MainAction('aFExportText').Enabled := False;
-    MainAction('aFExportExcel').Enabled := False;
-    MainAction('aFExportAccess').Enabled := False;
-    MainAction('aFExportODBC').Enabled := False;
-    MainAction('aFExportXML').Enabled := False;
-    MainAction('aFExportHTML').Enabled := False;
-    MainAction('aFExportPDF').Enabled := False;
-    MainAction('aECopy').Enabled := False;
-    MainAction('aEPaste').Enabled := False;
-    MainAction('aERename').Enabled := False;
-    MainAction('aESelectAll').Enabled := ListView.Items.Count > 1;
-    MainAction('aDCreateDatabase').Enabled := False;
-    MainAction('aDCreateTable').Enabled := False;
-    MainAction('aDCreateView').Enabled := False;
-    MainAction('aDCreateProcedure').Enabled := False;
-    MainAction('aDCreateFunction').Enabled := False;
-    MainAction('aDCreateTrigger').Enabled := False;
-    MainAction('aDCreateEvent').Enabled := False;
-    MainAction('aDCreateKey').Enabled := False;
-    MainAction('aDCreateField').Enabled := False;
-    MainAction('aDCreateForeignKey').Enabled := False;
-    MainAction('aDCreateUser').Enabled := False;
-    MainAction('aDDeleteDatabase').Enabled := False;
-    MainAction('aDDeleteTable').Enabled := False;
-    MainAction('aDDeleteView').Enabled := False;
-    MainAction('aDDeleteRoutine').Enabled := False;
-    MainAction('aDDeleteKey').Enabled := False;
-    MainAction('aDDeleteField').Enabled := False;
-    MainAction('aDDeleteForeignKey').Enabled := False;
-    MainAction('aDDeleteTrigger').Enabled := False;
-    MainAction('aDDeleteEvent').Enabled := False;
-    MainAction('aDDeleteUser').Enabled := False;
-    MainAction('aDEditServer').Enabled := False;
-    MainAction('aDEditTable').Enabled := False;
-    MainAction('aDEditView').Enabled := False;
-    MainAction('aDEditRoutine').Enabled := False;
-    MainAction('aDEditEvent').Enabled := False;
-    MainAction('aDEditKey').Enabled := False;
-    MainAction('aDEditField').Enabled := False;
-    MainAction('aDEditForeignKey').Enabled := False;
-    MainAction('aDEditTrigger').Enabled := False;
-    MainAction('aDEmpty').Enabled := False;
+    aFImportSQL.Enabled := False;
+    aFImportText.Enabled := False;
+    aFImportExcel.Enabled := False;
+    aFImportAccess.Enabled := False;
+    aFImportODBC.Enabled := False;
+    aFExportSQL.Enabled := False;
+    aFExportText.Enabled := False;
+    aFExportExcel.Enabled := False;
+    aFExportAccess.Enabled := False;
+    aFExportODBC.Enabled := False;
+    aFExportXML.Enabled := False;
+    aFExportHTML.Enabled := False;
+    aFExportPDF.Enabled := False;
+    aECopy.Enabled := False;
+    aEPaste.Enabled := False;
+    aERename.Enabled := False;
+    aESelectAll.Enabled := ListView.Items.Count > 1;
+    aDCreateDatabase.Enabled := False;
+    aDCreateTable.Enabled := False;
+    aDCreateView.Enabled := False;
+    aDCreateProcedure.Enabled := False;
+    aDCreateFunction.Enabled := False;
+    aDCreateTrigger.Enabled := False;
+    aDCreateEvent.Enabled := False;
+    aDCreateKey.Enabled := False;
+    aDCreateField.Enabled := False;
+    aDCreateForeignKey.Enabled := False;
+    aDCreateUser.Enabled := False;
+    aDDeleteDatabase.Enabled := False;
+    aDDeleteTable.Enabled := False;
+    aDDeleteView.Enabled := False;
+    aDDeleteRoutine.Enabled := False;
+    aDDeleteKey.Enabled := False;
+    aDDeleteField.Enabled := False;
+    aDDeleteForeignKey.Enabled := False;
+    aDDeleteTrigger.Enabled := False;
+    aDDeleteEvent.Enabled := False;
+    aDDeleteUser.Enabled := False;
+    aDEditServer.Enabled := False;
+    aDEditTable.Enabled := False;
+    aDEditView.Enabled := False;
+    aDEditRoutine.Enabled := False;
+    aDEditEvent.Enabled := False;
+    aDEditKey.Enabled := False;
+    aDEditField.Enabled := False;
+    aDEditForeignKey.Enabled := False;
+    aDEditTrigger.Enabled := False;
+    aDEmpty.Enabled := False;
 
     mlOpen.Enabled := False;
     aDDelete.Enabled := False;
@@ -12630,136 +12636,136 @@ begin
 
     if (Assigned(Item)) then
     begin
-      MainAction('aFImportSQL').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
-      MainAction('aFImportText').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      MainAction('aFExportSQL').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-      MainAction('aFExportText').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView]);
-      MainAction('aFExportExcel').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-      MainAction('aFExportAccess').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      MainAction('aFExportODBC').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      MainAction('aFExportXML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-      MainAction('aFExportHTML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-      MainAction('aFExportPDF').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-      MainAction('aECopy').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]) or (ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiForeignKey]);
-      MainAction('aEPaste').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Item.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and IsClipboardFormatAvailable(CF_MYSQLVIEW));
-      MainAction('aERename').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiBaseField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
-      MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
-      MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and (Session.Connection.MySQLVersion >= 50001);
-      MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Routines);
-      MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-      MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Events);
-      MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Item.Data).Database.Triggers);
-      MainAction('aDCreateKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
-      MainAction('aDCreateField').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
-      MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
-      MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiUsers]);
-      MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
-      MainAction('aDDeleteTable').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
-      MainAction('aDDeleteView').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiView);
-      MainAction('aDDeleteRoutine').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
-      MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and (Item.ImageIndex = iiTrigger);
-      MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
-      MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiKey);
-      MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseField, iiVirtualField]) and (TSBaseField(Item.Data).Table.Fields.Count > ListView.SelCount);
-      MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
-      MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcess]) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
-      MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiUser]);
-      MainAction('aDEditDatabase').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
-      MainAction('aDEditTable').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
-      MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiView);
-      MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
-      MainAction('aDEditTrigger').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiTrigger);
-      MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
-      MainAction('aDEditKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiKey);
-      MainAction('aDEditField').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseField, iiVirtualField]);
-      MainAction('aDEditForeignKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiForeignKey);
-      MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcess]);
-      MainAction('aDEditUser').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiUser]);
-      MainAction('aDEditVariable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiVariable]);
-      MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and ((Item.ImageIndex in [iiDatabase, iiBaseTable]) or (Item.ImageIndex in [iiBaseField]) and TSBaseField(Item.Data).NullAllowed);
+      aFImportSQL.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
+      aFImportText.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFImportExcel.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFImportAccess.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFImportODBC.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFExportSQL.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      aFExportText.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView]);
+      aFExportExcel.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+      aFExportAccess.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFExportODBC.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFExportXML.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+      aFExportHTML.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      aFExportPDF.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      aECopy.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]) or (ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiForeignKey]);
+      aEPaste.Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Item.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and IsClipboardFormatAvailable(CF_MYSQLVIEW));
+      aERename.Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiBaseField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
+      aDCreateTable.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
+      aDCreateView.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and (Session.Connection.MySQLVersion >= 50001);
+      aDCreateProcedure.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Routines);
+      aDCreateFunction.Enabled := aDCreateProcedure.Enabled;
+      aDCreateEvent.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Events);
+      aDCreateTrigger.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Item.Data).Database.Triggers);
+      aDCreateKey.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
+      aDCreateField.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
+      aDCreateForeignKey.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
+      aDCreateUser.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiUsers]);
+      aDDeleteDatabase.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
+      aDDeleteTable.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
+      aDDeleteView.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiView);
+      aDDeleteRoutine.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
+      aDDeleteTrigger.Enabled := (ListView.SelCount >= 1) and Selected and (Item.ImageIndex = iiTrigger);
+      aDDeleteEvent.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
+      aDDeleteKey.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiKey);
+      aDDeleteField.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiBaseField, iiVirtualField]) and (TSBaseField(Item.Data).Table.Fields.Count > ListView.SelCount);
+      aDDeleteForeignKey.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
+      aDDeleteProcess.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcess]) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
+      aDDeleteUser.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiUser]);
+      aDEditDatabase.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
+      aDEditTable.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
+      aDEditView.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiView);
+      aDEditRoutine.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
+      aDEditTrigger.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiTrigger);
+      aDEditEvent.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
+      aDEditKey.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiKey);
+      aDEditField.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseField, iiVirtualField]);
+      aDEditForeignKey.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiForeignKey);
+      aDEditProcess.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcess]);
+      aDEditUser.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiUser]);
+      aDEditVariable.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiVariable]);
+      aDEmpty.Enabled := (ListView.SelCount >= 1) and ((Item.ImageIndex in [iiDatabase, iiBaseTable]) or (Item.ImageIndex in [iiBaseField]) and TSBaseField(Item.Data).NullAllowed);
 
       mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
       aFOpenInNewWindow.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFOpenInNewTab.Enabled := mlOpen.Enabled;
 
       case (Item.ImageIndex) of
-        iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
-        iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
-        iiView: mlEProperties.Action := MainAction('aDEditView');
+        iiDatabase: mlEProperties.Action := aDEditDatabase;
+        iiBaseTable: mlEProperties.Action := aDEditTable;
+        iiView: mlEProperties.Action := aDEditView;
         iiProcedure,
-        iiFunction: mlEProperties.Action := MainAction('aDEditRoutine');
-        iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
-        iiEvent: mlEProperties.Action := MainAction('aDEditEvent');
-        iiKey: mlEProperties.Action := MainAction('aDEditKey');
+        iiFunction: mlEProperties.Action := aDEditRoutine;
+        iiTrigger: mlEProperties.Action := aDEditTrigger;
+        iiEvent: mlEProperties.Action := aDEditEvent;
+        iiKey: mlEProperties.Action := aDEditKey;
         iiBaseField,
-        iiVirtualField: mlEProperties.Action := MainAction('aDEditField');
-        iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
-        iiProcess: mlEProperties.Action := MainAction('aDEditProcess');
-        iiUser: mlEProperties.Action := MainAction('aDEditUser');
-        iiVariable: mlEProperties.Action := MainAction('aDEditVariable');
+        iiVirtualField: mlEProperties.Action := aDEditField;
+        iiForeignKey: mlEProperties.Action := aDEditForeignKey;
+        iiProcess: mlEProperties.Action := aDEditProcess;
+        iiUser: mlEProperties.Action := aDEditUser;
+        iiVariable: mlEProperties.Action := aDEditVariable;
       end;
 
       for I := 0 to ListView.Items.Count - 1 do
         if (ListView.Items[I].Selected) then
         begin
-          MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-          MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-          MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable]);
-          MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable]);
-          MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-          MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-          MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-          MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-          MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-          MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
-          MainAction('aDDeleteRoutine').Enabled := MainAction('aDDeleteRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
-          MainAction('aDDeleteEvent').Enabled := MainAction('aDDeleteEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
-          MainAction('aDDeleteTrigger').Enabled := MainAction('aDDeleteTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-          MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
-          MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiBaseField, iiVirtualField]);
-          MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
-          MainAction('aDDeleteUser').Enabled := MainAction('aDDeleteUser').Enabled and (ListView.Items[I].Data <> Session.User);
-          MainAction('aDEditDatabase').Enabled := MainAction('aDEditDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-          MainAction('aDEditTable').Enabled := MainAction('aDEditTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-          MainAction('aDEditKey').Enabled := MainAction('aDEditKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
-          MainAction('aDEditField').Enabled := MainAction('aDEditField').Enabled and (ListView.Items[I].ImageIndex in [iiBaseField, iiVirtualField]);
-          MainAction('aDEditForeignKey').Enabled := MainAction('aDEditForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
-          MainAction('aDEditTrigger').Enabled := MainAction('aDEditTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-          MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiBaseField]);
+          aFExportSQL.Enabled := aFExportSQL.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+          aFExportExcel.Enabled := aFExportExcel.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+          aFExportAccess.Enabled := aFExportAccess.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable]);
+          aFExportODBC.Enabled := aFExportODBC.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable]);
+          aFExportXML.Enabled := aFExportXML.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+          aFExportHTML.Enabled := aFExportHTML.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+          aFExportPDF.Enabled := aFExportPDF.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+          aDDeleteDatabase.Enabled := aDDeleteDatabase.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
+          aDDeleteTable.Enabled := aDDeleteTable.Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
+          aDDeleteView.Enabled := aDDeleteView.Enabled and (ListView.Items[I].ImageIndex in [iiView]);
+          aDDeleteRoutine.Enabled := aDDeleteRoutine.Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
+          aDDeleteEvent.Enabled := aDDeleteEvent.Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
+          aDDeleteTrigger.Enabled := aDDeleteTrigger.Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
+          aDDeleteKey.Enabled := aDDeleteKey.Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
+          aDDeleteField.Enabled := aDDeleteField.Enabled and (ListView.Items[I].ImageIndex in [iiBaseField, iiVirtualField]);
+          aDDeleteForeignKey.Enabled := aDDeleteForeignKey.Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
+          aDDeleteUser.Enabled := aDDeleteUser.Enabled and (ListView.Items[I].Data <> Session.User);
+          aDEditDatabase.Enabled := aDEditDatabase.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
+          aDEditTable.Enabled := aDEditTable.Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
+          aDEditKey.Enabled := aDEditKey.Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
+          aDEditField.Enabled := aDEditField.Enabled and (ListView.Items[I].ImageIndex in [iiBaseField, iiVirtualField]);
+          aDEditForeignKey.Enabled := aDEditForeignKey.Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
+          aDEditTrigger.Enabled := aDEditTrigger.Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
+          aDEmpty.Enabled := aDEmpty.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiBaseField]);
         end;
 
-      aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
-        or MainAction('aDDeleteTable').Enabled
-        or MainAction('aDDeleteView').Enabled
-        or MainAction('aDDeleteRoutine').Enabled
-        or MainAction('aDDeleteEvent').Enabled
-        or MainAction('aDDeleteKey').Enabled
-        or MainAction('aDDeleteField').Enabled
-        or MainAction('aDDeleteForeignKey').Enabled
-        or MainAction('aDDeleteTrigger').Enabled
-        or MainAction('aDDeleteProcess').Enabled
-        or MainAction('aDDeleteUser').Enabled;
+      aDDelete.Enabled := aDDeleteDatabase.Enabled
+        or aDDeleteTable.Enabled
+        or aDDeleteView.Enabled
+        or aDDeleteRoutine.Enabled
+        or aDDeleteEvent.Enabled
+        or aDDeleteKey.Enabled
+        or aDDeleteField.Enabled
+        or aDDeleteForeignKey.Enabled
+        or aDDeleteTrigger.Enabled
+        or aDDeleteProcess.Enabled
+        or aDDeleteUser.Enabled;
     end
     else if (View = vObjects) then
     begin
       FNavigatorChanged(FNavigator, FNavigatorNodeByAddress(CurrentAddress));
 
-      MainAction('aECopy').Enabled := False;
-      MainAction('aERename').Enabled := False;
-      MainAction('aDEmpty').Enabled := False;
+      aECopy.Enabled := False;
+      aERename.Enabled := False;
+      aDEmpty.Enabled := False;
       aDDelete.Enabled := False;
 
       case (CurrentClassIndex) of
-        ciDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
-        ciBaseTable: mlEProperties.Action := MainAction('aDEditTable');
-        ciView: mlEProperties.Action := MainAction('aDEditView');
+        ciDatabase: mlEProperties.Action := aDEditDatabase;
+        ciBaseTable: mlEProperties.Action := aDEditTable;
+        ciView: mlEProperties.Action := aDEditView;
         ciProcedure,
-        ciFunction: mlEProperties.Action := MainAction('aDEditRoutine');
-        ciTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
-        ciEvent: mlEProperties.Action := MainAction('aDEditEvent');
+        ciFunction: mlEProperties.Action := aDEditRoutine;
+        ciTrigger: mlEProperties.Action := aDEditTrigger;
+        ciEvent: mlEProperties.Action := aDEditEvent;
         else mlEProperties.Action := nil;
       end;
     end;
@@ -13238,7 +13244,7 @@ begin
   else if (Assigned(FSQLHistory.Selected)) then
     FSQLHistoryMenuNode := FSQLHistory.Selected;
 
-  MainAction('aECopy').Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
+  aECopy.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
 
   miHStatementIntoSQLEditor.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
   aPExpand.Enabled := Assigned(FSQLHistoryMenuNode) and not FSQLHistoryMenuNode.Expanded and FSQLHistoryMenuNode.HasChildren;
@@ -13364,7 +13370,7 @@ end;
 
 procedure TFSession.mwEDeleteClick(Sender: TObject);
 begin
-  MainAction('aEDelete').Execute();
+  aEDelete.Execute();
 end;
 
 procedure TFSession.mwEPasteClick(Sender: TObject);
@@ -13378,9 +13384,9 @@ var
   MenuItem: TMenuItem;
 begin
   mwAddTable.Clear();
-  mwEPaste.Enabled := MainAction('aEPaste').Enabled;
+  mwEPaste.Enabled := aEPaste.Enabled;
 
-  ActiveWorkbench.UpdateAction(MainAction('aEDelete'));
+  ActiveWorkbench.UpdateAction(aEDelete);
   mwEDelete.Enabled := (ActiveWorkbench.SelCount >= 1);
   for I := 0 to ActiveWorkbench.ControlCount - 1 do
     if ((ActiveWorkbench.Controls[I] is TWForeignKey)
@@ -13623,7 +13629,7 @@ begin
         ActiveDBGrid := nil;
       end
       else if (Sender = PLogHeader) then
-        MainAction('aVSQLLog').Execute();
+        aVSQLLog.Execute();
     PanelMouseDownPoint := Point(-1, -1);
   end;
 end;
@@ -14719,14 +14725,14 @@ begin
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := '';
   SaveDialog.EncodingIndex := -1;
-  if ((Sender = MainAction('aFSaveAs')) or (ActiveWorkbench.Filename = '')) then
+  if ((Sender = aFSaveAs) or (ActiveWorkbench.Filename = '')) then
     SaveDialog.FileName := SelectedDatabase + '.xml'
   else
     SaveDialog.FileName := ActiveWorkbench.Filename;
   SaveDialog.DefaultExt := 'xml';
   OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml|' + FilterDescription('*') + ' (*.*)|*.*';
 
-  if ((Sender = MainAction('aFSave')) and (ActiveWorkbench.Filename <> '') or SaveDialog.Execute()) then
+  if ((Sender = aFSave) and (ActiveWorkbench.Filename <> '') or SaveDialog.Execute()) then
     ActiveWorkbench.SaveToFile(SaveDialog.FileName);
 end;
 
@@ -14749,13 +14755,13 @@ begin
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := EncodingCaptions();
   SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.Connection.CodePageClient));
-  if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
+  if ((Sender = aFSave) or (Sender = aFSaveAs)) then
   begin
     if (SQLEditors[View].Filename = '') then
       SaveDialog.FileName := Preferences.LoadStr(6) + '.sql'
     else
     begin
-      if (Sender = MainAction('aFSave')) then
+      if (Sender = aFSave) then
         SaveDialog.FileName := SQLEditors[View].Filename
       else
         SaveDialog.FileName := ExtractFileName(SQLEditors[View].Filename);
@@ -14763,7 +14769,7 @@ begin
     end;
     Text := ActiveBCEditor.Text;
   end
-  else if (Sender = MainAction('aECopyToFile')) then
+  else if (Sender = aECopyToFile) then
   begin
     if (Window.ActiveControl = ActiveBCEditor) then
     begin
@@ -14782,7 +14788,7 @@ begin
     Exit;
   SaveDialog.DefaultExt := 'sql';
   SaveDialog.Filter := FilterDescription('sql') + ' (*.sql)|*.sql' + '|' + FilterDescription('*') + ' (*.*)|*.*';
-  if (((Sender = MainAction('aFSave')) and (SQLEditors[View].Filename <> '')) or (Text <> '') and SaveDialog.Execute()) then
+  if (((Sender = aFSave) and (SQLEditors[View].Filename <> '')) or (Text <> '') and SaveDialog.Execute()) then
   begin
     Path := ExtractFilePath(SaveDialog.FileName);
 
@@ -14824,7 +14830,7 @@ begin
         MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
       else
       begin
-        if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
+        if ((Sender = aFSave) or (Sender = aFSaveAs)) then
           ActiveBCEditor.Modified := False;
         URI := TUURI.Create(CurrentAddress);
         URI.Param['file'] := EscapeURL(SQLEditors[View].Filename);
@@ -15811,16 +15817,8 @@ var
   Empty: Boolean; // Cache for speeding
   Parse: TSQLParse;
   SelSQL: string; // Cache for speeding
-  SingleStmt: Boolean; // Debug 2017-03-23
   SQL: string; // Cache for speeding
-  SQLP: PChar;
-  Len: Integer;
-  B: Boolean;
 begin
-  // Debug 2017-03-01
-  Assert(Sender is TBCEditor,
-    'ClassType: ' + Sender.ClassName);
-
   KillTimer(Handle, tiShowSynCompletion);
 
   SynCompletionPending.Active := False;
@@ -15838,71 +15836,26 @@ begin
   end;
   Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
 
-  MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
-  MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
-  MainAction('aERedo').Enabled := TBCEditor(Sender).CanRedo;
-  MainAction('aECopyToFile').Enabled := (SelSQL <> '');
-  MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
+  aFSave.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
+  aFSaveAs.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
+  aERedo.Enabled := TBCEditor(Sender).CanRedo;
+  aECopyToFile.Enabled := (SelSQL <> '');
+  aEPasteFromFile.Enabled := (View in [vEditor, vEditor2, vEditor3]);
 
+  aDPostObject.Enabled := (View = vIDE)
+    and TBCEditor(Sender).Modified
+    and SQLSingleStmt(SQL)
+    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+      or (ClassIndex in [ciEvent, ciTrigger]));
 
-  Assert(Assigned(Self));
-  Assert(Self is TFSession);
-  Assert(Assigned(Session), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
-  Assert(Assigned(Session.Connection), 'csDestroying: ' + BoolToStr(csDestroying in ComponentState));
-  if (Session.Connection.MySQLVersion > 0) then
-    Write;
-
-  MainAction('aDPostObject').Enabled := (View = vIDE);
-  MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-    and TBCEditor(Sender).Modified;
-  if (MainAction('aDPostObject').Enabled) then
-  begin
-    SingleStmt := SQLSingleStmt(SQL);
-    MainAction('aDPostObject').Enabled := MainAction('aDPostObject').Enabled
-      and SingleStmt;
-  end;
-  if (MainAction('aDPostObject').Enabled) then
-    if (ClassIndex in [ciView]) then
-      MainAction('aDPostObject').Enabled :=
-        SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-    else if (ClassIndex in [ciProcedure, ciFunction]) then
-    begin
-      if (Session.Connection.MySQLVersion > 0) then
-        Write;
-      SQLP := PChar(SQL);
-      Len := Length(SQL);
-      B := True;
-      try
-        B := SQLParseDDLStmt(DDLStmt, SQLP, Len, Session.Connection.MySQLVersion);
-      except
-        on E: Exception do
-          E.RaiseOuterException(ERangeError.Create(E.Message + #13#10
-            + 'Len: ' + IntToStr(Len) + #13#10
-            + 'SingleStmt: ' + BoolToStr(SQLSingleStmt(SQL), True)));
-      end;
-      if (not B) then
-        MainAction('aDPostObject').Enabled := False
-      else
-        MainAction('aDPostObject').Enabled :=
-           (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-    end
-    else if (ClassIndex in [ciEvent, ciTrigger]) then
-      MainAction('aDPostObject').Enabled := True;
-
-//  MainAction('aDPostObject').Enabled := (View = vIDE)
-//    and TBCEditor(Sender).Modified
-//    and SQLSingleStmt(SQL)
-//    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-//      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-//      or (ClassIndex in [ciEvent, ciTrigger]));
-
-  MainAction('aDRun').Enabled :=
+  aDRun.Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty
     or (View in [vBuilder]) and FQueryBuilder.Visible
-    or (View in [vIDE]) and MainAction('aDPostObject').Enabled);
-  MainAction('aDRunSelection').Enabled :=
+    or (View in [vIDE]) and aDPostObject.Enabled);
+  aDRunSelection.Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
-  MainAction('aEFormatSQL').Enabled := not Empty;
+  aEFormatSQL.Enabled := not Empty;
 
   StatusBarRefresh();
 end;
@@ -16044,26 +15997,26 @@ end;
 
 procedure TFSession.BCEditorEnter(Sender: TObject);
 begin
-  MainAction('aECopyToFile').OnExecute := SaveSQLFile;
-  MainAction('aEPasteFromFile').OnExecute := aEPasteFromExecute;
+  aECopyToFile.OnExecute := SaveSQLFile;
+  aEPasteFromFile.OnExecute := aEPasteFromExecute;
 
-  MainAction('aHIndex').ShortCut := 0;
-  MainAction('aHSQL').ShortCut := ShortCut(VK_F1, []);
+  aHIndex.ShortCut := 0;
+  aHSQL.ShortCut := ShortCut(VK_F1, []);
 
   BCEditorChange(Sender);
 end;
 
 procedure TFSession.BCEditorExit(Sender: TObject);
 begin
-  MainAction('aFImportSQL').Enabled := False;
-  MainAction('aFExportSQL').Enabled := False;
-  MainAction('aERedo').Enabled := False;
-  MainAction('aECopyToFile').Enabled := False;
-  MainAction('aEPasteFromFile').Enabled := False;
-  MainAction('aEFormatSQL').Enabled := False;
+  aFImportSQL.Enabled := False;
+  aFExportSQL.Enabled := False;
+  aERedo.Enabled := False;
+  aECopyToFile.Enabled := False;
+  aEPasteFromFile.Enabled := False;
+  aEFormatSQL.Enabled := False;
 
-  MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
-  MainAction('aHSQL').ShortCut := 0;
+  aHIndex.ShortCut := ShortCut(VK_F1, []);
+  aHSQL.ShortCut := 0;
 
   SynCompletionPending.Active := False;
 end;
@@ -16427,7 +16380,7 @@ begin
   aVBlobRTF.Caption := 'RTF';
   aVBlobImage.Caption := Preferences.LoadStr(380);
   aVBlobHexEditor.Caption := Preferences.LoadStr(381);
-  mwDCreateTable.Caption := MainAction('aDCreateTable').Caption;
+  mwDCreateTable.Caption := aDCreateTable.Caption;
   mwCreateSection.Caption := Preferences.LoadStr(877) + ' ...';
   mwCreateLink.Caption := Preferences.LoadStr(251) + ' ...';
 
@@ -16467,7 +16420,7 @@ begin
 
   miHOpen.Caption := Preferences.LoadStr(581);
   miHStatementIntoSQLEditor.Caption := Preferences.LoadStr(198) + ' -> ' + Preferences.LoadStr(20);
-  miHRun.Caption := MainAction('aDRun').Caption;
+  miHRun.Caption := aDRun.Caption;
   miHProperties.Caption := Preferences.LoadStr(684) + '...';
 
   mlOpen.Caption := Preferences.LoadStr(581);
@@ -16479,7 +16432,7 @@ begin
   mwFImport.Caption := Preferences.LoadStr(371);
   mwFExport.Caption := Preferences.LoadStr(200);
   mwAddTable.Caption := Preferences.LoadStr(383);
-  mwEPaste.Caption := MainAction('aEPaste').Caption;
+  mwEPaste.Caption := aEPaste.Caption;
   mwDCreate.Caption := Preferences.LoadStr(26);
   mwDProperties.Caption := Preferences.LoadStr(97) + '...';
 
@@ -16502,7 +16455,7 @@ begin
   tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
   tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
   tbIDE.Visible := ttIDE in Preferences.ToolbarTabs;
-  tbBuilder.Visible := (ttBuilder in Preferences.ToolbarTabs) and MainAction('aVBuilder').Visible;
+  tbBuilder.Visible := (ttBuilder in Preferences.ToolbarTabs) and aVBuilder.Visible;
   tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
   tbEditor.Visible := ttEditor in Preferences.ToolbarTabs;
   tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;
@@ -16862,14 +16815,14 @@ end;
 
 procedure TFSession.ViewChanged(Sender: TObject);
 begin
-  tbObjects.Down := MainAction('aVObjects').Checked;
-  tbBrowser.Down := MainAction('aVBrowser').Checked;
-  tbIDE.Down := MainAction('aVIDE').Checked;
-  tbBuilder.Down := MainAction('aVBuilder').Checked;
-  tbDiagram.Down := MainAction('aVDiagram').Checked;
-  tbEditor.Down := MainAction('aVSQLEditor').Checked;
-  tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
-  tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
+  tbObjects.Down := aVObjects.Checked;
+  tbBrowser.Down := aVBrowser.Checked;
+  tbIDE.Down := aVIDE.Checked;
+  tbBuilder.Down := aVBuilder.Checked;
+  tbDiagram.Down := aVDiagram.Checked;
+  tbEditor.Down := aVSQLEditor.Checked;
+  tbEditor2.Down := aVSQLEditor2.Checked;
+  tbEditor3.Down := aVSQLEditor3.Checked;
 
   if ((View <> vObjectSearch) and Assigned(ObjectSearch)) then
   begin
@@ -16905,20 +16858,20 @@ begin
     TVN_BEGINLABELEDIT,
     LVN_BEGINLABELEDIT:
       begin
-        MainAction('aECopy').ShortCut := 0;
-        MainAction('aECut').ShortCut := 0;
-        MainAction('aEDelete').ShortCut := 0;
-        MainAction('aEPaste').ShortCut := 0;
+        aECopy.ShortCut := 0;
+        aECut.ShortCut := 0;
+        aEDelete.ShortCut := 0;
+        aEPaste.ShortCut := 0;
         BeginEditLabel(Window.ActiveControl);
       end;
     TVN_ENDLABELEDIT,
     LVN_ENDLABELEDIT:
       begin
         EndEditLabel(Window.ActiveControl);
-        MainAction('aECopy').ShortCut := 16451;
-        MainAction('aECut').ShortCut := 16472;
-        MainAction('aEDelete').ShortCut := 16430;
-        MainAction('aEPaste').ShortCut := 16470;
+        aECopy.ShortCut := 16451;
+        aECut.ShortCut := 16472;
+        aEDelete.ShortCut := 16430;
+        aEPaste.ShortCut := 16470;
       end;
     LVN_ITEMCHANGING: NMListView := PNMListView(Msg.NMHdr);
   end;
@@ -17077,31 +17030,31 @@ begin
 
   Database := Session.DatabaseByName(SelectedDatabase);
 
-  MainAction('aFExportSQL').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportText').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportExcel').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportAccess').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportODBC').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportXML').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportHTML').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportPDF').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportBitmap').Enabled := not Assigned(Control) and Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
-  MainAction('aECopy').Enabled := Assigned(Control) and (not (Control is TWLink) or (Control is TWForeignKey));
-  MainAction('aEPaste').Enabled := aEPasteEnabled;
-  MainAction('aDCreateTable').Enabled := not Assigned(Control) or (Control is TWSection);
-  mwDCreateTable.Enabled := MainAction('aDCreateTable').Enabled;
-  MainAction('aDCreateKey').Enabled := Control is TWTable;
-  MainAction('aDCreateField').Enabled := Control is TWTable;
-  MainAction('aDCreateForeignKey').Enabled := (Control is TWTable);
+  aFExportSQL.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportText.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportExcel.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportAccess.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportODBC.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportXML.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportHTML.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportPDF.Enabled := not Assigned(Control) or (Control is TWTable);
+  aFExportBitmap.Enabled := not Assigned(Control) and Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
+  aECopy.Enabled := Assigned(Control) and (not (Control is TWLink) or (Control is TWForeignKey));
+  aEPaste.Enabled := aEPasteEnabled;
+  aDCreateTable.Enabled := not Assigned(Control) or (Control is TWSection);
+  mwDCreateTable.Enabled := aDCreateTable.Enabled;
+  aDCreateKey.Enabled := Control is TWTable;
+  aDCreateField.Enabled := Control is TWTable;
+  aDCreateForeignKey.Enabled := (Control is TWTable);
   mwCreateSection.Enabled := not Assigned(Control);
   mwCreateLink.Enabled := Control is TWTable;
-  MainAction('aDCreateTrigger').Enabled := (Control is TWTable) and Assigned(TWTable(Control).BaseTable) and Assigned(Database.Triggers);
-  MainAction('aDDeleteTable').Enabled := Control is TWTable;
-  MainAction('aDDeleteForeignKey').Enabled := (Control is TWForeignKey);
-  MainAction('aDEmpty').Enabled := Control is TWTable;
+  aDCreateTrigger.Enabled := (Control is TWTable) and Assigned(TWTable(Control).BaseTable) and Assigned(Database.Triggers);
+  aDDeleteTable.Enabled := Control is TWTable;
+  aDDeleteForeignKey.Enabled := (Control is TWForeignKey);
+  aDEmpty.Enabled := Control is TWTable;
   mwDProperties.Enabled := Assigned(Control) and (not (Control is TWLink) or (Control is TWForeignKey));
 
-  aDDelete.Enabled := MainAction('aDDeleteTable').Enabled or MainAction('aDDeleteForeignKey').Enabled;
+  aDDelete.Enabled := aDDeleteTable.Enabled or aDDeleteForeignKey.Enabled;
 end;
 
 procedure TFSession.WorkbenchCursorMove(Sender: TObject; X, Y: Integer);
@@ -17151,7 +17104,7 @@ procedure TFSession.WorkbenchEnter(Sender: TObject);
 begin
   if (Sender is TWWorkbench) then
   begin
-    MainAction('aDEmpty').OnExecute := WorkbenchEmptyExecute;
+    aDEmpty.OnExecute := WorkbenchEmptyExecute;
 
     WorkbenchChange(Sender, TWWorkbench(Sender).Selected);
   end;
@@ -17159,30 +17112,30 @@ end;
 
 procedure TFSession.WorkbenchExit(Sender: TObject);
 begin
-  MainAction('aFExportSQL').Enabled := False;
-  MainAction('aFExportText').Enabled := False;
-  MainAction('aFExportExcel').Enabled := False;
-  MainAction('aFExportAccess').Enabled := False;
-  MainAction('aFExportODBC').Enabled := False;
-  MainAction('aFExportXML').Enabled := False;
-  MainAction('aFExportHTML').Enabled := False;
-  MainAction('aFExportPDF').Enabled := False;
-  MainAction('aFExportBitmap').Enabled := False;
-  MainAction('aECopy').Enabled := False;
-  MainAction('aDCreateTable').Enabled := False;
-  MainAction('aDCreateView').Enabled := False;
-  MainAction('aDCreateProcedure').Enabled := False;
-  MainAction('aDCreateFunction').Enabled := False;
-  MainAction('aDCreateEvent').Enabled := False;
-  MainAction('aDCreateKey').Enabled := False;
-  MainAction('aDCreateField').Enabled := False;
-  MainAction('aDCreateForeignKey').Enabled := False;
-  MainAction('aDCreateTrigger').Enabled := False;
-  MainAction('aDDeleteTable').Enabled := False;
-  MainAction('aDDeleteForeignKey').Enabled := False;
+  aFExportSQL.Enabled := False;
+  aFExportText.Enabled := False;
+  aFExportExcel.Enabled := False;
+  aFExportAccess.Enabled := False;
+  aFExportODBC.Enabled := False;
+  aFExportXML.Enabled := False;
+  aFExportHTML.Enabled := False;
+  aFExportPDF.Enabled := False;
+  aFExportBitmap.Enabled := False;
+  aECopy.Enabled := False;
+  aDCreateTable.Enabled := False;
+  aDCreateView.Enabled := False;
+  aDCreateProcedure.Enabled := False;
+  aDCreateFunction.Enabled := False;
+  aDCreateEvent.Enabled := False;
+  aDCreateKey.Enabled := False;
+  aDCreateField.Enabled := False;
+  aDCreateForeignKey.Enabled := False;
+  aDCreateTrigger.Enabled := False;
+  aDDeleteTable.Enabled := False;
+  aDDeleteForeignKey.Enabled := False;
   mwCreateSection.Enabled := False;
   mwCreateLink.Enabled := False;
-  MainAction('aDEmpty').Enabled := False;
+  aDEmpty.Enabled := False;
 end;
 
 procedure TFSession.WorkbenchPasteExecute(Sender: TObject);

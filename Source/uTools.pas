@@ -4037,6 +4037,7 @@ begin
 
         DoUpdateGUI();
 
+        // Debug 2017-05-01
         Assert(not Assigned(ResultHandle.SyncThread)
           or (ResultHandle.SyncThread.DebugState <> ssResult));
       end;

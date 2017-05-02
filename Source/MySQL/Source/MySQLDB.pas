@@ -173,7 +173,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smResultHandle, smDataSet);
-      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssAfterExecuteSQL, ssDisconnect, ssDisconnecting);
+      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssBeforeExecuteSQL, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssAfterExecuteSQL, ssDisconnect, ssDisconnecting);
     strict private
       FConnection: TMySQLConnection;
       FRunExecute: TEvent;
@@ -313,7 +313,8 @@ type
     function GetInsertId(): my_ulonglong; virtual;
     function GetMaxAllowedServerPacket(): Integer; virtual;
     function InternExecuteSQL(const Mode: TSyncThread.TMode; const SQL: string;
-      const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
+      const OnResult: TResultEvent = nil; const Done: TEvent = nil;
+      const DataSet: TMySQLDataSet = nil): Boolean; overload; virtual;
     procedure local_infile_end(const local_infile: Plocal_infile); virtual;
     function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
     function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
@@ -667,12 +668,12 @@ type
 
   TMySQLTable = class(TMySQLDataSet)
   type
-    TWaitFor = (wfNothing, wfRecord, wfLast);
+    TWantedRecord = (wrNone, wrLast);
   strict private
     FAutomaticLoadNextRecords: Boolean;
     FLimit: Integer;
     FOffset: Integer;
-    FWaitFor: TWaitFor;
+    FWantedRecord: TWantedRecord;
   protected
     FLimitedDataReceived: Boolean;
     RequestedRecordCount: Integer;
@@ -686,7 +687,7 @@ type
     procedure InternalOpen(); override;
     function SQLSelect(): string; overload;
     function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
-    property WaitFor: TWaitFor read FWaitFor;
+    property WantedRecord: TWantedRecord read FWantedRecord;
   public
     constructor Create(AOwner: TComponent); override;
     function LoadNextRecords(const AllRecords: Boolean = False): Boolean; virtual;
@@ -2575,7 +2576,8 @@ begin
 end;
 
 function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode;
-  const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
+  const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil;
+  const DataSet: TMySQLDataSet = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
   SQLIndex: Integer;
@@ -2597,7 +2599,7 @@ begin
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
   SetLength(SyncThread.CLStmts, 0);
-  SyncThread.DataSet := nil;
+  SyncThread.DataSet := DataSet;
   SyncThread.ExecutionTime := 0;
   SyncThread.Mode := Mode;
   SyncThread.OnResult := OnResult;
@@ -2678,6 +2680,7 @@ begin
       'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
       + DebugMonitor.CacheText);
 
+    SyncThread.State := ssBeforeExecuteSQL;
     repeat
       Sync(SyncThread);
     until (not Assigned(SyncThread)
@@ -2694,6 +2697,7 @@ begin
   end
   else
   begin
+    SyncThread.State := ssBeforeExecuteSQL;
     Sync(SyncThread);
     Result := False;
   end;
@@ -3079,8 +3083,7 @@ begin
         end;
       ssConnecting:
         SyncConnected(SyncThread);
-      ssClose,
-      ssReady:
+      ssBeforeExecuteSQL:
         begin
           SyncBeforeExecuteSQL(SyncThread);
           SyncExecute(SyncThread);
@@ -3097,7 +3100,8 @@ begin
         begin
           SyncExecute(SyncThread);
           SyncThread.SynchronCount := SynchronCount;
-          if ((SynchronCount > 0) and not BesideThreadWaits) then
+          SyncThread.RunExecute.SetEvent();
+         if ((SynchronCount > 0) and not BesideThreadWaits) then
           begin
             SyncThreadExecuted.WaitFor(INFINITE);
             DebugMonitor.Append('SyncThreadExecuted.Wait - 4 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -3129,10 +3133,14 @@ begin
                 ssResult,
                 ssReceivingResult,
                 ssReady:
-                  if (BesideThreadWaits and not InOnResult) then
                   begin
-                    SyncThreadExecuted.SetEvent();
-                    DebugMonitor.Append('SyncThreadExecuted.Set - 2 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                    if (Assigned(SyncThread.DataSet) and (SyncThread.State = ssResult)) then
+                      SyncBindDataSet(SyncThread.DataSet);
+                    if (BesideThreadWaits and not InOnResult) then
+                    begin
+                      SyncThreadExecuted.SetEvent();
+                      DebugMonitor.Append('SyncThreadExecuted.Set - 2 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+                    end;
                   end;
               end;
             smResultHandle:
@@ -3231,7 +3239,6 @@ begin
             DebugMonitor.Append('SyncThreadExecuted.Set - 7 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
           end;
         end;
-//      ssResult:
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
 
@@ -3868,9 +3875,6 @@ procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
 begin
   DebugMonitor.Append('SyncHandledResult - start - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
-  if not ((SyncThread.State in [ssReceivingResult, ssAfterExecuteSQL]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle)) then
-    Write;
-
   Assert((SyncThread.State in [ssReceivingResult, ssAfterExecuteSQL]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
   if (SyncThread.State = ssReceivingResult) then
@@ -3991,7 +3995,7 @@ begin
     begin
       SyncHandledResult(SyncThread);
 
-      if ((DataSet is TMySQLTable) and (TMySQLTable(DataSet).WaitFor = wfLast)) then
+      if ((DataSet is TMySQLTable) and (TMySQLTable(DataSet).WantedRecord = wrLast)) then
         DataSet.Last();
     end;
     TerminateCS.Leave();
@@ -7156,7 +7160,6 @@ procedure TMySQLDataSet.InternalRefresh();
 var
   I: Integer;
   SQL: string;
-  Success: Boolean;
 begin
   Progress := Progress + 'R';
 
@@ -7178,10 +7181,8 @@ begin
   if (SQL <> '') then
   begin
     Connection.BeginSynchron();
-    Success := Connection.InternExecuteSQL(smDataSet, SQL);
+    Connection.InternExecuteSQL(smDataSet, SQL, TMySQLConnection.TResultEvent(nil), nil, Self);
     Connection.EndSynchron();
-    if (Success) then
-      Connection.SyncBindDataSet(Self);
   end;
 end;
 
@@ -8359,7 +8360,7 @@ end;
 
 procedure TMySQLTable.DoBeforeScroll();
 begin
-  FWaitFor := wfNothing;
+  FWantedRecord := wrNone;
 
   inherited;
 end;
@@ -8380,7 +8381,7 @@ begin
   DeleteBookmarks := nil;
   FCommandType := ctTable;
   FLimitedDataReceived := False;
-  FWaitFor := wfNothing;
+  FWantedRecord := wrNone;
 end;
 
 procedure TMySQLTable.InternalClose();
@@ -8392,21 +8393,21 @@ end;
 
 procedure TMySQLTable.InternalDelete();
 begin
-  FWaitFor := wfNothing;
+  FWantedRecord := wrNone;
 
   inherited;
 end;
 
 procedure TMySQLTable.InternalEdit();
 begin
-  FWaitFor := wfNothing;
+  FWantedRecord := wrNone;
 
   inherited;
 end;
 
 procedure TMySQLTable.InternalInsert();
 begin
-  FWaitFor := wfNothing;
+  FWantedRecord := wrNone;
 
   inherited;
 end;
@@ -8414,7 +8415,7 @@ end;
 procedure TMySQLTable.InternalLast();
 begin
   if (LimitedDataReceived and AutomaticLoadNextRecords and LoadNextRecords(True)) then
-    FWaitFor := wfLast
+    FWantedRecord := wrLast
   else
     inherited;
 end;
@@ -8437,13 +8438,10 @@ begin
   RecordsReceived.ResetEvent();
 
   Connection.BeginSynchron();
-  Result := Connection.InternExecuteSQL(smDataSet, SQLSelect(AllRecords));
+  Result := Connection.InternExecuteSQL(smDataSet, SQLSelect(AllRecords), TMySQLConnection.TResultEvent(nil), nil, Self);
   Connection.EndSynchron();
   if (Result) then
-  begin
-    Connection.SyncBindDataSet(Self);
     InternRecordBuffers.RecordReceived.WaitFor(INFINITE);
-  end;
 end;
 
 procedure TMySQLTable.Sort(const ASortDef: TIndexDef);

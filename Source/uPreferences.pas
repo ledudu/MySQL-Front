@@ -992,18 +992,6 @@ begin
   end;
 end;
 
-function GetFileIcon(const CSIDL: Integer): HIcon; overload;
-var
-  FileInfo: TSHFileInfo;
-  PIDL: PItemIDList;
-begin
-  PIDL := nil;
-  SHGetFolderLocation(0, CSIDL, 0, 0, PIDL);
-  ZeroMemory(@FileInfo, SizeOf(FileInfo));
-  SHGetFileInfo(PChar(PIDL), 0, FileInfo, SizeOf(FileInfo), SHGFI_PIDL or SHGFI_ICON or SHGFI_SMALLICON);
-  Result := FileInfo.hIcon;
-end;
-
 function GetFileIcon(const Path: TFileName): HIcon; overload;
 var
   FileInfo: TSHFileInfo;
@@ -2105,11 +2093,16 @@ begin
   View := TPView.Create();
 
   Open();
+
+  // Debug 2017-05-02
+  Assert(Assigned(Database));
 end;
 
 destructor TPPreferences.Destroy();
 begin
   // Debug 2017-05-01
+  Assert(Assigned(Self));
+  Assert(TObject(Self) is TPPreferences);
   Assert(Assigned(Database));
 
   SaveToRegistry();

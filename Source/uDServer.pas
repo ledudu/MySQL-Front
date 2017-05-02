@@ -367,12 +367,12 @@ begin
   FPlugins.Columns[0].Caption := Preferences.LoadStr(35);
   FPlugins.Columns[1].Caption := Preferences.LoadStr(111);
 
-  msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
-  msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msPaste.Action := MainAction('aEPaste'); msPaste.ShortCut := 0;
-  msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+  msUndo.Action := aEUndo; msCut.ShortCut := 0;
+  msCut.Action := aECut; msCut.ShortCut := 0;
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msPaste.Action := aEPaste; msPaste.ShortCut := 0;
+  msDelete.Action := aEDelete; msDelete.ShortCut := 0;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBCancel.Caption := Preferences.LoadStr(231);

@@ -161,6 +161,10 @@ end;
 
 function TDAccount.Execute(): Boolean;
 begin
+  // Debug 2017-05-02
+  Assert(not DConnecting.Visible,
+    'Progress: ' + Progress);
+
   Result := ShowModal() = mrOk;
 end;
 

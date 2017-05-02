@@ -509,8 +509,8 @@ begin
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToBCEditor(FSource);
 
-  msCopy.Action := MainAction('aECopy');
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+  msCopy.Action := aECopy;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

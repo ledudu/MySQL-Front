@@ -543,8 +543,8 @@ begin
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToBCEditor(FSource);
 
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBOk.Enabled := False;
 

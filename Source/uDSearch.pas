@@ -987,7 +987,7 @@ begin
   FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
-  mtCopy.Caption := MainAction('aECopy').Caption;
+  mtCopy.Caption := aECopy.Caption;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
