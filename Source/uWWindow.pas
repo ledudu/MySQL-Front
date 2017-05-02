@@ -568,6 +568,7 @@ begin
     Preferences.SetupProgramExecute := FileExists(Preferences.SetupProgram);
     if (Preferences.SetupProgramExecute) then
     begin
+      ObsoleteVersion := ProgramVersion;
       Preferences.UpdateRemoved := IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '.' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild);
       Close();
     end;

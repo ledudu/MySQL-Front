@@ -103,6 +103,7 @@ uses
   ;
 
 var
+  EFrozenApplicationSent: Integer;
   InternetAgent: string;
   ModuleFileName: string;
   SendThreads: TList;
@@ -1093,7 +1094,10 @@ begin
   begin
     ShowDialog := False;
 
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 4, True);
+    if (EFrozenApplicationSent < 5) then
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 4, True);
+
+    Inc(EFrozenApplicationSent);
   end
   else
   begin
@@ -1149,6 +1153,7 @@ initialization
   end;
   {$ENDIF}
 
+  EFrozenApplicationSent := 0;
   InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
   LastUpdateCheck := 0;
   SetLength(ModuleFilename, MAX_PATH + 1);
