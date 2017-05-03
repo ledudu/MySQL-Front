@@ -687,6 +687,7 @@ type
     procedure InternalInsert(); override;
     procedure InternalLast(); override;
     procedure InternalOpen(); override;
+    procedure InternalRefresh(); override;
     function SQLSelect(): string; overload;
     function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
     property WantedRecord: TWantedRecord read FWantedRecord;
@@ -3291,8 +3292,6 @@ begin
   Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
 
   RefreshData := Assigned(SyncThread.DataSet) and (SyncThread.DataSet.RecordCount = 0);
-  if (RefreshData) then
-    Write;
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
@@ -8438,6 +8437,13 @@ begin
   if (IsCursorOpen()) then
     if (Filtered) then
       InternActivateFilter();
+end;
+
+procedure TMySQLTable.InternalRefresh();
+begin
+  FLimitedDataReceived := False;
+
+  inherited;
 end;
 
 function TMySQLTable.LoadNextRecords(const AllRecords: Boolean = False): Boolean;

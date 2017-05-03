@@ -5999,36 +5999,33 @@ var
 begin
   URI := TUURI.Create(Address);
 
-  if (LeftStr(Address, Length(Session.Address)) <> LeftStr(Session.Address, Length(Session.Address))) then
-    raise ERangeError.Create('Invalid Account for: ' + Address)
-  else
-    case (ClassIndexByAddress(URI.Address)) of
-      ciSession:
-        Result := Session;
-      ciDatabase,
-      ciSystemDatabase,
-      ciBaseTable,
-      ciKey,
-      ciBaseField,
-      ciForeignKey,
-      ciView,
-      ciSystemView,
-      ciViewField,
-      ciProcedure,
-      ciFunction,
-      ciEvent,
-      ciTrigger:
-        Result := Session.ItemByAddress(Address, Update);
-      ciProcesses:
-        Result := Session.Processes;
-      ciUsers:
-        Result := Session.Users;
-      ciVariables:
-        Result := Session.Variables;
-      ciQuickAccess:
-        Result := Session.QuickAccess;
-      else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
-    end;
+  case (ClassIndexByAddress(URI.Address)) of
+    ciSession:
+      Result := Session;
+    ciDatabase,
+    ciSystemDatabase,
+    ciBaseTable,
+    ciKey,
+    ciBaseField,
+    ciForeignKey,
+    ciView,
+    ciSystemView,
+    ciViewField,
+    ciProcedure,
+    ciFunction,
+    ciEvent,
+    ciTrigger:
+      Result := Session.ItemByAddress(Address, Update);
+    ciProcesses:
+      Result := Session.Processes;
+    ciUsers:
+      Result := Session.Users;
+    ciVariables:
+      Result := Session.Variables;
+    ciQuickAccess:
+      Result := Session.QuickAccess;
+    else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
+  end;
 
   URI.Free();
 end;
