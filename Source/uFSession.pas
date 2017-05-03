@@ -16740,7 +16740,7 @@ begin
         if ((Table is TSView and not TSView(Table).Update())
           or (Table is TSBaseTable) and not TSBaseTable(Table).Update(True)) then
           Wanted.Update := UpdateAfterAddressChanged
-        else if (Assigned(Table) and (not Table.DataSet.Active or (CurrentClassIndex in [ciKey, ciBaseTable, ciView]))) then
+        else if (Assigned(Table) and (not Table.DataSet.Active or (CurrentClassIndex in [ciKey, ciBaseField, ciView]))) then
           TableOpen(nil);
       end;
     vIDE:

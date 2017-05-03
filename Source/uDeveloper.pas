@@ -1147,10 +1147,10 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-  if (GetUTCTime() < IncHour(GetCompileTime(), 12)) then
+  if (GetUTCTime() < IncHour(GetCompileTime(), 24)) then
   begin
     FreezeThreadClass := TMainThreadFreezeDetectionThread;
-    CurrentEurekaLogOptions().FreezeTimeout := 15; { seconds }
+    CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
     CurrentEurekaLogOptions().FreezeActivate := True;
     InitCheckFreeze();
   end;

@@ -11281,8 +11281,10 @@ end;
 
 constructor TSItemSearch.Create(const ASession: TSSession);
 begin
-  // Debug 2017-04-29
+  // Debug 2017-05-03
   Assert(Assigned(ASession));
+  Assert(Sessions.IndexOf(ASession) >= 0,
+    'Count: ' + IntToStr(Sessions.Count));
 
   inherited;
 
@@ -11293,6 +11295,11 @@ begin
   NeededTables := TList.Create();
 
   Session.ItemSearches.Add(Self);
+
+  // Debug 2017-05-03
+  Assert(Assigned(Session));
+  Assert(Sessions.IndexOf(Session) >= 0,
+    'Count: ' + IntToStr(Sessions.Count));
 end;
 
 destructor TSItemSearch.Destroy();

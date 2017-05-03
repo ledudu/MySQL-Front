@@ -3291,6 +3291,8 @@ begin
   Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
 
   RefreshData := Assigned(SyncThread.DataSet) and (SyncThread.DataSet.RecordCount = 0);
+  if (RefreshData) then
+    Write;
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
