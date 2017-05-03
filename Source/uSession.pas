@@ -1149,12 +1149,14 @@ type
 
   TSVariables = class(TSEntities)
   private
+    function GetAddress(): string;
     function GetVariable(Index: Integer): TSVariable; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
+    property Address: string read GetAddress;
     property Variable[Index: Integer]: TSVariable read GetVariable; default;
   end;
 
@@ -1329,6 +1331,7 @@ type
 
   TSProcesses = class(TSEntities)
   private
+    function GetAddress(): string;
     function GetProcess(Index: Integer): TSProcess;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
@@ -1338,6 +1341,7 @@ type
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function NameCmp(const Name1, Name2: string): Integer; override;
+    property Address: string read GetAddress;
     property Process[Index: Integer]: TSProcess read GetProcess; default;
   end;
 
@@ -1434,6 +1438,7 @@ type
 
   TSUsers = class(TSObjects)
   private
+    function GetAddress(): string;
     function GetUser(Index: Integer): TSUser; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
@@ -1442,6 +1447,7 @@ type
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
+    property Address: string read GetAddress;
     property User[Index: Integer]: TSUser read GetUser; default;
   end;
 
@@ -2734,7 +2740,10 @@ begin
       TList(Self).Add(AEntity);
 
   if ((Result >= 0) and SendEvent) then
+  begin
+    Session.SendEvent(etItemValid, Session, Database.Databases, Database);
     Session.SendEvent(etItemCreated, Database, Self, AEntity);
+  end;
 end;
 
 constructor TSDBObjects.Create(const ADatabase: TSDatabase);
@@ -6280,16 +6289,8 @@ begin
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Name]);
         end;
       Field.FieldName := Parameter[I].Name;
-      FieldName := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
-      try
-        // Debug 2017-02-09
-        // There was a problem: ''@search'' is not a valid component name
-        Field.Name := FieldName;
-      except
-        on E: Exception do
-          raise EAssertionFailed.Create(E.Message + #13#10
-            + Source);
-      end;
+      FieldName := ReplaceStr(ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_'), '@', '_');
+      Field.Name := FieldName;
       Field.DataSet := FInputDataSet;
     end;
 
@@ -9445,6 +9446,11 @@ begin
     Session.SendEvent(etItemsValid, Session, Session.Databases);
 end;
 
+function TSVariables.GetAddress(): string;
+begin
+  Result := Session.Address + '?system=variables';
+end;
+
 function TSVariables.GetVariable(Index: Integer): TSVariable;
 begin
   Result := TSVariable(Items[Index]);
@@ -10194,6 +10200,11 @@ begin
   AProcess.Free();
 end;
 
+function TSProcesses.GetAddress(): string;
+begin
+  Result := Session.Address + '?system=processes';
+end;
+
 function TSProcesses.GetProcess(Index: Integer): TSProcess;
 begin
   Result := TSProcess(Items[Index]);
@@ -10907,6 +10918,11 @@ begin
 
   if (FreeItem) then
     AItem.Free();
+end;
+
+function TSUsers.GetAddress(): string;
+begin
+  Result := Session.Address + '?system=users';
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
@@ -11985,7 +12001,6 @@ begin
     if (not Assigned(FEngines)) then FEngines := TSEngines.Create(Self);
     if (not Assigned(FPlugins) and (Connection.MySQLVersion >= 50105)) then FPlugins := TSPlugins.Create(Self);
     if (not Assigned(FProcesses)) then FProcesses := TSProcesses.Create(Self);
-    if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
 
     if (Assigned(Account)) then
       Account.LastLogin := Now();
@@ -13495,6 +13510,11 @@ begin
       end
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
+        if (not FUserRequested and (ErrorCode <> ER_OPTION_PREVENTS_STATEMENT)) then
+        begin
+          if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
+          SendEvent(etItemsValid, Self, Users);
+        end;
         if (not DataSet.Active) then
         begin
           FUserRequested := True;

@@ -2427,19 +2427,11 @@ begin
   begin
     if (not (Self is TWForeignKey) or not Assigned(TWForeignKey(Self).BaseForeignKey)) then
     begin
-      // Debug 2017-04-12
-      Assert(Assigned(Workbench.TableByCaption(XMLNode(XML, 'tables/child').Attributes['name'])));
-      Assert(Assigned(Workbench.TableByCaption(XMLNode(XML, 'tables/parent').Attributes['name'])));
-
       TableA := Workbench.TableByCaption(XMLNode(XML, 'tables/child').Attributes['name']);
       Table := Workbench.TableByCaption(XMLNode(XML, 'tables/parent').Attributes['name']);
     end
     else
     begin
-      // Debug 2017-04-12
-      Assert(Assigned(Workbench.TableByCaption(TWForeignKey(Self).BaseForeignKey.Table.Name)));
-      Assert(Assigned(Workbench.TableByCaption(TWForeignKey(Self).BaseForeignKey.Parent.TableName)));
-
       TableA := Workbench.TableByCaption(TWForeignKey(Self).BaseForeignKey.Table.Name);
       Table := Workbench.TableByCaption(TWForeignKey(Self).BaseForeignKey.Parent.TableName);
     end;

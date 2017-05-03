@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows,
-  SyncObjs, Classes, SysUtils,
+  SyncObjs, Classes, SysUtils, Generics.Collections,
   DB, DBCommon, SqlTimSt,
   SQLParser, MySQLConsts;
 
@@ -13,6 +13,8 @@ const
   DS_MIN_ERROR     = 2300;
   DS_SERVER_OLD    = 2300;
   DS_OUT_OF_MEMORY = 2301;
+
+  deSortChange = TDataEvent(Ord(High(TDataEvent)) + 1);
 
 type
   TMySQLMonitor = class;
@@ -196,7 +198,7 @@ type
       SQL: string;
       SQLIndex: Integer;
       StmtIndex: Integer;
-      StmtLengths: TList;
+      StmtLengths: TList<Integer>;
       State: TState;
       SynchronCount: Integer;
       WarningCount: Integer;
@@ -2001,7 +2003,7 @@ begin
 
   FRunExecute := TEvent.Create(nil, True, False, '');
   SetLength(CLStmts, 0);
-  StmtLengths := TList.Create();
+  StmtLengths := TList<Integer>.Create();
   State := ssClose;
 
   MySQLSyncThreads.Add(Self);
@@ -2092,7 +2094,7 @@ begin
   if (StmtIndex = StmtLengths.Count) then
     Result := ''
   else
-    SetString(Result, PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]));
+    SetString(Result, PChar(@SQL[SQLIndex]), StmtLengths[StmtIndex]);
 end;
 
 function TMySQLConnection.TSyncThread.GetIsRunning(): Boolean;
@@ -2112,9 +2114,9 @@ begin
     Result := ''
   else
   begin
-    StmtLength := Integer(StmtLengths[StmtIndex + 1]);
+    StmtLength := StmtLengths[StmtIndex + 1];
     Len := SQLTrimStmt(SQL, SQLIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    Result := Copy(SQL, SQLIndex + Integer(StmtLengths[StmtIndex]) + StartingCommentLength, Len);
+    Result := Copy(SQL, SQLIndex + StmtLengths[StmtIndex] + StartingCommentLength, Len);
   end;
 end;
 
@@ -2476,7 +2478,7 @@ begin
   EndSynchron();
 
   if (Result) then
-    Inc(ResultHandle.SQLIndex, Integer(ResultHandle.SyncThread.StmtLengths[ResultHandle.SyncThread.StmtIndex]));
+    Inc(ResultHandle.SQLIndex, ResultHandle.SyncThread.StmtLengths[ResultHandle.SyncThread.StmtIndex]);
 end;
 
 function TMySQLConnection.ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
@@ -2627,7 +2629,7 @@ begin
   // Debug 2017-02-04
   Assert(TerminatedThreads.IndexOf(SyncThread) < 0);
   Assert(Assigned(SyncThread.StmtLengths));
-  Assert(TObject(SyncThread.StmtLengths) is TList);
+  Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
 
   SQLIndex := 1;
@@ -2641,9 +2643,9 @@ begin
       // Debug 2017-04-12
       Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
       Assert(Assigned(SyncThread.StmtLengths));
-      Assert(TObject(SyncThread.StmtLengths) is TList);
+      Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
 
-      SyncThread.StmtLengths.Add(Pointer(StmtLength));
+      SyncThread.StmtLengths.Add(StmtLength);
       Inc(SQLIndex, StmtLength);
     end;
   end;
@@ -2657,14 +2659,14 @@ begin
       SyncThread.SQL[SQLIndex] := ';'
     else
       SyncThread.SQL := SyncThread.SQL + ';';
-    SyncThread.StmtLengths[SyncThread.StmtLengths.Count - 1] := Pointer(Integer(SyncThread.StmtLengths[SyncThread.StmtLengths.Count - 1]) + 1);
+    SyncThread.StmtLengths[SyncThread.StmtLengths.Count - 1] := SyncThread.StmtLengths[SyncThread.StmtLengths.Count - 1] + 1;
   end;
 
   SetLength(SyncThread.CLStmts, SyncThread.StmtLengths.Count);
   SQLIndex := 1;
   for StmtIndex := 0 to SyncThread.StmtLengths.Count - 1 do
   begin
-    StmtLength := Integer(SyncThread.StmtLengths[StmtIndex]);
+    StmtLength := SyncThread.StmtLengths[StmtIndex];
     SyncThread.CLStmts[StmtIndex] := SQLParseCLStmt(CLStmt, @SyncThread.SQL[SQLIndex], StmtLength, MySQLVersion);
     Inc(SQLIndex, StmtLength);
   end;
@@ -3279,12 +3281,16 @@ begin
 end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
+var
+  RefreshData: Boolean;
 begin
   DebugMonitor.Append('SyncBindDataSet - start - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
   Assert(Assigned(DataSet));
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
+
+  RefreshData := Assigned(SyncThread.DataSet) and (SyncThread.DataSet.RecordCount = 0);
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
@@ -3294,7 +3300,11 @@ begin
   SyncThread.State := ssReceivingResult;
 
   if (DataSet is TMySQLDataSet) then
+  begin
     SyncThread.RunExecute.SetEvent();
+    if (RefreshData) then
+      DataSet.First();
+  end;
 
   DebugMonitor.Append('SyncBindDataSet - end - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 end;
@@ -3533,7 +3543,7 @@ begin
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
   begin
-    StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
+    StmtLength := SyncThread.StmtLengths[SyncThread.StmtIndex];
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
   end;
 
@@ -3571,7 +3581,7 @@ begin
   FThreadId := SyncThread.LibThreadId;
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
-    WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
+    WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], SyncThread.StmtLengths[SyncThread.StmtIndex], ttResult);
 
   if (SyncThread.ErrorCode > 0) then
     WriteMonitor('--> Error #' + IntToStr(SyncThread.ErrorCode) + ': ' + SyncThread.ErrorMessage, ttInfo)
@@ -3596,7 +3606,7 @@ begin
     if ((SyncThread.StmtIndex < Length(SyncThread.CLStmts)) and SyncThread.CLStmts[SyncThread.StmtIndex]) then
     begin
       if ((SyncThread.StmtIndex < SyncThread.StmtLengths.Count)
-        and (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), MySQLVersion))) then
+        and (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], SyncThread.StmtLengths[SyncThread.StmtIndex], MySQLVersion))) then
         if ((CLStmt.CommandType = ctDropDatabase) and (CLStmt.ObjectName = DatabaseName)) then
         begin
           WriteMonitor('--> Database unselected', ttInfo);
@@ -3702,7 +3712,7 @@ begin
 
           Log := 'Statement #' + IntToStr(SyncThread.StmtIndex + 1) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled' + #13#10;
           for I := 0 to SyncThread.StmtLengths.Count - 1 do
-            Log := Log + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I])) + #13#10;
+            Log := Log + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(SyncThread.StmtLengths[I]) + #13#10;
           Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' CommandText:' + #13#10
             + SyncThread.CommandText + #13#10;
           Log := Log + 'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10;
@@ -3750,7 +3760,7 @@ begin
   while ((StmtIndex < SyncThread.StmtLengths.Count) and (PacketComplete = pcNo)) do
   begin
     SQL := @SyncThread.SQL[SQLIndex];
-    StmtLength := Integer(SyncThread.StmtLengths[StmtIndex]);
+    StmtLength := SyncThread.StmtLengths[StmtIndex];
 
     if (MySQLVersion <= 50100) then
       if (not CreateTableInPacket) then
@@ -3891,8 +3901,8 @@ begin
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
   begin
     if (CountSQLLength) then
-      Inc(FSuccessfullExecutedSQLLength, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
-    Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
+      Inc(FSuccessfullExecutedSQLLength, SyncThread.StmtLengths[SyncThread.StmtIndex]);
+    Inc(SyncThread.SQLIndex, SyncThread.StmtLengths[SyncThread.StmtIndex]);
     Inc(SyncThread.StmtIndex);
   end;
 
@@ -4048,7 +4058,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
+  Result := False; // (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
 end;
 
 procedure TMySQLConnection.WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType);
@@ -7178,11 +7188,7 @@ begin
     SQL := CommandText;
 
   if (SQL <> '') then
-  begin
-    Connection.BeginSynchron();
     Connection.InternExecuteSQL(smDataSet, SQL, TMySQLConnection.TResultEvent(nil), nil, Self);
-    Connection.EndSynchron();
-  end;
 end;
 
 procedure TMySQLDataSet.InternalSetToRecord(Buffer: TRecBuf);
@@ -7519,6 +7525,8 @@ begin
         Field.Tag := (Field.Tag and (not ftAscSortedField) or ftDescSortedField);
     end;
   until (FieldName = '');
+
+  DataEvent(deSortChange, 0);
 end;
 
 procedure TMySQLDataSet.SetFiltered(Value: Boolean);

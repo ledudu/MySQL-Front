@@ -4225,9 +4225,24 @@ end;
 
 procedure TFSession.aFOpenInNewWindowExecute(Sender: TObject);
 begin
-  // Debug 2017-04-10
-  Assert(Assigned(FocusedSItem),
-    'ActiveControl: ' + Window.ActiveControl.ClassName);
+  // Debug 2017-05-03
+  if (not Assigned(FocusedSItem)) then
+    if (Window.ActiveControl is TListView) then
+      if (not Assigned(TListView(Window.ActiveControl))) then
+        Assert(False)
+      else
+        Assert(False,
+          'ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
+          + 'Caption: ' + TListView(Window.ActiveControl).Selected.Caption)
+    else if (Window.ActiveControl is TTreeView) then
+      if (not Assigned(TTreeView(Window.ActiveControl))) then
+        Assert(False)
+      else
+        Assert(False,
+          'ImageIndex: ' + IntToStr(TTreeView(Window.ActiveControl).Selected.ImageIndex) + #13#10
+          + 'Text: ' + TTreeView(Window.ActiveControl).Selected.Text)
+    else
+      Assert(False);
 
   ShellExecute(0, 'open', PChar(Application.ExeName), PChar(FocusedSItem.Address), '', SW_SHOW);
 end;
@@ -4756,7 +4771,6 @@ begin
   SortDef := TIndexDef.Create(nil, '', ActiveDBGrid.SelectedField.FieldName, []);
 
   TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
-  ActiveDBGrid.UpdateHeader();
 
   SortDef.Free();
 end;
@@ -4771,7 +4785,6 @@ begin
   SortDef.DescFields := ActiveDBGrid.SelectedField.FieldName;
 
   TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
-  ActiveDBGrid.UpdateHeader();
 
   SortDef.Free();
 end;
@@ -6940,7 +6953,6 @@ begin
 
     ActiveDBGrid.SelectedRows.Clear();
     TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
-    ActiveDBGrid.UpdateHeader();
 
     SortDef.Free();
   end;
@@ -8221,7 +8233,6 @@ begin
     begin
       case (Node.ImageIndex) of
         iiProcesses: Node.Text := Preferences.LoadStr(24);
-        iiUsers: Node.Text := Preferences.LoadStr(561);
         iiVariables: Node.Text := Preferences.LoadStr(22);
       end;
       Node := Node.getNextSibling();
@@ -8728,7 +8739,16 @@ begin
     if (not Assigned(Node.getFirstChild())) then
       Node.Expand(False);
 
-    if (Event.Items is TSDatabases) then
+    if (Event.Items is TSUsers) then
+    begin
+      if (not Assigned(FNavigatorNodeByAddress(Session.Users.Address))) then
+      begin
+        Node := FNavigator.Items.Insert(FNavigatorNodeByAddress(Session.Variables.Address), Preferences.LoadStr(561));
+        Node.ImageIndex := iiUsers;
+        Node.Data := Session.Users;
+      end;
+    end
+    else if (Event.Items is TSDatabases) then
       UpdateGroup(Node, giDatabases, Event.Items);
 
     FNavigator.Items.EndUpdate();
@@ -12467,7 +12487,7 @@ begin
       begin
         if (Assigned(Session.Processes)) then
           AddItem(giSystemTools, Session.Processes);
-        if (Assigned(Session.Users)) then
+        if (Assigned(Session.Users) and (Session.Users.Count > 0)) then
           AddItem(giSystemTools, Session.Users);
         if (Assigned(Session.Variables)) then
           AddItem(giSystemTools, Session.Variables);
@@ -13708,7 +13728,7 @@ begin
   if (SourceAddresses.Count > 0) then
   begin
     SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceAddresses[0], Session.Account));
-    if (Assigned(SourceSession)) then
+    if (not Assigned(SourceSession)) then
       SourceSessionCreated := False
     else
     begin
@@ -16071,7 +16091,6 @@ begin
   begin
     TSBaseTable(Table).KeyByName(URI.Param['object']).GetSortDef(SortDef);
     Table.DataSet.Sort(SortDef);
-    ActiveDBGrid.UpdateHeader();
   end
   else if ((URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'viewfield')) then
     ActiveDBGrid.SelectedField := Table.DataSet.FieldByName(URI.Param['object'])
@@ -16586,12 +16605,6 @@ begin
     Node := FNavigator.Items.AddChild(ServerNode, '');
     Node.Data := Session.Processes;
     Node.ImageIndex := iiProcesses;
-  end;
-  if (Assigned(Session.Users)) then
-  begin
-    Node := FNavigator.Items.AddChild(ServerNode, '');
-    Node.Data := Session.Users;
-    Node.ImageIndex := iiUsers;
   end;
   if (Assigned(Session.Variables)) then
   begin

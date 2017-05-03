@@ -103,7 +103,9 @@ uses
   ;
 
 var
+  {$IFDEF EurekaLog}
   EFrozenApplicationSent: Integer;
+  {$ENDIF}
   InternetAgent: string;
   ModuleFileName: string;
   SendThreads: TList;
@@ -1139,6 +1141,7 @@ initialization
   AssertErrorProc := AssertErrorHandler;
 
   {$IFDEF EurekaLog}
+  EFrozenApplicationSent := 0;
   LogBuilderClass := TLogBuilder;
 
   RegisterEventExceptionNotify(nil, ExceptionNotify);
@@ -1153,7 +1156,6 @@ initialization
   end;
   {$ENDIF}
 
-  EFrozenApplicationSent := 0;
   InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
   LastUpdateCheck := 0;
   SetLength(ModuleFilename, MAX_PATH + 1);

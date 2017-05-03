@@ -21,7 +21,12 @@ type
       procedure Update(Item: TCollectionItem); override;
     end;
 
-    TMySQLDBGridFieldList = class(TList)
+    TGridDataLink = class(DBGrids.TGridDataLink)
+    protected
+      procedure DataEvent(Event: TDataEvent; Info: NativeInt); override;
+    end;
+
+    TFieldList = class(TList)
     private
       FGrid: TMySQLDBGrid;
     public
@@ -48,7 +53,7 @@ type
     FOnOverflow: TOverflowEvent;
     FOnSelect: TNotifyEvent;
     FOverflow: Boolean;
-    FSelectedFields: TMySQLDBGridFieldList;
+    FSelectedFields: TFieldList;
     IgnoreTitleClick: Boolean;
     LeftClickAnchor: record
       Col: Longint;
@@ -91,6 +96,7 @@ type
     function CanGridAcceptKey(Key: Word; Shift: TShiftState): Boolean; override;
     procedure ColEnter(); override;
     function CreateColumns(): TDBGridColumns; override;
+    function CreateDataLink(): DBGrids.TGridDataLink; override;
     function CreateEditor(): TInplaceEdit; override;
     procedure CreateWnd(); override;
     procedure DoEnter(); override;
@@ -123,12 +129,11 @@ type
     function PasteText(const Text: string): Boolean;
     procedure SelectAll();
     function UpdateAction(Action: TBasicAction): Boolean; override;
-    procedure UpdateHeader(); virtual;
     property CurrentRow: Boolean read GetCurrentRow;
     property Header: THeaderControl read GetHeaderControl;
     property MouseDownShiftState: TShiftState read LeftClickAnchor.Shift;
     property OnHeaderSplitButton: THeaderSplitBottonEvent read FHeaderSplitButton write FHeaderSplitButton;
-    property SelectedFields: TMySQLDBGridFieldList read FSelectedFields;
+    property SelectedFields: TFieldList read FSelectedFields;
     property SelSQLData: string read GetSelSQLData;
     property SelText: string read GetSelText;
     property DefaultRowHeight;
@@ -203,9 +208,21 @@ begin
   TMySQLDBGrid(Grid).Resize();
 end;
 
+{ TMySQLDBGrid.TMySQLDBGridDataLink *******************************************}
+
+procedure TMySQLDBGrid.TGridDataLink.DataEvent(Event: TDataEvent; Info: NativeInt);
+begin
+  case (Ord(Event)) of
+    Ord(deSortChange):
+      TMySQLDBGrid(Grid).SetHeaderColumnArrows();
+    else
+      inherited;
+  end;
+end;
+
 { TMySQLDBGrid.TMySQLDBGridFieldList ******************************************}
 
-constructor TMySQLDBGrid.TMySQLDBGridFieldList.Create(const AGrid: TMySQLDBGrid);
+constructor TMySQLDBGrid.TFieldList.Create(const AGrid: TMySQLDBGrid);
 begin
   inherited Create();
 
@@ -569,7 +586,7 @@ begin
   FListView := 0;
   FOnCanEditShowExecuted := False;
   FOverflow := False;
-  FSelectedFields := TMySQLDBGridFieldList.Create(Self);
+  FSelectedFields := TFieldList.Create(Self);
   IgnoreTitleClick := False;
   LeftClickAnchor.Col := -1;
   LeftClickAnchor.Shift := [];
@@ -587,6 +604,11 @@ end;
 function TMySQLDBGrid.CreateColumns(): TDBGridColumns;
 begin
   Result := TDBMySQLGridColumns.Create(Self, TColumn);
+end;
+
+function TMySQLDBGrid.CreateDataLink(): DBGrids.TGridDataLink;
+begin
+  Result := TGridDataLink.Create(Self);
 end;
 
 function TMySQLDBGrid.CreateEditor(): TInplaceEdit;
@@ -1631,11 +1653,6 @@ begin
   end
   else
     Result := inherited UpdateAction(Action);
-end;
-
-procedure TMySQLDBGrid.UpdateHeader();
-begin
-  SetHeaderColumnArrows();
 end;
 
 procedure TMySQLDBGrid.WMNotify(var Msg: TWMNotify);

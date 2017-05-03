@@ -3771,6 +3771,10 @@ var
   NewItem: TDBGridItem;
 begin
   NewItem := TDBGridItem.Create(Items, ADBGrid);
+
+  // Debug 2017-05-03
+  Assert(Assigned(NewItem));
+
   Items.Add(NewItem);
 end;
 
@@ -3779,6 +3783,10 @@ var
   NewItem: TDBObjectItem;
 begin
   NewItem := TDBObjectItem.Create(Items, ADBObject);
+
+  // Debug 2017-05-03
+  Assert(Assigned(NewItem));
+
   Items.Add(NewItem);
 end;
 
