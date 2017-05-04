@@ -53,6 +53,9 @@ type
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
+{$IFDEF EurekaLog}
+function GetCallerLocation(const Level: Integer = 2): TELLocationInfo;
+{$ENDIF}
 function GetCompileTime(): TDateTime;
 function GetUTCTime(): TDateTime;
 {$IFDEF EurekaLog}
@@ -89,7 +92,7 @@ implementation
 
 uses
   ActiveX,
-  SyncObjs, DateUtils, IOUtils,
+  SyncObjs, DateUtils, IOUtils, SysConst,
   Registry,
   XMLIntf, XMLDoc
 {$IFDEF EurekaLog}
@@ -222,6 +225,34 @@ begin
   Result := (VersionStr <> '') and (SetupProgramURI <> '');
 end;
 
+{$IFDEF EurekaLog}
+function GetCallerLocation(const Level: Integer = 2): TELLocationInfo;
+var
+  Buffer: TEurekaDebugInfo;
+  CallStack: TEurekaBaseStackList;
+  Index: Integer;
+  Item: PEurekaDebugInfo;
+  StackItem: Integer;
+begin
+  CallStack := GetCurrentCallStack();
+  Index := 0;
+  StackItem := 0;
+  Item := nil;
+  while ((Index < CallStack.Count) and (StackItem < Level)) do
+  begin
+    Item := CallStack.GetItem(Index, Buffer);
+    if ((Item^.Location.DebugDetail = ddSourceCode) and
+      ((ModuleFileName = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(ModuleFileName)) = 0))) then
+      Inc(StackItem);
+    Inc(Index);
+  end;
+  if (not Assigned(Item) or (StackItem < Level)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Result := CallStack.GetItem(StackItem - 1, Buffer)^.Location;
+end;
+{$ENDIF}
+
 function GetCompileTime(): TDateTime;
 begin
   Result := PImageNtHeaders(HInstance
@@ -280,11 +311,8 @@ procedure SendToDeveloper(const Text: string; const Days: Integer = 4;
 {$IFDEF EurekaLog}
 var
   Buffer: TEurekaDebugInfo;
-  CallStack: TEurekaBaseStackList;
   I: Integer;
   Index: Integer;
-  Item: PEurekaDebugInfo;
-  StackItem: Integer;
 {$ENDIF}
 var
   Body: String;
@@ -301,31 +329,7 @@ begin
 
     {$IFDEF EurekaLog}
       if (not HideSource or (Trim(Text) = '')) then
-      begin
-        CallStack := GetCurrentCallStack();
-        Index := 0;
-        StackItem := 0;
-        Item := nil;
-        while ((Index < CallStack.Count) and (StackItem < 2)) do
-        begin
-          Item := CallStack.GetItem(Index, Buffer);
-          if ((Item^.Location.DebugDetail = ddSourceCode) and
-            ((ModuleFileName = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(ModuleFileName)) = 0))) then
-            Inc(StackItem);
-          Inc(Index);
-        end;
-        if (Assigned(Item) and (StackItem = 2)) then
-          Body := LocationToStr(CallStack.GetItem(StackItem - 1, Buffer)^.Location) + #13#10#13#10 + Body
-        else
-        begin
-          Body := Body + #13#10
-            + 'StackItem: ' + IntToStr(StackItem) + ', '
-            + 'Index:' + IntToStr(Index) + ', '
-            + 'Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
-          for I := 0 to CallStack.Count - 1 do
-            Body := Body + LocationToStr(CallStack.GetItem(I, Buffer)^.Location) + #13#10;
-        end;
-      end;
+        Body := LocationToStr(GetCallerLocation(3)) + #13#10#13#10 + Body;
     {$ENDIF}
 
     Stream := TMemoryStream.Create();
@@ -670,9 +674,12 @@ begin
     and (Item^.Location.UnitName <> 'EDialog')
     and (Item^.Location.UnitName <> 'EDialogWinAPI')
     and (Item^.Location.UnitName <> 'EDialogWinAPIMSClassic')
+    and (Item^.Location.UnitName <> 'EException')
+    and (Item^.Location.UnitName <> 'EExceptionInfo')
+    and (Item^.Location.UnitName <> 'EExceptionHook')
     and (Item^.Location.UnitName <> 'EExceptionManager')
-    and (Item^.Location.UnitName <> 'EThreadsManager')
-    and (Item^.Location.UnitName <> 'EExceptionHook');
+    and (Item^.Location.UnitName <> 'EMemLeaks')
+    and (Item^.Location.UnitName <> 'EThreadsManager');
 
   if (FExceptionClass = 'EImportEx') then
     Result := True;
@@ -1028,21 +1035,46 @@ begin
 
   if (GetCurrentThreadId() = MainThreadId) then
   begin
-    for I := 0 to Sessions.Count - 1 do
+    if (not Assigned(Sessions)) then
     begin
       Result := Result + #13#10;
-      Result := Result + 'MySQL: ' + Sessions[I].Connection.ServerVersionStr;
-      if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
-        Result := Result + ' (LibraryType: ' +
-          IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
-      Result := Result + #13#10;
-      Result := Result + StringOfChar('-', 72) + #13#10;
-      Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
-    end;
+      Result := Result + 'Sessions not assigned' + #13#10;
+    end
+    else
+    begin
+      try
+        for I := 0 to Sessions.Count - 1 do
+        begin
+          Result := Result + #13#10;
+          Result := Result + 'MySQL: ' + Sessions[I].Connection.ServerVersionStr;
+          if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
+            Result := Result + ' (LibraryType: ' +
+              IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
+          Result := Result + #13#10;
+          Result := Result + StringOfChar('-', 72) + #13#10;
+          Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
+        end;
+      except
+        on E: Exception do
+          begin
+            Result := Result + #13#10;
+            Result := Result + E.ClassName + ':' + E.Message + #13#10;
+          end;
+      end;
 
-    Result := Result + #13#10;
-    Result := Result + 'Sessions';
-    Result := Result + Sessions.Log;
+      try
+        Result := Result + #13#10;
+        Result := Result + 'Sessions' + #13#10;
+        Result := Result + StringOfChar('-', 72) + #13#10;
+        Result := Result + Sessions.Log;
+      except
+        on E: Exception do
+          begin
+            Result := Result + #13#10;
+            Result := Result + E.ClassName + ':' + E.Message + #13#10;
+          end;
+      end;
+    end;
   end;
 end;
 

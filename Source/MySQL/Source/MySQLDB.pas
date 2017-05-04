@@ -2449,11 +2449,6 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
-  if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL])) then
-    raise EAssertionFailed.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)) + #13#10
-      + 'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
-      + DebugMonitor.CacheText);
-
   Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]));
 
   BeginSynchron();
@@ -3262,7 +3257,10 @@ begin
 
   DoAfterExecuteSQL();
 
-  SyncThread.State := ssReady;
+  if (not Connected) then
+    SyncThread.State := ssClose
+  else
+    SyncThread.State := ssReady;
 
   if (Assigned(SyncThread.Done)) then
     SyncThread.Done.SetEvent();
@@ -4059,7 +4057,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := False; {$MESSAGE 'UseCompression'} // (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
+  Result := (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
 end;
 
 procedure TMySQLConnection.WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType);

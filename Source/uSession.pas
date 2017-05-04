@@ -12074,11 +12074,14 @@ begin
   if (Assigned(AAccount)) then AAccount.RegisterSession(Self);
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
+
+  {$IFDEF EurekaLog}
   if (not Assigned(AAccount)) then
     Sessions.FLog.Add('Create')
   else
     Sessions.FLog.Add('Create to: ' + AAccount.Connection.Host);
   Sessions.FLog.Add('Open: ' + IntToStr(Sessions.Count));
+  {$ENDIF}
 
   EventProcs := TList<TEventProc>.Create();
   FCurrentUser := '';
@@ -12338,11 +12341,13 @@ begin
   Connection.UnRegisterClient(Self);
   if (Assigned(Account)) then Account.UnRegisterSession(Self);
 
+  {$IFDEF EurekaLog}
   if (not Assigned(Account)) then
     Sessions.FLog.Add('Destroyed')
   else
-    Sessions.FLog.Add('Destroyed to: ' + Account.Connection.Host);
+    Sessions.FLog.Add('Destroyed from: ' + Account.Connection.Host + ', at: ' + LocationToStr(GetCallerLocation()));
   Sessions.FLog.Add('Open: ' + IntToStr(Sessions.Count));
+  {$ENDIF}
 
   EventProcs.Free();
 
@@ -12552,6 +12557,7 @@ begin
   Assert(Assigned(Self));
   Assert(Self is TSSession);
   Assert(Assigned(Connection));
+  Assert(Sessions.IndexOf(Self) >= 0);
 
   Result := Connection.Host;
   if (Connection.Port <> MYSQL_PORT) then

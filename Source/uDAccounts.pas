@@ -119,7 +119,6 @@ begin
   DAccount.Account := Accounts.AccountByName(FAccounts.Selected.Caption);
   DAccount.Username := DAccount.Account.Connection.Username;
   DAccount.Password := DAccount.Account.Connection.Password;
-  DAccount.ShowType := stDefault;
   if (DAccount.Execute()) then
   begin
     SetFAccounts(Accounts.AccountByName(DAccount.AccountName));
@@ -133,7 +132,6 @@ begin
   DAccount.Account := nil;
   DAccount.Username := 'root';
   DAccount.Password := '';
-  DAccount.ShowType := stDefault;
   if (DAccount.Execute()) then
   begin
     Accounts.Save();

@@ -94,21 +94,23 @@ type
   type
     TMoveState = (msNormal, msFixed, msAutomatic);
   private
+    FControlA: TWControl;
+    FControlB: TWControl;
     function GetIndex(): Integer;
     function GetLastPoint(): TWLinkPoint;
     function GetLineA(): TWLinkLine;
     function GetLineB(): TWLinkLine;
-    procedure SetLineA(ALineA: TWLinkLine);
-    procedure SetLineB(ALineB: TWLinkLine);
     function GetLink(): TWLink;
     function GetTableA(): TWTable;
     function GetTableB(): TWTable;
-    procedure SetTableA(ATableA: TWTable);
-    procedure SetTableB(ATableB: TWTable);
+    procedure SetControlA(AControlA: TWControl);
+    procedure SetControlB(AControlB: TWControl);
+    procedure SetLineA(ALineA: TWLinkLine); inline;
+    procedure SetLineB(ALineB: TWLinkLine); inline;
+    procedure SetTableA(ATableA: TWTable); inline;
+    procedure SetTableB(ATableB: TWTable); inline;
   protected
     Center: TPoint;
-    ControlA: TWControl;
-    ControlB: TWControl;
     MoveState: TMoveState;
     procedure ApplyPosition(); override;
     function ControlAlign(const Control: TWControl): TAlign; virtual;
@@ -118,6 +120,8 @@ type
     procedure Moving(const Sender: TWControl; const Shift: TShiftState; var NewPosition: TCoord); override;
     procedure PaintTo(const Canvas: TCanvas; const X, Y: Integer); override;
     procedure SetSelected(ASelected: Boolean); override;
+    property ControlA: TWControl read FControlA write SetControlA;
+    property ControlB: TWControl read FControlB write SetControlB;
     property Index: Integer read GetIndex;
     property LastPoint: TWLinkPoint read GetLastPoint;
     property LineA: TWLinkLine read GetLineA write SetLineA;
@@ -1745,31 +1749,59 @@ begin
     end;
 end;
 
+procedure TWLinkPoint.SetControlA(AControlA: TWControl);
+begin
+  if (AControlA <> FControlA) then
+  begin
+    if (FControlA is TWTable) then
+      TWTable(FControlA).ReleaseLinkPoint(Self)
+    else if (FControlA is TWLinkLine) then
+      TWLinkLine(FControlA).PointB := nil
+    else if (Assigned(FControlA)) then
+      raise ERangeError.Create('ControlA: ' + ControlA.ClassName);
+
+    FControlA := AControlA;
+
+    if (FControlA is TWTable) then
+      TWTable(FControlA).RegisterLinkPoint(Self)
+    else if (FControlA is TWLinkLine) then
+    begin
+      TWLinkLine(FControlA).PointB := Self;
+      if ((Workbench.SelCount = 1) or Link.LinkSelected and (Workbench.SelCount = Link.PointCount * 2 - 1)) then
+        Selected := LineA.PointA.Selected;
+      Workbench.UpdateControl(FControlA);
+    end;
+  end;
+end;
+
+procedure TWLinkPoint.SetControlB(AControlB: TWControl);
+begin
+  if (AControlB <> FControlB) then
+  begin
+    if (FControlB is TWTable) then
+      TWTable(FControlB).ReleaseLinkPoint(Self)
+    else if (FControlB is TWLinkLine) then
+      TWLinkLine(FControlB).PointA := nil
+    else if (Assigned(FControlB)) then
+      raise ERangeError.Create('ControlB: ' + ControlB.ClassName);
+
+    FControlB := AControlB;
+
+    if (FControlB is TWTable) then
+      TWTable(FControlB).RegisterLinkPoint(Self)
+    else if (FControlB is TWLinkLine) then
+      TWLinkLine(FControlB).PointA := Self;
+  end;
+end;
+
 procedure TWLinkPoint.SetLineA(ALineA: TWLinkLine);
 begin
-  if (Assigned(LineA)) then
-    LineA.PointB := nil;
-
   ControlA := ALineA;
-
-  if (Assigned(LineA)) then
-  begin
-    LineA.PointB := Self;
-    if ((Workbench.SelCount = 1) or Link.LinkSelected and (Workbench.SelCount = Link.PointCount * 2 - 1)) then
-      Selected := LineA.PointA.Selected;
-    Workbench.UpdateControl(LineA);
-  end;
 end;
 
 procedure TWLinkPoint.SetLineB(ALineB: TWLinkLine);
 begin
-  if (Assigned(LineB)) then
-    LineB.PointA := nil;
-
   ControlB := ALineB;
-
-  if (Assigned(LineB)) then
-    LineB.PointA := Self;
 end;
 
 procedure TWLinkPoint.SetSelected(ASelected: Boolean);
@@ -1784,24 +1816,12 @@ end;
 
 procedure TWLinkPoint.SetTableA(ATableA: TWTable);
 begin
-  if (ControlA is TWTable) then
-    TWTable(ControlA).ReleaseLinkPoint(Self);
-
   ControlA := ATableA;
-
-  if (Assigned(TableA)) then
-    TableA.RegisterLinkPoint(Self);
 end;
 
 procedure TWLinkPoint.SetTableB(ATableB: TWTable);
 begin
-  if (Assigned(TableB)) then
-    TableB.ReleaseLinkPoint(Self);
-
   ControlB := ATableB;
-
-  if (Assigned(TableB)) then
-    TableB.RegisterLinkPoint(Self);
 end;
 
 { TWLinkLine ******************************************************************}
@@ -1838,8 +1858,8 @@ begin
   FPointA := APointA;
   FPointB := APointB;
 
-  FPointA.ControlB := Self;
-  FPointB.ControlA := Self;
+  FPointA.LineB := Self;
+  FPointB.LineA := Self;
 
   Canvas.Pen.Width := LineWidth;
 

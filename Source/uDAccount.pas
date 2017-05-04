@@ -10,9 +10,6 @@ uses
   uPreferences, uBase, uSession;
 
 type
-  TDAccountShowType = (stDefault, stLogin);
-
-type
   TDAccount = class (TForm_Ext)
     FBCancel: TButton;
     FBDatabase: TButton;
@@ -62,7 +59,6 @@ type
   public
     Account: TPAccount;
     Password: string;
-    ShowType: TDAccountShowType;
     Username: string;
     function Execute(): Boolean;
     property AccountName: string read GetAccountName;
@@ -420,10 +416,7 @@ begin
   FConnectionTypeChange(nil);
 
   ActiveControl := FBCancel;
-  if (ShowType = stLogin) then
-    ActiveControl := FUser
-  else
-    ActiveControl := FHost;
+  ActiveControl := FHost;
 end;
 
 function TDAccount.GetAccountName(): string;

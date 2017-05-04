@@ -9455,6 +9455,7 @@ begin
   Assert(Self is TFSession);
   Assert(Assigned(Session));
   Assert(Assigned(Session.Connection));
+  Assert(Sessions.IndexOf(Session) >= 0);
 
   Include(FrameState, fsActive);
 
@@ -9648,7 +9649,9 @@ begin
       begin
         Self.View := View;
         // Debug 2017-04-26
-        Assert(Self.View = View);
+        Assert(Self.View = View,
+          'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
+          + 'View: ' + IntToStr(Ord(View)));
 
         Window.ActiveControl := ActiveBCEditor;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
@@ -9666,6 +9669,7 @@ begin
   // Debug 2017-05-04
   Assert(Assigned(Session));
   Assert(Assigned(Session.Databases));
+  Assert(Sessions.IndexOf(Session) >= 0);
 
   for I := 0 to Session.Databases.Count - 1 do
     if (CanClose) then
@@ -16745,7 +16749,11 @@ begin
             Table := TSKey(CurrentData).Table;
           ciBaseField,
           ciViewField:
-            Table := TSTableField(CurrentData).Table;
+            begin
+              Assert(Assigned(CurrentData),
+                'CurrentAddress: ' + CurrentAddress);
+              Table := TSTableField(CurrentData).Table;
+            end;
           ciBaseTable,
           ciView,
           ciSystemView:
