@@ -98,6 +98,7 @@ begin
       DeleteFile(PChar(Preferences.SetupProgram));
     Preferences.SetupProgram := '';
     Preferences.SetupProgramInstalled := False;
+    Preferences.Save();
   end
   else if (Preferences.SetupProgram <> '') then
   begin
@@ -142,6 +143,7 @@ begin
       Preferences := TPPreferences.Create();
       Preferences.SetupProgram := '';
       Preferences.SetupProgramInstalled := False;
+      Preferences.Save();
       Preferences.Free(); Preferences := nil;
       Windows.DeleteFile(PChar(SetupProgram));
 
