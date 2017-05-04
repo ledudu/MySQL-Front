@@ -17,7 +17,7 @@ const
 
 const
   UM_ACTIVATEFRAME = WM_USER + 601;
-  UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 602;
+  UM_MYSQLCONNECTION_SYNCHRONIZE = WM_USER + 602;
 
 type
   TWWindow = class (TForm_Ext)
@@ -388,7 +388,7 @@ type
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
     FSessions: TList;
     MouseDownPoint: TPoint;
-    OnlineRecommendedUpdateFound: Boolean;
+    UpdateFound: Boolean;
     ModalForm: TForm;
     QuitAfterShow: Boolean;
     TabControlDragMarkedTabIndex: Integer;
@@ -421,7 +421,7 @@ type
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCrashRescue(var Message: TMessage); message UM_CRASH_RESCUE;
-    procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
+    procedure UMMySQLConnectionSynchronize(var Message: TMessage); message UM_MYSQLCONNECTION_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
@@ -659,8 +659,8 @@ begin
   SaveDialog.DefaultExt := '.zip';
   if (SaveDialog.Execute()) then
   begin
-    Preferences.Save();
     Accounts.Save();
+    Preferences.Save();
 
     ZipFile := TZipFile.Create();
     ZipFile.Open(SaveDialog.FileName, zmWrite);
@@ -817,9 +817,9 @@ begin
   begin
     ModalForm := nil;
 
-    if (OnlineRecommendedUpdateFound) then
+    if (UpdateFound) then
     begin
-      OnlineRecommendedUpdateFound := False;
+      UpdateFound := False;
       InformOnlineUpdateFound();
     end;
 
@@ -1178,7 +1178,7 @@ begin
   uBase.aVSQLLog := aVSQLLog;
 
   MouseDownPoint := Point(-1, -1);
-  OnlineRecommendedUpdateFound := False;
+  UpdateFound := False;
   QuitAfterShow := False;
   UniqueTabNameCounter := 0;
   UpdateStarted := False;
@@ -1248,7 +1248,16 @@ begin
 end;
 
 procedure TWWindow.FormDestroy(Sender: TObject);
+var
+  ErrorMessage: string;
 begin
+  ErrorMessage := Accounts.Save();
+  if (ErrorMessage <> '') then
+    MsgBox(ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+  ErrorMessage := Preferences.Save();
+  if (ErrorMessage <> '') then
+    MsgBox(ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+
   while (TabControlRepaint.Count > 0) do
   begin
     FreeMem(TabControlRepaint[0]);
@@ -1300,7 +1309,7 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
-  if ((not UpdateAvailable and (DateOf(LastUpdateCheck) < Today()) or (ObsoleteVersion >= ProgramVersion)) and InternetGetConnectedState(nil, 0)) then
+  if (not UpdateAvailable and ((DateOf(LastUpdateCheck) < Today()) or (ProgramVersion <= ObsoleteVersion)) and InternetGetConnectedState(nil, 0)) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
@@ -1367,7 +1376,7 @@ end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
-  PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
+  PostMessage(Handle, UM_MYSQLCONNECTION_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
@@ -1857,13 +1866,12 @@ begin
     for I := 0 to FSessions.Count - 1 do
       try TFSession(FSessions[I]).CrashRescue(); except end;
 
-    try Accounts.Save(); except end;
-
-    try Preferences.Save(); except end;
+    try Accounts.Save(); except; end;
+    try Preferences.Save(); except; end;
   end;
 end;
 
-procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);
+procedure TWWindow.UMMySQLConnectionSynchronize(var Message: TMessage);
 begin
   MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
 end;
@@ -1871,7 +1879,7 @@ end;
 procedure TWWindow.UMOnlineUpdateFound(var Message: TMessage);
 begin
   if (Screen.ActiveForm <> Self) then
-    OnlineRecommendedUpdateFound := True
+    UpdateFound := True
   else
     InformOnlineUpdateFound();
 end;

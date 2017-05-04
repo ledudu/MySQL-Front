@@ -345,7 +345,7 @@ type
     function GetXMLDocument(): IXMLDocument;
     procedure HandleSetupProgram(const Filename: TFileName);
     procedure SaveToRegistry();
-    procedure SaveToXML(const XML: IXMLNode);
+    function SaveToXML(const XML: IXMLNode): string;
   protected
     property XMLDocument: IXMLDocument read GetXMLDocument;
   public
@@ -419,7 +419,7 @@ type
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
     procedure Open();
-    procedure Save();
+    function Save(): string;
     property DowndateFilename: TFileName read FDowndateFilename;
     property DowndateVersionStr: string read GetDowndateVersionStr;
     property Filename: TFileName read GetFilename;
@@ -594,8 +594,8 @@ type
   protected
     Section: string;
     function GetIndex(): Integer;
-    procedure Load(); virtual;
-    procedure Save(); virtual;
+    procedure Load();
+    function Save(): string;
     function ValidDatabaseName(const ADatabaseName: string): Boolean;
     property DesktopFilename: TFileName read GetDesktopFilename;
     property HistoryFilename: TFileName read GetHistoryFilename;
@@ -655,7 +655,7 @@ type
     function DeleteAccount(const AAccount: TPAccount): Boolean;
     destructor Destroy(); override;
     procedure Open();
-    procedure Save();
+    function Save(): string;
     procedure UpdateAccount(const Account, NewAccount: TPAccount);
     property Account[Index: Integer]: TPAccount read GetFAccounts; default;
     property Default: TPAccount read GetDefault write SetDefault;
@@ -679,7 +679,7 @@ implementation {***************************************************************}
 
 uses
   CommCtrl, SHFolder, WinInet, ShellAPI, ShlObj, ActiveX, GDIPAPI, GDIPObj,
-  Math, SysConst, Variants, RTLConsts, StrUtils,
+  Math, SysConst, Variants, RTLConsts, StrUtils, ComObj,
   Consts, ImgList,
   MySQLConsts,
   CSVUtils,
@@ -2105,8 +2105,6 @@ begin
   Assert(TObject(Self) is TPPreferences);
   Assert(Assigned(Database));
 
-  SaveToRegistry();
-
   Database.Free();
   Databases.Free();
   Editor.Free();
@@ -2470,10 +2468,11 @@ begin
   if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
 end;
 
-procedure TPPreferences.Save();
+function TPPreferences.Save(): string;
 begin
   FreeAndNil(FLanguage);
-  SaveToXML(XMLDocument.DocumentElement);
+  SaveToRegistry();
+  Result :=SaveToXML(XMLDocument.DocumentElement);
 end;
 
 procedure TPPreferences.SaveToRegistry();
@@ -2541,11 +2540,9 @@ begin
   end;
 
   Access := KEY_READ;
-
-  SaveToXML(XMLDocument.DocumentElement);
 end;
 
-procedure TPPreferences.SaveToXML(const XML: IXMLNode);
+function TPPreferences.SaveToXML(const XML: IXMLNode): string;
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
@@ -2629,6 +2626,10 @@ begin
       // We do not have to know about problems.
       XML.OwnerDocument.SaveToFile(Filename);
     except
+      on E: EOleException do
+        Result := Preferences.LoadStr(522, XML.OwnerDocument.Filename) + #10#10 + E.Message;
+      else
+        raise;
     end;
 end;
 
@@ -3535,7 +3536,7 @@ begin
   FTabs.Add(ATab);
 end;
 
-procedure TPAccount.Save();
+function TPAccount.Save(): string;
 begin
   if (Assigned(XML)) then
   begin
@@ -3557,11 +3558,21 @@ begin
           try
             DesktopXMLDocument.SaveToFile(DesktopFilename);
           except
-            // Do not inform user about problems while saving file
+            on E: EOleException do
+              Result := Preferences.LoadStr(522, DesktopXMLDocument.Filename) + #10#10 + E.Message;
+            else
+              raise;
           end;
         if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
           if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
+          try
             HistoryXMLDocument.SaveToFile(HistoryFilename);
+          except
+            on E: EOleException do
+              Result := Preferences.LoadStr(522, HistoryXMLDocument.Filename) + #10#10 + E.Message;
+            else
+              raise;
+          end;
     end;
 
     Modified := False;
@@ -3628,12 +3639,8 @@ end;
 
 function TPAccounts.AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
 var
-  Found: Integer;
   Host: string;
   I: Integer;
-  Name: string;
-  NewAccount: TPAccount;
-  NewAccountName: string;
   URI: TUURI;
   URLComponents: TURLComponents;
 begin
@@ -3649,7 +3656,6 @@ begin
 
   if (Assigned(URI)) then
   begin
-    Found := 0;
     for I := 0 to Count - 1 do
     begin
       ZeroMemory(@URLComponents, SizeOf(URLComponents));
@@ -3670,38 +3676,9 @@ begin
         and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
       begin
         Result := Account[I];
-        Inc(Found);
         if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
           break;
       end;
-    end;
-
-    if (Found = 0) then
-    begin
-      NewAccountName := URI.Host;
-      if (URI.Username <> '') then
-        NewAccountName := NewAccountName + ' (' + URI.Username + ')';
-      Name := NewAccountName;
-      I := 1;
-      while (Assigned(AccountByName(Name))) do
-      begin
-        Inc(I);
-        Name := NewAccountName + ' (' + IntToStr(I) + ')';
-      end;
-
-      NewAccount := TPAccount.Create(Self);
-      NewAccount.Name := Name;
-      NewAccount.Connection.Host := URI.Host;
-      NewAccount.Connection.Port := URI.Port;
-      NewAccount.Connection.Username := URI.Username;
-      NewAccount.Connection.Password := URI.Password;
-      NewAccount.Connection.Database := URI.Database;
-      AddAccount(NewAccount);
-      NewAccount.Free();
-
-      Result := AccountByName(NewAccountName);
-
-      Save();
     end;
 
     URI.Free();
@@ -3815,8 +3792,6 @@ end;
 
 destructor TPAccounts.Destroy();
 begin
-  Save();
-
   Clear();
 
   inherited;
@@ -3896,15 +3871,16 @@ begin
   XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 end;
 
-procedure TPAccounts.Save();
+function TPAccounts.Save(): string;
 var
+  ErrorMessage: string;
   I: Integer;
 begin
   XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 
   for I := 0 to Count - 1 do
     if (Account[I].Modified) then
-      Account[I].Save();
+      ErrorMessage := Account[I].Save();
 
   XMLNode(XMLDocument.DocumentElement, 'default').Text := DefaultAccountName;
 
@@ -3916,8 +3892,10 @@ begin
       if (ForceDirectories(ExtractFilePath(Filename))) then
         XMLDocument.SaveToFile(Filename);
   except
-    on E: EOSError do
-      MessageBox(Application.MainFormHandle, PChar(E.Message), 'Error', MB_OK or MB_ICONERROR);
+    on E: EOleException do
+      Result := Preferences.LoadStr(522, XMLDocument.Filename) + #10#10 + E.Message;
+    else
+      raise;
   end;
 end;
 

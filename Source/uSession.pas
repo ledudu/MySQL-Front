@@ -828,7 +828,7 @@ type
     function GetParameter(Index: Integer): TSRoutineParameter;
     function GetParameterCount(): Integer;
     function GetRoutines(): TSRoutines; inline;
-    procedure ParseCreateRoutine(const SQL: string);
+    procedure ParseCreateRoutine(const SQL: string; const SetNameOnly: Boolean = False);
   protected
     function Build(const Field: TField): Boolean; override;
     function SQLGetSource(): string; override;
@@ -1678,14 +1678,18 @@ type
     property Variables: TSVariables read FVariables;
   end;
 
-  TSSessions = class(TList)
+  TSSessions = class(TList<TSSession>)
   private
     FOnSQLError: TMySQLConnection.TErrorEvent;
-    function GetSession(Index: Integer): TSSession; inline;
+    function GetLog(): string;
+  protected
+    FLog: TStringList;
   public
     function Add(const Session: TSSession): Integer;
+    constructor Create();
+    destructor Destroy(); override;
     function SessionByAccount(const Account: TPAccount): TSSession;
-    property Sessions[Index: Integer]: TSSession read GetSession; default;
+    property Log: string read GetLog;
     property OnSQLError: TMySQLConnection.TErrorEvent read FOnSQLError write FOnSQLError;
   end;
 
@@ -6354,7 +6358,7 @@ begin
   Result := SQL;
 end;
 
-procedure TSRoutine.ParseCreateRoutine(const SQL: string);
+procedure TSRoutine.ParseCreateRoutine(const SQL: string; const SetNameOnly: Boolean = False);
 var
   Index: Integer;
   Parameter: TSRoutineParameter;
@@ -6402,75 +6406,78 @@ begin
       FName := SQLParseValue(Parse);
     end;
 
-    if (SQLParseChar(Parse, '(')) then
-      while (not SQLParseChar(Parse, ')')) do
+    if (not SetNameOnly) then
+    begin
+      if (SQLParseChar(Parse, '(')) then
+        while (not SQLParseChar(Parse, ')')) do
+        begin
+          SetLength(FParameters, Length(FParameters) + 1);
+          FParameters[Length(FParameters) - 1] := TSRoutineParameter.Create(Self);
+          Parameter := FParameters[Length(FParameters) - 1];
+
+          if (SQLParseKeyword(Parse, 'OUT')) then
+            Parameter.FParameterType := ptOut
+          else if (SQLParseKeyword(Parse, 'INOUT')) then
+            Parameter.FParameterType := ptInOut
+          else if (SQLParseKeyword(Parse, 'IN')) then
+            Parameter.FParameterType := ptIn;
+
+          Parameter.FName := SQLParseValue(Parse);
+
+          try
+            Parameter.ParseFieldType(Parse);
+          except
+            on E: Exception do
+              E.RaiseOuterException(EAssertionFailed.CreateFmt(SSourceParseError + #13#10
+                + E.ClassName + ':' + #13#10
+                + E.Message, [Database.Name + '.' + Name, SQL]));
+          end;
+
+          if (SQLParseKeyword(Parse, 'CHARSET')) then
+            Parameter.Charset := SQLParseValue(Parse)
+          else if (SQLParseKeyword(Parse, 'BINARY')) then
+            Parameter.Charset := 'binary';
+
+          SQLParseChar(Parse, ',');
+        end;
+
+      if ((Self is TSFunction) and SQLParseKeyword(Parse, 'RETURNS')) then
       begin
-        SetLength(FParameters, Length(FParameters) + 1);
-        FParameters[Length(FParameters) - 1] := TSRoutineParameter.Create(Self);
-        Parameter := FParameters[Length(FParameters) - 1];
-
-        if (SQLParseKeyword(Parse, 'OUT')) then
-          Parameter.FParameterType := ptOut
-        else if (SQLParseKeyword(Parse, 'INOUT')) then
-          Parameter.FParameterType := ptInOut
-        else if (SQLParseKeyword(Parse, 'IN')) then
-          Parameter.FParameterType := ptIn;
-
-        Parameter.FName := SQLParseValue(Parse);
+        FFunctionResult := TSField.Create(Session.FieldTypes);
 
         try
-          Parameter.ParseFieldType(Parse);
+          FFunctionResult.ParseFieldType(Parse);
         except
-          on E: Exception do
-            E.RaiseOuterException(EAssertionFailed.CreateFmt(SSourceParseError + #13#10
-              + E.ClassName + ':' + #13#10
-              + E.Message, [Database.Name + '.' + Name, SQL]));
+          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         end;
 
         if (SQLParseKeyword(Parse, 'CHARSET')) then
-          Parameter.Charset := SQLParseValue(Parse)
-        else if (SQLParseKeyword(Parse, 'BINARY')) then
-          Parameter.Charset := 'binary';
-
-        SQLParseChar(Parse, ',');
+          FFunctionResult.Charset := SQLParseValue(Parse);
       end;
 
-    if ((Self is TSFunction) and SQLParseKeyword(Parse, 'RETURNS')) then
-    begin
-      FFunctionResult := TSField.Create(Session.FieldTypes);
+      repeat
+        Index := SQLParseGetIndex(Parse);
 
-      try
-        FFunctionResult.ParseFieldType(Parse);
-      except
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      end;
+        if (SQLParseKeyword(Parse, 'COMMENT')) then
+          FComment := SQLParseValue(Parse)
+        else if (SQLParseKeyword(Parse, 'LANGUAGE SQL')) then
+        else if (SQLParseKeyword(Parse, 'NOT DETERMINISTIC') or SQLParseKeyword(Parse, 'DETERMINISTIC')) then
+        else if (SQLParseKeyword(Parse, 'CONTAINS SQL') or SQLParseKeyword(Parse, 'NO SQL') or SQLParseKeyword(Parse, 'READS SQL DATA') or SQLParseKeyword(Parse, 'MODIFIES SQL DATA')) then
+        else if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
+        begin
+          if (StrIComp(PChar(SQLParseValue(Parse)), 'DEFINER') = 0) then
+            FSecurity := seDefiner
+          else
+            FSecurity := seInvoker;
+          Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+          Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+        end;
+      until (Index = SQLParseGetIndex(Parse));
 
-      if (SQLParseKeyword(Parse, 'CHARSET')) then
-        FFunctionResult.Charset := SQLParseValue(Parse);
+      FStmt := SQLParseRest(Parse);
+
+      FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
     end;
-
-    repeat
-      Index := SQLParseGetIndex(Parse);
-
-      if (SQLParseKeyword(Parse, 'COMMENT')) then
-        FComment := SQLParseValue(Parse)
-      else if (SQLParseKeyword(Parse, 'LANGUAGE SQL')) then
-      else if (SQLParseKeyword(Parse, 'NOT DETERMINISTIC') or SQLParseKeyword(Parse, 'DETERMINISTIC')) then
-      else if (SQLParseKeyword(Parse, 'CONTAINS SQL') or SQLParseKeyword(Parse, 'NO SQL') or SQLParseKeyword(Parse, 'READS SQL DATA') or SQLParseKeyword(Parse, 'MODIFIES SQL DATA')) then
-      else if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
-      begin
-        if (StrIComp(PChar(SQLParseValue(Parse)), 'DEFINER') = 0) then
-          FSecurity := seDefiner
-        else
-          FSecurity := seInvoker;
-        Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-      end;
-    until (Index = SQLParseGetIndex(Parse));
-
-    FStmt := SQLParseRest(Parse);
-
-    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
   end;
 end;
 
@@ -6564,7 +6571,7 @@ end;
 function TSFunction.SQLGetSource(): string;
 begin
   if ((Name = '') and (Source <> '')) then
-    ParseCreateRoutine(Source);
+    ParseCreateRoutine(Source, True);
 
   Result := 'SHOW CREATE FUNCTION ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
 end;
@@ -12067,7 +12074,11 @@ begin
   if (Assigned(AAccount)) then AAccount.RegisterSession(Self);
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
-
+  if (not Assigned(AAccount)) then
+    Sessions.FLog.Add('Create')
+  else
+    Sessions.FLog.Add('Create to: ' + AAccount.Connection.Host);
+  Sessions.FLog.Add('Open: ' + IntToStr(Sessions.Count));
 
   EventProcs := TList<TEventProc>.Create();
   FCurrentUser := '';
@@ -12327,6 +12338,12 @@ begin
   Connection.UnRegisterClient(Self);
   if (Assigned(Account)) then Account.UnRegisterSession(Self);
 
+  if (not Assigned(Account)) then
+    Sessions.FLog.Add('Destroyed')
+  else
+    Sessions.FLog.Add('Destroyed to: ' + Account.Connection.Host);
+  Sessions.FLog.Add('Open: ' + IntToStr(Sessions.Count));
+
   EventProcs.Free();
 
   if (Assigned(FCharsets)) then FCharsets.Free();
@@ -12531,6 +12548,11 @@ end;
 
 function TSSession.GetCaption(): string;
 begin
+  // Debug 2017-05-03
+  Assert(Assigned(Self));
+  Assert(Self is TSSession);
+  Assert(Assigned(Connection));
+
   Result := Connection.Host;
   if (Connection.Port <> MYSQL_PORT) then
     Result := Result + ':' + IntToStr(Connection.Port);
@@ -13258,7 +13280,8 @@ end;
 procedure TSSession.PushBuildEvents();
 begin
   Databases.PushBuildEvent(Self);
-  Users.PushBuildEvent(Self);
+  if (Assigned(Users)) then
+    Users.PushBuildEvent(Self);
   Variables.PushBuildEvent(Self);
 end;
 
@@ -13733,6 +13756,9 @@ var
   SQL: string;
   Tables: TList;
 begin
+  // Debug 2017-05-04
+  Assert(Assigned(Connection));
+
   SQL := '';
 
   if (FCurrentUser = '') then
@@ -14260,6 +14286,25 @@ begin
   Session.Connection.OnSQLError := OnSQLError;
 end;
 
+constructor TSSessions.Create();
+begin
+  inherited;
+
+  FLog := TStringList.Create();
+end;
+
+destructor TSSessions.Destroy();
+begin
+  FLog.Free();
+
+  inherited;
+end;
+
+function TSSessions.GetLog(): string;
+begin
+  Result := FLog.Text;
+end;
+
 function TSSessions.SessionByAccount(const Account: TPAccount): TSSession;
 var
   I: Integer;
@@ -14269,11 +14314,6 @@ begin
   for I := 0 to Count - 1 do
     if (Sessions[I].Account = Account) then
       Result := Sessions[I];
-end;
-
-function TSSessions.GetSession(Index: Integer): TSSession;
-begin
-  Result := TSSession(Items[Index]);
 end;
 
 { *****************************************************************************}

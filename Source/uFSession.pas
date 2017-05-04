@@ -1507,7 +1507,9 @@ begin
             + 'Len: ' + IntToStr(Len) + #13#10
             + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
             + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
-            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
+            + 'Text: ' + #13#10 + FBCEditor.Text + #13#10
+            + 'CommandText: ' + #13#10 + CommandText + #13#10
+            + 'SQL: ' + #13#10 + SQL + #13#10
             + E.ClassName + ':' + #13#10
             + E.Message));
       end;
@@ -1525,7 +1527,9 @@ begin
             + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
             + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
             + 'Length(Text): ' + IntToStr(Length(FBCEditor.Text)) + #13#10
-            + 'SQL: ' + LeftStr(SQL, 100) + #13#10
+            + 'Text: ' + #13#10 + FBCEditor.Text + #13#10
+            + 'CommandText: ' + #13#10 + CommandText + #13#10
+            + 'SQL: ' + #13#10 + SQL + #13#10
             + E.ClassName + ':' + #13#10
             + E.Message));
       end;
@@ -8932,6 +8936,10 @@ begin
     miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
     ToolBarData.tbPropertiesAction := miNProperties.Action;
+
+    // Debug 2017-05-03
+    Assert(Assigned(Session.Connection));
+
     Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
     FNavigator.ReadOnly := not aERename.Enabled;
@@ -9442,6 +9450,12 @@ end;
 
 procedure TFSession.FrameActivate(Sender: TObject);
 begin
+  // Debug 2017-05-04
+  Assert(Assigned(Self));
+  Assert(Self is TFSession);
+  Assert(Assigned(Session));
+  Assert(Assigned(Session.Connection));
+
   Include(FrameState, fsActive);
 
   FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
@@ -9593,6 +9607,10 @@ var
   BCEditor: TBCEditor;
   View: TView;
 begin
+  // Debug 2017-05-04
+  Assert(Assigned(Self));
+  Assert(Self is TFSession);
+
   CanClose := True;
 
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
@@ -9644,6 +9662,10 @@ begin
           IDCANCEL: CanClose := False;
         end;
       end;
+
+  // Debug 2017-05-04
+  Assert(Assigned(Session));
+  Assert(Assigned(Session.Databases));
 
   for I := 0 to Session.Databases.Count - 1 do
     if (CanClose) then

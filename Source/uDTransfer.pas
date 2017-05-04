@@ -997,8 +997,10 @@ begin
     if ((FSource.SelectionCount > 0) and (FDestination.SelectionCount > 0) and FirstShow) then
     begin
       PageControl.ActivePage := TSWhat;
-      if (not FBForward.Enabled) then
+      if (not FBForward.Enabled and FStructure.Enabled) then
         ActiveControl := FStructure
+      else if (not FBForward.Enabled and FData.Enabled) then
+        ActiveControl := FData
       else
         ActiveControl := FBForward;
     end

@@ -4059,7 +4059,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := False; // (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
+  Result := False; {$MESSAGE 'UseCompression'} // (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
 end;
 
 procedure TMySQLConnection.WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType);
@@ -7732,15 +7732,11 @@ begin
         for J := 0 to FieldCount - 1 do
           if (pfInWhere in Fields[J].ProviderFlags) then
           begin
+            // Debug 2017-05-04
+            Assert(Assigned(DeleteBookmarks));
+
             InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks^[I])];
             if (ValueHandled) then Result := Result + ' AND ';
-
-            // Debug 2017-01-22
-            if (not Assigned(InternRecordBuffer^.OldData)) then
-              raise ERangeError.Create(SRangeError);
-            if (not Assigned(InternRecordBuffer^.OldData^.LibRow)) then
-              raise ERangeError.Create(SRangeError);
-
             if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[Fields[J].FieldNo - 1])) then
               Result := Result + Connection.EscapeIdentifier(Fields[J].FieldName) + ' IS NULL'
             else

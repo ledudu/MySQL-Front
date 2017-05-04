@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 28;
+	$MF_VERSION = 29;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -483,7 +483,7 @@
 									$Packet .= pack('v', 0x0000); // Server Status
 								SendPacket($Packet);
 
-								while ($Row = mysqli_fetch_array($result, MYSQL_NUM)) {
+								while ($Row = mysqli_fetch_array($result)) {
 									$Packet = '';
 									$Lengths = mysqli_fetch_lengths($result);
 									for ($i = 0; $i < mysqli_num_fields($result); $i++)

@@ -666,6 +666,7 @@ begin
 
   Result := Result and (Item^.Location.UnitName <> 'EAppType')
     and (Item^.Location.UnitName <> 'EAppVCL')
+    and (Item^.Location.UnitName <> 'EBase')
     and (Item^.Location.UnitName <> 'EDialog')
     and (Item^.Location.UnitName <> 'EDialogWinAPI')
     and (Item^.Location.UnitName <> 'EDialogWinAPIMSClassic')
@@ -1038,6 +1039,10 @@ begin
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
+
+    Result := Result + #13#10;
+    Result := Result + 'Sessions';
+    Result := Result + Sessions.Log;
   end;
 end;
 
