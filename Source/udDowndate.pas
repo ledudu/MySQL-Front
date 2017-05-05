@@ -23,7 +23,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     function Execute(): Boolean;
   end;
@@ -47,7 +47,7 @@ begin
   if (not Assigned(FDDowndate)) then
   begin
     Application.CreateForm(TDDowndate, FDDowndate);
-    FDDowndate.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDDowndate.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDDowndate;
@@ -147,7 +147,7 @@ begin
   ActiveControl := FDescription;
 end;
 
-procedure TDDowndate.UMChangePreferences(var Message: TMessage);
+procedure TDDowndate.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(109, Icon);
 

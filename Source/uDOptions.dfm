@@ -60,9 +60,8 @@ object DOptions: TDOptions
         object FLLanguage: TLabel
           Left = 8
           Top = 19
-          Width = 97
+          Width = 60
           Height = 13
-          AutoSize = False
           Caption = 'FLLanguage'
           FocusControl = FLanguage
         end

@@ -69,7 +69,7 @@ type
     procedure Built();
     procedure BuiltDependencies();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Database: TSDatabase;
     Routine: TSRoutine;
@@ -96,7 +96,7 @@ begin
   if (not Assigned(FDRoutine)) then
   begin
     Application.CreateForm(TDRoutine, FDRoutine);
-    FDRoutine.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDRoutine.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDRoutine;
@@ -541,7 +541,7 @@ begin
   end;
 end;
 
-procedure TDRoutine.UMChangePreferences(var Message: TMessage);
+procedure TDRoutine.UMPreferencesChanged(var Message: TMessage);
 begin
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

@@ -1681,15 +1681,9 @@ type
   TSSessions = class(TList<TSSession>)
   private
     FOnSQLError: TMySQLConnection.TErrorEvent;
-    function GetLog(): string;
-  protected
-    FLog: TStringList;
   public
     function Add(const Session: TSSession): Integer;
-    constructor Create();
-    destructor Destroy(); override;
     function SessionByAccount(const Account: TPAccount): TSSession;
-    property Log: string read GetLog;
     property OnSQLError: TMySQLConnection.TErrorEvent read FOnSQLError write FOnSQLError;
   end;
 
@@ -11288,11 +11282,6 @@ end;
 
 constructor TSItemSearch.Create(const ASession: TSSession);
 begin
-  // Debug 2017-05-03
-  Assert(Assigned(ASession));
-  Assert(Sessions.IndexOf(ASession) >= 0,
-    'Count: ' + IntToStr(Sessions.Count));
-
   inherited;
 
   FSession := ASession;
@@ -11302,11 +11291,6 @@ begin
   NeededTables := TList.Create();
 
   Session.ItemSearches.Add(Self);
-
-  // Debug 2017-05-03
-  Assert(Assigned(Session));
-  Assert(Sessions.IndexOf(Session) >= 0,
-    'Count: ' + IntToStr(Sessions.Count));
 end;
 
 destructor TSItemSearch.Destroy();
@@ -11330,13 +11314,6 @@ begin
 
   if (ErrorCode = 0) then
   begin
-    // Debug 2017-02-09
-    Assert(Assigned(DataHandle));
-    Assert(MySQLSyncThreads.IndexOf(DataHandle) >= 0);
-    Assert(Assigned(Session));
-    Assert(Sessions.IndexOf(Session) >= 0,
-      'Count: ' + IntToStr(Sessions.Count)); // Occurred on 2017-02-27, 2017-03-14, 2017-03-27, 2017-04-01, 2017-04-26
-
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
 
@@ -12075,14 +12052,6 @@ begin
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
 
-  {$IFDEF EurekaLog}
-  if (not Assigned(AAccount)) then
-    Sessions.FLog.Add('Create')
-  else
-    Sessions.FLog.Add('Create to: ' + AAccount.Connection.Host);
-  Sessions.FLog.Add('Open: ' + IntToStr(Sessions.Count));
-  {$ENDIF}
-
   EventProcs := TList<TEventProc>.Create();
   FCurrentUser := '';
   FInformationSchema := nil;
@@ -12341,14 +12310,6 @@ begin
   Connection.UnRegisterClient(Self);
   if (Assigned(Account)) then Account.UnRegisterSession(Self);
 
-  {$IFDEF EurekaLog}
-  if (not Assigned(Account)) then
-    Sessions.FLog.Add('Destroyed')
-  else
-    Sessions.FLog.Add('Destroyed from: ' + Account.Connection.Host + ', at: ' + LocationToStr(GetCallerLocation()));
-  Sessions.FLog.Add('Open: ' + IntToStr(Sessions.Count));
-  {$ENDIF}
-
   EventProcs.Free();
 
   if (Assigned(FCharsets)) then FCharsets.Free();
@@ -12553,12 +12514,6 @@ end;
 
 function TSSession.GetCaption(): string;
 begin
-  // Debug 2017-05-03
-  Assert(Assigned(Self));
-  Assert(Self is TSSession);
-  Assert(Assigned(Connection));
-  Assert(Sessions.IndexOf(Self) >= 0);
-
   Result := Connection.Host;
   if (Connection.Port <> MYSQL_PORT) then
     Result := Result + ':' + IntToStr(Connection.Port);
@@ -14290,25 +14245,6 @@ begin
   Result := inherited Add(Session);
 
   Session.Connection.OnSQLError := OnSQLError;
-end;
-
-constructor TSSessions.Create();
-begin
-  inherited;
-
-  FLog := TStringList.Create();
-end;
-
-destructor TSSessions.Destroy();
-begin
-  FLog.Free();
-
-  inherited;
-end;
-
-function TSSessions.GetLog(): string;
-begin
-  Result := FLog.Text;
 end;
 
 function TSSessions.SessionByAccount(const Account: TPAccount): TSSession;

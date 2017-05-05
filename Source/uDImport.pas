@@ -173,9 +173,9 @@ Progress: string; // Debug 2017-01-27
     function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
@@ -216,7 +216,7 @@ begin
   if (not Assigned(FDImport)) then
   begin
     Application.CreateForm(TDImport, FDImport);
-    FDImport.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDImport.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDImport;
@@ -1330,7 +1330,19 @@ begin
   CheckActivePageChange(TSTables);
 end;
 
-procedure TDImport.UMChangePreferences(var Message: TMessage);
+procedure TDImport.UMPostAfterExecuteSQL(var Message: TMessage);
+begin
+  if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+    Wanted.Page.OnShow(nil);
+end;
+
+procedure TDImport.UMPostShow(var Message: TMessage);
+begin
+  TSExecute.Enabled := True;
+  PageControl.ActivePage := TSExecute;
+end;
+
+procedure TDImport.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiImport, Icon);
 
@@ -1385,18 +1397,6 @@ begin
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
   FBForward.Caption := Preferences.LoadStr(229) + ' >';
   FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
-procedure TDImport.UMPostAfterExecuteSQL(var Message: TMessage);
-begin
-  if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
-    Wanted.Page.OnShow(nil);
-end;
-
-procedure TDImport.UMPostShow(var Message: TMessage);
-begin
-  TSExecute.Enabled := True;
-  PageControl.ActivePage := TSExecute;
 end;
 
 procedure TDImport.UMTerminate(var Message: TMessage);

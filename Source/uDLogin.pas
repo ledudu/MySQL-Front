@@ -23,7 +23,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Account: TPAccount;
     function Execute(): Boolean;
@@ -46,7 +46,7 @@ begin
   if (not Assigned(FDLogin)) then
   begin
     Application.CreateForm(TDLogin, FDLogin);
-    FDLogin.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDLogin.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDLogin;
@@ -80,7 +80,7 @@ begin
     ActiveControl := FPassword;
 end;
 
-procedure TDLogin.UMChangePreferences(var Message: TMessage);
+procedure TDLogin.UMPreferencesChanged(var Message: TMessage);
 begin
   Caption := Preferences.LoadStr(49);
 

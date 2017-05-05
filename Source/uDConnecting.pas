@@ -19,7 +19,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure FormHide(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Database: string;
     Host: string;
@@ -52,7 +52,7 @@ begin
   if (not Assigned(FDConnecting)) then
   begin
     Application.CreateForm(TDConnecting, FDConnecting);
-    FDConnecting.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDConnecting.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDConnecting;
@@ -115,7 +115,7 @@ begin
     Session.Connection.Connect(LibraryType, LibraryName, Host, User, Password, Database, Port, True);
 end;
 
-procedure TDConnecting.UMChangePreferences(var Message: TMessage);
+procedure TDConnecting.UMPreferencesChanged(var Message: TMessage);
 begin
   FInfo.Caption := Preferences.LoadStr(195) + '...';
 

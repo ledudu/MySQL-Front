@@ -45,7 +45,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure Find();
     procedure StringGridResize(Sender: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UpdateLanguageFile();
   public
     Filename: string;
@@ -71,7 +71,7 @@ begin
   if (not Assigned(FDLanguage)) then
   begin
     Application.CreateForm(TDLanguage, FDLanguage);
-    FDLanguage.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDLanguage.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDLanguage;
@@ -341,7 +341,7 @@ begin
   CanSelect := (ACol = 2);
 end;
 
-procedure TDLanguage.UMChangePreferences(var Message: TMessage);
+procedure TDLanguage.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(108, Icon);
 

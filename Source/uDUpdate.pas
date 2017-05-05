@@ -38,7 +38,7 @@ type
     SetupPrgFilename: TFileName;
     procedure OnProgress(Sender: TObject; const Done, Size: Int64);
     procedure OnTerminate(Sender: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
     procedure UMSetupFileReceived(var Message: TMessage); message UM_SETUP_FILE_RECEIVED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
@@ -66,7 +66,7 @@ begin
   if (not Assigned(FDUpdate)) then
   begin
     Application.CreateForm(TDUpdate, FDUpdate);
-    FDUpdate.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDUpdate.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDUpdate;
@@ -187,7 +187,7 @@ begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
 end;
 
-procedure TDUpdate.UMChangePreferences(var Message: TMessage);
+procedure TDUpdate.UMPreferencesChanged(var Message: TMessage);
 begin
   Caption := ReplaceStr(Preferences.LoadStr(666), '&', '');
 

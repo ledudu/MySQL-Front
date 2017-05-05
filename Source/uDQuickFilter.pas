@@ -18,7 +18,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure FormHide(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Data: string;
     function Execute(): Boolean;
@@ -41,7 +41,7 @@ begin
   if (not Assigned(FDQuickFilter)) then
   begin
     Application.CreateForm(TDQuickFilter, FDQuickFilter);
-    FDQuickFilter.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDQuickFilter.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDQuickFilter;
@@ -70,7 +70,7 @@ begin
   end;
 end;
 
-procedure TDQuickFilter.UMChangePreferences(var Message: TMessage);
+procedure TDQuickFilter.UMPreferencesChanged(var Message: TMessage);
 begin
   Caption := Preferences.LoadStr(489);
 

@@ -77,7 +77,7 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FRightsRefresh(Sender: TObject);
     procedure ListViewShowSortDirection(const ListView: TListView);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Session: TSSession;
     User: TSUser;
@@ -105,7 +105,7 @@ begin
   if (not Assigned(FDUser)) then
   begin
     Application.CreateForm(TDUser, FDUser);
-    FDUser.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDUser.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDUser;
@@ -516,7 +516,7 @@ begin
   ActiveControl := FRights;
 end;
 
-procedure TDUser.UMChangePreferences(var Message: TMessage);
+procedure TDUser.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiUser, Icon);
 

@@ -202,7 +202,7 @@ type
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Charset: string;
     Collation: string;
@@ -235,7 +235,7 @@ begin
   if (not Assigned(FDTable)) then
   begin
     Application.CreateForm(TDTable, FDTable);
-    FDTable.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDTable.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDTable;
@@ -1729,7 +1729,7 @@ begin
   FTriggers.OnChange := TempOnChange;
 end;
 
-procedure TDTable.UMChangePreferences(var Message: TMessage);
+procedure TDTable.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiBaseTable, Icon);
 

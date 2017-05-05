@@ -78,7 +78,7 @@ type
     procedure BuiltDependencies();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Database: TSDatabase;
     View: TSView;
@@ -104,7 +104,7 @@ begin
   if (not Assigned(FDView)) then
   begin
     Application.CreateForm(TDView, FDView);
-    FDView.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDView.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDView;
@@ -600,7 +600,7 @@ begin
   end;
 end;
 
-procedure TDView.UMChangePreferences(var Message: TMessage);
+procedure TDView.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiView, Icon);
 

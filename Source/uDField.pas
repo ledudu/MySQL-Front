@@ -123,7 +123,7 @@ type
     function IsIntType(): Boolean;
     function IsMemoType(): Boolean;
     function IsUnionType(): Boolean;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Field: TSBaseField;
     ModifyTableOnly: Boolean;
@@ -150,7 +150,7 @@ begin
   if (not Assigned(FDField)) then
   begin
     Application.CreateForm(TDField, FDField);
-    FDField.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDField.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDField;
@@ -1139,7 +1139,7 @@ begin
   Result := GetType() in [mfEnum, mfSet];
 end;
 
-procedure TDField.UMChangePreferences(var Message: TMessage);
+procedure TDField.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiBaseField, Icon);
 

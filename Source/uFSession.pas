@@ -1085,9 +1085,9 @@ type
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
     procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
     procedure UMSynCompletionTime(var Message: TMessage); message UM_SYNCOMPLETION_TIMER;
     procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
@@ -2881,15 +2881,15 @@ begin
 
 
     case (View) of
-      vObjects: if (not (ttObjects in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjects); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vBrowser: if (not (ttBrowser in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBrowser); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vIDE: if (not (ttIDE in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttIDE); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vBuilder: if (not (ttBuilder in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBuilder); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vDiagram: if (not (ttDiagram in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttDiagram); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor2: if (not (ttEditor2 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor2); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor3: if (not (ttEditor3 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor3); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
-      vObjectSearch: if (not (ttObjectSearch in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjectSearch); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vObjects: if (not (ttObjects in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjects); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vBrowser: if (not (ttBrowser in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBrowser); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vIDE: if (not (ttIDE in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttIDE); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vBuilder: if (not (ttBuilder in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBuilder); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vDiagram: if (not (ttDiagram in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttDiagram); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vEditor2: if (not (ttEditor2 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor2); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vEditor3: if (not (ttEditor3 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor3); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
+      vObjectSearch: if (not (ttObjectSearch in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjectSearch); PostMessage(Window.Handle, UM_PREFERENCES_CHANGED, 0, 0); end;
     end;
 
     ToolBarData.Caption := AddressToCaption(CurrentAddress);
@@ -5429,7 +5429,7 @@ begin
 
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
-  Perform(UM_CHANGEPREFERENCES, 0, 0);
+  Perform(UM_PREFERENCES_CHANGED, 0, 0);
   Perform(CM_SYSFONTCHANGED, 0, 0);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
@@ -6713,7 +6713,7 @@ begin
       PDBGridFilter := TPDBGridFilter.Create(nil);
       PDBGridFilter.Color := DBGrid.Color;
       PDBGridFilter.Perform(CM_SYSFONTCHANGED, 0, 0);
-      PDBGridFilter.Perform(UM_CHANGEPREFERENCES, 0, 0);
+      PDBGridFilter.Perform(UM_PREFERENCES_CHANGED, 0, 0);
       PDBGridFilter.PopupParent := Window;
     end;
 
@@ -8995,7 +8995,7 @@ begin
       PObjectSearch := TPObjectSearch.Create(nil);
       PObjectSearch.Color := FObjectSearch.Color;
       PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
-      PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
+      PObjectSearch.Perform(UM_PREFERENCES_CHANGED, 0, 0);
       PObjectSearch.PopupParent := Window;
 
       PObjectSearch.Session := Session;
@@ -9450,13 +9450,6 @@ end;
 
 procedure TFSession.FrameActivate(Sender: TObject);
 begin
-  // Debug 2017-05-04
-  Assert(Assigned(Self));
-  Assert(Self is TFSession);
-  Assert(Assigned(Session));
-  Assert(Assigned(Session.Connection));
-  Assert(Sessions.IndexOf(Session) >= 0);
-
   Include(FrameState, fsActive);
 
   FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
@@ -9666,21 +9659,9 @@ begin
         end;
       end;
 
-  // Debug 2017-05-04
-  Assert(Assigned(Session));
-  Assert(Assigned(Session.Databases));
-  Assert(Sessions.IndexOf(Session) >= 0);
-
   for I := 0 to Session.Databases.Count - 1 do
     if (CanClose) then
-    begin
-      if (not Assigned(Session.Databases[I])) then
-        raise ERangeError.Create(SRangeError);
-      if (not Assigned(Desktop(Session.Databases[I]))) then
-        raise ERangeError.Create('Database: ' + Session.Databases[I].Name);
-
       Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
-    end;
 end;
 
 procedure TFSession.FrameDeactivate(Sender: TObject);
@@ -13751,7 +13732,7 @@ begin
   if (SourceAddresses.Count > 0) then
   begin
     SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceAddresses[0], Session.Account));
-    if (not Assigned(SourceSession)) then
+    if (Assigned(SourceSession)) then
       SourceSessionCreated := False
     else
     begin
@@ -13936,7 +13917,7 @@ begin
 
                     for I := 0 to SourceAddresses.Count - 1 do
                       case (ClassIndexByAddress(SourceAddresses[I])) of
-                        ciKey:
+                        ciBaseField:
                           begin
                             SourceField := TSBaseField(SourceSession.ItemByAddress(SourceAddresses[I]));
 
@@ -13948,6 +13929,8 @@ begin
                               NewField.Assign(SourceField);
                               NewField.Name := CopyName(SourceField.Name, NewTable.Fields);
                               NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+                              if (NewField.AutoIncrement and Assigned(NewTable.AutoIncrementField)) then
+                                NewField.AutoIncrement := False;
                               NewTable.Fields.AddField(NewField);
                               NewField.Free();
                             end;
@@ -16207,7 +16190,7 @@ begin
     else
       Include(Preferences.ToolbarTabs, ttObjectSearch);
 
-  PostMessage(Handle, UM_CHANGEPREFERENCES, 0, 0);
+  PostMessage(Handle, UM_PREFERENCES_CHANGED, 0, 0);
 
   PHeaderCheckElements(nil);
 end;
@@ -16346,7 +16329,109 @@ begin
   FText.SelStart := Length(FText.Text);
 end;
 
-procedure TFSession.UMChangePreferences(var Message: TMessage);
+procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
+begin
+  FQueryBuilderEditorPageControlCheckStyle();
+end;
+
+procedure TFSession.UMPostShow(var Message: TMessage);
+var
+  AllowChange: Boolean;
+  Node: TTreeNode;
+  ServerNode: TTreeNode;
+  URI: TUURI;
+begin
+  PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
+  PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
+  PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
+  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
+
+  if (PExplorer.Visible) then
+    CreateExplorer()
+  else if (PSQLHistory.Visible) then
+    FSQLHistoryRefresh(nil);
+
+  PSideBar.Width := Session.Account.Desktop.SidebarWitdth;
+  PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
+
+  SQLEditor.BCEditor.Text := Session.Account.Desktop.EditorContent[ttEditor];
+  SQLEditor.BCEditor.Lines.LineBreak := #13#10;
+  PResult.Height := Session.Account.Desktop.DataHeight;
+  PResultHeight := PResult.Height;
+  PBlob.Height := Session.Account.Desktop.BlobHeight;
+
+  PLog.Height := Session.Account.Desktop.LogHeight;
+  PLog.Visible := Session.Account.Desktop.LogVisible; SLog.Visible := PLog.Visible;
+
+  aVBlobText.Checked := True;
+
+  FQueryBuilderEditorPageControlCheckStyle();
+
+  FrameResize(nil);
+  PHeaderCheckElements(nil);
+
+  FrameActivate(Self);
+
+  ServerNode := FNavigator.Items.Add(nil, Session.Caption);
+  ServerNode.Data := Session;
+  ServerNode.ImageIndex := iiServer;
+
+  if (Assigned(Session.Processes)) then
+  begin
+    Node := FNavigator.Items.AddChild(ServerNode, '');
+    Node.Data := Session.Processes;
+    Node.ImageIndex := iiProcesses;
+  end;
+  if (Assigned(Session.Variables)) then
+  begin
+    Node := FNavigator.Items.AddChild(ServerNode, '');
+    Node.Data := Session.Variables;
+    Node.ImageIndex := iiVariables;
+  end;
+
+  // Debug 2017-04-24
+  Node := FNavigator.Items.getFirstNode();
+  while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
+    Node := Node.getNextSibling();
+  Assert(Assigned(Node),
+    'Count: ' + IntToStr(FNavigator.Items.Count));
+
+  ServerNode.Expand(False);
+
+  FNavigatorInitialize(nil);
+
+
+  if (LowerCase(LeftStr(Param, 8)) = 'mysql://') then
+    CurrentAddress := Param
+  else if (Param <> '') then
+  begin
+    URI := TUURI.Create(Session.Address);
+    URI.Param['view'] := 'editor';
+    URI.Table := '';
+    URI.Param['system'] := Null;
+    URI.Param['filter'] := Null;
+    URI.Param['search'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['file'] := EscapeURL(Param);
+    URI.Param['cp'] := Null;
+    CurrentAddress := URI.Address;
+    URI.Free();
+  end
+  else
+  begin
+    AllowChange := True;
+    if (Session.Account.Desktop.Address = '') then
+      AddressChanging(nil, Session.Address, AllowChange)
+    else
+      AddressChanging(nil, Session.Account.Desktop.Address, AllowChange);
+    Wanted.Address := Session.Account.Desktop.Address;
+  end;
+end;
+
+procedure TFSession.UMPreferencesChanged(var Message: TMessage);
 var
   I: Integer;
   ItemEx: TTVItemEx;
@@ -16574,108 +16659,6 @@ begin
   FLog.Font.Charset := Preferences.LogFontCharset;
 
   PasteMode := False;
-end;
-
-procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
-begin
-  FQueryBuilderEditorPageControlCheckStyle();
-end;
-
-procedure TFSession.UMPostShow(var Message: TMessage);
-var
-  AllowChange: Boolean;
-  Node: TTreeNode;
-  ServerNode: TTreeNode;
-  URI: TUURI;
-begin
-  PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
-  PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
-  PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
-  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
-
-  if (PExplorer.Visible) then
-    CreateExplorer()
-  else if (PSQLHistory.Visible) then
-    FSQLHistoryRefresh(nil);
-
-  PSideBar.Width := Session.Account.Desktop.SidebarWitdth;
-  PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
-
-  SQLEditor.BCEditor.Text := Session.Account.Desktop.EditorContent[ttEditor];
-  SQLEditor.BCEditor.Lines.LineBreak := #13#10;
-  PResult.Height := Session.Account.Desktop.DataHeight;
-  PResultHeight := PResult.Height;
-  PBlob.Height := Session.Account.Desktop.BlobHeight;
-
-  PLog.Height := Session.Account.Desktop.LogHeight;
-  PLog.Visible := Session.Account.Desktop.LogVisible; SLog.Visible := PLog.Visible;
-
-  aVBlobText.Checked := True;
-
-  FQueryBuilderEditorPageControlCheckStyle();
-
-  FrameResize(nil);
-  PHeaderCheckElements(nil);
-
-  FrameActivate(Self);
-
-  ServerNode := FNavigator.Items.Add(nil, Session.Caption);
-  ServerNode.Data := Session;
-  ServerNode.ImageIndex := iiServer;
-
-  if (Assigned(Session.Processes)) then
-  begin
-    Node := FNavigator.Items.AddChild(ServerNode, '');
-    Node.Data := Session.Processes;
-    Node.ImageIndex := iiProcesses;
-  end;
-  if (Assigned(Session.Variables)) then
-  begin
-    Node := FNavigator.Items.AddChild(ServerNode, '');
-    Node.Data := Session.Variables;
-    Node.ImageIndex := iiVariables;
-  end;
-
-  // Debug 2017-04-24
-  Node := FNavigator.Items.getFirstNode();
-  while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
-    Node := Node.getNextSibling();
-  Assert(Assigned(Node),
-    'Count: ' + IntToStr(FNavigator.Items.Count));
-
-  ServerNode.Expand(False);
-
-  FNavigatorInitialize(nil);
-
-
-  if (LowerCase(LeftStr(Param, 8)) = 'mysql://') then
-    CurrentAddress := Param
-  else if (Param <> '') then
-  begin
-    URI := TUURI.Create(Session.Address);
-    URI.Param['view'] := 'editor';
-    URI.Table := '';
-    URI.Param['system'] := Null;
-    URI.Param['filter'] := Null;
-    URI.Param['search'] := Null;
-    URI.Param['offset'] := Null;
-    URI.Param['objecttype'] := Null;
-    URI.Param['object'] := Null;
-    URI.Param['offset'] := Null;
-    URI.Param['file'] := EscapeURL(Param);
-    URI.Param['cp'] := Null;
-    CurrentAddress := URI.Address;
-    URI.Free();
-  end
-  else
-  begin
-    AllowChange := True;
-    if (Session.Account.Desktop.Address = '') then
-      AddressChanging(nil, Session.Address, AllowChange)
-    else
-      AddressChanging(nil, Session.Account.Desktop.Address, AllowChange);
-    Wanted.Address := Session.Account.Desktop.Address;
-  end;
 end;
 
 procedure TFSession.UMStausBarRefresh(var Message: TMessage);

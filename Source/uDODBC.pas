@@ -55,7 +55,7 @@ type
     UsernameC: array [0 .. CRED_MAX_USERNAME_LENGTH] of Char;
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FDataSourcesUpdate();
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     DataSource: string;
     Password: string;
@@ -85,7 +85,7 @@ begin
   if (not Assigned(FDODBC)) then
   begin
     Application.CreateForm(TDODBC, FDODBC);
-    FDODBC.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDODBC.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDODBC;
@@ -277,7 +277,7 @@ begin
   ActiveControl := FDataSources;
 end;
 
-procedure TDODBC.UMChangePreferences(var Message: TMessage);
+procedure TDODBC.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiODBC, Icon);
 

@@ -69,7 +69,7 @@ type
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Table: TSBaseTable;
     Trigger: TSTrigger;
@@ -95,7 +95,7 @@ begin
   if (not Assigned(FDTrigger)) then
   begin
     Application.CreateForm(TDTrigger, FDTrigger);
-    FDTrigger.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDTrigger.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDTrigger;
@@ -365,7 +365,7 @@ begin
   TSSource.TabVisible := False;
 end;
 
-procedure TDTrigger.UMChangePreferences(var Message: TMessage);
+procedure TDTrigger.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiTrigger, Icon);
 

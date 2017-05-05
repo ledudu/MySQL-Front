@@ -60,7 +60,7 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure ListViewShowSortDirection(const ListView: TListView);
     function SessionUpdate(): Boolean;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure VariableValid(const Variable: TSVariable);
   public
     Session: TSSession;
@@ -90,7 +90,7 @@ begin
   if (not Assigned(FDServer)) then
   begin
     Application.CreateForm(TDServer, FDServer);
-    FDServer.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDServer.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDServer;
@@ -348,7 +348,7 @@ begin
     FStartup.Text := Trim(Session.VariableByName('init_connect').Value) + #13#10;
 end;
 
-procedure TDServer.UMChangePreferences(var Message: TMessage);
+procedure TDServer.UMPreferencesChanged(var Message: TMessage);
 begin
   TSBasics.Caption := Preferences.LoadStr(108);
   GServer.Caption := Preferences.LoadStr(906);

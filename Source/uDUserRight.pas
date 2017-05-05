@@ -77,7 +77,7 @@ type
     procedure FTablesDropDown(Sender: TObject);
   private
     procedure EnableElements(Sender: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Session: TSSession;
     User: TSUser;
@@ -103,7 +103,7 @@ begin
   if (not Assigned(FDUserRight)) then
   begin
     Application.CreateForm(TDUserRight, FDUserRight);
-    FDUserRight.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDUserRight.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDUserRight;
@@ -586,7 +586,7 @@ begin
   end;
 end;
 
-procedure TDUserRight.UMChangePreferences(var Message: TMessage);
+procedure TDUserRight.UMPreferencesChanged(var Message: TMessage);
 begin
   GWhat.Caption := Preferences.LoadStr(299);
   FAll.Caption := Preferences.LoadStr(300);

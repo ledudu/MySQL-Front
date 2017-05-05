@@ -24,7 +24,7 @@ type
       Data: Integer; var Compare: Integer);
     procedure FSelectionDblClick(Sender: TObject);
   protected
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Selected: string;
     Values: array of string;
@@ -50,7 +50,7 @@ begin
   if (not Assigned(FDSelection)) then
   begin
     Application.CreateForm(TDSelection, FDSelection);
-    FDSelection.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDSelection.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDSelection;
@@ -116,7 +116,7 @@ begin
     FBOk.Click();
 end;
 
-procedure TDSelection.UMChangePreferences(var Message: TMessage);
+procedure TDSelection.UMPreferencesChanged(var Message: TMessage);
 begin
   Caption := Preferences.LoadStr(721);
 

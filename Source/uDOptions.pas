@@ -107,7 +107,7 @@ type
     procedure TSViewResize(Sender: TObject);
     procedure FLanguageChange(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Languages: array of TIniFileRecord;
     function Execute(): Boolean;
@@ -132,7 +132,7 @@ begin
   if (not Assigned(FDOptions)) then
   begin
     Application.CreateForm(TDOptions, FDOptions);
-    FDOptions.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDOptions.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDOptions;
@@ -465,7 +465,7 @@ begin
   FBLanguage.Width := FBLanguage.Height;
 end;
 
-procedure TDOptions.UMChangePreferences(var Message: TMessage);
+procedure TDOptions.UMPreferencesChanged(var Message: TMessage);
 begin
   Canvas.Font := Font;
 

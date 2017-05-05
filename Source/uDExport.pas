@@ -185,8 +185,8 @@ type
     function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
@@ -218,7 +218,7 @@ begin
   if (not Assigned(FDExport)) then
   begin
     Application.CreateForm(TDExport, FDExport);
-    FDExport.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDExport.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDExport;
@@ -1437,7 +1437,7 @@ begin
   TSXMLOptionChange(Sender);
 end;
 
-procedure TDExport.UMChangePreferences(var Message: TMessage);
+procedure TDExport.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiExport, Icon);
 

@@ -86,7 +86,7 @@ type
     WaitingForClose: Boolean;
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Tables: TList;
     function Execute(): Boolean;
@@ -112,7 +112,7 @@ begin
   if (not Assigned(FDTables)) then
   begin
     Application.CreateForm(TDTables, FDTables);
-    FDTables.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDTables.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDTables;
@@ -468,7 +468,7 @@ begin
     end;
 end;
 
-procedure TDTables.UMChangePreferences(var Message: TMessage);
+procedure TDTables.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiBaseTable, Icon);
 

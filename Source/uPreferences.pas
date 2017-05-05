@@ -328,6 +328,7 @@ type
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
   private
+Progress: string;
     FDowndateFilename: TFileName;
     FImages: TImageList;
     FInternetAgent: string;
@@ -352,7 +353,7 @@ type
     Account: TAccount;
     Accounts: TAccounts;
     AssociateSQL: Boolean;
-    Database: TDatabase;
+    xDatabase: TDatabase;
     Databases: TDatabases;
     Editor: TEditor;
     Event: TEvent;
@@ -2065,7 +2066,11 @@ begin
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
     end;
 
-  Database := TDatabase.Create();
+  Progress := Progress + 'A';
+
+  xDatabase := TDatabase.Create();
+  Progress := Progress + 'B';
+
   Databases := TDatabases.Create();
   Editor := TEditor.Create();
   Event := TEvent.Create();
@@ -2094,18 +2099,25 @@ begin
 
   Open();
 
+  Progress := Progress + 'C';
   // Debug 2017-05-02
-  Assert(Assigned(Database));
+  Assert(Assigned(xDatabase));
 end;
 
 destructor TPPreferences.Destroy();
 begin
+  Progress := Progress + 'D';
+
   // Debug 2017-05-01
   Assert(Assigned(Self));
   Assert(TObject(Self) is TPPreferences);
-  Assert(Assigned(Database));
+  Assert(Assigned(xDatabase),
+    'Progress: ' + Progress);
 
-  Database.Free();
+  xDatabase.Free();
+
+  Progress := Progress + 'E';
+
   Databases.Free();
   Editor.Free();
   Event.Free();
@@ -2419,7 +2431,7 @@ begin
   if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
-  if (Assigned(XMLNode(XML, 'database'))) then Database.LoadFromXML(XMLNode(XML, 'database'));
+  if (Assigned(XMLNode(XML, 'database'))) then xDatabase.LoadFromXML(XMLNode(XML, 'database'));
   if (Assigned(XMLNode(XML, 'editor'))) then Editor.LoadFromXML(XMLNode(XML, 'editor'));
   if (Assigned(XMLNode(XML, 'event'))) then Event.LoadFromXML(XMLNode(XML, 'event'));
   if (Assigned(XMLNode(XML, 'export'))) then Export.LoadFromXML(XMLNode(XML, 'export'));
@@ -2592,10 +2604,7 @@ begin
 
   XMLNode(XML, 'width').Text := IntToStr(Width);
 
-  // Debug 2017-04-25
-  Assert(Assigned(Database));
-
-  Database.SaveToXML(XMLNode(XML, 'database', True));
+  xDatabase.SaveToXML(XMLNode(XML, 'database', True));
   Editor.SaveToXML(XMLNode(XML, 'editor', True));
   Event.SaveToXML(XMLNode(XML, 'event', True));
   Export.SaveToXML(XMLNode(XML, 'export', True));

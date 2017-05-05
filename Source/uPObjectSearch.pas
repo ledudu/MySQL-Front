@@ -32,7 +32,7 @@ type
     function GetTables(): Boolean;
     function GetTriggers(): Boolean;
     procedure SetLocation(ALocation: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
@@ -159,7 +159,7 @@ begin
     FName.Checked := True;
 end;
 
-procedure TPObjectSearch.UMChangePreferences(var Message: TMessage);
+procedure TPObjectSearch.UMPreferencesChanged(var Message: TMessage);
 begin
   FLWhat.Caption := Preferences.LoadStr(227) + ':';
   FDatabases.Caption := Preferences.LoadStr(265);

@@ -19,8 +19,8 @@ type
     procedure FormHide(Sender: TObject);
   private
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Session: TSSession;
     Update: TSSession.TUpdate;
@@ -47,7 +47,7 @@ begin
   if (not Assigned(FDExecutingSQL)) then
   begin
     Application.CreateForm(TDExecutingSQL, FDExecutingSQL);
-    FDExecutingSQL.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDExecutingSQL.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDExecutingSQL;
@@ -89,17 +89,17 @@ begin
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
 
-procedure TDExecutingSQL.UMChangePreferences(var Message: TMessage);
-begin
-  FInfo.Caption := Preferences.LoadStr(882) + '...';
-
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
 procedure TDExecutingSQL.UMPostShow(var Message: TMessage);
 begin
   if (Update()) then
     ModalResult := mrOk;
+end;
+
+procedure TDExecutingSQL.UMPreferencesChanged(var Message: TMessage);
+begin
+  FInfo.Caption := Preferences.LoadStr(882) + '...';
+
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

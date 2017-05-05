@@ -23,7 +23,7 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormShow(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     function Execute(): Boolean;
   end;
@@ -47,7 +47,7 @@ begin
   if (not Assigned(FDMail)) then
   begin
     Application.CreateForm(TDMail, FDMail);
-    FDMail.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDMail.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDMail;
@@ -144,7 +144,7 @@ begin
   FBody.Text := 'Hi Nils,' + #13#10#13#10;
 end;
 
-procedure TDMail.UMChangePreferences(var Message: TMessage);
+procedure TDMail.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(109, Icon);
 

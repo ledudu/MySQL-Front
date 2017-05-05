@@ -34,7 +34,7 @@ type
     SessionState: (ssInit, ssValid, ssAlter);
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Session: TSSession;
     Variable: TSVariable;
@@ -58,7 +58,7 @@ begin
   if (not Assigned(FDVariable)) then
   begin
     Application.CreateForm(TDVariable, FDVariable);
-    FDVariable.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDVariable.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDVariable;
@@ -204,7 +204,7 @@ begin
   FBOkButtonEnable(Sender);
 end;
 
-procedure TDVariable.UMChangePreferences(var Message: TMessage);
+procedure TDVariable.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiVariable, Icon);
 

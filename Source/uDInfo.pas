@@ -25,7 +25,7 @@ type
     procedure FURIClick(Sender: TObject);
   private
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     function Execute(): Boolean;
   end;
@@ -48,7 +48,7 @@ begin
   if (not Assigned(FDInfo)) then
   begin
     Application.CreateForm(TDInfo, FDInfo);
-    FDInfo.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDInfo.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDInfo;
@@ -119,7 +119,7 @@ begin
   ShellExecute(Handle, 'open', PChar(FURI.Caption), '', '', SW_SHOW);
 end;
 
-procedure TDInfo.UMChangePreferences(var Message: TMessage);
+procedure TDInfo.UMPreferencesChanged(var Message: TMessage);
 begin
   Caption := Preferences.LoadStr(367) + ' ' + LoadStr(1000);
 

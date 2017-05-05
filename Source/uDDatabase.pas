@@ -79,7 +79,7 @@ type
     procedure BuiltStatus();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetName(): string;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Session: TSSession;
     Database: TSDatabase;
@@ -105,7 +105,7 @@ begin
   if (not Assigned(FDDatabase)) then
   begin
     Application.CreateForm(TDDatabase, FDDatabase);
-    FDDatabase.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDDatabase.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDDatabase;
@@ -306,8 +306,8 @@ procedure TDDatabase.FormHide(Sender: TObject);
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  Preferences.Database.Width := Width;
-  Preferences.Database.Height := Height;
+  Preferences.xDatabase.Width := Width;
+  Preferences.xDatabase.Height := Height;
 
   FSource.Lines.Clear();
 
@@ -380,10 +380,10 @@ var
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
-  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
+  if ((Preferences.xDatabase.Width >= Width) and (Preferences.xDatabase.Height >= Height)) then
   begin
-    Width := Preferences.Database.Width;
-    Height := Preferences.Database.Height;
+    Width := Preferences.xDatabase.Width;
+    Height := Preferences.xDatabase.Height;
   end;
 
   if (not Assigned(Database)) then
@@ -520,7 +520,7 @@ begin
     FSource.Text := Database.Source + #13#10;
 end;
 
-procedure TDDatabase.UMChangePreferences(var Message: TMessage);
+procedure TDDatabase.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiDatabase, Icon);
 

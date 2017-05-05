@@ -308,12 +308,6 @@ end;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 4;
   const HideSource: Boolean = False);
 {$IFNDEF Debug}
-{$IFDEF EurekaLog}
-var
-  Buffer: TEurekaDebugInfo;
-  I: Integer;
-  Index: Integer;
-{$ENDIF}
 var
   Body: String;
   Flags: DWORD;
@@ -1054,19 +1048,6 @@ begin
           Result := Result + StringOfChar('-', 72) + #13#10;
           Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
         end;
-      except
-        on E: Exception do
-          begin
-            Result := Result + #13#10;
-            Result := Result + E.ClassName + ':' + E.Message + #13#10;
-          end;
-      end;
-
-      try
-        Result := Result + #13#10;
-        Result := Result + 'Sessions' + #13#10;
-        Result := Result + StringOfChar('-', 72) + #13#10;
-        Result := Result + Sessions.Log;
       except
         on E: Exception do
           begin

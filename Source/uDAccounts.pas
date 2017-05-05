@@ -65,8 +65,8 @@ type
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TPAccount);
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Account: TPAccount;
     Session: TSSession;
@@ -94,7 +94,7 @@ begin
   if (not Assigned(FDAccounts)) then
   begin
     Application.CreateForm(TDAccounts, FDAccounts);
-    FDAccounts.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDAccounts.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDAccounts;
@@ -607,7 +607,12 @@ begin
   IgnoreColumnResize := False;
 end;
 
-procedure TDAccounts.UMChangePreferences(var Message: TMessage);
+procedure TDAccounts.UMPostShow(var Message: TMessage);
+begin
+  ListViewShowSortDirection(FAccounts);
+end;
+
+procedure TDAccounts.UMPreferencesChanged(var Message: TMessage);
 begin
   FAccounts.Canvas.Font := Font;
 
@@ -626,11 +631,6 @@ begin
   aDelete.Caption := Preferences.LoadStr(28);
 
   FBOk.Caption := Preferences.LoadStr(581);
-end;
-
-procedure TDAccounts.UMPostShow(var Message: TMessage);
-begin
-  ListViewShowSortDirection(FAccounts);
 end;
 
 initialization

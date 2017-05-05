@@ -56,8 +56,8 @@ type
     function GetParentTable(): TSBaseTable;
     property SelectedParentDatabase: TSDatabase read GetParentDatabase;
     property SelectedParentTable: TSBaseTable read GetParentTable;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     ForeignKey: TSForeignKey;
     ModifyTableOnly: Boolean;
@@ -84,7 +84,7 @@ begin
   if (not Assigned(FDForeignKey)) then
   begin
     Application.CreateForm(TDForeignKey, FDForeignKey);
-    FDForeignKey.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDForeignKey.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDForeignKey;
@@ -509,7 +509,7 @@ begin
     Result := SelectedParentDatabase.BaseTableByName(FParentTable.Text);
 end;
 
-procedure TDForeignKey.UMChangePreferences(var Message: TMessage);
+procedure TDForeignKey.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiForeignKey, Icon);
 

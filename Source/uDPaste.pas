@@ -18,7 +18,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Data: Boolean;
     Structure: Boolean;
@@ -43,7 +43,7 @@ begin
   if (not Assigned(FDPaste)) then
   begin
     Application.CreateForm(TDPaste, FDPaste);
-    FDPaste.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDPaste.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDPaste;
@@ -74,7 +74,7 @@ begin
   ActiveControl := FData;
 end;
 
-procedure TDPaste.UMChangePreferences(var Message: TMessage);
+procedure TDPaste.UMPreferencesChanged(var Message: TMessage);
 begin
   Caption := Preferences.LoadStr(65);
 

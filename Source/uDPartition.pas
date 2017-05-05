@@ -32,7 +32,7 @@ type
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormShow(Sender: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Partition: TSPartition;
     Table: TSBaseTable;
@@ -58,7 +58,7 @@ begin
   if (not Assigned(FDPartition)) then
   begin
     Application.CreateForm(TDPartition, FDPartition);
-    FDPartition.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDPartition.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDPartition;
@@ -161,7 +161,7 @@ begin
   ActiveControl := FName;
 end;
 
-procedure TDPartition.UMChangePreferences(var Message: TMessage);
+procedure TDPartition.UMPreferencesChanged(var Message: TMessage);
 begin
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';

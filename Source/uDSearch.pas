@@ -110,8 +110,8 @@ type
     procedure OnSearched(const AItem: TTSearch.TItem);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
@@ -145,7 +145,7 @@ begin
   if (not Assigned(FDSearch)) then
   begin
     Application.CreateForm(TDSearch, FDSearch);
-    FDSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDSearch.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDSearch;
@@ -955,7 +955,7 @@ begin
   CheckActivePageChange(TSSelect);
 end;
 
-procedure TDSearch.UMChangePreferences(var Message: TMessage);
+procedure TDSearch.UMPreferencesChanged(var Message: TMessage);
 begin
   GSelect.Caption := Preferences.LoadStr(721);
 

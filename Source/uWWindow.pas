@@ -419,8 +419,8 @@ type
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
     procedure UMActivateFrame(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCrashRescue(var Message: TMessage); message UM_CRASH_RESCUE;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMMySQLConnectionSynchronize(var Message: TMessage); message UM_MYSQLCONNECTION_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
@@ -645,7 +645,7 @@ begin
     TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
     TBTabControl.Visible := Preferences.TabsVisible;
     for I := 0 to Screen.FormCount - 1 do
-      PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
+      PostMessage(Screen.Forms[I].Handle, UM_PREFERENCES_CHANGED, 0, 0);
   end;
 end;
 
@@ -718,7 +718,7 @@ begin
       TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
       TBTabControl.Visible := Preferences.TabsVisible;
       for I := 0 to Screen.FormCount - 1 do
-        PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
+        PostMessage(Screen.Forms[I].Handle, UM_PREFERENCES_CHANGED, 0, 0);
     end;
   end;
 end;
@@ -1676,7 +1676,21 @@ begin
   Message.Result := LRESULT(Assigned(FSession));
 end;
 
-procedure TWWindow.UMChangePreferences(var Message: TMessage);
+procedure TWWindow.UMCrashRescue(var Message: TMessage);
+var
+  I: Integer;
+begin
+  if (not (csDestroying in ComponentState)) then
+  begin
+    for I := 0 to FSessions.Count - 1 do
+      try TFSession(FSessions[I]).CrashRescue(); except end;
+
+    try Accounts.Save(); except; end;
+    try Preferences.Save(); except; end;
+  end;
+end;
+
+procedure TWWindow.UMPreferencesChanged(var Message: TMessage);
 var
   I: Integer;
 begin
@@ -1855,20 +1869,6 @@ begin
   if (Assigned(FSessions)) then
     for I := 0 to FSessions.Count - 1 do
       SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
-end;
-
-procedure TWWindow.UMCrashRescue(var Message: TMessage);
-var
-  I: Integer;
-begin
-  if (not (csDestroying in ComponentState)) then
-  begin
-    for I := 0 to FSessions.Count - 1 do
-      try TFSession(FSessions[I]).CrashRescue(); except end;
-
-    try Accounts.Save(); except; end;
-    try Preferences.Save(); except; end;
-  end;
 end;
 
 procedure TWWindow.UMMySQLConnectionSynchronize(var Message: TMessage);

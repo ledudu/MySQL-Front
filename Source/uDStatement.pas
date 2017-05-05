@@ -51,7 +51,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     DatabaseName: string;
     DateTime: TDateTime;
@@ -86,7 +86,7 @@ begin
   if (not Assigned(FDStatement)) then
   begin
     Application.CreateForm(TDStatement, FDStatement);
-    FDStatement.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDStatement.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDStatement;
@@ -188,7 +188,7 @@ begin
   ActiveControl := FBClose;
 end;
 
-procedure TDStatement.UMChangePreferences(var Message: TMessage);
+procedure TDStatement.UMPreferencesChanged(var Message: TMessage);
 begin
   TSInformation.Caption := Preferences.LoadStr(121);
   GBasics.Caption := Preferences.LoadStr(85);

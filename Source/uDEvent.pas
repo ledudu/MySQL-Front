@@ -101,7 +101,7 @@ type
     SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Database: TSDatabase;
     Event: TSEvent;
@@ -127,7 +127,7 @@ begin
   if (not Assigned(FDEvent)) then
   begin
     Application.CreateForm(TDEvent, FDEvent);
-    FDEvent.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDEvent.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDEvent;
@@ -494,7 +494,7 @@ begin
     FSource.Text := Event.Source
 end;
 
-procedure TDEvent.UMChangePreferences(var Message: TMessage);
+procedure TDEvent.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiEvent, Icon);
 

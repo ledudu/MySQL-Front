@@ -45,7 +45,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMSendSQL(var Message: TMessage); message UM_SEND_SQL;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
   protected
@@ -78,7 +78,7 @@ begin
   if (not Assigned(FWSQLHelp)) then
   begin
     Application.CreateForm(TWSQLHelp, FWSQLHelp);
-    FWSQLHelp.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FWSQLHelp.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FWSQLHelp;
@@ -320,7 +320,7 @@ begin
   end
 end;
 
-procedure TWSQLHelp.UMChangePreferences(var Message: TMessage);
+procedure TWSQLHelp.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(14, Icon);
 

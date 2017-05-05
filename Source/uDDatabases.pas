@@ -27,7 +27,7 @@ type
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Session: TSSession;
     SelectedDatabases: string;
@@ -54,7 +54,7 @@ begin
   if (not Assigned(FDDatabases)) then
   begin
     Application.CreateForm(TDDatabases, FDDatabases);
-    FDDatabases.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDDatabases.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDDatabases;
@@ -199,7 +199,7 @@ begin
     ActiveControl := FDatabases;
 end;
 
-procedure TDDatabases.UMChangePreferences(var Message: TMessage);
+procedure TDDatabases.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiServer, Icon);
 

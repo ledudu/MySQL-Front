@@ -91,8 +91,8 @@ type
     function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
@@ -125,7 +125,7 @@ begin
   if (not Assigned(FDTransfer)) then
   begin
     Application.CreateForm(TDTransfer, FDTransfer);
-    FDTransfer.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDTransfer.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDTransfer;
@@ -1058,7 +1058,21 @@ begin
   CheckActivePageChange(TSWhat);
 end;
 
-procedure TDTransfer.UMChangePreferences(var Message: TMessage);
+procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
+var
+  Node: TTreeNode;
+begin
+  if (Assigned(Wanted.Node)) then
+  begin
+    Node := Wanted.Node;
+    Wanted.Node := nil;
+    Node.Expand(False);
+  end;
+  if (not Assigned(Wanted.Node) and Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+    Wanted.Page.OnShow(Wanted.Page);
+end;
+
+procedure TDTransfer.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiTransfer, Icon);
 
@@ -1084,20 +1098,6 @@ begin
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
-end;
-
-procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
-var
-  Node: TTreeNode;
-begin
-  if (Assigned(Wanted.Node)) then
-  begin
-    Node := Wanted.Node;
-    Wanted.Node := nil;
-    Node.Expand(False);
-  end;
-  if (not Assigned(Wanted.Node) and Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
-    Wanted.Page.OnShow(Wanted.Page);
 end;
 
 procedure TDTransfer.UMTerminate(var Message: TMessage);

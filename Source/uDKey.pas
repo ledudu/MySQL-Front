@@ -80,7 +80,7 @@ type
     procedure BuiltTable();
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Key: TSKey;
     ModifyTableOnly: Boolean;
@@ -106,7 +106,7 @@ begin
   if (not Assigned(FDKey)) then
   begin
     Application.CreateForm(TDKey, FDKey);
-    FDKey.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDKey.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDKey;
@@ -721,7 +721,7 @@ begin
   FIndexedFields.ItemFocused := FIndexedFields.Selected;
 end;
 
-procedure TDKey.UMChangePreferences(var Message: TMessage);
+procedure TDKey.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiKey, Icon);
 

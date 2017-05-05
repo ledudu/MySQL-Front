@@ -55,7 +55,7 @@ type
   private
     function CheckConnectInfos(): Boolean;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Account: TPAccount;
     Password: string;
@@ -84,7 +84,7 @@ begin
   if (not Assigned(FDAccount)) then
   begin
     Application.CreateForm(TDAccount, FDAccount);
-    FDAccount.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    FDAccount.Perform(UM_PREFERENCES_CHANGED, 0, 0);
   end;
 
   Result := FDAccount;
@@ -364,7 +364,7 @@ end;
 
 procedure TDAccount.FormShow(Sender: TObject);
 begin
-  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
+  if ((Preferences.xDatabase.Width >= Width) and (Preferences.xDatabase.Height >= Height)) then
   begin
     Width := Preferences.Account.Width;
     Height := Preferences.Account.Height;
@@ -424,7 +424,7 @@ begin
   Result := Trim(FName.Text);
 end;
 
-procedure TDAccount.UMChangePreferences(var Message: TMessage);
+procedure TDAccount.UMPreferencesChanged(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiServer, Icon);
 

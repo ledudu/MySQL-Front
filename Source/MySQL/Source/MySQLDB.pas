@@ -2067,7 +2067,8 @@ begin
         RunExecute.ResetEvent();
         if (not Terminated) then
           if ((SynchronCount > 0)
-            and ((Mode = smSQL) or (State <> ssReceivingResult))) then
+            and ((Mode = smSQL) or (State <> ssReceivingResult))
+            and not Connection.BesideThreadWaits) then
           begin
             Connection.SyncThreadExecuted.SetEvent();
             Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -2691,7 +2692,6 @@ begin
       'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
       + 'Mode: ' + IntToStr(Ord(Mode)) + #13#10
       + DebugMonitor.CacheText);
-
   end
   else
   begin
