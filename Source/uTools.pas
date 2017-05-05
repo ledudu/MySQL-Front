@@ -4365,7 +4365,11 @@ begin
     Item.RecordsSum := Item.RecordsDone;
 
   if (Assigned(DataSet)) then
+  begin
+    if (Success <> daSuccess) then
+      DataSet.Connection.Terminate();
     DataSet.Free();
+  end;
 
   if ((Table is TSBaseTable) and not (Self is TTExportSQL)) then
     for I := 0 to TSBaseTable(Table).TriggerCount - 1 do

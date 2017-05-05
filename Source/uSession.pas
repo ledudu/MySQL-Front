@@ -11312,6 +11312,9 @@ var
 begin
   Result := False;
 
+  // Debug 2017-05-05
+  Assert(Assigned(Session));
+
   if (ErrorCode = 0) then
   begin
     DataSet := TMySQLQuery.Create(nil);

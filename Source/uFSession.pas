@@ -430,8 +430,6 @@ type
     procedure DBGridEmptyExecute(Sender: TObject);
     procedure DBGridEnter(Sender: TObject);
     procedure DBGridExit(Sender: TObject);
-    procedure DBGridHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
-      Y: Integer);
     procedure DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
     procedure DBGridKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
@@ -4825,6 +4823,8 @@ procedure TFSession.BeginEditLabel(Sender: TObject);
 begin
   KillTimer(Handle, tiNavigator);
 
+  aECopy.OnExecute := nil;
+  aEPaste.OnExecute := nil;
   aDCreate.ShortCut := 0;
   aDDelete.ShortCut := 0;
 end;
@@ -5821,7 +5821,6 @@ begin
   Result.DataSource := DataSource;
 
   Result.Parent := PDBGrid;
-  Result.Header.OnMouseMove := DBGridHeaderMouseMove;
 
   Result.Constraints.MinHeight := 3 * Result.Canvas.TextHeight('I');
 
@@ -6640,68 +6639,6 @@ begin
   end;
 end;
 
-procedure TFSession.DBGridHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
-  Y: Integer);
-{$IFDEF Debug}
-var
-  DBGrid: TMySQLDBGrid;
-  GridCoord: TGridCoord;
-  HDItem: THDItem;
-  Msg: TMsg;
-{$ENDIF}
-begin
-  {$IFDEF Debug}
-  if ((Sender is THeaderControl) and (THeaderControl(Sender).Parent is TMySQLDBGrid)) then
-  begin
-    DBGrid := TMySQLDBGrid(THeaderControl(Sender).Parent);
-
-    if ((X < 0) or (Y < 0)) then
-    begin
-      GridCoord.X := -1;
-      GridCoord.Y := -1;
-    end
-    else
-      GridCoord := DBGrid.MouseCoord(X, Y);
-
-    HDItem.Mask := HDI_FORMAT;
-
-    if (Assigned(MGridHeaderColumn) and ((GridCoord.X < 0) or (GridCoord.Y <> 0) or (MGridHeaderColumn <> DBGrid.Columns[GridCoord.X]))
-      and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
-    begin
-      HDItem.fmt := HDItem.fmt and not HDF_SPLITBUTTON;
-      SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
-      ReleaseCapture();
-    end;
-
-    if ((GridCoord.X >= 0) and (GridCoord.Y = 0)
-      and not (DBGrid.Columns[GridCoord.X].Field.DataType in BinaryDataTypes)) then
-    begin
-      DBGrid.PopupMenu := MDBGridHeader;
-      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
-      if (BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))
-        and (HDItem.fmt and HDF_SPLITBUTTON = 0)) then
-      begin
-        HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
-        SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
-      end;
-      if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = DBGrid.Header.Handle) and (KeysToShiftState(Msg.wParam) = Shift))) then
-        SetCapture(DBGrid.Header.Handle);
-    end
-    else
-    begin
-      if (Assigned(MGridHeaderColumn) and ((GridCoord.X < 0) or (GridCoord.Y <> 0) or (MGridHeaderColumn <> DBGrid.Columns[GridCoord.X]))
-        and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
-        ReleaseCapture();
-
-      DBGrid.PopupMenu := MDBGrid;
-      MGridHeaderColumn := nil;
-    end;
-
-    inherited;
-  end;
-  {$ENDIF}
-end;
-
 procedure TFSession.DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
 var
   Rect: TRect;
@@ -7254,6 +7191,8 @@ end;
 
 procedure TFSession.EndEditLabel(Sender: TObject);
 begin
+  aECopy.OnExecute := aECopyExecute;
+  aEPaste.OnExecute := aEPasteExecute;
   aDCreate.ShortCut := VK_INSERT;
   aDDelete.ShortCut := VK_DELETE;
 end;
@@ -13831,9 +13770,11 @@ begin
                         DExecutingSQL.Update := SourceTable.Update;
                         if (SourceTable.Valid or DExecutingSQL.Execute()) then
                         begin
-                          Session.Connection.BeginSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.BeginSynchron();
                           Success := Database.CloneTable(SourceTable, CopyName(SourceTable.Name, Database.Tables), DPaste.Data);
-                          Session.Connection.EndSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.EndSynchron();
                         end;
                       end
                       else if (TObject(List[I]) is TSView) then
@@ -13848,9 +13789,11 @@ begin
                           if (Session.LowerCaseTableNames = 1) then
                             Name := LowerCase(Name);
 
-                          Session.Connection.BeginSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.BeginSynchron();
                           Success := Database.CloneTable(SourceView, Name, False);
-                          Session.Connection.EndSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.EndSynchron();
                         end;
                       end
                       else if (TObject(List[I]) is TSRoutine) then
@@ -13861,9 +13804,11 @@ begin
                         DExecutingSQL.Update := SourceRoutine.Update;
                         if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
                         begin
-                          Session.Connection.BeginSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.BeginSynchron();
                           Success := Database.CloneRoutine(SourceRoutine, CopyName(SourceRoutine.Name, Database.Routines));
-                          Session.Connection.EndSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.EndSynchron();
                         end;
                       end
                       else if (TObject(List[I]) is TSEvent) then
@@ -13874,9 +13819,11 @@ begin
                         DExecutingSQL.Update := SourceEvent.Update;
                         if (SourceEvent.Valid or DExecutingSQL.Execute()) then
                         begin
-                          Session.Connection.BeginSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.BeginSynchron();
                           Success := Database.CloneEvent(SourceEvent, CopyName(SourceEvent.Name, Database.Events));
-                          Session.Connection.EndSynchron();
+                          if (SourceAddresses.Count > 1) then
+                            Session.Connection.EndSynchron();
                         end;
                       end;
                 end;
@@ -13980,9 +13927,11 @@ begin
                           end;
                       end;
 
-                    Session.Connection.BeginSynchron();
+                    if (SourceAddresses.Count > 1) then
+                      Session.Connection.BeginSynchron();
                     Database.UpdateBaseTable(Table, NewTable);
-                    Session.Connection.EndSynchron();
+                    if (SourceAddresses.Count > 1) then
+                      Session.Connection.EndSynchron();
 
                     for I := 0 to SourceAddresses.Count - 1 do
                       if (ClassIndexByAddress(SourceAddresses[I]) = ciTrigger) then
@@ -16847,22 +16796,10 @@ begin
   case (Msg.NMHdr^.code) of
     TVN_BEGINLABELEDIT,
     LVN_BEGINLABELEDIT:
-      begin
-        aECopy.ShortCut := 0;
-        aECut.ShortCut := 0;
-        aEDelete.ShortCut := 0;
-        aEPaste.ShortCut := 0;
-        BeginEditLabel(Window.ActiveControl);
-      end;
+      BeginEditLabel(Window.ActiveControl);
     TVN_ENDLABELEDIT,
     LVN_ENDLABELEDIT:
-      begin
-        EndEditLabel(Window.ActiveControl);
-        aECopy.ShortCut := 16451;
-        aECut.ShortCut := 16472;
-        aEDelete.ShortCut := 16430;
-        aEPaste.ShortCut := 16470;
-      end;
+      EndEditLabel(Window.ActiveControl);
     LVN_ITEMCHANGING: NMListView := PNMListView(Msg.NMHdr);
   end;
 

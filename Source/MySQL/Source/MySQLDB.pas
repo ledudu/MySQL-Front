@@ -4016,10 +4016,6 @@ end;
 
 procedure TMySQLConnection.Terminate();
 begin
-  // Debug 2017-04-01
-  Assert(Assigned(Self));
-  Assert(Assigned(TerminateCS));
-
   TerminateCS.Enter();
 
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
@@ -5165,7 +5161,9 @@ end;
 procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SyncThread)) then
+  begin
     Connection.Sync(SyncThread);
+  end;
 
   IndexDefs.Clear();
 
@@ -6429,15 +6427,6 @@ begin
 
   if (Result = grOk) then
   begin
-    // Debug 2017-03-11
-    if ((NewIndex < 0) or (InternRecordBuffers.Count <= NewIndex)) then
-      raise ERangeError.Create('NewIndex: ' + IntToStr(NewIndex) + #13#10
-        + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-        + 'GetMode: ' + IntToStr(Ord(GetMode)));
-    // 2017-03-11 CallStack: TMySQLTable.Sort, NewIndex = -1, Count = 0, gmNext
-    // 2017-03-15 CallStack: TMySQLDataSet.FindRecord, NewIndex = -1, Index = -2, Count = 0, gmNext
-
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
 

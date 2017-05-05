@@ -1911,6 +1911,8 @@ var
   Resource: Pointer;
   StringList: TStringList;
 begin
+  Progress := Progress + 'a';
+
   inherited Create(KEY_ALL_ACCESS);
 
   FOnlineVersion := 0;
@@ -1964,6 +1966,8 @@ begin
   TabsVisible := False;
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
 
+
+  Progress := Progress + 'a';
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
@@ -2023,6 +2027,8 @@ begin
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
+
+  Progress := Progress + 'a';
 
   for I := 0 to MaxIconIndex do
     if (I = 16) then
