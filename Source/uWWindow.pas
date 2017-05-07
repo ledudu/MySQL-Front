@@ -413,7 +413,7 @@ type
     procedure InformOnlineUpdateFound();
     procedure miFReopenClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
-    procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
+    procedure MySQLConnectionSynchronize(const Data: Pointer; const Tag: NativeInt); inline;
     procedure OnlineVersionChecked(Sender: TObject);
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
@@ -1374,9 +1374,9 @@ begin
   end;
 end;
 
-procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
+procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer; const Tag: NativeInt);
 begin
-  PostMessage(Handle, UM_MYSQLCONNECTION_SYNCHRONIZE, 0, LPARAM(Data));
+  PostMessage(Handle, UM_MYSQLCONNECTION_SYNCHRONIZE, Tag, LPARAM(Data));
 end;
 
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
@@ -1874,7 +1874,7 @@ end;
 
 procedure TWWindow.UMMySQLConnectionSynchronize(var Message: TMessage);
 begin
-  MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
+  MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam), NativeInt(Message.WParam));
 end;
 
 procedure TWWindow.UMOnlineUpdateFound(var Message: TMessage);

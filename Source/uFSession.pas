@@ -630,6 +630,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure FObjectIDEGridUpdateAction(Sender: TObject;
       var CanExecute: Boolean);
+    procedure ToolButton1Click(Sender: TObject);
   type
     TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
@@ -4199,15 +4200,17 @@ procedure TFSession.aFOpenInNewWindowExecute(Sender: TObject);
 begin
   // Debug 2017-05-03
   if (not Assigned(FocusedSItem)) then
-    if (Window.ActiveControl is TListView) then
-      if (not Assigned(TListView(Window.ActiveControl))) then
-        Assert(False)
+    if (Window.ActiveControl = ActiveListView) then
+      if (not Assigned(TListView(Window.ActiveControl).Selected)) then
+        Assert(False,
+          'CurrentAddress: ' + CurrentAddress)
       else
         Assert(False,
           'ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Caption: ' + TListView(Window.ActiveControl).Selected.Caption)
-    else if (Window.ActiveControl is TTreeView) then // AV here on 2017-05-07
-      if (not Assigned(TTreeView(Window.ActiveControl))) then
+          + 'Caption: ' + TListView(Window.ActiveControl).Selected.Caption + #13#10
+          + 'CurrentAddress: ' + CurrentAddress)
+    else if (Window.ActiveControl = FNavigator) then
+      if (not Assigned(TTreeView(Window.ActiveControl).Selected)) then
         Assert(False)
       else
         Assert(False,
@@ -10711,7 +10714,13 @@ begin
       lkDatabase:
         case (SortRec^.ColumnIndex) of
           0:
-            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+            begin
+              // Debug 2017-05-08
+              Assert(Assigned(Item1.Data));
+              Assert(Assigned(Item2.Data));
+
+              Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+            end;
           1:
             Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
           2:
@@ -16132,6 +16141,11 @@ begin
   PostMessage(Handle, UM_PREFERENCES_CHANGED, 0, 0);
 
   PHeaderCheckElements(nil);
+end;
+
+procedure TFSession.ToolButton1Click(Sender: TObject);
+begin
+  ActiveDBGrid.DataSource.DataSet.Resync([]);
 end;
 
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);

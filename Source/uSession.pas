@@ -4060,6 +4060,8 @@ begin
   end;
 
   // Debug 2017-05-06
+  Assert(Assigned(Self));
+  Assert(Self is TSTable);
   Assert(Assigned(Fields));
 
   if (Fields.Count > 0) then

@@ -158,7 +158,7 @@ type
     TOnUpdateIndexDefsEvent = procedure(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs) of object;
     TResultEvent = function(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TDataHandle; const Data: Boolean): Boolean of object;
-    TSynchronizeEvent = procedure(const Data: Pointer) of object;
+    TSynchronizeEvent = procedure(const Data: Pointer; const Tag: NativeInt) of object;
 
     TLibraryDataType = (ldtConnecting, ldtExecutingSQL, ldtDisconnecting);
     Plocal_infile = ^Tlocal_infile;
@@ -530,6 +530,8 @@ type
       InternRecordBuffer: PInternRecordBuffer;
       BookmarkFlag: TBookmarkFlag;
     end;
+    TWantedRecord = (wrNone, wrNext, wrLast);
+
     TInternRecordBuffers = class(TList<PInternRecordBuffer>)
     strict private
       FDataSet: TMySQLDataSet;
@@ -552,6 +554,7 @@ type
       property Index: Integer read FIndex write SetIndex;
       property RecordReceived: TEvent read FRecordReceived;
     end;
+
   strict private
     DeleteByWhereClause: Boolean;
     FCachedUpdates: Boolean;
@@ -582,6 +585,7 @@ type
     PendingBuffers: TList<PInternRecordBuffer>;
   protected
     DeleteBookmarks: PBookmarks;
+    WantedRecord: TWantedRecord;
     procedure ActivateFilter(); virtual;
     function AllocRecordBuffer(): TRecordBuffer; override;
     procedure AfterCommit(); virtual;
@@ -604,6 +608,7 @@ type
     procedure InternalCancel(); override;
     procedure InternalClose(); override;
     procedure InternalDelete(); override;
+    procedure InternalEdit(); override;
     procedure InternalFirst(); override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalInitFieldDefs(); override;
@@ -648,6 +653,7 @@ type
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
       Options: TLocateOptions): Boolean; override;
+    procedure Resync(Mode: TResyncMode); override;
     procedure Sort(const ASortDef: TIndexDef); virtual;
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
@@ -678,28 +684,21 @@ type
   end;
 
   TMySQLTable = class(TMySQLDataSet)
-  type
-    TWantedRecord = (wrNone, wrLast);
   strict private
     FAutomaticLoadNextRecords: Boolean;
     FLimit: Integer;
     FOffset: Integer;
-    FWantedRecord: TWantedRecord;
   protected
     FLimitedDataReceived: Boolean;
     RequestedRecordCount: Integer;
     procedure DoBeforeScroll(); override;
     function GetCanModify(): Boolean; override;
     procedure InternalClose(); override;
-    procedure InternalDelete(); override;
-    procedure InternalEdit(); override;
-    procedure InternalInsert(); override;
     procedure InternalLast(); override;
     procedure InternalOpen(); override;
     procedure InternalRefresh(); override;
     function SQLSelect(): string; overload;
     function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
-    property WantedRecord: TWantedRecord read FWantedRecord;
   public
     constructor Create(AOwner: TComponent); override;
     function LoadNextRecords(const AllRecords: Boolean = False): Boolean; virtual;
@@ -925,7 +924,7 @@ function DateToStr(const Date: TDateTime; const FormatSettings: TFormatSettings)
 function ExecutionTimeToStr(const Time: TDateTime; const Digits: Byte = 2): string;
 function GetZeroDateString(const FormatSettings: TFormatSettings): string;
 function GeometryField(const Field: TField): Boolean;
-procedure MySQLConnectionSynchronize(const Data: Pointer);
+procedure MySQLConnectionSynchronize(const Data: Pointer; const Tag: NativeInt);
 function StrToDate(const S: string; const FormatSettings: TFormatSettings): TDateTime; overload;
 function StrToDateTime(const S: string; const FormatSettings: TFormatSettings): TDateTime; overload;
 function SQLFormatToDisplayFormat(const SQLFormat: string): string;
@@ -942,7 +941,6 @@ const
 var
   LocaleFormatSettings: TFormatSettings;
   MySQLConnectionOnSynchronize: TMySQLConnection.TSynchronizeEvent;
-  MySQLSyncThreads: TMySQLSyncThreads; // ... should be in implementation
 
 implementation {***************************************************************}
 
@@ -1043,7 +1041,9 @@ type
 
 var
   DataSetNumber: Integer;
+  MySQLDataSets: TList<TMySQLDataSet>;
   MySQLLibraries: array of TMySQLLibrary;
+  MySQLSyncThreads: TMySQLSyncThreads; // ... should be in implementation
 
 {******************************************************************************}
 
@@ -1289,14 +1289,28 @@ begin
   end;
 end;
 
-procedure MySQLConnectionSynchronize(const Data: Pointer);
+procedure MySQLConnectionSynchronize(const Data: Pointer; const Tag: NativeInt);
 var
+  DataSet: TMySQLDataSet;
   SyncThread: TMySQLConnection.TSyncThread;
 begin
-  SyncThread := TMySQLConnection.TSyncThread(Data);
+  case (Tag) of
+    0:
+      begin
+        SyncThread := TMySQLConnection.TSyncThread(Data);
 
-  if (MySQLSyncThreads.IndexOf(SyncThread) >= 0) then
-    SyncThread.Connection.Sync(SyncThread);
+        if (MySQLSyncThreads.IndexOf(SyncThread) >= 0) then
+          SyncThread.Connection.Sync(SyncThread);
+      end;
+    1:
+      begin
+        DataSet := TMySQLDataSet(Data);
+
+        if (MySQLDataSets.IndexOf(DataSet) >= 0) then
+          DataSet.Resync([]);
+      end;
+    else raise ERangeError.Create('Tag: ' + IntToStr(Tag));
+  end;
 end;
 
 function MySQLTimeStampToStr(const SQLTimeStamp: TSQLTimeStamp; const DisplayFormat: string): string;
@@ -2140,8 +2154,6 @@ end;
 
 destructor TMySQLConnection.TSyncThread.Destroy();
 begin
-  Assert(GetCurrentThreadId() = MainThreadID);
-
   MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(Self));
 
   RunExecute.Free();
@@ -2203,7 +2215,7 @@ begin
             Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
           end
           else
-            MySQLConnectionOnSynchronize(Self);
+            MySQLConnectionOnSynchronize(Self, 0);
         Connection.TerminateCS.Leave();
       end;
   end;
@@ -2431,12 +2443,15 @@ begin
     DataSets[0].Free();
 
   if (Assigned(SyncThread)) then
-  begin
-    SyncThread.Terminate();
-    SyncThread.RunExecute.SetEvent();
-    SyncThread.WaitFor();
-    SyncThread.Free();
-  end;
+    if (SyncThread.IsRunning) then
+      TerminateThread(SyncThread.Handle, 0)
+    else
+    begin
+      SyncThread.Terminate();
+      SyncThread.RunExecute.SetEvent();
+      SyncThread.WaitFor();
+      SyncThread.Free();
+    end;
   TerminateCS.Enter();
   for I := 0 to TerminatedThreads.Count - 1 do
     TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
@@ -3078,7 +3093,7 @@ begin
     DebugMonitor.Append('SyncT - start - Mode: ' + IntToStr(Ord(SyncThread.Mode)) + ', State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
 
     BesideThreadWaits := True;
-    MySQLConnectionOnSynchronize(SyncThread);
+    MySQLConnectionOnSynchronize(SyncThread, 0);
     if (not Assigned(SyncThread.Done)) then
     begin
       SyncThreadExecuted.WaitFor(INFINITE);
@@ -3340,7 +3355,7 @@ begin
   begin
     SyncThread.RunExecute.SetEvent();
     if (RefreshData) then
-      DataSet.First();
+      DataSet.Resync([]);
   end;
 
   DebugMonitor.Append('SyncBindDataSet - end - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
@@ -3976,6 +3991,9 @@ begin
           DataSet.InternRecordBuffers.RecordReceived.SetEvent();
           OldDataSize := DataSet.DataSize;
         end;
+      if ((DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).WantedRecord = wrNext)) then
+        MySQLConnectionOnSynchronize(DataSet, 1);
+
       TerminateCS.Leave();
     end;
   until (not Assigned(LibRow) or (SyncThread.ErrorCode <> 0));
@@ -4015,7 +4033,7 @@ begin
     begin
       SyncHandledResult(SyncThread);
 
-      if ((DataSet is TMySQLTable) and (TMySQLTable(DataSet).WantedRecord = wrLast)) then
+      if ((DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).WantedRecord = wrLast)) then
         DataSet.Last();
     end;
     TerminateCS.Leave();
@@ -6482,11 +6500,14 @@ begin
   FTableName := '';
   InGetNextRecords := False;
   PendingBuffers := nil;
+  WantedRecord := wrNone;
 
   BookmarkSize := SizeOf(InternRecordBuffers[0]);
 
   SetUniDirectional(False);
   FilterOptions := [foNoPartialCompare];
+
+  MySQLDataSets.Add(Self);
 end;
 
 function TMySQLDataSet.CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream;
@@ -6548,6 +6569,8 @@ end;
 
 destructor TMySQLDataSet.Destroy();
 begin
+  MySQLDataSets.Delete(MySQLDataSets.IndexOf(Self));
+
   inherited;
 
   if (Assigned(AppliedBuffers)) then
@@ -6762,8 +6785,14 @@ begin
             if (Wait) then
               InternRecordBuffers.RecordReceived.ResetEvent();
             InternRecordBuffers.CriticalSection.Leave();
-            if (Wait) then
-              InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
+            if (Wait
+              and (InternRecordBuffers.RecordReceived.WaitFor(100) = wrTimeout)) then
+            begin
+              InternRecordBuffers.CriticalSection.Enter();
+              if (InternRecordBuffers.RecordReceived.WaitFor(IGNORE) <> wrSignaled) then
+                WantedRecord := wrNext;
+              InternRecordBuffers.CriticalSection.Leave();
+            end;
           end;
 
           if (NewIndex + 1 >= InternRecordBuffers.Count) then
@@ -6952,6 +6981,8 @@ var
   SQL: string;
   Success: Boolean;
 begin
+  WantedRecord := wrNone;
+
   if (not CachedUpdates) then
   begin
     SQL := SQLDelete();
@@ -6997,6 +7028,11 @@ begin
     if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
+end;
+
+procedure TMySQLDataSet.InternalEdit();
+begin
+  WantedRecord := wrNone;
 end;
 
 procedure TMySQLDataSet.InternalFirst();
@@ -7053,6 +7089,8 @@ var
   Index: Integer;
   RBS: RawByteString;
 begin
+  WantedRecord := wrNone;
+
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF,
     bfEOF:
@@ -7086,7 +7124,12 @@ end;
 
 procedure TMySQLDataSet.InternalLast();
 begin
-  InternRecordBuffers.Index := InternRecordBuffers.Count;
+  Connection.TerminateCS.Enter();
+  if (SyncThread.State = ssReceivingResult) then
+    WantedRecord := wrLast
+  else
+    InternRecordBuffers.Index := InternRecordBuffers.Count;
+  Connection.TerminateCS.Leave();
 end;
 
 procedure TMySQLDataSet.InternalOpen();
@@ -7709,6 +7752,14 @@ begin
         Inc(Index, DestData^.LibLengths^[I]);
       end;
   end;
+end;
+
+procedure TMySQLDataSet.Resync(Mode: TResyncMode);
+begin
+  if (ActiveBuffer() > 0) then
+    InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+
+  inherited;
 end;
 
 procedure TMySQLDataSet.SetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
@@ -8788,7 +8839,7 @@ end;
 
 procedure TMySQLTable.DoBeforeScroll();
 begin
-  FWantedRecord := wrNone;
+  WantedRecord := wrNone;
 
   inherited;
 end;
@@ -8809,7 +8860,6 @@ begin
   DeleteBookmarks := nil;
   FCommandType := ctTable;
   FLimitedDataReceived := False;
-  FWantedRecord := wrNone;
 end;
 
 procedure TMySQLTable.InternalClose();
@@ -8819,31 +8869,10 @@ begin
   FLimitedDataReceived := False;
 end;
 
-procedure TMySQLTable.InternalDelete();
-begin
-  FWantedRecord := wrNone;
-
-  inherited;
-end;
-
-procedure TMySQLTable.InternalEdit();
-begin
-  FWantedRecord := wrNone;
-
-  inherited;
-end;
-
-procedure TMySQLTable.InternalInsert();
-begin
-  FWantedRecord := wrNone;
-
-  inherited;
-end;
-
 procedure TMySQLTable.InternalLast();
 begin
   if (LimitedDataReceived and AutomaticLoadNextRecords and LoadNextRecords(True)) then
-    FWantedRecord := wrLast
+    WantedRecord := wrLast
   else
     inherited;
 end;
@@ -9046,8 +9075,10 @@ initialization
   LocaleFormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
   SetLength(MySQLLibraries, 0);
 
+  MySQLDataSets := TList<TMySQLDataSet>.Create();
   MySQLSyncThreads := TMySQLSyncThreads.Create();
 finalization
+  MySQLDataSets.Free();
   MySQLSyncThreads.Free();
 
   FreeMySQLLibraries();
