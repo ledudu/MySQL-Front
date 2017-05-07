@@ -6634,9 +6634,9 @@ function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
   Assert(Active);
   Assert(ActiveBuffer() > 0);
-  Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
 
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths;
@@ -6646,9 +6646,9 @@ function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
   Assert(ActiveBuffer() > 0);
-  Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
 
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow;
