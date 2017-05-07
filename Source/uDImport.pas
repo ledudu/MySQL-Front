@@ -1514,6 +1514,10 @@ begin
   else
     FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
   FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
+
+  // Debug 2017-05-08
+  Assert(Assigned(Infos));
+  Assert(Assigned(FDoneTime));
   FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos^.Progress;

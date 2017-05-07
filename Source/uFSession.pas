@@ -6722,19 +6722,19 @@ begin
     begin
       aVBlobText.Checked := True;
 
-      // Debug 2017-02-22
-      Assert(FText.Visible, 'Visible: ' + BoolToStr((Sender = aVBlobText) or not Assigned(Sender) and aVBlobText.Checked, True));
-
-      Window.ActiveControl := FText;
-      if (Key = VK_RETURN) then
+      if (FText.Visible) then
       begin
-        SendMessage(FText.Handle, WM_VSCROLL, SB_BOTTOM, 0);
-        PostMessage(Handle, UM_ACTIVATEFTEXT, 0, 0);
-      end
-      else if (Key = VK_DELETE) then
-        SendMessage(FText.Handle, WM_CLEAR, 0, 0)
-      else
-        PostMessage(Handle, UM_ACTIVATEFTEXT, Key, 0);
+        Window.ActiveControl := FText;
+        if (Key = VK_RETURN) then
+        begin
+          SendMessage(FText.Handle, WM_VSCROLL, SB_BOTTOM, 0);
+          PostMessage(Handle, UM_ACTIVATEFTEXT, 0, 0);
+        end
+        else if (Key = VK_DELETE) then
+          SendMessage(FText.Handle, WM_CLEAR, 0, 0)
+        else
+          PostMessage(Handle, UM_ACTIVATEFTEXT, Key, 0);
+      end;
 
       Key := 0;
     end;

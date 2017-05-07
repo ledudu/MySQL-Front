@@ -7125,7 +7125,7 @@ end;
 procedure TMySQLDataSet.InternalLast();
 begin
   Connection.TerminateCS.Enter();
-  if (SyncThread.State = ssReceivingResult) then
+  if (Assigned(SyncThread) and (SyncThread.State = ssReceivingResult)) then
     WantedRecord := wrLast
   else
     InternRecordBuffers.Index := InternRecordBuffers.Count;
