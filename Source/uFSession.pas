@@ -628,6 +628,8 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure FObjectIDEGridUpdateAction(Sender: TObject;
+      var CanExecute: Boolean);
   type
     TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
@@ -1492,45 +1494,8 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      try
-        FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      except
-        // Debug 2017-04-06
-        on E: Exception do
-          E.RaiseOuterException(EAssertionFailed.Create(
-            'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
-            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-            + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
-            + 'Len: ' + IntToStr(Len) + #13#10
-            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
-            + 'Text: ' + #13#10 + FBCEditor.Text + #13#10
-            + 'CommandText: ' + #13#10 + CommandText + #13#10
-            + 'SQL: ' + #13#10 + SQL + #13#10
-            + E.ClassName + ':' + #13#10
-            + E.Message));
-      end;
-      try
-        FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
-      except
-        // Debug 2017-04-06
-        on E: Exception do
-          E.RaiseOuterException(EAssertionFailed.Create(
-            'Start: ' + IntToStr(FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength) + #13#10
-            + 'aDRunExecuteSelStart: ' + IntToStr(FSession.aDRunExecuteSelStart) + #13#10
-            + 'SuccessfullExecutedSQLLength: ' + IntToStr(FSession.Session.Connection.SuccessfullExecutedSQLLength) + #13#10
-            + 'Length(CommandText): ' + IntToStr(Length(CommandText)) + #13#10
-            + 'Len: ' + IntToStr(Len) + #13#10
-            + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-            + 'EndingCommentLength: ' + IntToStr(EndingCommentLength) + #13#10
-            + 'Length(Text): ' + IntToStr(Length(FBCEditor.Text)) + #13#10
-            + 'Text: ' + #13#10 + FBCEditor.Text + #13#10
-            + 'CommandText: ' + #13#10 + CommandText + #13#10
-            + 'SQL: ' + #13#10 + SQL + #13#10
-            + E.ClassName + ':' + #13#10
-            + E.Message));
-      end;
+      FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end;
   end
   else
@@ -1657,13 +1622,18 @@ begin
 end;
 
 procedure TFSession.TDatabaseDesktop.CloseQuery(Sender: TObject; var CanClose: Boolean);
+var
+  ErrorMessage: string;
+  Filename: TFileName;
 begin
   if (Assigned(Workbench) and Workbench.Modified) then
     if (Workbench.ObjectCount > 0) then
     begin
-      if (not SysUtils.ForceDirectories(ExtractFilePath(FSession.Session.Account.DataPath + Database.Name + PathDelim))) then
-        RaiseLastOSError();
-      FWorkbench.SaveToFile(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
+      FileName := FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml';
+      ErrorMessage := FWorkbench.SaveToFile(FileName);
+      if (ErrorMessage <> '') then
+        MsgBox(Preferences.LoadStr(522, FileName) + #10#10
+          + ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
     end
     else if (FileExists(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml')) then
       DeleteFile(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
@@ -3455,7 +3425,7 @@ begin
     aDRunExecuteSelStart := Index - 1;
   end
   else
-    SQL := Trim(ActiveBCEditor.SelText);
+    SQL := ActiveBCEditor.SelText;
 
   if (SQL <> '') then
   begin
@@ -4236,7 +4206,7 @@ begin
         Assert(False,
           'ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
           + 'Caption: ' + TListView(Window.ActiveControl).Selected.Caption)
-    else if (Window.ActiveControl is TTreeView) then
+    else if (Window.ActiveControl is TTreeView) then // AV here on 2017-05-07
       if (not Assigned(TTreeView(Window.ActiveControl))) then
         Assert(False)
       else
@@ -5121,11 +5091,8 @@ begin
       else
       Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].BCEditor.Text;
 
-  try
-    if (Assigned(ActiveWorkbench)) then
-      ActiveWorkbench.SaveToFile(Session.Account.DataPath + ActiveWorkbench.Name + PathDelim + 'Diagram.xml');
-  except
-  end;
+  if (Assigned(ActiveWorkbench)) then
+    ActiveWorkbench.SaveToFile(Session.Account.DataPath + ActiveWorkbench.Name + PathDelim + 'Diagram.xml');
 end;
 
 constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
@@ -5141,10 +5108,6 @@ begin
 
   Parent := TWinControl(AParent);
   OleCheck(RegisterDragDrop(Handle, Self));
-
-  // Debug 2017-05-01
-  Assert(Assigned(Window),
-    'AOwner: ' + BoolToStr(Assigned(AOwner), True));
 
   Width := Window.ClientWidth;
   Height := Window.ClientHeight;
@@ -7367,7 +7330,15 @@ procedure TFSession.FFilterEnabledClick(Sender: TObject);
 begin
   FQuickSearchEnabled.Down := False;
   TableOpen(Sender);
-  Window.ActiveControl := FFilter;
+
+  try
+    Window.ActiveControl := FFilter;
+  except
+    // Debug 2017-05-05
+    raise EAssertionFailed.Create('ActiveControl: ' + Window.ActiveControl.ClassName + #13#10
+      + 'View: ' + IntToStr(Ord(View)) + #13#10
+      + 'CurrentAddress: ' + CurrentAddress);
+  end;
 end;
 
 procedure TFSession.FFilterEnter(Sender: TObject);
@@ -8883,6 +8854,12 @@ begin
 
     FNavigator.ReadOnly := not aERename.Enabled;
   end;
+end;
+
+procedure TFSession.FObjectIDEGridUpdateAction(Sender: TObject;
+  var CanExecute: Boolean);
+begin
+  CanExecute := False;
 end;
 
 procedure TFSession.FObjectSearchChange(Sender: TObject);
@@ -13369,6 +13346,8 @@ begin
 end;
 
 procedure TFSession.OpenDiagram();
+var
+  ErrorMessage: string;
 begin
   OpenDialog.Title := Preferences.LoadStr(581);
   OpenDialog.InitialDir := Path;
@@ -13379,7 +13358,12 @@ begin
   OpenDialog.EncodingIndex := -1;
 
   if (OpenDialog.Execute()) then
-    ActiveWorkbench.LoadFromFile(OpenDialog.FileName);
+  begin
+    ErrorMessage := ActiveWorkbench.LoadFromFile(OpenDialog.FileName);
+    if (ErrorMessage <> '') then
+      MsgBox(Preferences.LoadStr(523, OpenDialog.FileName) + #10#10
+        + ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+  end;
 end;
 
 procedure TFSession.OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
@@ -13424,7 +13408,8 @@ begin
       LARGE_INTEGER(FileSize).LowPart := GetFileSize(Handle, @LARGE_INTEGER(FileSize).HighPart);
 
     if ((Handle = INVALID_HANDLE_VALUE) or (LARGE_INTEGER(FileSize).LowPart = INVALID_FILE_SIZE) and (GetLastError() <> 0)) then
-      MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+      MsgBoxCheck(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR,
+        ID_YES, '{15bd0605-628a-45f0-997b-cc2fe5867c57}')
     else if ((ActiveBCEditor <> ActiveBCEditor) or (FileSize < TLargeInteger(LargeSQLScriptSize))) then
       Answer := ID_NO
     else
@@ -13439,10 +13424,6 @@ begin
       DImport.ImportType := itSQLFile;
 
       DImport.Execute();
-
-      // Debug 2017-01-06
-      if (not Assigned(FNavigator)) then
-        raise ERangeError.Create(SRangeError);
 
       Wanted.Update := Session.Update;
     end
@@ -13637,6 +13618,7 @@ end;
 
 procedure TFSession.PasteExecute(const Node: TTreeNode; const Addresses: string);
 var
+  Account: TPAccount;
   Database: TSDatabase;
   Found: Boolean;
   I: Integer;
@@ -13670,12 +13652,13 @@ begin
 
   if (SourceAddresses.Count > 0) then
   begin
-    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceAddresses[0], Session.Account));
+    Account := Accounts.AccountByURI(SourceAddresses[0], Session.Account);
+    SourceSession := Sessions.SessionByAccount(Account);
     if (Assigned(SourceSession)) then
       SourceSessionCreated := False
     else
     begin
-      DConnecting.Session := SourceSession;
+      DConnecting.Session := TSSession.Create(Sessions, Account);
       if (not DConnecting.Execute()) then
       begin
         FreeAndNil(SourceSession);
@@ -14662,6 +14645,8 @@ begin
 end;
 
 procedure TFSession.SaveDiagram(Sender: TObject);
+var
+  ErrorMessage: string;
 begin
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
@@ -14675,7 +14660,12 @@ begin
   OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml|' + FilterDescription('*') + ' (*.*)|*.*';
 
   if ((Sender = aFSave) and (ActiveWorkbench.Filename <> '') or SaveDialog.Execute()) then
-    ActiveWorkbench.SaveToFile(SaveDialog.FileName);
+  begin
+    ErrorMessage := ActiveWorkbench.SaveToFile(SaveDialog.FileName);
+    if (ErrorMessage <> '') then
+      MsgBox(Preferences.LoadStr(522, SaveDialog.FileName) + #10#10
+        + ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+  end;
 end;
 
 procedure TFSession.SaveSQLFile(Sender: TObject);
@@ -16631,6 +16621,8 @@ function TFSession.UpdateAfterAddressChanged(): Boolean;
 var
   B: Boolean;
   Database: TSDatabase;
+  ErrorMessage: string;
+  Filename: TFileName;
   I: Integer;
   List: TList;
   Table: TSTable;
@@ -16678,7 +16670,11 @@ begin
       begin
         case (CurrentClassIndex) of
           ciKey:
-            Table := TSKey(CurrentData).Table;
+            begin
+              Assert(TObject(CurrentData) is TSKey,
+                'ClassName: ' + TObject(CurrentData).ClassName);
+              Table := TSKey(CurrentData).Table;
+            end;
           ciBaseField,
           ciViewField:
             begin
@@ -16710,7 +16706,13 @@ begin
         Desktop(TSDatabase(CurrentData)).CreateWorkbench();
         ActiveWorkbench := GetActiveWorkbench();
         if (FileExists(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
-          ActiveWorkbench.LoadFromFile(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
+        begin
+          Filename := Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml';
+          ErrorMessage := ActiveWorkbench.LoadFromFile(Filename);
+          if (ErrorMessage <> '') then
+            MsgBox(Preferences.LoadStr(523, FileName) + #10#10
+              + ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+        end;
       end;
     vObjectSearch:
       begin

@@ -113,7 +113,7 @@ begin
   GetMem(UnescapedURL, Len * SizeOf(UnescapedURL[0]));
 
   try
-    if (UrlUnescape(PChar(AParam), UnescapedURL, @Len, 0) <> S_OK) then
+    if (UrlUnescape(PChar(AParam), UnescapedURL, @Len, URL_ESCAPE_PERCENT) <> S_OK) then
       raise EConvertError.CreateFmt(SConvStrParseError, [AParam]);
 
     SetString(Result, UnescapedURL, Len);
@@ -128,19 +128,21 @@ var
   C: Char;
   R: HRESULT;
   Len: DWord;
+  S: string;
 begin
   if (URL = '') then
     Result := ''
   else
   begin
     Len := 1;
-    R := UrlEscape(PChar(URL), @C, @Len, 0);
+    S := ReplaceStr(URL, '#', '%23');
+    R := UrlEscape(PChar(S), @C, @Len, URL_ESCAPE_PERCENT);
     if ((R <> S_OK) and (R <> E_POINTER)) then
       RaiseLastOSError()
     else
     begin
       SetLength(Result, Len);
-      if (UrlEscape(PChar(URL), PChar(Result), @Len, 0) <> S_OK) then
+      if (UrlEscape(PChar(S), PChar(Result), @Len, 0) <> S_OK) then
         RaiseLastOSError();
       SetLength(Result, Len); // Remove ending #0
     end;

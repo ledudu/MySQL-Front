@@ -364,7 +364,7 @@ end;
 
 procedure TDAccount.FormShow(Sender: TObject);
 begin
-  if ((Preferences.xDatabase.Width >= Width) and (Preferences.xDatabase.Height >= Height)) then
+  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
   begin
     Width := Preferences.Account.Width;
     Height := Preferences.Account.Height;

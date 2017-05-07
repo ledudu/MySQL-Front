@@ -1165,13 +1165,13 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-//  if (GetUTCTime() < IncHour(GetCompileTime(), 24)) then
-//  begin
-//    FreezeThreadClass := TMainThreadFreezeDetectionThread;
-//    CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
-//    CurrentEurekaLogOptions().FreezeActivate := True;
-//    InitCheckFreeze();
-//  end;
+  if (GetUTCTime() < IncHour(GetCompileTime(), 24)) then
+  begin
+    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+    CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
+    CurrentEurekaLogOptions().FreezeActivate := True;
+    InitCheckFreeze();
+  end;
   {$ENDIF}
 
   InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);

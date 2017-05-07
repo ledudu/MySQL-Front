@@ -353,7 +353,7 @@ Progress: string;
     Account: TAccount;
     Accounts: TAccounts;
     AssociateSQL: Boolean;
-    xDatabase: TDatabase;
+    Database: TDatabase;
     Databases: TDatabases;
     Editor: TEditor;
     Event: TEvent;
@@ -682,6 +682,9 @@ uses
   CommCtrl, SHFolder, WinInet, ShellAPI, ShlObj, ActiveX, GDIPAPI, GDIPObj,
   Math, SysConst, Variants, RTLConsts, StrUtils, ComObj,
   Consts, ImgList,
+  {$IFDEF EurekaLog}
+  EAppCrossModule,
+  {$ENDIF}
   MySQLConsts,
   CSVUtils,
   uURI;
@@ -1967,7 +1970,7 @@ begin
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
 
 
-  Progress := Progress + 'a';
+  Progress := Progress + 'b';
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
@@ -1977,6 +1980,8 @@ begin
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + 'MySQL-Front')
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + SysUtils.LoadStr(1002));
+
+  Progress := Progress + 'c';
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -1989,7 +1994,11 @@ begin
     CloseKey();
   end;
 
+  Progress := Progress + 'd';
+
   LoadFromRegistry();
+
+  Progress := Progress + 'e';
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
@@ -1997,12 +2006,16 @@ begin
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
 
+  Progress := Progress + 'f';
+
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
 
+
+  Progress := Progress + 'g';
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
     and not DirectoryExists(UserPath)) then
@@ -2018,17 +2031,21 @@ begin
   end;
 
 
+  Progress := Progress + 'h';
+
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
+
+  Progress := Progress + 'i';
 
   FImages := TImageList.Create(nil);
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
 
-  Progress := Progress + 'a';
+  Progress := Progress + 'j';
 
   for I := 0 to MaxIconIndex do
     if (I = 16) then
@@ -2074,7 +2091,7 @@ begin
 
   Progress := Progress + 'A';
 
-  xDatabase := TDatabase.Create();
+  Database := TDatabase.Create();
   Progress := Progress + 'B';
 
   Databases := TDatabases.Create();
@@ -2107,7 +2124,7 @@ begin
 
   Progress := Progress + 'C';
   // Debug 2017-05-02
-  Assert(Assigned(xDatabase));
+  Assert(Assigned(Database));
 end;
 
 destructor TPPreferences.Destroy();
@@ -2117,10 +2134,10 @@ begin
   // Debug 2017-05-01
   Assert(Assigned(Self));
   Assert(TObject(Self) is TPPreferences);
-  Assert(Assigned(xDatabase),
+  Assert(Assigned(Database),
     'Progress: ' + Progress);
 
-  xDatabase.Free();
+  Database.Free();
 
   Progress := Progress + 'E';
 
@@ -2437,7 +2454,7 @@ begin
   if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
-  if (Assigned(XMLNode(XML, 'database'))) then xDatabase.LoadFromXML(XMLNode(XML, 'database'));
+  if (Assigned(XMLNode(XML, 'database'))) then Database.LoadFromXML(XMLNode(XML, 'database'));
   if (Assigned(XMLNode(XML, 'editor'))) then Editor.LoadFromXML(XMLNode(XML, 'editor'));
   if (Assigned(XMLNode(XML, 'event'))) then Event.LoadFromXML(XMLNode(XML, 'event'));
   if (Assigned(XMLNode(XML, 'export'))) then Export.LoadFromXML(XMLNode(XML, 'export'));
@@ -2610,7 +2627,7 @@ begin
 
   XMLNode(XML, 'width').Text := IntToStr(Width);
 
-  xDatabase.SaveToXML(XMLNode(XML, 'database', True));
+  Database.SaveToXML(XMLNode(XML, 'database', True));
   Editor.SaveToXML(XMLNode(XML, 'editor', True));
   Event.SaveToXML(XMLNode(XML, 'event', True));
   Export.SaveToXML(XMLNode(XML, 'export', True));
@@ -2638,11 +2655,14 @@ begin
 
   if (XML.OwnerDocument.Modified and ForceDirectories(ExtractFilePath(Filename))) then
     try
-      // We do not have to know about problems.
       XML.OwnerDocument.SaveToFile(Filename);
     except
       on E: EOleException do
         Result := Preferences.LoadStr(522, XML.OwnerDocument.Filename) + #10#10 + E.Message;
+      {$IFDEF EurekaLog}
+      on E: EExternalModuleException do
+        Result := Preferences.LoadStr(522, XML.OwnerDocument.Filename) + #10#10 + E.Message;
+      {$ENDIF}
       else
         raise;
     end;
@@ -3575,6 +3595,10 @@ begin
           except
             on E: EOleException do
               Result := Preferences.LoadStr(522, DesktopXMLDocument.Filename) + #10#10 + E.Message;
+            {$IFDEF EurekaLog}
+            on E: EExternalModuleException do
+              Result := Preferences.LoadStr(522, DesktopXMLDocument.Filename) + #10#10 + E.Message;
+            {$ENDIF}
             else
               raise;
           end;
@@ -3585,6 +3609,10 @@ begin
           except
             on E: EOleException do
               Result := Preferences.LoadStr(522, HistoryXMLDocument.Filename) + #10#10 + E.Message;
+            {$IFDEF EurekaLog}
+            on E: EExternalModuleException do
+              Result := Preferences.LoadStr(522, HistoryXMLDocument.Filename) + #10#10 + E.Message;
+            {$ENDIF}
             else
               raise;
           end;
@@ -3909,6 +3937,10 @@ begin
   except
     on E: EOleException do
       Result := Preferences.LoadStr(522, XMLDocument.Filename) + #10#10 + E.Message;
+    {$IFDEF EurekaLog}
+    on E: EExternalModuleException do
+      Result := Preferences.LoadStr(522, XMLDocument.Filename) + #10#10 + E.Message;
+    {$ENDIF}
     else
       raise;
   end;

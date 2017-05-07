@@ -358,22 +358,22 @@ type
     property FilePixelsPerInch: Integer read FFilePixelsPerInch;
     property LinkPoints: TList read FLinkPoints;
   public
-    procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
-    procedure BeginUpdate(); virtual;
+    procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable);
+    procedure BeginUpdate();
     constructor Create(AOwner: TComponent); overload; override;
     constructor Create(const AOwner: TComponent; const ADatabase: TSDatabase); reintroduce; overload; virtual;
     destructor Destroy(); override;
-    procedure EndUpdate(); virtual;
+    procedure EndUpdate();
     function ExecuteAction(Action: TBasicAction): Boolean; override;
-    procedure CreateNewForeignKey(const X, Y: Integer); virtual;
-    procedure CreateNewLink(const X, Y: Integer); virtual;
-    procedure CreateNewSection(const X, Y: Integer); virtual;
-    procedure CreateNewTable(const X, Y: Integer); virtual;
-    procedure LoadFromFile(const AFilename: string); virtual;
-    procedure SaveToBMP(const FileName: string); virtual;
-    procedure SaveToFile(const AFilename: string); virtual;
-    function TableByBaseTable(const ATable: TSBaseTable): TWTable; virtual;
-    function TableByCaption(const Caption: string): TWTable; virtual;
+    procedure CreateNewForeignKey(const X, Y: Integer);
+    procedure CreateNewLink(const X, Y: Integer);
+    procedure CreateNewSection(const X, Y: Integer);
+    procedure CreateNewTable(const X, Y: Integer);
+    function LoadFromFile(const AFilename: string): string;
+    procedure SaveToBMP(const FileName: string);
+    function SaveToFile(const AFilename: string): string;
+    function TableByBaseTable(const ATable: TSBaseTable): TWTable;
+    function TableByCaption(const Caption: string): TWTable;
     function UpdateAction(Action: TBasicAction): Boolean; override;
     property Database: TSDatabase read FDatabase;
     property Filename: string read FFilename;
@@ -395,7 +395,7 @@ type
 implementation {***************************************************************}
 
 uses
-  Math, Consts, UITypes, SysConst,
+  Math, Consts, UITypes, SysConst, ComObj,
   ExtCtrls, Dialogs, StdActns,
   uPreferences;
 
@@ -3660,7 +3660,7 @@ begin
         Result := Links[I];
 end;
 
-procedure TWWorkbench.LoadFromFile(const AFilename: string);
+function TWWorkbench.LoadFromFile(const AFilename: string): string;
 var
   BaseTable: TSBaseTable;
   I: Integer;
@@ -3668,36 +3668,47 @@ var
 begin
   FFilename := AFilename;
 
-  XMLDocument := LoadXMLDocument(AFilename);
-  XML := XMLDocument.DocumentElement;
+  try
+    XMLDocument := LoadXMLDocument(AFilename);
+  except
+    on E: EOleException do
+      Result := E.Message;
+    else
+      raise;
+  end;
 
-  if (XMLDocument.DocumentElement.Attributes['pixelsperinch'] = Null) then
-    FFilePixelsPerInch := Screen.PixelsPerInch
-  else
-    FFilePixelsPerInch := StrToInt(XMLDocument.DocumentElement.Attributes['pixelsperinch']);
+  if (Result = '') then
+  begin
+    XML := XMLDocument.DocumentElement;
 
-  Clear();
+    if (XMLDocument.DocumentElement.Attributes['pixelsperinch'] = Null) then
+      FFilePixelsPerInch := Screen.PixelsPerInch
+    else
+      FFilePixelsPerInch := StrToInt(XMLDocument.DocumentElement.Attributes['pixelsperinch']);
 
-  Sections.LoadFromXML(XML);
+    Clear();
 
-
-  Database.Tables.Update();
-  List := TList.Create();
-  for I := 0 to XML.ChildNodes.Count - 1 do
-    if (XML.ChildNodes[I].NodeName = 'table') then
-    begin
-      BaseTable := Database.BaseTableByName(XML.ChildNodes[I].Attributes['name']);
-      if (Assigned(BaseTable)) then
-        if (BaseTable.ValidSource) then
-          BaseTable.PushBuildEvent()
-        else
-          List.Add(BaseTable);
-    end;
-  Database.Session.Update(List);
-  List.Free();
+    Sections.LoadFromXML(XML);
 
 
-  FModified := False;
+    Database.Tables.Update();
+    List := TList.Create();
+    for I := 0 to XML.ChildNodes.Count - 1 do
+      if (XML.ChildNodes[I].NodeName = 'table') then
+      begin
+        BaseTable := Database.BaseTableByName(XML.ChildNodes[I].Attributes['name']);
+        if (Assigned(BaseTable)) then
+          if (BaseTable.ValidSource) then
+            BaseTable.PushBuildEvent()
+          else
+            List.Add(BaseTable);
+      end;
+    Database.Session.Update(List);
+    List.Free();
+
+
+    FModified := False;
+  end;
 end;
 
 procedure TWWorkbench.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -3783,14 +3794,21 @@ begin
   end;
 end;
 
-procedure TWWorkbench.SaveToFile(const AFilename: string);
+function TWWorkbench.SaveToFile(const AFilename: string): string;
 var
   XMLDocument: IXMLDocument;
 begin
   FFilename := AFilename;
 
   if (FileExists(FileName)) then
-    XMLDocument := LoadXMLDocument(FileName)
+    try
+      XMLDocument := LoadXMLDocument(FileName)
+    except
+      on E: EOleException do
+        Result := E.Message;
+      else
+        raise;
+    end
   else
   begin
     XMLDocument := NewXMLDocument();
@@ -3798,24 +3816,34 @@ begin
     XMLDocument.Node.AddChild('workbench').Attributes['version'] := '1.0.0';
   end;
 
-  if (VersionStrToVersion(XMLDocument.DocumentElement.Attributes['version']) < 10100)  then
+  if (Result = '') then
   begin
-    XMLDocument.DocumentElement.Attributes['version'] := '1.1.0';
+    if (VersionStrToVersion(XMLDocument.DocumentElement.Attributes['version']) < 10100)  then
+    begin
+      XMLDocument.DocumentElement.Attributes['version'] := '1.1.0';
+    end;
+
+    XMLDocument.Options := XMLDocument.Options - [doAttrNull];
+    XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
+
+    XMLDocument.DocumentElement.Attributes['pixelsperinch'] := IntToStr(Screen.PixelsPerInch);
+
+    Tables.SaveToXML(XMLDocument.DocumentElement);
+    Links.SaveToXML(XMLDocument.DocumentElement);
+    Sections.SaveToXML(XMLDocument.DocumentElement);
+
+    if (ForceDirectories(ExtractFilePath(FileName))) then
+      try
+        XMLDocument.SaveToFile(FileName);
+      except
+        on E: EOleException do
+          Result := E.Message;
+        else
+          raise;
+      end;
+
+    FModified := False;
   end;
-
-  XMLDocument.Options := XMLDocument.Options - [doAttrNull];
-  XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
-
-  XMLDocument.DocumentElement.Attributes['pixelsperinch'] := IntToStr(Screen.PixelsPerInch);
-
-  Tables.SaveToXML(XMLDocument.DocumentElement);
-  Links.SaveToXML(XMLDocument.DocumentElement);
-  Sections.SaveToXML(XMLDocument.DocumentElement);
-
-  if (ForceDirectories(ExtractFilePath(FileName))) then
-    XMLDocument.SaveToFile(FileName);
-
-  FModified := False;
 end;
 
 procedure TWWorkbench.SessionEvent(const Event: TSSession.TEvent);

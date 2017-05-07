@@ -15,6 +15,7 @@ type
 
     THeaderSplitBottonEvent = procedure(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState) of object;
     TOverflowEvent = procedure(Sender: TObject; Column: TColumn) of object;
+    TUpdateActionEvent = procedure(Sender: TObject; var CanExecute: Boolean) of object;
 
     TDBMySQLGridColumns = class(TDBGridColumns)
     protected
@@ -52,6 +53,7 @@ type
     FOnCanEditShowExecuted: Boolean;
     FOnOverflow: TOverflowEvent;
     FOnSelect: TNotifyEvent;
+    FOnUpdateAction: TUpdateActionEvent;
     FOverflow: Boolean;
     FSelectedFields: TFieldList;
     IgnoreTitleClick: Boolean;
@@ -149,6 +151,7 @@ type
     property OnCanEditShow: TNotifyEvent read FOnCanEditShow write FOnCanEditShow;
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
     property OnOverflow: TOverflowEvent read FOnOverflow write FOnOverflow;
+    property OnUpdateAction: TUpdateActionEvent read FOnUpdateAction write FOnUpdateAction;
   end;
 
 const
@@ -213,8 +216,14 @@ end;
 procedure TMySQLDBGrid.TGridDataLink.DataEvent(Event: TDataEvent; Info: NativeInt);
 begin
   case (Ord(Event)) of
-    Ord(deSortChange):
+    Ord(deSortChanged):
       TMySQLDBGrid(Grid).SetHeaderColumnArrows();
+    Ord(deCommitted):
+      begin;
+        if (TMySQLDataSet(DataSet).PendingRecordCount > 0) then
+          TMySQLDataSet(DataSet).DeletePendingRecords();
+        Grid.Cursor := crDefault;
+      end;
     else
       inherited;
   end;
@@ -584,7 +593,11 @@ begin
   FHeaderSplitButton := nil;
   FIgnoreKeyPress := False;
   FListView := 0;
+  FOnCanEditShow := nil;
   FOnCanEditShowExecuted := False;
+  FOnOverflow := nil;
+  FOnSelect := nil;
+  FOnUpdateAction := nil;
   FOverflow := False;
   FSelectedFields := TFieldList.Create(Self);
   IgnoreTitleClick := False;
@@ -955,17 +968,24 @@ begin
     SelectedIndex := 0
   else if ((Key = VK_TAB) and (ssShift in Shift) and (SelectedIndex = 0) and DataSource.DataSet.FindPrior() and not TMySQLDataSet(DataSource.DataSet).CachedUpdates) then
     SelectedIndex := Columns.Count - 1
-  else if (((Key = VK_HOME) or (Key = VK_END)) and (ssShift in Shift) and not EditorMode) then
+  else if (((Key = VK_HOME) or (Key = VK_END)) and (Shift = [ssShift, ssCtrl]) and not EditorMode) then
   begin
-    if ((Key = VK_HOME) and (ssCtrl in Shift) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)
-      or (Key = VK_END) and (ssCtrl in Shift) and (DataLink.DataSet.RecNo = 0)) then
-    begin
-      if (SelectedFields.IndexOf(SelectedField) < 0) then
-        SelectedFields.Add(SelectedField);
-      inherited;
-    end
+    if ((Key = VK_HOME) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)
+      or (Key = VK_END) and (DataLink.DataSet.RecNo = 0)) then
+      SelectAll()
     else
-      SelectedRows.CurrentRowSelected := not SelectedRows.CurrentRowSelected;
+    begin
+      DataLink.DataSet.DisableControls();
+      SelectedRows.Clear();
+      SelectedRows.CurrentRowSelected := True;
+      if (Key = VK_HOME) then
+        while (DataLink.DataSet.FindPrior()) do
+          SelectedRows.CurrentRowSelected := True
+      else
+        while (DataLink.DataSet.FindNext()) do
+          SelectedRows.CurrentRowSelected := True;
+      DataLink.DataSet.EnableControls();
+    end;
   end
   else if (((Key = VK_HOME) or (Key = VK_END)) and (ssCtrl in Shift)) then
   begin
@@ -1450,6 +1470,7 @@ begin
           SetLength(Bookmarks, 0);
         end;
 
+        TMySQLDataSet(DataLink.DataSet).CachedUpdates := True;
         RecNo := 0;
         try
           repeat
@@ -1484,6 +1505,7 @@ begin
               if ((RecNo > 0) or (Index <= Length(Text))) then
                 try
                   DataLink.DataSet.Post();
+                  DataLink.DataSet.FindNext();
                 except
                   on Error: EDatabaseError do
                     begin
@@ -1497,6 +1519,13 @@ begin
         finally
           SetLength(Values, 0);
         end;
+
+        if (TMySQLDataSet(DataLink.DataSet).PendingRecordCount > 0) then
+        begin
+          TMySQLDataSet(DataLink.DataSet).Commit();
+          Cursor := crSQLWait;
+        end;
+        TMySQLDataSet(DataLink.DataSet).CachedUpdates := False;
       finally
         DataLink.DataSet.EnableControls();
       end;
@@ -1550,7 +1579,6 @@ var
 begin
   DataLink.DataSet.CheckBrowseMode();
 
-  DataLink.DataSet.DisableControls();
   EditorMode := False;
 
   if ((DataLink.DataSet is TMySQLTable) and TMySQLTable(DataLink.DataSet).LimitedDataReceived) then
@@ -1560,7 +1588,7 @@ begin
   for I := 0 to Columns.Count - 1 do
     SelectedFields.Add(Columns[I].Field);
 
-  DataLink.DataSet.EnableControls();
+  Invalidate();
 end;
 
 procedure TMySQLDBGrid.SetHeaderColumnArrows();
@@ -1633,26 +1661,32 @@ end;
 
 function TMySQLDBGrid.UpdateAction(Action: TBasicAction): Boolean;
 begin
-  if (Action is TEditAction) then
-  begin
-    Result := Focused() and Assigned(DataLink.DataSet) and DataLink.DataSet.Active and Assigned(SelectedField);
+  Result := True;
 
-    if (Result) then
-      if (Action is TEditCut) then
-        TEditCut(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
-      else if (Action is TEditCopy) then
-        TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
-      else if (Action is TEditPaste) then
-        TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and IsClipboardFormatAvailable(CF_UNICODETEXT)
-      else if (Action is TEditDelete) then
-        TEditDelete(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (SelectedRows.Count = 0) and (SelectedFields.Count = 0) and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
-      else if (Action is TEditSelectAll) then
-        TEditSelectAll(Action).Enabled := (DataLink.DataSet.RecordCount > 0)
-      else
-        Result := False;
-  end
-  else
-    Result := inherited UpdateAction(Action);
+  if (Assigned(OnUpdateAction)) then
+    OnUpdateAction(Self, Result);
+
+  if (Result) then
+    if (Action is TEditAction) then
+    begin
+      Result := Focused() and Assigned(DataLink.DataSet) and DataLink.DataSet.Active and Assigned(SelectedField);
+
+      if (Result) then
+        if (Action is TEditCut) then
+          TEditCut(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
+        else if (Action is TEditCopy) then
+          TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
+        else if (Action is TEditPaste) then
+          TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and IsClipboardFormatAvailable(CF_UNICODETEXT)
+        else if (Action is TEditDelete) then
+          TEditDelete(Action).Enabled := not ReadOnly and not SelectedField.ReadOnly and not SelectedField.Required and not SelectedField.IsNull and SelectedField.CanModify and (SelectedRows.Count = 0) and (SelectedFields.Count = 0) and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
+        else if (Action is TEditSelectAll) then
+          TEditSelectAll(Action).Enabled := (DataLink.DataSet.RecordCount > 0)
+        else
+          Result := False;
+    end
+    else
+      Result := inherited;
 end;
 
 procedure TMySQLDBGrid.WMNotify(var Msg: TWMNotify);

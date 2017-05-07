@@ -14,7 +14,8 @@ const
   DS_SERVER_OLD    = 2300;
   DS_OUT_OF_MEMORY = 2301;
 
-  deSortChange = TDataEvent(Ord(High(TDataEvent)) + 1);
+  deSortChanged = TDataEvent(Ord(High(TDataEvent)) + 1);
+  deCommitted = TDataEvent(Ord(High(TDataEvent)) + 2);
 
 type
   TMySQLMonitor = class;
@@ -150,14 +151,14 @@ type
       SyncThread: TSyncThread;
     end;
 
-    TConvertErrorNotifyEvent = procedure (Sender: TObject; Text: string) of object;
-    TDatabaseChangeEvent = procedure (const Connection: TMySQLConnection; const NewName: string) of object;
-    TErrorEvent = procedure (const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string) of object;
-    TVariableChangeEvent = procedure (const Connection: TMySQLConnection; const Name, NewValue: string) of object;
-    TOnUpdateIndexDefsEvent = procedure (const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs) of object;
-    TResultEvent = function (const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+    TConvertErrorNotifyEvent = procedure(Sender: TObject; Text: string) of object;
+    TDatabaseChangeEvent = procedure(const Connection: TMySQLConnection; const NewName: string) of object;
+    TErrorEvent = procedure(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string) of object;
+    TVariableChangeEvent = procedure(const Connection: TMySQLConnection; const Name, NewValue: string) of object;
+    TOnUpdateIndexDefsEvent = procedure(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs) of object;
+    TResultEvent = function(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TDataHandle; const Data: Boolean): Boolean of object;
-    TSynchronizeEvent = procedure (const Data: Pointer) of object;
+    TSynchronizeEvent = procedure(const Data: Pointer) of object;
 
     TLibraryDataType = (ldtConnecting, ldtExecutingSQL, ldtDisconnecting);
     Plocal_infile = ^Tlocal_infile;
@@ -289,6 +290,8 @@ type
     procedure SetPort(const APort: Word);
     procedure SetUsername(const AUsername: string);
     function UseCompression(): Boolean; inline;
+  private
+    CommittingDataSet: TMySQLDataSet;
   protected
     FDatabaseName: string;
     FExecutedStmts: Integer;
@@ -343,10 +346,6 @@ type
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
-    function LibDecode(const CodePage: Cardinal; const Text: my_char; const Length: my_int = -1): string; virtual;
-    function LibEncode(const CodePage: Cardinal; const Value: string): RawByteString; virtual;
-    function LibPack(const Value: string): RawByteString; virtual;
-    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
@@ -383,15 +382,16 @@ type
     property CodePageResult: Cardinal read FCodePageResult;
     property DataFileAllowed: Boolean read GetDataFileAllowed;
     property DebugMonitor: TMySQLMonitor read FDebugMonitor;
-    property HostInfo: string read FHostInfo;
-    property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property ErrorCode: Integer read FErrorCode;
     property ErrorMessage: string read FErrorMessage;
     property ErrorCommandText: string read FErrorCommandText;
     property ExecutedStmts: Integer read FExecutedStmts;
     property ExecutionTime: TDateTime read FExecutionTime;
     property FormatSettings: TFormatSettings read FFormatSettings;
+    property HostInfo: string read FHostInfo;
+    property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property Info: string read GetInfo;
+    property InsertId: my_ulonglong read GetInsertId;
     property LatestConnect: TDateTime read FLatestConnect;
     property Lib: TMySQLLibrary read FLib;
     property MariaDBVersion: Integer read FMariaDBVersion;
@@ -415,7 +415,6 @@ type
     property CharsetResult: string read FCharsetResult write SetCharsetResult;
     property DatabaseName: string read FDatabaseName write SetDatabaseName;
     property Host: string read FHost write SetHost;
-    property InsertId: my_ulonglong read GetInsertId;
     property LibraryName: string read FLibraryName write SetLibraryName;
     property LibraryType: TMySQLLibrary.TLibraryType read FLibraryType write SetLibraryType default ltBuiltIn;
     property OnConvertError: TConvertErrorNotifyEvent read FOnConvertError write FOnConvertError;
@@ -531,27 +530,24 @@ type
       InternRecordBuffer: PInternRecordBuffer;
       BookmarkFlag: TBookmarkFlag;
     end;
-    TInternRecordBuffers = class(TList)
+    TInternRecordBuffers = class(TList<PInternRecordBuffer>)
     strict private
       FDataSet: TMySQLDataSet;
       FIndex: Integer;
       FRecordReceived: TEvent;
-      function Get(Index: Integer): PInternRecordBuffer; inline;
       function GetSortDef(): TIndexDef; inline;
-      procedure Put(Index: Integer; Buffer: PInternRecordBuffer); inline;
       procedure SetIndex(AValue: Integer);
       property SortDef: TIndexDef read GetSortDef;
     public
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
-      procedure Clear(); override;
+      procedure Clear();
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
       function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
       function IndexFor(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer; overload;
-      procedure Insert(Index: Integer; Item: Pointer);
-      property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
+      procedure Insert(Index: Integer; const Item: PInternRecordBuffer);
       property DataSet: TMySQLDataSet read FDataSet;
       property Index: Integer read FIndex write SetIndex;
       property RecordReceived: TEvent read FRecordReceived;
@@ -571,17 +567,24 @@ type
     InGetNextRecords: Boolean;
     InternalPostResult: record
       Exception: Exception;
+      InternRecordBuffer: PInternRecordBuffer;
       NewIndex: Integer;
     end;
     function AllocInternRecordBuffer(): PInternRecordBuffer;
     procedure FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
+    function GetPendingRecordCount(): Integer;
     function InternalPostEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
+    procedure SetCachedUpdates(AValue: Boolean);
     function VisibleInFilter(const InternRecordBuffer: PInternRecordBuffer): Boolean;
+  private
+    AppliedBuffers: TList<PInternRecordBuffer>;
+    PendingBuffers: TList<PInternRecordBuffer>;
   protected
     DeleteBookmarks: PBookmarks;
     procedure ActivateFilter(); virtual;
     function AllocRecordBuffer(): TRecordBuffer; override;
+    procedure AfterCommit(); virtual;
     procedure DeactivateFilter(); virtual;
     function FindRecord(Restart, GoForward: Boolean): Boolean; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
@@ -616,7 +619,8 @@ type
     procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
-    procedure SetFieldData(const Field: TField; const Buffer: Pointer; const Size: Integer); overload; virtual;
+    procedure SetFieldData(const Field: TField; const Buffer: Pointer;
+      const Size: Integer; InternRecordBuffer: PInternRecordBuffer = nil); overload; virtual;
     procedure SetFieldsSortTag(); virtual;
     procedure SetFiltered(Value: Boolean); override;
     procedure SetFilterText(const Value: string); override;
@@ -633,8 +637,12 @@ type
     function CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer; override;
     constructor Create(AOwner: TComponent); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
+    function Commit(): Boolean; virtual;
+    function CommitEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     procedure Delete(const Bookmarks: TBookmarks); overload;
     procedure DeleteAll();
+    procedure DeletePendingRecords(); virtual;
     destructor Destroy(); override;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
@@ -646,10 +654,11 @@ type
     function SQLWhereClause(const NewData: Boolean = False): string;
     property DataSize: Int64 read FDataSize;
     property LocateNext: Boolean read FLocateNext write FLocateNext;
+    property PendingRecordCount: Integer read GetPendingRecordCount;
     property SortDef: TIndexDef read FSortDef;
     property TableName: string read FTableName;
   published
-    property CachedUpdates: Boolean read FCachedUpdates write FCachedUpdates default False;
+    property CachedUpdates: Boolean read FCachedUpdates write SetCachedUpdates default False;
     property AfterCancel;
     property AfterDelete;
     property AfterEdit;
@@ -1043,6 +1052,16 @@ begin
   Result := Assigned(Field) and (Field.Tag and ftBitField <> 0);
 end;
 
+function ConnectionLost(const ErrorCode: Integer): Boolean; inline;
+begin
+  Result := (ErrorCode = CR_UNKNOWN_ERROR)
+    or (ErrorCode = CR_IPSOCK_ERROR)
+    or (ErrorCode = CR_SERVER_GONE_ERROR)
+    or (ErrorCode = CR_SERVER_HANDSHAKE_ERR)
+    or (ErrorCode = CR_SERVER_LOST)
+    or (ErrorCode = CR_COMMANDS_OUT_OF_SYNC);
+end;
+
 function FieldCodePage(const Field: TField): Cardinal;
 begin
   Result := Field.Tag and $FFFF;
@@ -1136,6 +1155,115 @@ begin
   Result := ReplaceStr(Result, 'd', '0');
   Result := ReplaceStr(Result, 'e', '0');
   Result := ReplaceStr(Result, '/', FormatSettings.DateSeparator);
+end;
+
+function LibDecode(const CodePage: Cardinal; const Text: my_char; const Length: my_int = -1): string;
+label
+  StringL;
+var
+  Len: Integer;
+begin
+  if (not Assigned(Text) or (Length = 0)) then
+    Result := ''
+  else
+  begin
+    if (Length >= 0) then
+      Len := Length
+    else
+      Len := lstrlenA(Text);
+    SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, nil, 0));
+    if (Len > 0) then
+      SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, PChar(Result), System.Length(Result)));
+  end;
+end;
+
+function LibEncode(const CodePage: Cardinal; const Value: string): RawByteString;
+var
+  Len: Integer;
+begin
+  Len := WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), nil, 0);
+  SetLength(Result, Len);
+  WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), PAnsiChar(Result), Len);
+end;
+
+function LibPack(const Value: string): RawByteString;
+label
+  StringL;
+var
+  Len: Integer;
+begin
+  if (Value = '') then
+    Result := ''
+  else
+  begin
+    Len := Length(Value);
+    SetLength(Result, Len);
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,PChar(Value)             // Copy characters from Value
+        MOV EAX,Result                   //   to Result
+        MOV EDI,[EAX]
+
+        MOV ECX,Len
+      StringL:
+        LODSW                            // Load WideChar from Value
+        STOSB                            // Store AnsiChar into Result
+        LOOP StringL                     // Repeat for all characters
+
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+  end;
+end;
+
+function LibUnpack(const Data: my_char; const Length: my_int = -1): string;
+label
+  StringL;
+var
+  Len: Integer;
+begin
+  if (Length = -1) then
+    Len := lstrlenA(Data)
+  else
+    Len := Length;
+  if (not Assigned(Data) or (Len = 0)) then
+    Result := ''
+  else
+  begin
+    SetLength(Result, Len);
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,Data                     // Copy characters from Data
+        MOV EAX,Result                   //   to Result
+        MOV EDI,[EAX]
+        MOV ECX,Len                      // Length of Data
+
+        MOV AH,0                         // Clear AH, since AL will be load but AX stored
+      StringL:
+        LODSB                            // Load AnsiChar from Data
+        STOSW                            // Store WideChar into S
+        LOOP StringL                     // Repeat for all characters
+
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+  end;
 end;
 
 function LoadMySQLLibrary(const ALibraryType: TMySQLLibrary.TLibraryType; const AFileName: TFileName): TMySQLLibrary;
@@ -2066,9 +2194,10 @@ begin
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (not Terminated) then
-          if ((SynchronCount > 0)
-            and ((Mode = smSQL) or (State <> ssReceivingResult))
-            and not Connection.BesideThreadWaits) then
+          if ((State = ssDisconnecting)
+            or ((SynchronCount > 0)
+              and ((Mode = smSQL) or not (State in [ssReceivingResult]))
+              and not Connection.BesideThreadWaits)) then
           begin
             Connection.SyncThreadExecuted.SetEvent();
             Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
@@ -2261,11 +2390,12 @@ begin
   FThreadDeep := 0;
   FThreadId := 0;
   FUserName := '';
+  FSyncThreadExecuted := TEvent.Create(nil, False, False, '');
   InMonitor := False;
   InOnResult := False;
-  TimeDiff := 0;
+  CommittingDataSet := nil;
   SilentCount := 0;
-  FSyncThreadExecuted := TEvent.Create(nil, False, False, '');
+  TimeDiff := 0;
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
@@ -2389,12 +2519,15 @@ begin
     SyncDisconnected(nil)
   else if (not SyncThread.Terminated) then
   begin
-    BeginSynchron();
     SyncThread.State := ssDisconnect;
     Sync(SyncThread);
-    if (SyncThread.State = ssDisconnecting) then
-      Sync(SyncThread);
-    EndSynchron();
+    if ((SyncThreadExecuted.WaitFor(500) = wrSignaled) and (SyncThread.State = ssDisconnecting)) then
+      Sync(SyncThread)
+    else
+    begin
+      Terminate();
+      FConnected := False;
+    end;
   end;
 end;
 
@@ -2403,12 +2536,7 @@ begin
   if ((ErrorCode = CR_UNKNOWN_HOST)
     or (ErrorCode = DS_SERVER_OLD)) then
     Close()
-  else if ((ErrorCode = CR_UNKNOWN_ERROR)
-    or (ErrorCode = CR_IPSOCK_ERROR)
-    or (ErrorCode = CR_SERVER_GONE_ERROR)
-    or (ErrorCode = CR_SERVER_HANDSHAKE_ERR)
-    or (ErrorCode = CR_SERVER_LOST)
-    or (ErrorCode = CR_COMMANDS_OUT_OF_SYNC)) then
+  else if (ConnectionLost(ErrorCode)) then
     SyncDisconnected(SyncThread);
 
   FErrorCode := AErrorCode;
@@ -2582,14 +2710,18 @@ var
   SQLIndex: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
+  ST: TSyncThread;
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
 
-  if (InOnResult) then
-    raise Exception.Create('Thread synchronization error (in OnResult): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
-  if (InMonitor) then
-    raise Exception.Create('Thread synchronization error (in Monitor): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
+  if (GetCurrentThreadId() = MainThreadID) then
+  begin
+    if (InOnResult) then
+      raise Exception.Create('Thread synchronization error (in OnResult): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
+    if (InMonitor) then
+      raise Exception.Create('Thread synchronization error (in Monitor): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
+  end;
 
   Terminate();
   if (not Assigned(SyncThread)) then
@@ -2624,6 +2756,7 @@ begin
 
 
   // Debug 2017-02-04
+  ST := SyncThread;
   Assert(TerminatedThreads.IndexOf(SyncThread) < 0);
   Assert(Assigned(SyncThread.StmtLengths));
   Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
@@ -2638,6 +2771,7 @@ begin
     if (StmtLength > 0) then
     begin
       // Debug 2017-04-12
+      Assert(SyncThread = ST);
       Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
       Assert(Assigned(SyncThread.StmtLengths));
       Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
@@ -2706,115 +2840,6 @@ begin
   TerminateCS.Enter();
   Result := Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady]) or InMonitor;
   TerminateCS.Leave();
-end;
-
-function TMySQLConnection.LibDecode(const CodePage: Cardinal; const Text: my_char; const Length: my_int = -1): string;
-label
-  StringL;
-var
-  Len: Integer;
-begin
-  if (not Assigned(Text) or (Length = 0)) then
-    Result := ''
-  else
-  begin
-    if (Length >= 0) then
-      Len := Length
-    else
-      Len := lstrlenA(Text);
-    SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, nil, 0));
-    if (Len > 0) then
-      SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, PChar(Result), System.Length(Result)));
-  end;
-end;
-
-function TMySQLConnection.LibEncode(const CodePage: Cardinal; const Value: string): RawByteString;
-var
-  Len: Integer;
-begin
-  Len := WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), nil, 0);
-  SetLength(Result, Len);
-  WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), PAnsiChar(Result), Len);
-end;
-
-function TMySQLConnection.LibPack(const Value: string): RawByteString;
-label
-  StringL;
-var
-  Len: Integer;
-begin
-  if (Value = '') then
-    Result := ''
-  else
-  begin
-    Len := Length(Value);
-    SetLength(Result, Len);
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-
-        MOV ECX,Len
-      StringL:
-        LODSW                            // Load WideChar from Value
-        STOSB                            // Store AnsiChar into Result
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-  end;
-end;
-
-function TMySQLConnection.LibUnpack(const Data: my_char; const Length: my_int = -1): string;
-label
-  StringL;
-var
-  Len: Integer;
-begin
-  if (Length = -1) then
-    Len := lstrlenA(Data)
-  else
-    Len := Length;
-  if (not Assigned(Data) or (Len = 0)) then
-    Result := ''
-  else
-  begin
-    SetLength(Result, Len);
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Data                     // Copy characters from Data
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-        MOV ECX,Len                      // Length of Data
-
-        MOV AH,0                         // Clear AH, since AL will be load but AX stored
-      StringL:
-        LODSB                            // Load AnsiChar from Data
-        STOSW                            // Store WideChar into S
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-  end;
 end;
 
 procedure TMySQLConnection.local_infile_end(const local_infile: Plocal_infile);
@@ -3151,7 +3176,11 @@ begin
           end;
 
           if (SyncThread.State = ssAfterExecuteSQL) then
+          begin
             SyncAfterExecuteSQL(SyncThread);
+            if (Assigned(SyncThread.Done)) then
+              SyncThread.Done.SetEvent();
+          end;
 
           if (BesideThreadWaits
             and ((SyncThread.State in [ssReady]) or (SyncThread.Mode = smResultHandle))) then
@@ -3192,6 +3221,8 @@ begin
                   ssAfterExecuteSQL:
                     begin
                       SyncAfterExecuteSQL(SyncThread);
+                      if (Assigned(SyncThread.Done)) then
+                        SyncThread.Done.SetEvent();
                       if (BesideThreadWaits) then
                       begin
                         SyncThreadExecuted.SetEvent();
@@ -3222,15 +3253,21 @@ begin
           SyncThread.RunExecute.SetEvent();
           if ((SynchronCount > 0) and not BesideThreadWaits) then
           begin
-            SyncThreadExecuted.WaitFor(INFINITE);
+            SyncThreadExecuted.WaitFor(1000);
             DebugMonitor.Append('SyncThreadExecuted.Wait - 7 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
           end;
         end;
       ssDisconnecting:
-        SyncDisconnected(SyncThread);
+        begin
+          SyncDisconnected(SyncThread);
+          if (Assigned(SyncThread.Done)) then
+            SyncThread.Done.SetEvent();
+        end;
       ssAfterExecuteSQL:
         begin
           SyncAfterExecuteSQL(SyncThread);
+          if (Assigned(SyncThread.Done)) then
+            SyncThread.Done.SetEvent();
           if (BesideThreadWaits) then
           begin
             SyncThreadExecuted.SetEvent();
@@ -3262,8 +3299,11 @@ begin
   else
     SyncThread.State := ssReady;
 
-  if (Assigned(SyncThread.Done)) then
-    SyncThread.Done.SetEvent();
+  if (Assigned(CommittingDataSet)) then
+  begin
+    CommittingDataSet.AfterCommit();
+    CommittingDataSet := nil;
+  end;
 
   DebugMonitor.Append('SyncAfterExecuteSQL - end - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 end;
@@ -3293,8 +3333,6 @@ begin
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
-
-  DebugMonitor.Append('SyncBildDataSet - ' + SyncThread.CommandText, ttDebug);
 
   SyncThread.State := ssReceivingResult;
 
@@ -3559,15 +3597,12 @@ procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
   Data: my_char;
-  DataSet: TMySQLQuery; // Debug 2017-02-16
   DataHandle: TDataHandle;
   Info: my_char;
-  Log: string;
   Name: string;
   Size: size_t;
   S: string;
   Value: string;
-  I: Integer;
 begin
   DebugMonitor.Append('SyncExecuted - start - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
@@ -3696,30 +3731,10 @@ begin
         SyncHandledResult(SyncThread);
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
-        // Debug 2016-12-23
-        if (SyncThread.CommandText <> '') then
-          raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
+        if (SyncThread.CommandText = '') then
+          raise Exception.Create('Query has not been handled')
         else
-        begin
-          if (SyncThread.ErrorCode <> 0) then
-            DataSet := nil
-          else
-          begin
-            DataSet := TMySQLQuery.Create(nil);
-            DataSet.Open(DataHandle);
-          end;
-
-          Log := 'Statement #' + IntToStr(SyncThread.StmtIndex + 1) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled' + #13#10;
-          for I := 0 to SyncThread.StmtLengths.Count - 1 do
-            Log := Log + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(SyncThread.StmtLengths[I]) + #13#10;
-          Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' CommandText:' + #13#10
-            + SyncThread.CommandText + #13#10;
-          Log := Log + 'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10;
-          if (Assigned(DataSet) and DataSet.Active) then
-            Log := Log + 'FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
-              + 'Field[0]: ' + DataSet.Fields[0].DisplayName + #13#10;
-          raise Exception.Create(Log);
-        end;
+          raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText);
     finally
       InOnResult := False;
     end;
@@ -3804,7 +3819,7 @@ begin
     begin
       SyncConnecting(SyncThread);
       Success := Assigned(SyncThread.LibHandle) and (SyncThread.ErrorCode = 0);
-      NeedReconnect := not Assigned(SyncThread.LibHandle) or (SyncThread.ErrorCode = CR_SERVER_LOST);
+      NeedReconnect := not Assigned(SyncThread.LibHandle) or ConnectionLost(SyncThread.ErrorCode);
     end;
     ResetPassword := False;
 
@@ -3828,10 +3843,7 @@ begin
       else
       begin
         NeedReconnect := not Assigned(SyncThread.LibHandle)
-          or (Lib.mysql_errno(SyncThread.LibHandle) = CR_SERVER_GONE_ERROR)
-          or (Lib.mysql_errno(SyncThread.LibHandle) = CR_SERVER_HANDSHAKE_ERR)
-          or (Lib.mysql_errno(SyncThread.LibHandle) = CR_SERVER_LOST)
-          or (Lib.mysql_errno(SyncThread.LibHandle) = CR_COMMANDS_OUT_OF_SYNC);
+          or ConnectionLost(Lib.mysql_errno(SyncThread.LibHandle));
       end;
     end;
 
@@ -4020,6 +4032,9 @@ begin
 
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
+    if (Assigned(CommittingDataSet)) then
+      CommittingDataSet.DataEvent(deCommitted, NativeInt(True));
+
     KillThreadId := SyncThread.LibThreadId;
 
     {$IFDEF Debug}
@@ -4187,11 +4202,29 @@ begin
 end;
 
 procedure TMySQLByteField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLDateField *************************************************************}
@@ -4210,11 +4243,29 @@ begin
 end;
 
 procedure TMySQLDateField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 procedure TMySQLDateField.SetAsString(const Value: string);
@@ -4255,11 +4306,29 @@ begin
 end;
 
 procedure TMySQLDateTimeField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 procedure TMySQLDateTimeField.SetAsString(const Value: string);
@@ -4298,11 +4367,29 @@ begin
 end;
 
 procedure TMySQLExtendedField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLFloatField ************************************************************}
@@ -4321,11 +4408,29 @@ begin
 end;
 
 procedure TMySQLFloatField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLIntegerField **********************************************************}
@@ -4344,11 +4449,29 @@ begin
 end;
 
 procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLLargeintField *********************************************************}
@@ -4367,11 +4490,29 @@ begin
 end;
 
 procedure TMySQLLargeintField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLLargeWordField ********************************************************}
@@ -4400,11 +4541,29 @@ begin
 end;
 
 procedure TMySQLLargeWordField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 procedure TMySQLLargeWordField.SetAsLargeInt(Value: Largeint);
@@ -4438,11 +4597,29 @@ begin
 end;
 
 procedure TMySQLLongWordField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLShortIntField *********************************************************}
@@ -4461,11 +4638,29 @@ begin
 end;
 
 procedure TMySQLShortIntField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLSingleField ***********************************************************}
@@ -4484,11 +4679,29 @@ begin
 end;
 
 procedure TMySQLSingleField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLSmallIntField *********************************************************}
@@ -4507,11 +4720,29 @@ begin
 end;
 
 procedure TMySQLSmallIntField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLStringField ***********************************************************}
@@ -4525,11 +4756,29 @@ begin
 end;
 
 function TMySQLStringField.GetAsString(): string;
+var
+  Msg: string;
 begin
   if (IsNull) then
     Result := ''
   else
-    Result := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Result := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 function TMySQLStringField.GetIsNull(): Boolean;
@@ -4570,11 +4819,29 @@ begin
 end;
 
 procedure TMySQLTimeField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 procedure TMySQLTimeField.SetDataSet(ADataSet: TDataSet);
@@ -4641,11 +4908,29 @@ begin
 end;
 
 procedure TMySQLTimeStampField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 procedure TMySQLTimeStampField.SetAsSQLTimeStamp(const Value: TSQLTimeStamp);
@@ -4735,7 +5020,7 @@ begin
   Assert(Assigned(LibLengths));
 
   try
-    Result := TMySQLQuery(Field.DataSet).Connection.LibDecode(FieldCodePage(Field), LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
+    Result := LibDecode(FieldCodePage(Field), LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
   except
     SetString(Data, LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
     if (Field.DataSet is TMySQLTable) then
@@ -4889,11 +5174,29 @@ begin
 end;
 
 procedure TMySQLWordField.GetText(var Text: string; DisplayText: Boolean);
+var
+  Msg: string;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  try
+    Text := LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  except
+    on E: Exception do
+      begin
+        Msg := 'DataSet: ' + DataSet.ClassName + #13#10;
+        if (DataSet is TMySQLDataSet) then
+        begin
+          Msg := Msg
+            + 'NewData: ' + BoolToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData <> TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer^.OldData) + #13#10;
+        end;
+        Msg := Msg + #13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message;
+        E.RaiseOuterException(EAssertionFailed.Create(Msg));
+      end;
+  end;
 end;
 
 { TMySQLQueryBlobStream *******************************************************}
@@ -5093,17 +5396,11 @@ end;
 
 function TMySQLQuery.GetLibLengths(): MYSQL_LENGTHS;
 begin
-  Assert(Active);
-  Assert(Assigned(Pointer(ActiveBuffer())));
-
   Result := PRecordBufferData(ActiveBuffer())^.LibLengths;
 end;
 
 function TMySQLQuery.GetLibRow(): MYSQL_ROW;
 begin
-  Assert(Active);
-  Assert(ActiveBuffer() <> 0);
-
   Result := PRecordBufferData(ActiveBuffer())^.LibRow;
 end;
 
@@ -5161,9 +5458,7 @@ end;
 procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SyncThread)) then
-  begin
     Connection.Sync(SyncThread);
-  end;
 
   IndexDefs.Clear();
 
@@ -5391,9 +5686,9 @@ begin
 
           Field.Tag := Field.Tag or CodePage;
           try
-            Field.FieldName := Connection.LibDecode(Connection.CodePageResult, LibField.name);
+            Field.FieldName := LibDecode(Connection.CodePageResult, LibField.name);
           except
-            Field.FieldName := Connection.LibUnpack(LibField.name);
+            Field.FieldName := LibUnpack(LibField.name);
           end;
 
           // Debug 2017-01-23
@@ -5413,26 +5708,26 @@ begin
           if (CreateField) then
           begin
             if ((Connection.Lib.Version >= 40100) and (LibField.org_name_length > 0)) then
-              Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.org_name) + '"'
+              Field.Origin := '"' + LibDecode(Connection.CodePageResult, LibField.org_name) + '"'
             else if (LibField.name_length > 0) then
-              Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.name) + '"'
+              Field.Origin := '"' + LibDecode(Connection.CodePageResult, LibField.name) + '"'
             else
               Field.Origin := '';
             if (Field.Origin <> '') then
               if ((Connection.Lib.Version >= 40000) and (LibField.org_table_length > 0)) then
               begin
-                Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.org_table) + '".' + Field.Origin;
+                Field.Origin := '"' + LibDecode(Connection.CodePageResult, LibField.org_table) + '".' + Field.Origin;
                 if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
-                  Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.db) + '".' + Field.Origin;
+                  Field.Origin := '"' + LibDecode(Connection.CodePageResult, LibField.db) + '".' + Field.Origin;
               end
               else if (LibField.table_length > 0) then
-                Field.Origin := '"' + Connection.LibDecode(Connection.CodePageResult, LibField.table) + '".' + Field.Origin;
+                Field.Origin := '"' + LibDecode(Connection.CodePageResult, LibField.table) + '".' + Field.Origin;
             Field.ReadOnly := LibField.table = '';
             if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
               if (DName = '') then
-                DName := Connection.LibDecode(Connection.CodePageResult, LibField.db)
+                DName := LibDecode(Connection.CodePageResult, LibField.db)
               else
-                UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(Connection.CodePageResult, LibField.db) = DName);
+                UniqueDatabaseName := UniqueDatabaseName and (LibDecode(Connection.CodePageResult, LibField.db) = DName);
 
             if (LibField.flags and AUTO_INCREMENT_FLAG <> 0) then
             begin
@@ -5492,7 +5787,7 @@ begin
 
             if (Assigned(Handle)) then
             begin
-              Field.DisplayLabel := Connection.LibDecode(Connection.CodePageResult, LibField.name);
+              Field.DisplayLabel := LibDecode(Connection.CodePageResult, LibField.name);
               case (Field.DataType) of
                 ftBlob: Field.DisplayWidth := 7;
                 ftWideMemo: Field.DisplayWidth := 8;
@@ -5684,8 +5979,8 @@ begin
       ftWideString,
       ftWideMemo:
         begin
-          StringA := Connection.LibDecode(FieldCodePage(Field), A^.LibRow^[Field.FieldNo - 1], A^.LibLengths^[Field.FieldNo - 1]);
-          StringB := Connection.LibDecode(FieldCodePage(Field), B^.LibRow^[Field.FieldNo - 1], B^.LibLengths^[Field.FieldNo - 1]);
+          StringA := LibDecode(FieldCodePage(Field), A^.LibRow^[Field.FieldNo - 1], A^.LibLengths^[Field.FieldNo - 1]);
+          StringB := LibDecode(FieldCodePage(Field), B^.LibRow^[Field.FieldNo - 1], B^.LibLengths^[Field.FieldNo - 1]);
           Result := AnsiCompareStr(StringA, StringB);
         end;
       ftBlob: Result := AnsiStrings.StrComp(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
@@ -5780,7 +6075,7 @@ begin
     else
       Data := TMySQLDataSet.PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
-  if (not Assigned(Data) or not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
+  if (not Assigned(Data^.LibRow) or not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
     if (not Field.Required) then
       Result := 'NULL'
     else
@@ -5799,14 +6094,14 @@ begin
       ftLargeint,
       ftSingle,
       ftFloat,
-      ftExtended: Result := Connection.LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
+      ftExtended: Result := LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
       ftDate,
       ftDateTime,
-      ftTime: Result := '''' + Connection.LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]) + '''';
-      ftTimeStamp: Connection.LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
+      ftTime: Result := '''' + LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]) + '''';
+      ftTimeStamp: LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
       ftBlob: Result := SQLEscapeBin(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1], Connection.MySQLVersion <= 40000);
       ftWideString,
-      ftWideMemo: Result := SQLEscape(Connection.LibDecode(FieldCodePage(Field), Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
+      ftWideMemo: Result := SQLEscape(LibDecode(FieldCodePage(Field), Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;
 end;
@@ -5981,11 +6276,11 @@ begin
     Mid := (Right - Left) div 2 + Left;
 
     if (Mid <> IgnoreIndex) then
-      Comp := DataSet.RecordCompare(CompareDefs, Buffers[Mid]^.NewData, @Data)
+      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid]^.NewData, @Data)
     else if (Left < Mid) then
-      Comp := DataSet.RecordCompare(CompareDefs, Buffers[Mid - 1]^.NewData, @Data)
+      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid - 1]^.NewData, @Data)
     else if (Right > Mid) then
-      Comp := DataSet.RecordCompare(CompareDefs, Buffers[Mid + 1]^.NewData, @Data)
+      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid + 1]^.NewData, @Data)
     else
     begin
       Comp := 0; // ... to avoid compiler warnings
@@ -6003,7 +6298,7 @@ begin
     Result := Left;
 end;
 
-procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; Item: Pointer);
+procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; const Item: PInternRecordBuffer);
 var
   I: Integer;
 begin
@@ -6014,19 +6309,9 @@ begin
       Inc(TMySQLDataSet.PExternRecordBuffer(DataSet.Buffers[I])^.Index);
 end;
 
-function TMySQLDataSet.TInternRecordBuffers.Get(Index: Integer): PInternRecordBuffer;
-begin
-  Result := PInternRecordBuffer(Items[Index]);
-end;
-
 function TMySQLDataSet.TInternRecordBuffers.GetSortDef(): TIndexDef;
 begin
   Result := DataSet.SortDef;
-end;
-
-procedure TMySQLDataSet.TInternRecordBuffers.Put(Index: Integer; Buffer: PInternRecordBuffer);
-begin
-  Items[Index] := Buffer;
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.SetIndex(AValue: Integer);
@@ -6090,6 +6375,29 @@ begin
   end;
 end;
 
+procedure TMySQLDataSet.AfterCommit();
+begin
+  if ((Connection.ErrorCode > 0)
+    and not ConnectionLost(Connection.ErrorCode)
+    and (Connection.LibraryType <> ltHTTP)
+    and Assigned(AppliedBuffers)
+    and not Connection.ExecuteSQL('COMMIT;' + #13#10)) then
+    AppliedBuffers.Clear();
+  if (Assigned(AppliedBuffers)) then
+  begin
+    while (AppliedBuffers.Count > 0) do
+    begin
+      PendingBuffers.Delete(PendingBuffers.IndexOf(AppliedBuffers[0]));
+      AppliedBuffers.Delete(0);
+    end;
+    AppliedBuffers.Free();
+    AppliedBuffers := nil;
+  end;
+
+  EnableControls();
+  DataEvent(deCommitted, NativeInt(False));
+end;
+
 function TMySQLDataSet.BookmarkValid(Bookmark: TBookmark): Boolean;
 var
   Index: Integer;
@@ -6102,6 +6410,54 @@ begin
   end;
 end;
 
+function TMySQLDataSet.Commit(): Boolean;
+var
+  SQL: string;
+begin
+  SQL := SQLUpdate()
+    + SQLInsert();
+
+  if ((SQL <> '') and (Connection.LibraryType <> ltHTTP)) then
+  begin
+    if (Connection.MySQLVersion < 40011) then
+      SQL := 'BEGIN;' + #13#10 + SQL
+    else
+      SQL := 'START TRANSACTION;' + #13#10 + SQL;
+    SQL := SQL + 'COMMIT;' + #13#10;
+    if (Connection.DatabaseName <> DatabaseName) then
+      SQL := Connection.SQLUse(DatabaseName) + SQL;
+  end;
+
+  if (SQL = '') then
+    Result := True
+  else
+  begin
+    AppliedBuffers := TList<PInternRecordBuffer>.Create();
+    Connection.CommittingDataSet := Self;
+    DisableControls();
+    Result := Connection.SendSQL(SQL, CommitEvent);
+  end;
+end;
+
+function TMySQLDataSet.CommitEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
+var
+  Parse: TSQLParse;
+begin
+  if (not SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)
+    or not SQLParseKeyword(Parse, 'INSERT')) then
+    Result := False
+  else
+  begin
+    InternalPostResult.InternRecordBuffer := PendingBuffers[AppliedBuffers.Count];
+    InternalPostResult.Exception := nil;
+    InternalPostResult.NewIndex := -1;
+    Result := InternalPostEvent(ErrorCode, ErrorMessage, WarningCount, CommandText, DataHandle, Data);
+    if (not Assigned(InternalPostResult.Exception)) then
+      AppliedBuffers.Add(PendingBuffers[AppliedBuffers.Count]);
+  end;
+end;
+
 function TMySQLDataSet.CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer;
 begin
   Result := Sign(InternRecordBuffers.IndexOf(Bookmark1) - InternRecordBuffers.IndexOf(Bookmark2));
@@ -6111,6 +6467,7 @@ constructor TMySQLDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+  AppliedBuffers := nil;
   DeleteBookmarks := nil;
   DeleteByWhereClause := False;
   FCanModify := False;
@@ -6124,6 +6481,7 @@ begin
   FSortDef := TIndexDef.Create(nil, '', '', []);
   FTableName := '';
   InGetNextRecords := False;
+  PendingBuffers := nil;
 
   BookmarkSize := SizeOf(InternRecordBuffers[0]);
 
@@ -6173,33 +6531,34 @@ end;
 
 procedure TMySQLDataSet.DeleteAll();
 begin
-  // Debug 2017-03-02
-  Assert(Assigned(Self));
-
   DeleteByWhereClause := True;
   try
-    try
-      Delete();
-    except
-      // Debug 2017-03-02
-      on E: Exception do
-        EAssertionFailed.Create(E.Message + #13#10
-          + 'BufferCount: ' + IntToStr(BufferCount));
-    end;
+    Delete();
   finally
     DeleteByWhereClause := False;
   end;
+end;
+
+procedure TMySQLDataSet.DeletePendingRecords();
+begin
+  while (PendingBuffers.Count > 0) do
+    InternRecordBuffers.Delete(InternRecordBuffers.IndexOf(PendingBuffers[0]));
+  Resync([]);
 end;
 
 destructor TMySQLDataSet.Destroy();
 begin
   inherited;
 
+  if (Assigned(AppliedBuffers)) then
+    AppliedBuffers.Free();
   FSortDef.Free();
   FRecordsReceived.Free();
   if (Assigned(FilterParser)) then
     FreeAndNil(FilterParser);
   FInternRecordBuffers.Free();
+  if (Assigned(PendingBuffers)) then
+    PendingBuffers.Free();
 end;
 
 function TMySQLDataSet.FindRecord(Restart, GoForward: Boolean): Boolean;
@@ -6273,10 +6632,11 @@ end;
 
 function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
-  if (not Active
-    or not Assigned(Pointer(ActiveBuffer()))
-    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
-    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+  Assert(Active);
+  Assert(ActiveBuffer() > 0);
+  Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
+
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths;
@@ -6284,10 +6644,11 @@ end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
-  if (not Active
-    or not Assigned(Pointer(ActiveBuffer()))
-    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
-    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+  Assert(Active);
+  Assert(ActiveBuffer() > 0);
+  Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
+
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow;
@@ -6307,7 +6668,7 @@ begin
   Index := Field.FieldNo - 1;
   if ((not (Field.DataType in [ftWideString, ftWideMemo]))) then
     for I := 0 to InternRecordBuffers.Count - 1 do
-      Result := Max(Result, TextWidth(Connection.LibUnpack(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])))
+      Result := Max(Result, TextWidth(LibUnpack(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])))
   else
     for I := 0 to InternRecordBuffers.Count - 1 do
     begin
@@ -6315,7 +6676,7 @@ begin
       Assert(Assigned(InternRecordBuffers[I]^.NewData^.LibRow));
       Assert(Assigned(InternRecordBuffers[I]^.NewData^.LibLengths));
 
-      Result := Max(Result, TextWidth(Connection.LibDecode(FieldCodePage(Field), InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
+      Result := Max(Result, TextWidth(LibDecode(FieldCodePage(Field), InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
     end;
   InternRecordBuffers.CriticalSection.Leave();
 end;
@@ -6327,6 +6688,14 @@ begin
   Result := inherited;
 
   InGetNextRecords := False;
+end;
+
+function TMySQLDataSet.GetPendingRecordCount(): Integer;
+begin
+  if (not Assigned(PendingBuffers)) then
+    Result := 0
+  else
+    Result := PendingBuffers.Count;
 end;
 
 function TMySQLDataSet.GetRecNo(): Integer;
@@ -6708,7 +7077,7 @@ begin
   for I := 0 to FieldCount - 1 do
     if (Fields[I].DefaultExpression <> '') then
     begin
-      RBS := Connection.LibEncode(FieldCodePage(Fields[I]), SQLUnescape(Fields[I].DefaultExpression));
+      RBS := LibEncode(FieldCodePage(Fields[I]), SQLUnescape(Fields[I].DefaultExpression));
       SetFieldData(Fields[I], @RBS[1], Length(RBS));
     end
     else if (Fields[I].Required and (Fields[I].DataType in BinaryDataTypes * TextDataTypes)) then
@@ -6770,8 +7139,10 @@ begin
     case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
       bfBOF,
       bfEOF:
-        InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
     end;
+    if (PendingBuffers.IndexOf(InternRecordBuffers[InternRecordBuffers.Index]) < 0) then
+      PendingBuffers.Add(InternRecordBuffers[InternRecordBuffers.Index]);
   end
   else
   begin
@@ -6987,6 +7358,7 @@ begin
       if (Connection.DatabaseName <> DatabaseName) then
         SQL := Connection.SQLUse(DatabaseName) + SQL;
 
+      InternalPostResult.InternRecordBuffer := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer;
       InternalPostResult.Exception := nil;
       InternalPostResult.NewIndex := PExternRecordBuffer(ActiveBuffer())^.Index;
 
@@ -6998,6 +7370,9 @@ begin
 
       if (Assigned(InternalPostResult.Exception)) then
         raise InternalPostResult.Exception;
+
+      if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag in [bfBOF, bfEOF]) then
+        PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
 
       if ((ControlSQL = '') and CheckPosition) then
       begin
@@ -7011,7 +7386,7 @@ begin
       if ((InternalPostResult.NewIndex >= 0)
         and ((PExternRecordBuffer(ActiveBuffer())^.Index < 0) or (PExternRecordBuffer(ActiveBuffer())^.Index <> InternalPostResult.NewIndex))) then
       begin
-        // Position in InternRecordBuffers changed -> move it
+        // Position in InternRecordBuffers changed -> move it!
 
         // Debug 2017-03-02
         Assert((PExternRecordBuffer(ActiveBuffer())^.Index >= 0)
@@ -7035,6 +7410,7 @@ var
   EqualFieldNames: Boolean;
   I: Integer;
   Index: Integer;
+  RBS: RawByteString;
   Parse: TSQLParse;
   RecordBufferData: TMySQLQuery.TRecordBufferData;
   RecordMatch: Boolean;
@@ -7055,19 +7431,16 @@ begin
       begin
         if (not Update) then
           for I := 0 to Fields.Count - 1 do
-            if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
-              Fields[I].AsLargeInt := Connection.InsertId;
+            if ((Fields[I].AutoGenerateValue = arAutoInc) and (Connection.InsertId > 0)) then
+            begin
+              RBS := RawByteString(IntToStr(Connection.InsertId));
+              SetFieldData(Fields[I], PAnsiChar(RBS), Length(RBS), InternalPostResult.InternRecordBuffer);
+            end;
 
-        if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag in [bfBOF, bfEOF]) then
-        begin
-          InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-          PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Count - 1;
-        end;
+        if (InternalPostResult.InternRecordBuffer^.OldData <> InternalPostResult.InternRecordBuffer^.NewData) then
+          FreeMem(InternalPostResult.InternRecordBuffer^.OldData);
 
-        if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
-          FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
-
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+        InternalPostResult.InternRecordBuffer^.OldData := InternalPostResult.InternRecordBuffer^.NewData;
       end;
     end
     else if ((ErrorCode = 0) and SQLParseKeyword(Parse, 'SELECT')) then
@@ -7269,14 +7642,14 @@ begin
         end
         else if (loCaseInsensitive in Options) then
           if (loPartialKey in Options) then
-            Result := Result and (Pos(Values[I], LowerCase(Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) > 0)
+            Result := Result and (Pos(Values[I], LowerCase(LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) > 0)
           else
-            Result := Result and (lstrcmpi(PChar(Values[I]), PChar(Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0)
+            Result := Result and (lstrcmpi(PChar(Values[I]), PChar(LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0)
         else
           if (loPartialKey in Options) then
-            Result := Result and (Pos(Values[I], Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[I], InternRecordBuffers[Fields[I].FieldNo - 1]^.NewData^.LibLengths^[Fields[I].FieldNo - 1])) > 0)
+            Result := Result and (Pos(Values[I], LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[I], InternRecordBuffers[Fields[I].FieldNo - 1]^.NewData^.LibLengths^[Fields[I].FieldNo - 1])) > 0)
           else
-            Result := Result and (lstrcmp(PChar(Values[I]), PChar(Connection.LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0);
+            Result := Result and (lstrcmp(PChar(Values[I]), PChar(LibDecode(FieldCodePage(Fields[I]), InternRecordBuffers[Index]^.NewData^.LibRow^[Fields[I].FieldNo - 1], InternRecordBuffers[Index]^.NewData^.LibLengths^[Fields[I].FieldNo - 1]))) = 0);
 
       if (not Result) then
         Inc(Index);
@@ -7348,6 +7721,17 @@ begin
   PExternRecordBuffer(Buffer)^.BookmarkFlag := Value;
 end;
 
+procedure TMySQLDataSet.SetCachedUpdates(AValue: Boolean);
+begin
+  if (AValue <> FCachedUpdates) then
+  begin
+    FCachedUpdates := AValue;
+
+    if (FCachedUpdates and not Assigned(PendingBuffers)) then
+      PendingBuffers := TList<PInternRecordBuffer>.Create();
+  end;
+end;
+
 procedure TMySQLDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 var
   Len: Integer;
@@ -7372,34 +7756,34 @@ begin
     begin
       case (Field.DataType) of
         ftString: SetString(RBS, PAnsiChar(@Buffer[0]), Field.DataSize);
-        ftShortInt: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, ShortInt((@Buffer[0])^), Connection.FormatSettings));
-        ftByte: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Byte((@Buffer[0])^), Connection.FormatSettings));
-        ftSmallInt: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, SmallInt((@Buffer[0])^), Connection.FormatSettings));
-        ftWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Word((@Buffer[0])^), Connection.FormatSettings));
-        ftInteger: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Integer((@Buffer[0])^), Connection.FormatSettings));
-        ftLongWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, LongWord((@Buffer[0])^), Connection.FormatSettings));
+        ftShortInt: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, ShortInt((@Buffer[0])^), Connection.FormatSettings));
+        ftByte: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Byte((@Buffer[0])^), Connection.FormatSettings));
+        ftSmallInt: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, SmallInt((@Buffer[0])^), Connection.FormatSettings));
+        ftWord: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Word((@Buffer[0])^), Connection.FormatSettings));
+        ftInteger: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Integer((@Buffer[0])^), Connection.FormatSettings));
+        ftLongWord: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, LongWord((@Buffer[0])^), Connection.FormatSettings));
         ftLargeint:
           if (not (Field is TMySQLLargeWordField) or (UInt64((@Buffer[0])^) and $80000000 = 0)) then
-            RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Largeint((@Buffer[0])^), Connection.FormatSettings))
+            RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Largeint((@Buffer[0])^), Connection.FormatSettings))
           else
-            RBS := Connection.LibPack(UInt64ToStr(UInt64((@Buffer[0])^)));
-        ftSingle: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Single((@Buffer[0])^), Connection.FormatSettings));
-        ftFloat: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Double((@Buffer[0])^), Connection.FormatSettings));
-        ftExtended: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Extended((@Buffer[0])^), Connection.FormatSettings));
+            RBS := LibPack(UInt64ToStr(UInt64((@Buffer[0])^)));
+        ftSingle: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Single((@Buffer[0])^), Connection.FormatSettings));
+        ftFloat: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Double((@Buffer[0])^), Connection.FormatSettings));
+        ftExtended: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Extended((@Buffer[0])^), Connection.FormatSettings));
         ftDate:
           begin
             TS.Date := TDateTimeRec((@Buffer[0])^).Date;
             TS.Time := 0;
-            RBS := Connection.LibPack(MySQLDB.DateToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
+            RBS := LibPack(MySQLDB.DateToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
           end;
-        ftDateTime: RBS := Connection.LibPack(MySQLDB.DateTimeToStr(TimeStampToDateTime(MSecsToTimeStamp(TDateTimeRec((@Buffer[0])^).DateTime)), Connection.FormatSettings));
+        ftDateTime: RBS := LibPack(MySQLDB.DateTimeToStr(TimeStampToDateTime(MSecsToTimeStamp(TDateTimeRec((@Buffer[0])^).DateTime)), Connection.FormatSettings));
         ftTime:
           begin
             TS.Date := DateDelta;
             TS.Time := TDateTimeRec((@Buffer[0])^).Time;
-            RBS := Connection.LibPack(TimeToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
+            RBS := LibPack(TimeToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
           end;
-        ftTimeStamp: RBS := Connection.LibPack(MySQLTimeStampToStr(PSQLTimeStamp((@Buffer[0]))^, TMySQLTimeStampField(Field).DisplayFormat));
+        ftTimeStamp: RBS := LibPack(MySQLTimeStampToStr(PSQLTimeStamp((@Buffer[0]))^, TMySQLTimeStampField(Field).DisplayFormat));
         ftBlob: SetString(RBS, PAnsiChar(@Buffer[0]), Length(Buffer));
         ftWideMemo:
           begin
@@ -7423,7 +7807,8 @@ begin
   end;
 end;
 
-procedure TMySQLDataSet.SetFieldData(const Field: TField; const Buffer: Pointer; const Size: Integer);
+procedure TMySQLDataSet.SetFieldData(const Field: TField; const Buffer: Pointer;
+  const Size: Integer; InternRecordBuffer: PInternRecordBuffer = nil);
 var
   I: Integer;
   Index: Integer;
@@ -7431,7 +7816,10 @@ var
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
 begin
-  OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+  if (not Assigned(InternRecordBuffer)) then
+    InternRecordBuffer := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer;
+
+  OldData := InternRecordBuffer^.NewData;
 
   MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
@@ -7478,11 +7866,9 @@ begin
     Inc(Index, NewData^.LibLengths^[I]);
   end;
 
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer()
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
-    FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
-  PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := NewData;
+  if (InternRecordBuffer^.NewData <> InternRecordBuffer^.OldData) then
+    FreeMem(InternRecordBuffer^.NewData);
+  InternRecordBuffer^.NewData := NewData;
 end;
 
 procedure TMySQLDataSet.SetFieldsSortTag();
@@ -7514,7 +7900,7 @@ begin
     end;
   until (FieldName = '');
 
-  DataEvent(deSortChange, 0);
+  DataEvent(deSortChanged, 0);
 end;
 
 procedure TMySQLDataSet.SetFiltered(Value: Boolean);
@@ -7748,33 +8134,65 @@ end;
 
 function TMySQLDataSet.SQLInsert(): string;
 var
+  EmptyData: TMySQLQuery.TRecordBufferData;
   ExternRecordBuffer: PExternRecordBuffer;
   I: Integer;
+  J: Integer;
+  SQL: string;
   ValueHandled: Boolean;
 begin
-  ExternRecordBuffer := PExternRecordBuffer(ActiveBuffer());
+  if (CachedUpdates) then
+  begin
+    EmptyData.LibLengths := nil;
+    EmptyData.LibRow := nil;
 
-  // Debug 2017-04-24
-  Assert(Assigned(ExternRecordBuffer));
-  Assert(Assigned(ExternRecordBuffer^.InternRecordBuffer));
+    Result := '';
+    for J := 0 to PendingBuffers.Count - 1 do
+    begin
+      SQL := '';
 
-  if (not Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData)) then
-    Result := ''
+      ValueHandled := False;
+      for I := 0 to FieldCount - 1 do
+        if ((pfInUpdate in Fields[I].ProviderFlags)
+          and (not Assigned(PendingBuffers[J]^.NewData)
+            or Assigned(PendingBuffers[J]^.NewData^.LibRow^[Fields[I].FieldNo - 1]))) then
+        begin
+          if (ValueHandled) then SQL := SQL + ',';
+          if (not Assigned(PendingBuffers[J]^.NewData)) then
+            SQL := SQL + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TMySQLQuery.PRecordBufferData(@EmptyData))
+          else
+            SQL := SQL + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], PendingBuffers[J]^.NewData);
+          ValueHandled := True;
+        end;
+
+      if (SQL <> '') then
+        Result := Result + 'INSERT INTO ' + SQLTableClause() + ' SET ' + SQL + ';' + #13#10;
+    end;
+  end
   else
   begin
-    Result := '';
-    ValueHandled := False;
-    for I := 0 to FieldCount - 1 do
-      if ((pfInUpdate in Fields[I].ProviderFlags)
-        and Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1])) then
-      begin
-        if (ValueHandled) then Result := Result + ',';
-        Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
-        ValueHandled := True;
-      end;
+    ExternRecordBuffer := PExternRecordBuffer(ActiveBuffer());
 
-    if (Result <> '') then
-      Result := 'INSERT INTO ' + SQLTableClause() + ' SET ' + Result + ';' + #13#10;
+    // Debug 2017-04-24
+    Assert(Assigned(ExternRecordBuffer));
+    Assert(Assigned(ExternRecordBuffer^.InternRecordBuffer));
+
+    if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData)) then
+    begin
+      ValueHandled := False;
+      for I := 0 to FieldCount - 1 do
+        if ((pfInUpdate in Fields[I].ProviderFlags)
+          and (not Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow)
+            or Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]))) then
+        begin
+          if (ValueHandled) then Result := Result + ',';
+          Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
+          ValueHandled := True;
+        end;
+
+      if (Result <> '') then
+        Result := 'INSERT INTO ' + SQLTableClause() + ' SET ' + Result + ';' + #13#10;
+    end;
   end;
 end;
 
@@ -7785,6 +8203,52 @@ begin
   else
     Result := Connection.EscapeIdentifier(DatabaseName) + '.';
   Result := Result + Connection.EscapeIdentifier(TableName);
+end;
+
+function TMySQLDataSet.SQLUpdate(): string;
+var
+  I: Integer;
+  ValueHandled: Boolean;
+  J: Integer;
+begin
+  if (CachedUpdates) then
+  begin
+    Result := '';
+    for J := 0 to PendingBuffers.Count - 1 do
+      if (Assigned(PendingBuffers[J]^.OldData)) then
+      begin
+        ValueHandled := False;
+        for I := 0 to FieldCount - 1 do
+          if ((pfInUpdate in Fields[I].ProviderFlags)
+            and ((PendingBuffers[J]^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PendingBuffers[J]^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
+              or (Assigned(PendingBuffers[J]^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PendingBuffers[J]^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
+              or (not CompareMem(PendingBuffers[J]^.NewData^.LibRow^[Fields[I].FieldNo - 1], PendingBuffers[J]^.OldData^.LibRow^[Fields[I].FieldNo - 1], PendingBuffers[J]^.OldData^.LibLengths^[Fields[I].FieldNo - 1])))) then
+          begin
+            if (ValueHandled) then Result := Result + ',';
+            Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], PendingBuffers[J]^.OldData);
+            ValueHandled := True;
+          end;
+        if (Result <> '') then
+          Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
+      end;
+  end
+  else
+  begin
+    Result := '';
+    ValueHandled := False;
+    for I := 0 to FieldCount - 1 do
+      if ((pfInUpdate in Fields[I].ProviderFlags)
+        and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
+          or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
+          or (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])))) then
+      begin
+        if (ValueHandled) then Result := Result + ',';
+        Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Pointer(ActiveBuffer()));
+        ValueHandled := True;
+      end;
+    if (Result <> '') then
+      Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
+  end;
 end;
 
 function TMySQLDataSet.SQLWhereClause(const NewData: Boolean = False): string;
@@ -7812,33 +8276,6 @@ begin
     end;
 
   Assert(Result <> '', CommandText);
-end;
-
-function TMySQLDataSet.SQLUpdate(): string;
-var
-  I: Integer;
-  ValueHandled: Boolean;
-begin
-  // Debug 2017-01-24
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
-    raise EAssertionFailed.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
-      + 'State: ' + IntToStr(Ord(State)));
-
-  Result := '';
-  ValueHandled := False;
-  for I := 0 to FieldCount - 1 do
-    if ((pfInUpdate in Fields[I].ProviderFlags)
-      and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
-        or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
-        or (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])))) then
-    begin
-      if (ValueHandled) then Result := Result + ',';
-      Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Pointer(ActiveBuffer()));
-      ValueHandled := True;
-    end;
-  if (Result <> '') then
-    Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
 end;
 
 procedure TMySQLDataSet.UpdateIndexDefs();
@@ -8010,9 +8447,9 @@ function TMySQLDataSet.VisibleInFilter(const InternRecordBuffer: PInternRecordBu
             else if (BitField(Fields[Node^.Field2.FieldNo - 1])) then
               Result := Fields[Node^.Field2.FieldNo - 1].AsLargeInt
             else if (Fields[Node^.Field2.FieldNo - 1].DataType in [ftWideString, ftWideMemo]) then
-              Result := Connection.LibDecode(FieldCodePage(Fields[Node^.Field2.FieldNo - 1]), InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1])
+              Result := LibDecode(FieldCodePage(Fields[Node^.Field2.FieldNo - 1]), InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1])
             else
-              Result := Connection.LibUnpack(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1]);
+              Result := LibUnpack(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1]);
           else raise EDatabaseError.CreateFmt('coOp not supported (%d)', [Ord(Node^.coOp)]);
         end;
 

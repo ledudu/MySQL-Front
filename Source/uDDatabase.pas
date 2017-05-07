@@ -306,8 +306,8 @@ procedure TDDatabase.FormHide(Sender: TObject);
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  Preferences.xDatabase.Width := Width;
-  Preferences.xDatabase.Height := Height;
+  Preferences.Database.Width := Width;
+  Preferences.Database.Height := Height;
 
   FSource.Lines.Clear();
 
@@ -380,10 +380,10 @@ var
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
-  if ((Preferences.xDatabase.Width >= Width) and (Preferences.xDatabase.Height >= Height)) then
+  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
   begin
-    Width := Preferences.xDatabase.Width;
-    Height := Preferences.xDatabase.Height;
+    Width := Preferences.Database.Width;
+    Height := Preferences.Database.Height;
   end;
 
   if (not Assigned(Database)) then

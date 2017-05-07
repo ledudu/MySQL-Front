@@ -15934,7 +15934,10 @@ begin
     Nodes.OldIdent := ParseFieldIdent();
 
   if (not ErrorFound) then
-    Nodes.Definition := ParseCreateTableStmtField();
+    if (not IsSymbol(ttOpenBracket)) then
+      Nodes.Definition := ParseCreateTableStmtField()
+    else
+      Nodes.Definition := ParseList(True, ParseCreateTableStmtField, ttComma, False);
 
   if (not ErrorFound and (AddType <> fatNone)) then
     if (IsTag(kiFIRST)) then

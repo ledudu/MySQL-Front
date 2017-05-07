@@ -1682,6 +1682,9 @@ begin
 
   BeforeExecute();
 
+  Session.InImport := True;
+
+  try
   Open();
 
   for I := 0 to Items.Count - 1 do
@@ -1720,6 +1723,9 @@ begin
       if (Success = daFail) then Success := daSuccess;
     end;
 
+  finally
+    Session.InImport := False;
+  end;
   AfterExecute();
 
   {$IFDEF EurekaLog}

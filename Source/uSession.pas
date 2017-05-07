@@ -1601,6 +1601,7 @@ type
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
   public
+InImport: Boolean;
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
     function ApplyIdentifierName(const AIdentifierName: string): string;
@@ -4057,6 +4058,9 @@ begin
       Session.SendEvent(etItemsValid, Database, Items);
     Session.SendEvent(etItemValid, Database, Items, Self);
   end;
+
+  // Debug 2017-05-06
+  Assert(Assigned(Fields));
 
   if (Fields.Count > 0) then
     Session.SendEvent(etItemsValid, Self, Fields);
@@ -12066,6 +12070,7 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   FUserRequested := False;
+  InImport := False;
   ManualURL := '';
   UnparsableSQL := '';
 
@@ -13722,6 +13727,7 @@ var
 begin
   // Debug 2017-05-04
   Assert(Assigned(Connection));
+  Assert(not InImport or (GetCurrentThreadId() <> MainThreadID));
 
   SQL := '';
 

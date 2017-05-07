@@ -824,7 +824,7 @@ begin
     end;
 
     if ((Screen.ActiveForm = Self) and Assigned(ActiveTab)) then
-      PostMessage(Handle, UM_ACTIVATEFRAME, 0, LPARAM(ActiveTab));
+      PostMessage(Handle, UM_ACTIVATEFRAME, 0, 0);
   end;
 end;
 
@@ -1607,7 +1607,8 @@ end;
 
 procedure TWWindow.UMActivateFrame(var Message: TMessage);
 begin
-  TFSession(Message.LParam).FrameActivate(Self);
+  if (Assigned(ActiveTab)) then
+    ActiveTab.FrameActivate(Self);
 end;
 
 procedure TWWindow.UMAddTab(var Message: TMessage);

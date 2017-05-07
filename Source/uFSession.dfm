@@ -781,6 +781,7 @@ object FSession: TFSession
         OnEnter = DBGridEnter
         OnExit = DBGridExit
         Overflow = False
+        OnUpdateAction = FObjectIDEGridUpdateAction
       end
       object PObjectIDETrigger: TPanel_Ext
         Left = 0
@@ -1182,7 +1183,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 32752
+      Left = 77930
       Top = 0
       Width = 140
       Height = 22
@@ -1194,9 +1195,10 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
+      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 32752
+      Left = 77847
       Top = 0
       Width = 23
       Height = 22
@@ -1205,6 +1207,7 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
+      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
