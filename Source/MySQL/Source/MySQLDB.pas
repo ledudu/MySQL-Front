@@ -2443,15 +2443,11 @@ begin
     DataSets[0].Free();
 
   if (Assigned(SyncThread)) then
+    // Forget the memory - speed is more important...
     if (SyncThread.IsRunning) then
       TerminateThread(SyncThread.Handle, 0)
     else
-    begin
       SyncThread.Terminate();
-      SyncThread.RunExecute.SetEvent();
-      SyncThread.WaitFor();
-      SyncThread.Free();
-    end;
   TerminateCS.Enter();
   for I := 0 to TerminatedThreads.Count - 1 do
     TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
@@ -8192,18 +8188,19 @@ end;
 function TMySQLDataSet.SQLInsert(): string;
 var
   EmptyData: TMySQLQuery.TRecordBufferData;
-  ExternRecordBuffer: PExternRecordBuffer;
+  Data: TMySQLQuery.PRecordBufferData;
   I: Integer;
   J: Integer;
   SQL: string;
   ValueHandled: Boolean;
 begin
+  Result := '';
+
   if (CachedUpdates) then
   begin
     EmptyData.LibLengths := nil;
     EmptyData.LibRow := nil;
 
-    Result := '';
     for J := 0 to PendingBuffers.Count - 1 do
     begin
       SQL := '';
@@ -8228,22 +8225,22 @@ begin
   end
   else
   begin
-    ExternRecordBuffer := PExternRecordBuffer(ActiveBuffer());
-
     // Debug 2017-04-24
-    Assert(Assigned(ExternRecordBuffer));
-    Assert(Assigned(ExternRecordBuffer^.InternRecordBuffer));
+    Assert(Assigned(PExternRecordBuffer(ActiveBuffer())));
+    Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
 
-    if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData)) then
+    Data := PExternRecordBuffer(ActiveBuffer()).InternRecordBuffer^.NewData;
+
+    if (Assigned(Data)) then
     begin
       ValueHandled := False;
       for I := 0 to FieldCount - 1 do
         if ((pfInUpdate in Fields[I].ProviderFlags)
-          and (not Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow)
-            or Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]))) then
+          and (not Assigned(Data^.LibRow)
+            or Assigned(LibRow^[Fields[I].FieldNo - 1]))) then
         begin
           if (ValueHandled) then Result := Result + ',';
-          Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
+          Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Data);
           ValueHandled := True;
         end;
 

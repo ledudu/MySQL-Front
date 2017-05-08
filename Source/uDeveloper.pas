@@ -62,7 +62,7 @@ function GetUTCTime(): TDateTime;
 function LocationToStr(Location: TELLocationInfo): string;
 {$ENDIF}
 function ProcAddrToStr(const Proc: Pointer): string;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 4;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 
 const
@@ -305,7 +305,7 @@ begin
   {$ENDIF}
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 4;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 {$IFNDEF Debug}
 var
@@ -1102,25 +1102,22 @@ begin
     FreeAndNil(CheckOnlineVersionThread);
   end;
 
-  if (ObsoleteVersion < ProgramVersion) then
+  if ((ObsoleteVersion < ProgramVersion) and (ObsoleteVersion < OnlineVersion)) then
     ObsoleteVersion := OnlineVersion;
-
-  if (GetCurrentThreadId() = MainThreadId) then
-    SendMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0)
-  else
-    PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
 
   if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
   begin
     ShowDialog := False;
 
     if (EFrozenApplicationSent < 5) then
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 4, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
 
     Inc(EFrozenApplicationSent);
   end
   else
   begin
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
+
     ShowDialog := not UpdateAvailable;
 
     if (not ShowDialog) then
@@ -1137,14 +1134,14 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 4, True);
-
       ExceptionInfo.Options.SendShellSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +
         ' (Build: ' + IntToStr(ProgramVersionPatch) + '.' +
         IntToStr(ProgramVersionBuild) + ')' + ' - Bug Report';
     end;
   end;
+
+  PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
 end;
 {$ENDIF}
 
