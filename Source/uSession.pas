@@ -11288,6 +11288,9 @@ end;
 
 constructor TSItemSearch.Create(const ASession: TSSession);
 begin
+  // Debug 2017-05-09
+  Assert(Assigned(ASession));
+
   inherited;
 
   FSession := ASession;

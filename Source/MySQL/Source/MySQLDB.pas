@@ -530,7 +530,7 @@ type
       InternRecordBuffer: PInternRecordBuffer;
       BookmarkFlag: TBookmarkFlag;
     end;
-    TWantedRecord = (wrNone, wrNext, wrLast);
+    TWantedRecord = (wrNone, wrFirst, wrNext, wrLast);
 
     TInternRecordBuffers = class(TList<PInternRecordBuffer>)
     strict private
@@ -3335,8 +3335,6 @@ begin
 end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
-var
-  RefreshData: Boolean;
 begin
   DebugMonitor.Append('SyncBindDataSet - start - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
@@ -3344,19 +3342,13 @@ begin
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult, 'State: ' + IntToStr(Ord(SyncThread.State)));
 
-  RefreshData := Assigned(SyncThread.DataSet) and (SyncThread.DataSet.RecordCount = 0);
-
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
 
   SyncThread.State := ssReceivingResult;
 
   if (DataSet is TMySQLDataSet) then
-  begin
     SyncThread.RunExecute.SetEvent();
-    if (RefreshData) then
-      DataSet.Resync([]);
-  end;
 
   DebugMonitor.Append('SyncBindDataSet - end - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 end;
@@ -3991,8 +3983,15 @@ begin
           DataSet.InternRecordBuffers.RecordReceived.SetEvent();
           OldDataSize := DataSet.DataSize;
         end;
-      if ((DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).WantedRecord = wrNext)) then
-        MySQLConnectionOnSynchronize(DataSet, 1);
+
+      case (DataSet.WantedRecord) of
+        wrFirst,
+        wrNext:
+          begin
+            DataSet.WantedRecord := wrNone;
+            MySQLConnectionOnSynchronize(DataSet, 1);
+          end;
+      end;
 
       TerminateCS.Leave();
     end;
@@ -6656,9 +6655,9 @@ end;
 function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
   Assert(Active);
-  Assert(ActiveBuffer() > 0);
 
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+  if ((ActiveBuffer() = 0)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
@@ -6668,9 +6667,9 @@ end;
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
-  Assert(ActiveBuffer() > 0);
 
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+  if ((ActiveBuffer() = 0)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
@@ -7184,6 +7183,10 @@ begin
       bfEOF:
         PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
     end;
+    Assert((0 <=InternRecordBuffers.Index) and (InternRecordBuffers.Index < InternRecordBuffers.Count),
+      'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
+      + 'Count: ' + IntToStr(InternRecordBuffers.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
     if (PendingBuffers.IndexOf(InternRecordBuffers[InternRecordBuffers.Index]) < 0) then
       PendingBuffers.Add(InternRecordBuffers[InternRecordBuffers.Index]);
   end
@@ -7592,7 +7595,10 @@ begin
     SQL := CommandText;
 
   if (SQL <> '') then
+  begin
     Connection.InternExecuteSQL(smDataSet, SQL, TMySQLConnection.TResultEvent(nil), nil, Self);
+    WantedRecord := wrFirst;
+  end;
 end;
 
 procedure TMySQLDataSet.InternalSetToRecord(Buffer: TRecBuf);
@@ -8867,6 +8873,7 @@ begin
   inherited;
 
   FLimitedDataReceived := False;
+  WantedRecord := wrNone;
 end;
 
 procedure TMySQLTable.InternalLast();

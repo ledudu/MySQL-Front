@@ -6516,21 +6516,9 @@ end;
 procedure TFSession.DBGridEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
-  SQL: string;
 begin
   if ((Sender is TMySQLDBGrid) and Assigned(TMySQLDBGrid(Sender).DataSource.DataSet)) then
   begin
-    if (View <> vIDE) then
-      SQL := ''
-    else
-    begin
-      // Debug 2016-11-23
-      if (not Assigned(ActiveBCEditor)) then
-        raise ERangeError.Create(SRangeError);
-
-      SQL := SQLTrimStmt(ActiveBCEditor.Text);
-    end;
-
     DBGrid := TMySQLDBGrid(Sender);
 
     aFExportSQL.Enabled := DBGrid.DataSource.DataSet.CanModify;
@@ -10102,8 +10090,11 @@ begin
   if (Assigned(Result)) then
   begin
     // Debug 2017-01-24
-    if (not Assigned(TUnprotectedDBGrid(Result).DataLink)) then
-      raise ERangeError.Create(SRangeError);
+    // Occurred on 2017-05-09 the first time (but the detailes wasn't implemented than)
+    Assert(Assigned(TUnprotectedDBGrid(Result).DataLink),
+      'View: ' + IntToStr(Ord(View)) + #13#10
+      + 'CurrentAddress: ' + CurrentAddress + #13#10
+      + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
 
     Result.DataSource.OnDataChange := DBGridDataSourceDataChange;
 
@@ -16692,8 +16683,17 @@ begin
           ciBaseField,
           ciViewField:
             begin
+              // Debug 2017-05-09
+              URI := TUURI.Create(CurrentAddress);
               Assert(Assigned(CurrentData),
-                'CurrentAddress: ' + CurrentAddress);
+                'CurrentAddress: ' + CurrentAddress + #13#10
+                + 'ItemByAddress: ' + BoolToStr(Assigned(Session.ItemByAddress(CurrentAddress)), True) + #13#10
+                + 'Database: ' + URI.Database + #13#10
+                + 'Tables.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).Tables.Valid, True) + #13#10
+                + 'Table: ' + URI.Table + #13#10
+                + 'Table.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Valid, True));
+              URI.Free();
+
               Table := TSTableField(CurrentData).Table;
             end;
           ciBaseTable,
