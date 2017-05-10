@@ -2300,7 +2300,7 @@ begin
     FSource := ReplaceStr(ASource, #10, #13#10)
   else
     FSource := ASource;
-  if (FSource <> '') then
+  if ((FSource <> '') and (FSource[Length(FSource)] <> ';')) then
     FSource := FSource + ';' + #13#10;
 
   FValidSource := True;
@@ -11323,6 +11323,7 @@ begin
 
   // Debug 2017-05-05
   Assert(Assigned(Session));
+  Assert(Assigned(Session.Connection));
 
   if (ErrorCode = 0) then
   begin

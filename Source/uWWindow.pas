@@ -622,7 +622,8 @@ procedure TWWindow.aHUpdateExecute(Sender: TObject);
 begin
   if (CloseAll()) then
   begin
-    Preferences.SetupProgramExecute := DUpdate.Execute();
+    UpdateStarted := True;
+    Preferences.SetupProgramExecute := DUpdate.Execute(not Assigned(Sender));
     if (Preferences.SetupProgramExecute) then
       Close();
   end;
@@ -1356,7 +1357,7 @@ end;
 procedure TWWindow.InformOnlineUpdateFound();
 begin
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(101), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
-    UpdateStarted := aHUpdate.Execute();
+    aHUpdateExecute(nil);
 end;
 
 procedure TWWindow.miFReopenClick(Sender: TObject);

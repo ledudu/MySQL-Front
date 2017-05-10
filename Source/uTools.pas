@@ -3950,6 +3950,7 @@ var
   ResultHandle: TMySQLConnection.TResultHandle;
   SQL: string;
   Table: TSTable;
+  Progress: string;
 begin
   {$IFDEF EurekaLog}
   try
@@ -4111,6 +4112,7 @@ begin
         SQL := SQL + ';' + #13#10;
       end;
 
+    Progress := 'a';
     if ((SQL = '') or Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin
       for I := 0 to Items.Count - 1 do
@@ -4140,8 +4142,12 @@ begin
                 Assert((Success <> daSuccess)
                   or not Assigned(ResultHandle.SyncThread)
                   or (ResultHandle.SyncThread.DebugState <> ssResult),
-                    'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+                    'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+                    + 'Progress: ' + Progress + #13#10
+                    + 'Log: ' + #13#10
+                    + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
 
+                Progress := Progress + 'b';
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
                 begin
                   DoError(DatabaseError(Session), nil, True);
@@ -4150,8 +4156,12 @@ begin
                   Assert((Success <> daSuccess)
                     or not Assigned(ResultHandle.SyncThread)
                     or (ResultHandle.SyncThread.DebugState <> ssResult),
-                      'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)));
+                      'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+                      + 'Progress: ' + Progress + #13#10
+                      + 'Log: ' + #13#10
+                      + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
                 end;
+                Progress := Progress + 'c';
               end;
 
               if (Success <> daAbort) then
@@ -4172,8 +4182,13 @@ begin
                     ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
               end;
 
+              Progress := Progress + 'd';
               if (DataTable and (Success <> daSuccess)) then
+              begin
+                Progress := Progress + 'e';
                 Session.Connection.CancelResultHandle(ResultHandle);
+              end;
+              Progress := Progress + 'f';
             end;
           end;
 
@@ -8252,7 +8267,11 @@ begin
     end;
 
     if (Success <> daAbort) then
+    begin
+      if (Success <> daSuccess) then
+        DataSet.Connection.Terminate();
       DataSet.Free();
+    end;
   end;
 end;
 
@@ -8773,7 +8792,12 @@ begin
       end;
     end;
 
-    DataSet.Free();
+    if (Success <> daAbort) then
+    begin
+      if (Success <> daSuccess) then
+        DataSet.Connection.Terminate();
+      DataSet.Free();
+    end;
   end;
 end;
 

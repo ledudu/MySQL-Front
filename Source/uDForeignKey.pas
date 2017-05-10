@@ -498,6 +498,12 @@ end;
 
 function TDForeignKey.GetParentDatabase(): TSDatabase;
 begin
+  // Debug 2017-05-10
+  Assert(Assigned(Table));
+  Assert(Assigned(Table.Database));
+  Assert(Assigned(Table.Database.Session));
+  Assert(Assigned(FParentDatabase));
+
   Result := Table.Database.Session.DatabaseByName(FParentDatabase.Text);
 end;
 

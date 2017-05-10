@@ -10,11 +10,6 @@ uses
   uDeveloper,
   uBase;
 
-const
-  UM_PAD_FILE_RECEIVED = WM_USER + 200;
-  UM_SETUP_FILE_RECEIVED = WM_USER + 202;
-  UM_UPDATE_PROGRESSBAR = WM_USER + 203;
-
 type
   TDUpdate = class(TForm_Ext)
     FBCancel: TButton;
@@ -28,23 +23,24 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+  const
+    UM_UPDATE_PROGRESSBAR = WM_USER + 200;
   private
     Canceled: Boolean;
-    SetupProgramStream: TFileStream;
-    SetupProgramURI: string;
+    FStartImmediately: Boolean;
     FullHeight: Integer;
     HTTPThread: THTTPThread;
     PADFileStream: TStringStream;
     SetupPrgFilename: TFileName;
+    SetupProgramStream: TFileStream;
+    SetupProgramURI: string;
     procedure OnProgress(Sender: TObject; const Done, Size: Int64);
     procedure OnTerminate(Sender: TObject);
     procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
-    procedure UMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
-    procedure UMSetupFileReceived(var Message: TMessage); message UM_SETUP_FILE_RECEIVED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressBar(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
-    function Execute(): Boolean;
+    function Execute(const StartImmediately: Boolean = False): Boolean;
   end;
 
 function DUpdate(): TDUpdate;
@@ -74,8 +70,9 @@ end;
 
 { TDUpdate *************************************************************}
 
-function TDUpdate.Execute(): Boolean;
+function TDUpdate.Execute(const StartImmediately: Boolean = False): Boolean;
 begin
+  FStartImmediately := StartImmediately;
   Result := ShowModal() = mrOk;
 end;
 
@@ -172,6 +169,7 @@ begin
 
   HTTPThread.Start();
 
+  FBForward.Visible := not FStartImmediately;
   FBForward.Enabled := False;
   FBCancel.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(30);
@@ -196,49 +194,9 @@ begin
   FBForward.Caption := Preferences.LoadStr(230);
 end;
 
-procedure TDUpdate.UMPADFileReceived(var Message: TMessage);
+procedure TDUpdate.UMTerminate(var Message: TMessage);
 var
   VersionStr: string;
-begin
-  if (not CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI)) then
-  begin
-    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Preferences.LoadStr(384);
-    MsgBox(Preferences.LoadStr(508), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-    FBCancel.Click();
-  end
-  else
-  begin
-    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
-
-    if (not UpdateAvailable) then
-    begin
-      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-      FBCancel.Click();
-    end
-    else
-    begin
-      SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
-
-      FBForward.Enabled := True;
-      ActiveControl := FBForward;
-    end;
-  end;
-
-  FreeAndNil(PADFileStream);
-end;
-
-procedure TDUpdate.UMSetupFileReceived(var Message: TMessage);
-begin
-  FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
-
-  FreeAndNil(SetupProgramStream);
-
-  Preferences.SetupProgram := SetupPrgFilename;
-
-  ModalResult := mrOk;
-end;
-
-procedure TDUpdate.UMTerminate(var Message: TMessage);
 begin
   HTTPThread.WaitFor();
 
@@ -253,13 +211,53 @@ begin
     else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
       MsgBox('HTTP Error #' + IntToStr(HTTPThread.HTTPStatus) + ':' + #10 + HTTPThread.HTTPMessage + #10#10
         + HTTPThread.URI, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
-    else if ((HTTPThread.DebugReceiveFileSize > 0) and (HTTPThread.DebugReceiveFileSize < HTTPThread.DebugReceivedFileSize)) then
-      raise EAssertionFailed.Create('DebugReceiveFileSize: ' + IntToStr(HTTPThread.DebugReceiveFileSize) + #13#10
-        + 'DebugReceivedFileSize: ' + IntToStr(HTTPThread.DebugReceivedFileSize))
     else if (Assigned(PADFileStream)) then
-      Perform(UM_PAD_FILE_RECEIVED, 0, 0)
+    begin
+      if (not CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI)) then
+      begin
+        FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Preferences.LoadStr(384);
+        MsgBox(Preferences.LoadStr(508), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+        FBCancel.Click();
+      end
+      else
+      begin
+        FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
+
+        if (not UpdateAvailable) then
+        begin
+          MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+          FBCancel.Click();
+        end
+        else
+        begin
+          SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
+
+          FBForward.Enabled := True;
+          if (FStartImmediately) then
+            FBForward.Click()
+          else
+            ActiveControl := FBForward;
+        end;
+      end;
+
+      FreeAndNil(PADFileStream);
+    end
     else if (Assigned(SetupProgramStream)) then
-      Perform(UM_SETUP_FILE_RECEIVED, 0, 0)
+    begin
+      Assert((Now() >= EncodeDate(2017, 07, 01))
+        or (SetupProgramStream.Size > 4 * 1024 * 1024),
+        'Size: ' + IntToStr(SetupProgramStream.Size) + #13#10
+        + 'ErrorCode: ' + IntTostr(HTTPThread.ErrorCode) + #13#10
+        + 'HTTP Status: ' + IntToStr(HTTPThread.HTTPStatus));
+
+      FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
+
+      FreeAndNil(SetupProgramStream);
+
+      Preferences.SetupProgram := SetupPrgFilename;
+
+      ModalResult := mrOk;
+    end
     else
       raise ERangeError.Create(SRangeError);
 

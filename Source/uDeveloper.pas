@@ -28,7 +28,6 @@ type
     Subject: string;
     ReceiveStream: TStream;
   public
-    DebugReceiveFileSize: Int64; // Debug 2017-02-18
     DebugReceivedFileSize: Int64; // Debug 2017-02-18
     constructor Create(const AURI: string;
       const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
@@ -386,12 +385,6 @@ var
   URLComponentsPath: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
   URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
   URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
-
-  // Debug 2017-01-23
-  lpszHeaders: LPWSTR;
-  dwHeadersLength: DWORD;
-  lpOptional: Pointer;
-  dwOptionalLength: DWORD;
 begin
 {$IFDEF EurekaLog}
   try
@@ -474,16 +467,14 @@ begin
           repeat
             ReceiveFileSize := -1;
 
-            // Debug 2017-01-23
-            lpszHeaders := PChar(Headers);
-            dwHeadersLength := Length(Headers);
-            lpOptional := PAnsiChar(Body);
-            dwOptionalLength := Length(Body);
-            // ... an AV occurred in the following line...
-            // 2017-03-29 bei mir passiert - trotz vorheriger Zeilen...
+            try
+              // Sometimes, here occurs an AV - and I don't know why... (Delphi XE4)
+              Success := HttpSendRequest(Request, PChar(Headers), Length(Headers), PAnsiChar(Body), Length(Body));
+            except
+              Success := False;
+            end;
 
-            if (not HttpSendRequest(Request, lpszHeaders, dwHeadersLength,
-              lpOptional, dwOptionalLength)) then
+            if (not Success) then
               FErrorCode := GetLastError()
             else
             begin
@@ -491,10 +482,7 @@ begin
               Index := 0;
               if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_LENGTH, @Buffer,
                 Size, Index)) then
-              begin
                 ReceiveFileSize := StrToInt(PChar(@Buffer));
-                DebugReceiveFileSize := ReceiveFileSize;
-              end;
 
               if (Assigned(ReceiveStream)) then
                 repeat
@@ -538,11 +526,6 @@ begin
             FErrorCode := 123456;
             FErrorMessage := IntToStr(ReceiveStream.Size) + ' bytes of ' + IntToStr(ReceiveFileSize) + 'received only';
           end;
-
-          if (not Assigned(ReceiveStream)) then
-            DebugReceiveFileSize := -1
-          else
-            DebugReceiveFileSize := ReceiveStream.Size;
         end;
         InternetCloseHandle(Request);
       end;

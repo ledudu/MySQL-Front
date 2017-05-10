@@ -113,7 +113,7 @@ begin
     Application.Initialize();
     Application.Title := LoadStr(1000);
     Application.CreateForm(TWWindow, WWindow);
-    Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    Application.MainForm.Perform(UM_PREFERENCES_CHANGED, 0, 0);
     Application.Run();
     if (Application.Handle <> 0) then
       ShowOwnedPopups(Application.Handle, False);

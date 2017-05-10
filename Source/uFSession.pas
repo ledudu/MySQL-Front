@@ -2981,8 +2981,8 @@ begin
     aVDiagram.Enabled := LastSelectedDatabase <> '';
     aDRun.Enabled :=
       ((View in [vEditor, vEditor2, vEditor3])
-      or ((View = vBuilder) and FQueryBuilder.Visible)
-      or ((View = vIDE) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
+      or ((View in [vBuilder]) and FQueryBuilder.Visible)
+      or ((View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
     aDRunSelection.Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveBCEditor) and (Trim(ActiveBCEditor.SelText) <> ''));
     aDPostObject.Enabled := (View = vIDE) and Assigned(ActiveBCEditor) and ActiveBCEditor.Modified and SQLSingleStmt(SQL)
       and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
@@ -3211,6 +3211,10 @@ var
   I: Integer;
   Process: TSProcess;
 begin
+  // Debug 2017-05-10
+  Assert(Assigned(Self));
+  Assert(Assigned(Wanted));
+
   Wanted.Clear();
 
   if ((Window.ActiveControl = ActiveListView) and (CurrentClassIndex in [ciDatabase, ciSystemDatabase]) and (ActiveListView.SelCount > 1)) then
@@ -4998,9 +5002,18 @@ begin
         begin
           Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
 
-          FUDOffset.Position := 0;
-          FUDLimit.Position := Desktop(Table).Limit;
-          FLimitEnabled.Down := Desktop(Table).Limited;
+          if (not Assigned(Table)) then
+          begin
+            FUDOffset.Position := 0;
+            FUDLimit.Position := 100;
+            FLimitEnabled.Down := False;
+          end
+          else
+          begin
+            FUDOffset.Position := 0;
+            FUDLimit.Position := Desktop(Table).Limit;
+            FLimitEnabled.Down := Desktop(Table).Limited;
+          end;
 
           if (URI.Param['offset'] <> Null) then
           begin
@@ -7637,8 +7650,13 @@ begin
   else if (TObject(Node.Data) is TSItem) then
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
-    raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-      + 'Text: ' + Node.Text + #13#10)
+    if (Node.ImageIndex = iiBaseTable) then
+      raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+        + 'Text: ' + Node.Text + #13#10
+        + 'ClassType: ' + TObject(Node.Data).ClassName)
+    else
+      raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+        + 'Text: ' + Node.Text + #13#10) // Occurred on 2017-05-10: After this, I implemented the ClassType detection
   else
     raise ERangeError.Create(SRangeError);
 
@@ -8100,6 +8118,12 @@ begin
       iiSystemView:
         begin
           Table := TSTable(Node.Data);
+
+          // Debug 2017-05-10
+          Assert(Assigned(Table));
+          Assert(Table is TSTable,
+            'ObjectType: ' + Table.ClassName);
+
           AllowExpansion := Table.Valid;
           if (not AllowExpansion) then
             Wanted.Update := Table.Update;
@@ -10349,7 +10373,16 @@ begin
   if (Control is TForm_Ext) then
     Result := TForm_Ext(Control)
   else if (not Assigned(Control)) then
-    raise ERangeError.Create('Parent not set')
+  begin
+    Control := Self;
+    while (Assigned(Control.Parent) and not (Control is TForm)) do
+      Control := Control.Parent;
+
+    if (not Assigned(Control)) then
+      raise ERangeError.Create('Parent not set')
+    else
+      raise ERangeError.Create('ClassType: ' + Control.ClassName);
+  end
   else
     raise ERangeError.Create(TObject(Control).ClassName);
 end;
@@ -13056,6 +13089,10 @@ var
 begin
   Wanted.Clear();
 
+  // Debug 2017-05-10
+  Assert(Assigned(ActiveListView));
+  Assert(Assigned(ActiveListView.Selected));
+
   URI := TUURI.Create(CurrentAddress);
   case (ActiveListView.Selected.ImageIndex) of
     iiForeignKey:
@@ -14022,6 +14059,7 @@ begin
 
     // 2017-02-20
     // I can't find out, why SBlob will be set to nil - but this works often... :-/
+    Assert(Assigned(SBlobDebug));
     if (not Assigned(SBlob)) then SBlob := SBlobDebug;
 
     SBlob.Align := alNone;
@@ -14225,11 +14263,16 @@ var
   I: Integer;
 begin
   // With higher DPI system, the width of the following components are not
-  // applyed in a "frame" (Delphi XE4). So we calculate them...
+  // applyed inside of a "TFrame" (Delphi XE4). So we calculate them...
 
   for I := 0 to PDataBrowser.ControlCount - 1 do
     if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
+    begin
+      // Debug 2017-05-10
+      Assert(Assigned(PDataBrowser.Controls[I]));
+
       PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
+    end;
 
   FOffset.Left := 0;
   FOffset.Width := 40 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
@@ -14413,7 +14456,7 @@ end;
 procedure TFSession.PropertiesServerExecute(Sender: TObject);
 begin
   // Debug 2017-04-30
-  Assert(not (csDestroying in ComponentState));
+  Assert(not (csDestroying in ComponentState)); // Occurred on 2017-05-10. ... without a call stack
   Assert(Assigned(Wanted));
 
   Wanted.Clear();
@@ -15784,7 +15827,7 @@ begin
   aDRun.Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty
     or (View in [vBuilder]) and FQueryBuilder.Visible
-    or (View in [vIDE]) and aDPostObject.Enabled);
+    or (View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent])) and not Empty;
   aDRunSelection.Enabled :=
     ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
   aEFormatSQL.Enabled := not Empty;
@@ -16691,7 +16734,9 @@ begin
                 + 'Database: ' + URI.Database + #13#10
                 + 'Tables.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).Tables.Valid, True) + #13#10
                 + 'Table: ' + URI.Table + #13#10
-                + 'Table.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Valid, True));
+                + 'Table.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Valid, True) + #13#10
+                + 'Field: ' + URI.Param['object'] + #13#10
+                + 'Field found: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table).FieldByName(URI.Param['object'])), True));
               URI.Free();
 
               Table := TSTableField(CurrentData).Table;

@@ -7009,7 +7009,7 @@ type
     function ParseLoadDataStmt(): TOffset;
     function ParseLoadStmt(): TOffset;
     function ParseLoadXMLStmt(): TOffset;
-    function ParseLockTableStmt(): TOffset;
+    function ParseLockTablesStmt(): TOffset;
     function ParseLockStmtItem(): TOffset;
     function ParseLoopStmt(const BeginLabel: TOffset = 0): TOffset;
     function ParseMatchFunc(): TOffset;
@@ -21299,13 +21299,16 @@ begin
   Result := TLoadXMLStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseLockTableStmt(): TOffset;
+function TSQLParser.ParseLockTablesStmt(): TOffset;
 var
   Nodes: TLockTablesStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.LockTablesTag := ParseTag(kiLOCK, kiTABLES);
+  if (IsTag(kiLOCK, kiTABLE)) then
+    Nodes.LockTablesTag := ParseTag(kiLOCK, kiTABLE)
+  else
+    Nodes.LockTablesTag := ParseTag(kiLOCK, kiTABLES);
 
   if (not ErrorFound) then
     Nodes.ItemList := ParseList(False, ParseLockStmtItem);
@@ -24214,8 +24217,9 @@ begin
       Result := ParseLeaveStmt()
   else if (IsTag(kiLOAD)) then
     Result := ParseLoadStmt()
-  else if (IsTag(kiLOCK, kiTABLES)) then
-    Result := ParseLockTableStmt()
+  else if (IsTag(kiLOCK, kiTABLE)
+    or IsTag(kiLOCK, kiTABLES)) then
+    Result := ParseLockTablesStmt()
   else if (IsTag(kiLOOP)) then
     if (not InPL_SQL) then
       Result := SetError(PE_UnexpectedStmt)
@@ -24407,7 +24411,8 @@ begin
     Result := ParseTruncateTableStmt()
   else if (IsTag(kiUNINSTALL, kiPLUGIN)) then
     Result := ParseUninstallPluginStmt()
-  else if (IsTag(kiUNLOCK, kiTABLES)) then
+  else if (IsTag(kiUNLOCK, kiTABLE)
+    or IsTag(kiUNLOCK, kiTABLES)) then
     Result := ParseUnlockTablesStmt()
   else if (IsTag(kiUPDATE)) then
     Result := ParseUpdateStmt()
@@ -26108,7 +26113,10 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.UnlockTablesTag := ParseTag(kiUNLOCK, kiTABLES);
+  if (IsTag(kiUNLOCK, kiTABLE)) then
+    Nodes.UnlockTablesTag := ParseTag(kiUNLOCK, kiTABLE)
+  else
+    Nodes.UnlockTablesTag := ParseTag(kiUNLOCK, kiTABLES);
 
   Result := TUnlockTablesStmt.Create(Self, Nodes);
 end;
