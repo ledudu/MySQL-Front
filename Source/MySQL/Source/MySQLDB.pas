@@ -5159,15 +5159,15 @@ begin
       begin
         Msg := Msg + #10
           + 'Query: ' + SQL;
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
-        DataSet.CommandText := SQL;
-        DataSet.Open();
-        if (DataSet.IsEmpty()) then
-          Msg := Msg + 'Result: <empty>' + #13#10
-        else
-          Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
-        DataSet.Free();
+//        DataSet := TMySQLQuery.Create(nil);
+//        DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
+//        DataSet.CommandText := SQL;
+//        DataSet.Open();
+//        if (DataSet.IsEmpty()) then
+//          Msg := Msg + 'Result: <empty>' + #13#10
+//        else
+//          Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
+//        DataSet.Free();
 
         Msg := Msg + #13#10;
 
@@ -5176,15 +5176,15 @@ begin
           + 'Query: ' + SQL;
 
         try
-          DataSet := TMySQLQuery.Create(nil);
-          DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
-          DataSet.CommandText := SQL;
-          DataSet.Open();
-          if (DataSet.IsEmpty()) then
-            Msg := Msg + 'Result: <empty>' + #13#10
-          else
-            Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
-          DataSet.Free();
+//          DataSet := TMySQLQuery.Create(nil);
+//          DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
+//          DataSet.CommandText := SQL;
+//          DataSet.Open();
+//          if (DataSet.IsEmpty()) then
+//            Msg := Msg + 'Result: <empty>' + #13#10
+//          else
+//            Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
+//          DataSet.Free();
         except
         end;
       end;

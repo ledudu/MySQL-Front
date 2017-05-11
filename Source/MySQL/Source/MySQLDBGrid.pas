@@ -1292,7 +1292,7 @@ begin
         SetTimer(Handle, tiShowHint, Application.HintPause, nil);
       end;
   end
-  else if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
+  else if (PeekMessage(Msg, Handle, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (KeysToShiftState(Msg.wParam) = Shift)) then
     // Do nothing - handle this message within the next equal message
   else if (ssLeft in Shift) then
   begin

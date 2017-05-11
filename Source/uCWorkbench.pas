@@ -592,7 +592,7 @@ var
   Msg: TMsg;
   NewPosition: TCoord;
 begin
-  if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = Workbench.Handle) and (Msg.wParam = MK_LBUTTON))) then
+  if (not (PeekMessage(Msg, Workbench.Handle, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
   begin
     if (ssLeft in Shift) then
       if (not (Self is TWTable)) then
