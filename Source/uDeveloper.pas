@@ -6,11 +6,11 @@ interface
 
 uses
   Windows, WinInet,
-  Classes, SysUtils,
+  Classes, SysUtils
   {$IFDEF EurekaLog}
-  EClasses,
+  , EClasses
   {$ENDIF}
-  MySQLDB;
+  ;
 
 type
   THTTPThread = class(TThread)
@@ -85,24 +85,22 @@ var
   RecommendedUpdateAvailable: Boolean;
   UpdateAvailable: Boolean;
 
-implementation
-
-{ *************************************************************** }
+implementation {***************************************************************}
 
 uses
   ActiveX,
   SyncObjs, DateUtils, IOUtils, SysConst,
   Registry,
-  XMLIntf, XMLDoc
+  XMLIntf, XMLDoc,
 {$IFDEF EurekaLog}
-  , Forms,
+  Forms,
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
   EEvents, ELogBuilder, EFreeze, EDebugInfo,
   uSession,
-  uBase
+  uBase,
 {$ENDIF}
-  ;
+  MySQLDB;
 
 var
   {$IFDEF EurekaLog}

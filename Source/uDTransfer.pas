@@ -676,7 +676,7 @@ begin
       Wanted.Page := TSExecute;
   end;
 
-  if (not Assigned(Wanted.Page)) then
+  if (not Assigned(Wanted.Page) and Assigned(DestinationSession)) then
     case (FDestination.Selected.ImageIndex) of
       iiDatabase:
         if (not TSDatabase(FDestination.Selected.Data).Update()) then
@@ -686,7 +686,7 @@ begin
           Wanted.Page := TSExecute;
     end;
 
-  if (not Assigned(Wanted.Page)) then
+  if (not Assigned(Wanted.Page) and Assigned(DestinationSession)) then
   begin
     List := TList.Create();
 
@@ -746,7 +746,7 @@ begin
     List.Free();
   end;
 
-  if (not Assigned(Wanted.Page)) then
+  if (not Assigned(Wanted.Page) and Assigned(DestinationSession)) then
   begin
     OverrideAnswer := IDYES;
     SkipAnswer := IDYES;

@@ -956,6 +956,7 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
+uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -2281,6 +2282,10 @@ end;
 procedure TMySQLConnection.BeginSynchron();
 begin
   Inc(FSynchronCount);
+
+  {$IFDEF EurekaLog}
+  DebugMonitor.Append('BeginSynchron - SynchronCount : ' + IntToStr(SynchronCount) + ' - ' + LocationToStr(GetCallerLocation()), ttDebug);
+  {$ENDIF}
 end;
 
 function TMySQLConnection.CharsetToCharsetNr(const Charset: string): Byte;
@@ -2593,6 +2598,10 @@ end;
 
 procedure TMySQLConnection.EndSynchron();
 begin
+  {$IFDEF EurekaLog}
+  DebugMonitor.Append('EndSynchron - SynchronCount : ' + IntToStr(SynchronCount) + ' - ' + LocationToStr(GetCallerLocation()), ttDebug);
+  {$ENDIF}
+
   if (SynchronCount > 0) then
     Dec(FSynchronCount);
 end;
@@ -6646,7 +6655,10 @@ end;
 procedure TMySQLDataSet.DeletePendingRecords();
 begin
   while (PendingBuffers.Count > 0) do
-    InternRecordBuffers.Delete(0);
+  begin
+    InternRecordBuffers.Delete(InternRecordBuffers.IndexOf(PendingBuffers[0]));
+    PendingBuffers.Delete(0);
+  end;
   Resync([]);
 end;
 
@@ -7192,6 +7204,10 @@ begin
     bfInserted:
       begin
         Index := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+
+        Assert(Index >= 0,
+          'Identifier123: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer.Identifier123));
+
         InternRecordBuffers.Insert(Index, AllocInternRecordBuffer());
         PExternRecordBuffer(ActiveBuffer())^.Index := Index;
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];

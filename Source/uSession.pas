@@ -7583,7 +7583,15 @@ begin
         begin
           DatabaseName := Name;
           if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
+          begin
+            // Debug 2017-05-12
+            Assert(Assigned(Session.DatabaseByName(DatabaseName)),
+              'DatabaseName: ' + DatabaseName + #13#10
+              + 'Name: ' + Name + #13#10
+              + 'CommandText: ' + CommandText);
+
             RepairTableList.Add(Session.DatabaseByName(DatabaseName).BaseTableByName(TableName));
+          end;
         end;
       until (not DataSet.FindNext());
     DataSet.Free();
@@ -12751,7 +12759,7 @@ begin
       end
       else if ((Connection.ErrorCode = 0)
         and not SQLParser.ParseSQL(SQL)
-        and not (SQLParser.ErrorCode in [PE_IncompleteToken])) then
+        and not (SQLParser.ErrorCode in [PE_IncompleteStmt, PE_IncompleteToken])) then
       begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10

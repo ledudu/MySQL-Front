@@ -846,6 +846,10 @@ function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
 begin
+  // Debug 2017-05-01
+  Assert(not (csDestroying in ComponentState));
+  Assert(Assigned(FSessions));
+
   Result := True;
   for I := FSessions.Count - 1 downto 0 do
     if (Result) then

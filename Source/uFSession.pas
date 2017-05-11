@@ -930,6 +930,7 @@ type
     UsersListView: TListView;
     VariablesListView: TListView;
     Wanted: TWanted;
+Progress: string;
     procedure aDCancelExecute(Sender: TObject);
     function AddressByData(const Data: TCustomData): string;
     procedure AddressChanged(Sender: TObject);
@@ -2400,6 +2401,9 @@ end;
 
 procedure TFSession.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
+  // Debug 2017-05-12
+  Assert(not FSession.Session.InImport);
+
   Clear();
   if (not FSession.Session.Connection.InUse()) then
     AUpdate()
@@ -5116,9 +5120,13 @@ var
   Kind: TPAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
 begin
+  Progress := 'a';
+
   FQueryBuilderBCEditor := nil; // TacBaseSQLBuilder.SQLUpdate calls FQueryBuilderSQLUpdated
 
   inherited Create(AOwner);
+
+  Progress := 'a';
 
   ASession.Account.RegisterTab(Self);
 
@@ -5415,6 +5423,8 @@ begin
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
 
+
+  Progress := 'b';
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
@@ -5735,7 +5745,11 @@ begin
     SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_COLUMNSNAPPOINTS, LVS_EX_COLUMNSNAPPOINTS);
   end;
 
-  FFolders.SelectedFolder := Path;
+  try
+    FFolders.SelectedFolder := Path;
+  except
+    // In ShellBrowser 9.0.0 is sometimes a problem about no Parent
+  end;
 end;
 
 function TFSession.CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
@@ -8656,7 +8670,8 @@ begin
 
     // Debug 2017-04-10
     Assert(Assigned(Node),
-      'Count: ' + IntToStr(FNavigator.Items.Count));
+      'Count: ' + IntToStr(FNavigator.Items.Count)
+      + 'Progress: ' + Progress);
     // In UMPostShow is an additional checking too. Remove it, if this problem
     // is solved!
 
@@ -9134,7 +9149,12 @@ begin
       PageControl.OnChange := FQueryBuilderEditorPageControlChange;
       FQueryBuilderEditorPageControlChange(nil);
     end;
-    FQueryBuilderEditorPageControlCheckStyle();
+    try
+      FQueryBuilderEditorPageControlCheckStyle();
+    except
+      // 2017-05-12
+      // Sometimes here are AVs - but why???
+    end;
   end;
 end;
 
@@ -10037,9 +10057,9 @@ begin
         if (not Assigned(FSQLEditorBCEditor2)) then
         begin
           FSQLEditorBCEditor2 := CreateBCEditor(nil);
+          SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorBCEditor2, CreatePDBGrid());
           FSQLEditorBCEditor2.Text := Session.Account.Desktop.EditorContent[ttEditor2];
           FSQLEditorBCEditor2.Lines.LineBreak := #13#10;
-          SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorBCEditor2, CreatePDBGrid());
         end;
         Result := FSQLEditorBCEditor2;
       end;
@@ -10048,9 +10068,9 @@ begin
         if (not Assigned(FSQLEditorBCEditor3)) then
         begin
           FSQLEditorBCEditor3 := CreateBCEditor(nil);
+          SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorBCEditor3, CreatePDBGrid());
           FSQLEditorBCEditor3.Text := Session.Account.Desktop.EditorContent[ttEditor3];
           FSQLEditorBCEditor3.Lines.LineBreak := #13#10;
-          SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorBCEditor3, CreatePDBGrid());
         end;
         Result := FSQLEditorBCEditor3;
       end;
@@ -10278,10 +10298,14 @@ begin
 end;
 
 function TFSession.GetEditorField(): TField;
+var
+  B: Boolean; // Debug 2017-05-11
 begin
-  if (not Assigned(ActiveDBGrid)
-    or not Assigned(ActiveDBGrid.SelectedField)
-    or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
+  B := not Assigned(ActiveDBGrid);
+  B := B or not Assigned(ActiveDBGrid.SelectedField);
+  B := B or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob]);
+
+  if (B) then
     Result := nil
   else
     Result := ActiveDBGrid.SelectedField;
@@ -12626,7 +12650,7 @@ begin
 
       mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
       aFOpenInNewWindow.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-      aFOpenInNewTab.Enabled := mlOpen.Enabled;
+      aFOpenInNewTab.Enabled := aFOpenInNewWindow.Enabled;
 
       case (Item.ImageIndex) of
         iiDatabase: mlEProperties.Action := aDEditDatabase;
@@ -14061,6 +14085,8 @@ begin
     // I can't find out, why SBlob will be set to nil - but this works often... :-/
     Assert(Assigned(SBlobDebug));
     if (not Assigned(SBlob)) then SBlob := SBlobDebug;
+    Assert(Assigned(SBlob));
+    Assert(Assigned(PBlob));
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -16328,6 +16354,8 @@ var
   ServerNode: TTreeNode;
   URI: TUURI;
 begin
+  Progress := 'c';
+
   PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
   PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
   PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
@@ -16357,7 +16385,11 @@ begin
   FrameResize(nil);
   PHeaderCheckElements(nil);
 
+  Progress := 'd';
+
   FrameActivate(Self);
+
+  Progress := 'e';
 
   ServerNode := FNavigator.Items.Add(nil, Session.Caption);
   ServerNode.Data := Session;
@@ -16735,8 +16767,10 @@ begin
                 + 'Tables.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).Tables.Valid, True) + #13#10
                 + 'Table: ' + URI.Table + #13#10
                 + 'Table.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Valid, True) + #13#10
+                + 'Table.ValidSource: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).ValidSource, True) + #13#10
                 + 'Field: ' + URI.Param['object'] + #13#10
-                + 'Field found: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table).FieldByName(URI.Param['object'])), True));
+                + 'Field found: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table).FieldByName(URI.Param['object'])), True)
+                + 'Fields: ' + IntToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Fields.Count) + #13#10);
               URI.Free();
 
               Table := TSTableField(CurrentData).Table;

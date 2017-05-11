@@ -367,6 +367,10 @@ begin
 
     if (not PageControl.Visible) then
     begin
+      // Debug 2017-05-12
+      Assert(PageControl.ActivePage = TSBasics,
+        'ActivePageIndex: ' + IntToStr(PageControl.ActivePageIndex));
+
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
       FBOkCheckEnabled(nil);
@@ -510,15 +514,18 @@ end;
 
 procedure TDRoutine.FSourceChange(Sender: TObject);
 begin
-  aECopyToFile.Enabled := FSource.SelText <> '';
+  if (Visible) then
+  begin
+    aECopyToFile.Enabled := FSource.SelText <> '';
 
-  FName.Enabled := False; FLName.Enabled := FName.Enabled;
-  FComment.Enabled := False; FLComment.Enabled := FComment.Enabled;
+    FName.Enabled := False; FLName.Enabled := FName.Enabled;
+    FComment.Enabled := False; FLComment.Enabled := FComment.Enabled;
 
-  TSBasics.TabVisible := False;
-  TSInformation.TabVisible := False;
+    TSBasics.TabVisible := False;
+    TSInformation.TabVisible := False;
 
-  FBOkCheckEnabled(Sender);
+    FBOkCheckEnabled(Sender);
+  end;
 end;
 
 procedure TDRoutine.TSDependenciesShow(Sender: TObject);

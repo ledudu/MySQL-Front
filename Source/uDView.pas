@@ -565,7 +565,8 @@ end;
 
 procedure TDView.FSourceChange(Sender: TObject);
 begin
-  TSFields.TabVisible := False;
+  if (Visible) then
+    TSFields.TabVisible := False;
 end;
 
 procedure TDView.FSourceSelectionChanged(Sender: TObject);

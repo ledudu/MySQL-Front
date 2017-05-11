@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows,
-  Classes, SysUtils, IniFiles,
+  Classes, SysUtils, IniFiles, Generics.Collections,
   Registry,
   XMLDoc, XMLIntf,
   Controls, Forms, ComCtrls, Graphics,
@@ -459,7 +459,7 @@ Progress: string;
     type
       TEventProc = procedure(const Favorites: TFavorites) of object;
     private
-      EventProcs: array of TEventProc;
+      EventProcs: TList<TEventProc>;
       FAccount: TPAccount;
       function GetFavorite(Index: Integer): TFavorite; inline;
     protected
@@ -470,6 +470,7 @@ Progress: string;
       procedure Add(const Address: string); overload;
       procedure Clear(); override;
       constructor Create(const AAccount: TPAccount); reintroduce;
+      destructor Destroy(); override;
       procedure Delete(Index: Integer);
       function IndexOf(const Address: string): Integer; overload;
       procedure Insert(Index: Integer; const Address: string); overload;
@@ -2708,7 +2709,7 @@ procedure TPAccount.TFavorites.Changed();
 var
   I: Integer;
 begin
-  for I := 0 to Length(EventProcs) - 1 do
+  for I := 0 to EventProcs.Count - 1 do
     EventProcs[I](Self);
 end;
 
@@ -2727,6 +2728,7 @@ begin
   inherited Create();
 
   FAccount := AAccount;
+  EventProcs := TList<TEventProc>.Create();
 end;
 
 procedure TPAccount.TFavorites.Delete(Index: Integer);
@@ -2736,6 +2738,13 @@ begin
   inherited;
 
   Changed();
+end;
+
+destructor TPAccount.TFavorites.Destroy();
+begin
+  EVentProcs.Free();
+
+  inherited;
 end;
 
 function TPAccount.TFavorites.GetFavorite(Index: Integer): TFavorite;
@@ -2807,15 +2816,12 @@ var
   Index: Integer;
 begin
   Index := -1;
-  for I := 0 to Length(EventProcs) - 1 do
-    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+  for I := 0 to EventProcs.Count - 1 do
+    if (CompareMem(@TMethod(EventProcs.List[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
       Index := I;
 
   if (Index < 0) then
-  begin
-    SetLength(EventProcs, Length(EventProcs) + 1);
-    EventProcs[Length(EventProcs) - 1] := AEventProc;
-  end;
+    EventProcs.Add(AEventProc);
 end;
 
 procedure TPAccount.TFavorites.UnRegisterEventProc(const AEventProc: TEventProc);
@@ -2824,16 +2830,12 @@ var
   Index: Integer;
 begin
   Index := -1;
-  for I := 0 to Length(EventProcs) - 1 do
-    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+  for I := 0 to EventProcs.Count - 1 do
+    if (CompareMem(@TMethod(EventProcs.List[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
       Index := I;
 
   if (Index >= 0) then
-  begin
-    if (Index + 1 < Length(EventProcs)) then
-      MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
-    SetLength(EventProcs, Length(EventProcs) - 1);
-  end;
+    EventProcs.Delete(Index);
 end;
 
 { TPAccount.TFile *************************************************************}

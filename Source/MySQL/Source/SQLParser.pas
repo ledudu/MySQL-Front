@@ -19564,7 +19564,8 @@ begin
         else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
         else if (((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike, otRegexp])))
-          and not (TokenPtr(CurrentToken)^.OperatorType in otUnaryOperators)) then
+          and not (TokenPtr(CurrentToken)^.OperatorType in otUnaryOperators)
+          and not ((Nodes.Count >= 1) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otSounds) and IsToken(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otLike))) then
           SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
@@ -19973,13 +19974,20 @@ begin
                 AddOperandsToCompletionList();
                 SetError(PE_IncompleteStmt);
               end
-              else if (IsOperator(Nodes[NodeIndex + 1])) then
+              else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType <> otLike)) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+              else if (NodeIndex + 2 = Nodes.Count) then
+              begin
+                CompletionList.AddTag(kiLIKE);
+                SetError(PE_IncompleteStmt);
+              end
+              else if (IsOperator(Nodes[NodeIndex + 2])) then
+                SetError(PE_UnexpectedToken)
               else
               begin // ... SOUNDS LIKE ...
-                Nodes[NodeIndex - 1] := TSoundsLikeOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex - 1, 3);
-                Dec(NodeIndex, 2);
+                Nodes[NodeIndex - 1] := TSoundsLikeOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
+                Nodes.Delete(NodeIndex, 3);
+                Dec(NodeIndex);
               end;
             else
               SetError(PE_Unknown);
