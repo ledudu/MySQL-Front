@@ -7607,9 +7607,9 @@ var
   SQL: string;
   Parse: TSQLParse;
 begin
-  Session.Connection.BeginSynchron();
+  Session.Connection.BeginSynchron(6);
   Event.Update();
-  Session.Connection.EndSynchron();
+  Session.Connection.EndSynchron(6);
 
   if (not Session.Connection.SQLParser.ParseSQL(Event.Source)) then
     raise EConvertError.CreateFmt(SSourceParseError, [Event.Database.Name + '.' + Event.Name, Event.Source])
@@ -7654,9 +7654,9 @@ var
   RoutineName: string;
   SQL: string;
 begin
-  Session.Connection.BeginSynchron();
+  Session.Connection.BeginSynchron(7);
   Routine.Update();
-  Session.Connection.EndSynchron();
+  Session.Connection.EndSynchron(7);
 
   if (not Session.Connection.SQLParser.ParseSQL(Routine.Source)) then
     raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source])
@@ -7717,9 +7717,9 @@ var
 begin
   if (Table is TSBaseTable) then
   begin
-    Session.Connection.BeginSynchron();
+    Session.Connection.BeginSynchron(8);
     Table.Update();
-    Session.Connection.EndSynchron();
+    Session.Connection.EndSynchron(8);
 
     NewBaseTable := TSBaseTable.Create(Tables);
     NewBaseTable.Assign(Table);
@@ -7770,9 +7770,9 @@ begin
   end
   else if (Table is TSView) then
   begin
-    Session.Connection.BeginSynchron();
+    Session.Connection.BeginSynchron(9);
     Table.Update();
-    Session.Connection.EndSynchron();
+    Session.Connection.EndSynchron(9);
 
     SQL := '';
     if (Assigned(TableByName(NewTableName))) then
@@ -12644,7 +12644,7 @@ var
 begin
   URI := TUURI.Create(Address);
 
-  Connection.BeginSynchron();
+  Connection.BeginSynchron(10);
   if (ExecuteUpdates and (URI.Database <> '')) then
     Databases.Update();
   Database := DatabaseByName(URI.Database);
@@ -12658,7 +12658,7 @@ begin
       and ((URI.Param['objecttype'] = 'key') or (URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'foreigkey') or (URI.Param['objecttype'] = 'viewfield'))) then
       Table.Update();
   end;
-  Connection.EndSynchron();
+  Connection.EndSynchron(10);
 
   if ((URI.Param['objecttype'] = 'view')
     or (URI.Param['objecttype'] = 'systemview')) then
@@ -13304,9 +13304,9 @@ begin
     Result := Connection.SendSQL(SQL, OnResult)
   else
   begin
-    Connection.BeginSynchron();
+    Connection.BeginSynchron(11);
     Result := Connection.SendSQL(SQL, OnResult);
-    Connection.EndSynchron();
+    Connection.EndSynchron(11);
   end;
 end;
 
@@ -13644,9 +13644,9 @@ var
   J: Integer;
   K: Integer;
 begin
-  Connection.BeginSynchron();
+  Connection.BeginSynchron(12);
   Update(List); // We need the sources for the dependencies
-  Connection.EndSynchron();
+  Connection.EndSynchron(12);
 
   List.Sort(Compare);
 
@@ -13933,23 +13933,23 @@ begin
   begin
     IndexDefs.Clear();
 
-    Connection.BeginSynchron();
+    Connection.BeginSynchron(13);
     Databases.Update();
-    Connection.EndSynchron();
+    Connection.EndSynchron(13);
 
     Database := DatabaseByName(OriginalDatabaseName);
     if (Assigned(Database)) then
     begin
-      Connection.BeginSynchron();
+      Connection.BeginSynchron(14);
       Database.Tables.Update();
-      Connection.EndSynchron();
+      Connection.EndSynchron(14);
 
       Table := Database.BaseTableByName(OriginalTableName);
       if (Assigned(Table)) then
       begin
-        Connection.BeginSynchron();
+        Connection.BeginSynchron(15);
         Table.Update();
-        Connection.EndSynchron();
+        Connection.EndSynchron(15);
 
         if (Table.Keys.Count > 0) then
           for I := 0 to Table.Keys.Count - 1 do
@@ -13991,7 +13991,7 @@ begin
     end;
   end;
 
-  Connection.BeginSynchron();
+  Connection.BeginSynchron(16);
   for I := 0 to DataSet.FieldCount - 1 do
     if (GetFieldInfo(DataSet.Fields[I].Origin, FieldInfo)) then
     begin
@@ -14011,7 +14011,7 @@ begin
         end;
       end;
     end;
-  Connection.EndSynchron();
+  Connection.EndSynchron(16);
 end;
 
 function TSSession.UpdateUser(const User, NewUser: TSUser): Boolean;

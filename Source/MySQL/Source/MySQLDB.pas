@@ -360,7 +360,7 @@ type
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
     procedure BeginSilent(); virtual;
-    procedure BeginSynchron(); virtual;
+    procedure BeginSynchron(const Index: Integer); virtual;
     function CharsetToCharsetNr(const Charset: string): Byte; virtual;
     function CharsetToCodePage(const Charset: string): Cardinal; overload; virtual;
     procedure CancelResultHandle(var ResultHandle: TResultHandle);
@@ -370,7 +370,7 @@ type
     function CreateResultHandle(out ResultHandle: TResultHandle; const SQL: string): Boolean;
     destructor Destroy(); override;
     procedure EndSilent(); virtual;
-    procedure EndSynchron(); virtual;
+    procedure EndSynchron(const Index: Integer); virtual;
     function EscapeIdentifier(const Identifier: string): string; virtual;
     function ExecuteResult(var ResultHandle: TResultHandle): Boolean;
     function ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean; overload; virtual;
@@ -956,7 +956,6 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
-uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -2279,13 +2278,11 @@ begin
   Inc(SilentCount);
 end;
 
-procedure TMySQLConnection.BeginSynchron();
+procedure TMySQLConnection.BeginSynchron(const Index: Integer);
 begin
   Inc(FSynchronCount);
 
-  {$IFDEF EurekaLog}
-  DebugMonitor.Append('BeginSynchron - SynchronCount : ' + IntToStr(SynchronCount) + ' - ' + LocationToStr(GetCallerLocation()), ttDebug);
-  {$ENDIF}
+  DebugMonitor.Append('BeginSynchron - ' + IntToStr(Index) + ' - SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
 end;
 
 function TMySQLConnection.CharsetToCharsetNr(const Charset: string): Byte;
@@ -2596,11 +2593,9 @@ begin
     Dec(SilentCount);
 end;
 
-procedure TMySQLConnection.EndSynchron();
+procedure TMySQLConnection.EndSynchron(const Index: Integer);
 begin
-  {$IFDEF EurekaLog}
-  DebugMonitor.Append('EndSynchron - SynchronCount : ' + IntToStr(SynchronCount) + ' - ' + LocationToStr(GetCallerLocation()), ttDebug);
-  {$ENDIF}
+  DebugMonitor.Append('EndSynchron - ' + IntToStr(Index) + ' - SynchronCount: ' + IntToStr(SynchronCount), ttDebug);
 
   if (SynchronCount > 0) then
     Dec(FSynchronCount);
@@ -2615,7 +2610,7 @@ function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolea
 begin
   Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]));
 
-  BeginSynchron();
+  BeginSynchron(1);
   if (ResultHandle.SQLIndex = Length(ResultHandle.SQL) + 1) then
     Result := False
   else if (not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady])) then
@@ -2635,7 +2630,7 @@ begin
 
     Result := ErrorCode = 0;
   end;
-  EndSynchron();
+  EndSynchron(1);
 
   if (Result) then
     Inc(ResultHandle.SQLIndex, ResultHandle.SyncThread.StmtLengths[ResultHandle.SyncThread.StmtIndex]);
@@ -2643,9 +2638,9 @@ end;
 
 function TMySQLConnection.ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
 begin
-  BeginSynchron();
+  BeginSynchron(2);
   Result := InternExecuteSQL(smSQL, SQL, OnResult);
-  EndSynchron();
+  EndSynchron(2);
 end;
 
 function TMySQLConnection.GetConnected(): Boolean;
@@ -6117,9 +6112,9 @@ begin
       else
         SQL := CommandText;
 
-      Connection.BeginSynchron();
+      Connection.BeginSynchron(3);
       Connection.InternExecuteSQL(smDataSet, SQL, SetActiveEvent);
-      Connection.EndSynchron();
+      Connection.EndSynchron(3);
 
       if (Self is TMySQLDataSet) then
         TMySQLDataSet(Self).Progress := TMySQLDataSet(Self).Progress + 'A';
@@ -7519,9 +7514,9 @@ begin
       InternalPostResult.NewIndex := PExternRecordBuffer(ActiveBuffer())^.Index;
 
       Connection.BeginSilent();
-      Connection.BeginSynchron();
+      Connection.BeginSynchron(4);
       Connection.InternExecuteSQL(smSQL, SQL, InternalPostEvent);
-      Connection.EndSynchron();
+      Connection.EndSynchron(4);
       Connection.EndSilent();
 
       if (Assigned(InternalPostResult.Exception)) then
@@ -9027,9 +9022,9 @@ begin
 
   RecordsReceived.ResetEvent();
 
-  Connection.BeginSynchron();
+  Connection.BeginSynchron(5);
   Result := Connection.InternExecuteSQL(smDataSet, SQLSelect(AllRecords), TMySQLConnection.TResultEvent(nil), nil, Self);
-  Connection.EndSynchron();
+  Connection.EndSynchron(5);
   if (Result) then
     InternRecordBuffers.RecordReceived.WaitFor(INFINITE);
 end;

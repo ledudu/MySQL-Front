@@ -12775,7 +12775,7 @@ begin
       raise ERangeError.Create(SRangeError)
     else
     begin
-      Session.Connection.BeginSynchron();
+      Session.Connection.BeginSynchron(17);
       DatabaseName := SelectedDatabase;
       if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
       begin
@@ -12788,7 +12788,7 @@ begin
               Fields.AddField(Table.Fields[I].Name, Session.LowerCaseTableNames = 0);
         end;
       end;
-      Session.Connection.EndSynchron();
+      Session.Connection.EndSynchron(17);
     end;
   end;
 end;
@@ -13815,10 +13815,10 @@ begin
                         if (SourceTable.Valid or DExecutingSQL.Execute()) then
                         begin
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.BeginSynchron();
+                            Session.Connection.BeginSynchron(18);
                           Success := Database.CloneTable(SourceTable, CopyName(SourceTable.Name, Database.Tables), DPaste.Data);
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.EndSynchron();
+                            Session.Connection.EndSynchron(18);
                         end;
                       end
                       else if (TObject(List[I]) is TSView) then
@@ -13834,10 +13834,10 @@ begin
                             Name := LowerCase(Name);
 
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.BeginSynchron();
+                            Session.Connection.BeginSynchron(19);
                           Success := Database.CloneTable(SourceView, Name, False);
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.EndSynchron();
+                            Session.Connection.EndSynchron(19);
                         end;
                       end
                       else if (TObject(List[I]) is TSRoutine) then
@@ -13849,10 +13849,10 @@ begin
                         if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
                         begin
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.BeginSynchron();
+                            Session.Connection.BeginSynchron(20);
                           Success := Database.CloneRoutine(SourceRoutine, CopyName(SourceRoutine.Name, Database.Routines));
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.EndSynchron();
+                            Session.Connection.EndSynchron(20);
                         end;
                       end
                       else if (TObject(List[I]) is TSEvent) then
@@ -13864,10 +13864,10 @@ begin
                         if (SourceEvent.Valid or DExecutingSQL.Execute()) then
                         begin
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.BeginSynchron();
+                            Session.Connection.BeginSynchron(21);
                           Success := Database.CloneEvent(SourceEvent, CopyName(SourceEvent.Name, Database.Events));
                           if (SourceAddresses.Count > 1) then
-                            Session.Connection.EndSynchron();
+                            Session.Connection.EndSynchron(21);
                         end;
                       end;
                 end;
@@ -13972,10 +13972,10 @@ begin
                       end;
 
                     if (SourceAddresses.Count > 1) then
-                      Session.Connection.BeginSynchron();
+                      Session.Connection.BeginSynchron(22);
                     Database.UpdateBaseTable(Table, NewTable);
                     if (SourceAddresses.Count > 1) then
-                      Session.Connection.EndSynchron();
+                      Session.Connection.EndSynchron(22);
 
                     for I := 0 to SourceAddresses.Count - 1 do
                       if (ClassIndexByAddress(SourceAddresses[I]) = ciTrigger) then
@@ -13997,9 +13997,9 @@ begin
                           NewTrigger.Assign(SourceTrigger);
                           NewTrigger.Name := CopyName(SourceTrigger.Name, Database.Triggers);
                           NewTrigger.TableName := NewTable.Name;
-                          Session.Connection.BeginSynchron();
+                          Session.Connection.BeginSynchron(23);
                           Database.AddTrigger(NewTrigger);
-                          Session.Connection.EndSynchron();
+                          Session.Connection.EndSynchron(24);
                           NewTrigger.Free();
                         end;
                       end;
@@ -17247,9 +17247,9 @@ begin
   begin
     if (Assigned(TWTable(Control).BaseTable)) then
     begin
-      Session.Connection.BeginSynchron();
+      Session.Connection.BeginSynchron(25);
       Result := TWTable(Control).BaseTable.Update();
-      Session.Connection.EndSynchron();
+      Session.Connection.EndSynchron(25);
     end
     else
     begin
