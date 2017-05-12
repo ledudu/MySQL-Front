@@ -362,7 +362,9 @@ const
 var
   Body: RawByteString;
   Buffer: array [0 .. 32768 - 1] of Byte;
+  BufferLength: DWORD;
   Client: HInternet;
+  Error: DWORD;
   Headers: string;
   Index: Cardinal;
   Internet: HInternet;
@@ -484,15 +486,25 @@ begin
 
               if (Assigned(ReceiveStream)) then
                 repeat
-                  Success := InternetReadFile(Request, @Buffer,
-                    SizeOf(Buffer), Size);
-                  if (Success and (Size > 0)) then
+                  if (not InternetReadFile(Request, @Buffer, SizeOf(Buffer), Size)) then
+                  begin
+                    BufferLength := Length(MessageBuffer);
+                    if (not InternetGetLastResponseInfo(Error, @MessageBuffer[0], BufferLength)) then
+                      FErrorCode := GetLastError()
+                    else
+                    begin
+                      FErrorCode := Error;
+                      SetString(FErrorMessage, PChar(@MessageBuffer[0]), BufferLength);
+                    end;
+                  end
+                  else if (Size > 0) then
                     ReceiveStream.Write(Buffer, Size);
 
-                  if (not Terminated and Assigned(OnProgress) and
-                    (ReceiveStream.Size < ReceiveFileSize)) then
+                  if (not Terminated
+                    and Assigned(OnProgress)
+                    and (ReceiveStream.Size < ReceiveFileSize)) then
                     OnProgress(Self, ReceiveStream.Size, ReceiveFileSize);
-                until (Terminated or (Success and (Size = 0)));
+                until (Terminated or (Size = 0));
 
               if (not Terminated) then
               begin
@@ -514,16 +526,11 @@ begin
             end;
 
             Inc(RequestTry);
-          until (Terminated or (FErrorCode <> 0) or
-            (FHTTPStatus = HTTP_STATUS_OK) or Assigned(ReceiveStream) and
-            (ReceiveStream.Size = 0) or (RequestTry >= 3));
-
-          if ((FErrorCode = 0) and (FHTTPStatus = HTTP_STATUS_OK) and Assigned(ReceiveStream)
-            and (ReceiveFileSize > 0) and (ReceiveFileSize < ReceiveStream.Size)) then
-          begin
-            FErrorCode := 123456;
-            FErrorMessage := IntToStr(ReceiveStream.Size) + ' bytes of ' + IntToStr(ReceiveFileSize) + 'received only';
-          end;
+          until (Terminated
+            or (FErrorCode <> 0)
+            or (FHTTPStatus = HTTP_STATUS_OK)
+            or Assigned(ReceiveStream) and (ReceiveStream.Size = 0)
+            or (RequestTry >= 3));
         end;
         InternetCloseHandle(Request);
       end;

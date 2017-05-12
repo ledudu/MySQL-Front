@@ -244,12 +244,6 @@ begin
     end
     else if (Assigned(SetupProgramStream)) then
     begin
-      Assert((Now() >= EncodeDate(2017, 07, 01))
-        or (SetupProgramStream.Size > 4 * 1024 * 1024),
-        'Size: ' + IntToStr(SetupProgramStream.Size) + #13#10
-        + 'ErrorCode: ' + IntTostr(HTTPThread.ErrorCode) + #13#10
-        + 'HTTP Status: ' + IntToStr(HTTPThread.HTTPStatus));
-
       FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
 
       FreeAndNil(SetupProgramStream);

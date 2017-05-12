@@ -121,6 +121,7 @@ begin
   FSize.Caption := FormatFloat('#,##0', Length(Routine.Source), LocaleFormatSettings);
 
   FSource.Text := Routine.Source;
+  FSource.OnChange := FSourceChange;
 
   TSSource.TabVisible := Routine.Source <> '';
 
@@ -367,10 +368,6 @@ begin
 
     if (not PageControl.Visible) then
     begin
-      // Debug 2017-05-12
-      Assert(PageControl.ActivePage = TSBasics,
-        'ActivePageIndex: ' + IntToStr(PageControl.ActivePageIndex));
-
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
       FBOkCheckEnabled(nil);
@@ -417,6 +414,7 @@ begin
     HelpContext := 1099;
   end;
 
+  FSource.OnChange := nil;
   FSource.Lines.Clear();
   Database.Session.ApplyToBCEditor(FSource);
 
@@ -446,6 +444,7 @@ begin
         + 'BEGIN' + #13#10
         + 'END;' + #13#10;
       FSource.Text := SQL;
+      FSource.OnChange := FSourceChange;
     end
     else if (RoutineType = rtFunction) then
     begin
@@ -462,6 +461,7 @@ begin
         + '  RETURN Param;' + #13#10
         + 'END;' + #13#10;
       FSource.Text := SQL;
+      FSource.OnChange := FSourceChange;
     end
     else
       FSource.Lines.Clear();
@@ -514,18 +514,15 @@ end;
 
 procedure TDRoutine.FSourceChange(Sender: TObject);
 begin
-  if (Visible) then
-  begin
-    aECopyToFile.Enabled := FSource.SelText <> '';
+  aECopyToFile.Enabled := FSource.SelText <> '';
 
-    FName.Enabled := False; FLName.Enabled := FName.Enabled;
-    FComment.Enabled := False; FLComment.Enabled := FComment.Enabled;
+  FName.Enabled := False; FLName.Enabled := FName.Enabled;
+  FComment.Enabled := False; FLComment.Enabled := FComment.Enabled;
 
-    TSBasics.TabVisible := False;
-    TSInformation.TabVisible := False;
+  TSBasics.TabVisible := False;
+  TSInformation.TabVisible := False;
 
-    FBOkCheckEnabled(Sender);
-  end;
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDRoutine.TSDependenciesShow(Sender: TObject);
