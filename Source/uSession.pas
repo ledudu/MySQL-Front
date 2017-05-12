@@ -1993,6 +1993,9 @@ end;
 
 constructor TSItems.Create(const ASession: TSSession);
 begin
+  // Debug 2017-05-13
+  Assert(Assigned(ASession));
+
   inherited Create();
 
   FSession := ASession;

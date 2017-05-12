@@ -7084,7 +7084,7 @@ begin
       BCEditor.AlwaysShowCaret := True;
     end;
 
-    BCEditor.CaretPos := BCEditor.ClientToText(ClientCoord.X, ClientCoord.X);
+    BCEditor.CaretPos := BCEditor.ClientToPos(ClientCoord.X, ClientCoord.X);
     Result := S_OK;
   end
   else if (Control is TMySQLDBGrid) then
@@ -15938,7 +15938,7 @@ begin
       ActiveBCEditor.AlwaysShowCaret := True;
     end;
 
-    ActiveBCEditor.CaretPos := ActiveBCEditor.ClientToText(X, Y);
+    ActiveBCEditor.CaretPos := ActiveBCEditor.ClientToPos(X, Y);
     ActiveBCEditor.Invalidate();
     ActiveBCEditor.Update();
   end;
