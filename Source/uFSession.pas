@@ -15938,7 +15938,8 @@ begin
       ActiveBCEditor.AlwaysShowCaret := True;
     end;
 
-    ActiveBCEditor.CaretPos := ActiveBCEditor.ClientToPos(X, Y);
+    ActiveBCEditor.CaretPos := ActiveBCEditor.ClientToPos
+    (X, Y);
     ActiveBCEditor.Invalidate();
     ActiveBCEditor.Update();
   end;

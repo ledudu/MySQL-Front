@@ -1915,8 +1915,6 @@ var
   Resource: Pointer;
   StringList: TStringList;
 begin
-  Progress := Progress + 'a';
-
   inherited Create(KEY_ALL_ACCESS);
 
   FOnlineVersion := 0;
@@ -1971,8 +1969,6 @@ begin
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
 
 
-  Progress := Progress + 'b';
-
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
   if (FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Desktop.xml') or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
@@ -1985,21 +1981,25 @@ begin
   Progress := Progress + 'c';
 
   SoundFileNavigating := '';
+  Progress := Progress + 'd';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
   begin
+  Progress := Progress + 'e';
     if (ValueExists('')) then
       SoundFileNavigating := ReplaceEnviromentVariables(ReadString(''));
+  Progress := Progress + 'f';
     if (not FileExists(SoundFileNavigating)) then
       SoundFileNavigating := '';
+  Progress := Progress + 'g';
 
     CloseKey();
   end;
 
-  Progress := Progress + 'd';
+  Progress := Progress + 'h';
 
   LoadFromRegistry();
 
-  Progress := Progress + 'e';
+  Progress := Progress + 'i';
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
@@ -2007,16 +2007,12 @@ begin
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
 
-  Progress := Progress + 'f';
-
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
 
-
-  Progress := Progress + 'g';
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
     and not DirectoryExists(UserPath)) then
@@ -2032,21 +2028,15 @@ begin
   end;
 
 
-  Progress := Progress + 'h';
-
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
 
-  Progress := Progress + 'i';
-
   FImages := TImageList.Create(nil);
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
-
-  Progress := Progress + 'j';
 
   for I := 0 to MaxIconIndex do
     if (I = 16) then
@@ -2090,10 +2080,7 @@ begin
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
     end;
 
-  Progress := Progress + 'A';
-
   Database := TDatabase.Create();
-  Progress := Progress + 'B';
 
   Databases := TDatabases.Create();
   Editor := TEditor.Create();
@@ -2123,7 +2110,6 @@ begin
 
   Open();
 
-  Progress := Progress + 'C';
   // Debug 2017-05-02
   Assert(Assigned(Database));
 end;
@@ -2139,8 +2125,6 @@ begin
     'Progress: ' + Progress);
 
   Database.Free();
-
-  Progress := Progress + 'E';
 
   Databases.Free();
   Editor.Free();
@@ -2829,6 +2813,9 @@ var
   I: Integer;
   Index: Integer;
 begin
+  // Debug 2017-05-13
+  Assert(Assigned(AEventProc));
+
   Index := -1;
   for I := 0 to EventProcs.Count - 1 do
     if (CompareMem(@TMethod(EventProcs.List[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
