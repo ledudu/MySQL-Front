@@ -5094,7 +5094,7 @@ end;
 function GetMySQLText(const Field: TField): string;
 var
   Data: string;
-  DataSet: TMySQLQuery;
+//  DataSet: TMySQLQuery;
   FieldInfo: TFieldInfo;
   I: Integer;
   LibLengths: MYSQL_LENGTHS;

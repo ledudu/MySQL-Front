@@ -1104,6 +1104,8 @@ begin
   end
   else
   begin
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
+
     ShowDialog := not UpdateAvailable;
 
     if (not ShowDialog) then
@@ -1120,8 +1122,6 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
-
       ExceptionInfo.Options.SendShellSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +
         ' (Build: ' + IntToStr(ProgramVersionPatch) + '.' +

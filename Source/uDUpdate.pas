@@ -194,18 +194,26 @@ begin
   FBForward.Caption := Preferences.LoadStr(230);
 end;
 
+var
+  Progress: string;
+
 procedure TDUpdate.UMTerminate(var Message: TMessage);
 var
   VersionStr: string;
 begin
-  HTTPThread.WaitFor();
+  Progress := Progress + '.';
+
+  try
+    HTTPThread.WaitFor();
+  except // Debug 2017-05-13
+    on E: Exception do
+      E.RaiseOuterException(EAssertionFailed.Create('Progress: ' + Progress + #13#10
+        + 'Assigned: ' + BoolToStr(Assigned(HTTPThread))));
+  end;
 
   if (not Canceled) then
     if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
       MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode) + ')', Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
-    else if (HTTPThread.ErrorCode = 123456) then
-      raise EOSError.Create('ErrorCode: + IntToStr(HTTPThread.ErrorCode) + #13#10'
-        + 'ErrorMessage: ' + HTTPThread.ErrorMessage)
     else if (HTTPThread.ErrorCode <> 0) then
       RaiseLastOSError(HTTPThread.ErrorCode)
     else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
@@ -225,8 +233,9 @@ begin
 
         if (not UpdateAvailable) then
         begin
-          MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-          FBCancel.Click();
+//          MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+//          FBCancel.Click();
+          FBForward.Enabled := True;
         end
         else
         begin
