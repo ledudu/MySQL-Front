@@ -997,6 +997,11 @@ begin
     if ((FSource.SelectionCount > 0) and (FDestination.SelectionCount > 0) and FirstShow) then
     begin
       PageControl.ActivePage := TSWhat;
+
+      // Debug 2017-05-14
+      Assert(PageControl.ActivePage = TSWhat);
+      Assert(FStructure.Visible);
+
       if (not FBForward.Enabled and FStructure.Enabled) then
         ActiveControl := FStructure
       else if (not FBForward.Enabled and FData.Enabled) then

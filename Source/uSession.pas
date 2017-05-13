@@ -4310,7 +4310,8 @@ function TSBaseTable.Build(const DataSet: TMySQLQuery): Boolean;
 begin
   // Debug 2017-05-01
   Assert(Assigned(DataSet.FindField('Create Table')),
-    'CommandText: ' + DataSet.CommandText);
+    'CommandText: ' + DataSet.CommandText + #13#10
+    + 'Fields[0].Name: ' + DataSet.Fields[0].Name);
 
   Result := Build(DataSet.FindField('Create Table'));
 end;

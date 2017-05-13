@@ -3377,6 +3377,12 @@ begin
                 if (cbTABLE_NAME div SizeOf(SQLTCHAR) > TABLE_NAME_LEN) then
                   raise ERangeError.Create(SRangeError);
                 SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+
+                // Debug 2017-05-13
+                if ((Length(TableName) >= 2)
+                  and (TableName[1] = '''') and (TableName[Length(TableName)] = '''')) then
+                  SendToDeveloper('TableName: ' + TableName);
+
                 TableNames.Add(TableName);
               end;
             SQLFreeStmt(Stmt, SQL_CLOSE);

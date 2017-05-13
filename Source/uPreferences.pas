@@ -2815,6 +2815,8 @@ var
 begin
   // Debug 2017-05-13
   Assert(Assigned(AEventProc));
+  Assert(Assigned(Self));
+  Assert(Self is TPAccount.TFavorites);
 
   Index := -1;
   for I := 0 to EventProcs.Count - 1 do

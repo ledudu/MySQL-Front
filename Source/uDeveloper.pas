@@ -1159,7 +1159,6 @@ initialization
   end;
   {$ENDIF}
 
-  InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
   LastUpdateCheck := 0;
   SetLength(ModuleFilename, MAX_PATH + 1);
   SetLength(ModuleFilename, GetModuleFileName(0, PChar(ModuleFileName), Length(ModuleFileName)));
@@ -1187,6 +1186,7 @@ initialization
     end;
     FreeMem(Buffer);
   end;
+  InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
 
   Reg := TRegistry.Create();
   Reg.RootKey := HKEY_CURRENT_USER;

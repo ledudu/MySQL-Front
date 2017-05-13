@@ -958,7 +958,7 @@ Progress: string;
     procedure aVRefreshExecute(Sender: TObject);
     procedure aVSideBarExecute(Sender: TObject);
     procedure aVSQLLogExecute(Sender: TObject);
-    procedure BCEditorCaretChanged(Sender: TObject; X, Y: Integer);
+    procedure BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
     procedure BCEditorChange(Sender: TObject);
     procedure BCEditorCompletionProposalCanceled(Sender: TObject);
     procedure BCEditorCompletionProposalSelected(Sender: TObject;
@@ -6915,6 +6915,12 @@ var
   URI: TUURI;
   View: TView;
 begin
+  // Debug 2017-05-14
+  Assert(Assigned(Session));
+  Assert(Assigned(Session.Account));
+  Assert(Assigned(Session.Account.Favorites));
+  Assert(TObject(Session.Account.Favorites) is TPAccount.TFavorites);
+
   Session.Account.Favorites.UnRegisterEventProc(FavoritesEvent);
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
@@ -9551,11 +9557,9 @@ var
   SObject: TSObject;
   BCEditor: TBCEditor;
   View: TView;
+  OldView: TView;
+  OldAddress: string;
 begin
-  // Debug 2017-05-04
-  Assert(Assigned(Self));
-  Assert(Self is TFSession);
-
   CanClose := True;
 
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
@@ -9591,21 +9595,20 @@ begin
     for View in [vEditor, vEditor2, vEditor3] do
       if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
       begin
+        OldAddress := CurrentAddress;
+        OldView := Self.View;
         Self.View := View;
         // Debug 2017-04-26
         Assert(Self.View = View,
           'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
-          + 'View: ' + IntToStr(Ord(View)));
+          + 'View: ' + IntToStr(Ord(View)) + #13#10
+          + 'OldView: ' + IntToStr(Ord(OldView)) + #13#10
+          + 'OldAddress: ' + OldAddress + #13#10
+          + 'CurrentAddress: ' + CurrentAddress);
 
         Window.ActiveControl := ActiveBCEditor;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-          IDYES:
-            begin
-              // Debug 2017-04-26
-              Assert(Self.View = View);
-
-              SaveSQLFile(aFSave);
-            end;
+          IDYES: SaveSQLFile(aFSave);
           IDCANCEL: CanClose := False;
         end;
       end;
@@ -11693,6 +11696,14 @@ var
         Item.SubItems.Add('');
         Item.SubItems.Add('');
       end
+      else if (Data is TSSystemView) then
+      begin
+        Item.Caption := TSSystemView(Data).Caption;
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+      end
       else if (Data is TSRoutine) then
       begin
         Item.Caption := TSRoutine(Data).Caption;
@@ -13731,6 +13742,9 @@ begin
 
     if (Assigned(SourceSession)) then
     begin
+      // Debug 2017-05-14
+      Assert(Assigned(SourceSession.Account));
+
       Success := True;
 
       URI := TUURI.Create(SourceAddresses[0]);
@@ -15805,10 +15819,10 @@ begin
   end;
 end;
 
-procedure TFSession.BCEditorCaretChanged(Sender: TObject; X, Y: Integer);
+procedure TFSession.BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
 begin
   if (Window.ActiveControl = Sender) then
-    StatusBar.Panels[sbNavigation].Text := IntToStr(X) + ':' + IntToStr(Y);
+    StatusBar.Panels[sbNavigation].Text := IntToStr(Pos.X) + ':' + IntToStr(Pos.Y);
 end;
 
 procedure TFSession.BCEditorChange(Sender: TObject);

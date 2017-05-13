@@ -846,7 +846,7 @@ function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
 begin
-  // 2017-05-01
+  // 2017-05-13
   // Why is it needed to check the ComponentState???
   // Without this, sometimes this method will be called by FormCloseQuery
   // while csDestroying is set. :-/
