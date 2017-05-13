@@ -37,7 +37,6 @@ uses
 var
   FormatSettings: TFormatSettings;
   Frequency: Int64;
-  Profile: TProfile;
 
 procedure CloseProfile(var Profile: TProfile);
 begin
@@ -183,7 +182,4 @@ end;
 initialization
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
   if (not QueryPerformanceFrequency(Frequency)) then Frequency := 0;
-  CreateProfile(Profile, False);
-finalization
-  CloseProfile(Profile);
 end.
