@@ -1530,10 +1530,6 @@
         "CloseToken": ")"
       },
       {
-        "OpenToken": "[",
-        "CloseToken": "]"
-      },
-      {
         "OpenToken": "'",
         "CloseToken": "'"
       },
