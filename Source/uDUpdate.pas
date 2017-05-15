@@ -30,14 +30,12 @@ type
     FStartImmediately: Boolean;
     FullHeight: Integer;
     HTTPThread: THTTPThread;
-    HTTPThread1: THTTPThread;
     PADFileStream: TStringStream;
     SetupPrgFilename: TFileName;
     SetupProgramStream: TFileStream;
     SetupProgramURI: string;
     procedure OnProgress(Sender: TObject; const Done, Size: Int64);
     procedure OnTerminate(Sender: TObject);
-    procedure OnTerminate2(Sender: TObject);
     procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressBar(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
@@ -58,9 +56,6 @@ uses
 
 var
   FDUpdate: TDUpdate;
-
-var
-  Progress: string;
 
 function DUpdate(): TDUpdate;
 begin
@@ -112,12 +107,11 @@ begin
 
     HTTPThread := THTTPThread.Create(SetupProgramURI, nil, SetupProgramStream);
     HTTPThread.OnProgress := OnProgress;
-    HTTPThread.OnTerminate := OnTerminate2;
+    HTTPThread.OnTerminate := OnTerminate;
 
     SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 2, 100);
 
     HTTPThread.Start();
-    HTTPThread1 := HTTPThread;
   end;
 end;
 
@@ -139,7 +133,6 @@ procedure TDUpdate.FormCreate(Sender: TObject);
 begin
   FullHeight := Height;
   HTTPThread := nil;
-  HTTPThread1 := nil
 end;
 
 procedure TDUpdate.FormHide(Sender: TObject);
@@ -187,21 +180,7 @@ end;
 
 procedure TDUpdate.OnTerminate(Sender: TObject);
 begin
-  Assert(Assigned(HTTPThread), 'Progress: ' + Progress + #13#10
-    + 'Assigned: ' + BoolToStr(Assigned(HTTPThread), True));
-
-  Progress := Progress + '_0';
   PostMessage(Handle, UM_TERMINATE, 0, 0);
-end;
-
-procedure TDUpdate.OnTerminate2(Sender: TObject);
-begin
-  Assert(Assigned(HTTPThread), 'Progress: ' + Progress + #13#10
-    + 'Assigned: ' + BoolToStr(Assigned(HTTPThread), True) + #13#10
-    + 'HTTPThread1: ' + BoolToStr(HTTPThread = HTTPThread1, True));
-
-  Progress := Progress + '_1';
-  PostMessage(Handle, UM_TERMINATE, 0, 1);
 end;
 
 procedure TDUpdate.UMPreferencesChanged(var Message: TMessage);
@@ -215,24 +194,12 @@ end;
 
 procedure TDUpdate.UMTerminate(var Message: TMessage);
 var
+  FBForwardClick: Boolean;
   VersionStr: string;
 begin
-  Progress := Progress + '.';
+  FBForwardClick := False;
 
-  try
-    HTTPThread.WaitFor();
-  except // Debug 2017-05-13
-    on E: Exception do
-      E.RaiseOuterException(EAssertionFailed.Create('Progress: ' + Progress + #13#10
-        + 'Assigned: ' + BoolToStr(Assigned(HTTPThread), True) + #13#10
-        + 'LParam: ' + IntToStr(Message.LParam) + #13#10
-        + 'HTTPThread1: ' + BoolToStr(HTTPThread = HTTPThread1, True) + #13#10
-        + #13#10
-        + E.ClassName + ':' + #13#10
-        + E.Message));
-  end;
-
-  Progress := Progress + HTTPThread.URI + #13#10;
+  HTTPThread.WaitFor();
 
   if (not Canceled) then
     if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
@@ -260,8 +227,8 @@ begin
 
         if (not UpdateAvailable) then
         begin
-//          MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-//          FBCancel.Click();
+          MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+          FBCancel.Click();
           FBForward.Enabled := True;
         end
         else
@@ -270,7 +237,7 @@ begin
 
           FBForward.Enabled := True;
           if (FStartImmediately) then
-            FBForward.Click()
+            FBForwardClick := True
           else
             ActiveControl := FBForward;
         end;
@@ -293,6 +260,9 @@ begin
 
   HTTPThread.Free();
   HTTPThread := nil;
+
+  if (FBForwardClick) then
+    FBForward.Click();
 
   FBCancel.Enabled := True;
   if (not FBForward.Enabled) then

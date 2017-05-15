@@ -1049,6 +1049,7 @@ Progress: string;
     function GetCurrentData(): TCustomData; inline;
     function GetEditorField(): TField;
     function GetFocusedSItem(): TSItem;
+    function GetFocusedSItems(): TSItems;
     function GetMenuDatabase(): TSDatabase;
     function GetPath(): TFileName; inline;
     function GetSelectedDatabase(): string;
@@ -1112,6 +1113,7 @@ Progress: string;
     procedure WMTimer(var Msg: TWMTimer); message WM_TIMER;
     property EditorField: TField read GetEditorField;
     property FocusedSItem: TSItem read GetFocusedSItem;
+    property FocusedSItems: TSItems read GetFocusedSItems;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
     property SQLEditors[View: TView]: TSQLEditor read GetSQLEditors;
   protected
@@ -4197,37 +4199,30 @@ end;
 
 procedure TFSession.aFOpenInNewTabExecute(Sender: TObject);
 begin
-  // Debug 2017-04-03
-  Assert(Assigned(FocusedSItem),
-    'ActiveControl: ' + Window.ActiveControl.ClassName);
-
-  Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(FocusedSItem.Address)));
+  if (Assigned(FocusedSItem)) then
+    Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(FocusedSItem.Address)))
+  else if (FocusedSItems is TSProcesses) then
+    Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(TSProcesses(FocusedSItems).Address)))
+  else if (FocusedSItems is TSUsers) then
+    Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(TSUsers(FocusedSItems).Address)))
+  else if (FocusedSItems is TSVariables) then
+    Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(TSVariables(FocusedSItems).Address)))
+  else
+    raise ERangeError.Create('Unknown address');
 end;
 
 procedure TFSession.aFOpenInNewWindowExecute(Sender: TObject);
 begin
-  // Debug 2017-05-03
-  if (not Assigned(FocusedSItem)) then
-    if (Window.ActiveControl = ActiveListView) then
-      if (not Assigned(TListView(Window.ActiveControl).Selected)) then
-        Assert(False,
-          'CurrentAddress: ' + CurrentAddress)
-      else
-        Assert(False,
-          'ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Caption: ' + TListView(Window.ActiveControl).Selected.Caption + #13#10
-          + 'CurrentAddress: ' + CurrentAddress)
-    else if (Window.ActiveControl = FNavigator) then
-      if (not Assigned(TTreeView(Window.ActiveControl).Selected)) then
-        Assert(False)
-      else
-        Assert(False,
-          'ImageIndex: ' + IntToStr(TTreeView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Text: ' + TTreeView(Window.ActiveControl).Selected.Text)
-    else
-      Assert(False);
-
-  ShellExecute(0, 'open', PChar(Application.ExeName), PChar(FocusedSItem.Address), '', SW_SHOW);
+  if (Assigned(FocusedSItem)) then
+    ShellExecute(0, 'open', PChar(Application.ExeName), PChar(FocusedSItem.Address), '', SW_SHOW)
+  else if (FocusedSItems is TSProcesses) then
+    ShellExecute(0, 'open', PChar(Application.ExeName), PChar(TSProcesses(FocusedSItems).Address), '', SW_SHOW)
+  else if (FocusedSItems is TSUsers) then
+    ShellExecute(0, 'open', PChar(Application.ExeName), PChar(TSUsers(FocusedSItems).Address), '', SW_SHOW)
+  else if (FocusedSItems is TSVariables) then
+    ShellExecute(0, 'open', PChar(Application.ExeName), PChar(TSVariables(FocusedSItems).Address), '', SW_SHOW)
+  else
+    raise ERangeError.Create('Unknown address');
 end;
 
 procedure TFSession.aFSaveAsExecute(Sender: TObject);
@@ -6916,8 +6911,13 @@ var
   View: TView;
 begin
   // Debug 2017-05-14
+  Assert(Assigned(Sessions));
+  Assert(Sessions.Count > 0);
+  Assert(Sessions.IndexOf(Session) >= 0);
   Assert(Assigned(Session));
+  Assert(TObject(Session) is TSSession);
   Assert(Assigned(Session.Account));
+  Assert(TObject(Session.Account) is TPAccount);
   Assert(Assigned(Session.Account.Favorites));
   Assert(TObject(Session.Account.Favorites) is TPAccount.TFavorites);
 
@@ -10332,6 +10332,24 @@ begin
     Result := TSItem(CurrentData)
   else if ((Window.ActiveControl = ActiveWorkbench) and not Assigned(ActiveWorkbench.Selected) and (TObject(CurrentData) is TSItem)) then
     Result := TSItem(CurrentData)
+  else
+    Result := nil;
+end;
+
+function TFSession.GetFocusedSItems(): TSItems;
+begin
+  if (not Assigned(Window.ActiveControl)) then
+    Result := nil
+  else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigatorMenuNode) and (TObject(FNavigatorMenuNode.Data) is TSItems)) then
+    Result := TSItems(FNavigatorMenuNode.Data)
+  else if ((Window.ActiveControl = FNavigator) and (TObject(CurrentData) is TSItems)) then
+    Result := TSItems(CurrentData)
+  else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSItems)) then
+    Result := TSItems(ActiveListView.Selected.Data)
+  else if ((Window.ActiveControl = ActiveListView) and not Assigned(ActiveListView.Selected) and (TObject(CurrentData) is TSItems)) then
+    Result := TSItems(CurrentData)
+  else if ((Window.ActiveControl = ActiveWorkbench) and not Assigned(ActiveWorkbench.Selected)) then
+    Result := ActiveWorkbench.Database.Tables
   else
     Result := nil;
 end;

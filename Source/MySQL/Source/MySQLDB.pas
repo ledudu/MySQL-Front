@@ -956,6 +956,8 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
+uProfiling,
+uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -8152,11 +8154,12 @@ procedure TMySQLDataSet.Sort(const ASortDef: TIndexDef);
   end;
 
 var
+  CompareDefs: TRecordCompareDefs;
   FieldName: string;
   I: Integer;
   OldBookmark: TBookmark;
   Pos: Integer;
-  CompareDefs: TRecordCompareDefs;
+  Profile: TProfile;
 begin
   Connection.Terminate();
 
@@ -8189,7 +8192,16 @@ begin
             CompareDefs[I].Ascending := False;
     until (FieldName = '');
 
+    CreateProfile(Profile);
     QuickSort(CompareDefs, 0, InternRecordBuffers.Count - 1);
+    if (ProfilingTime(Profile) > 3) then
+      SendToDeveloper(
+        'FieldCount: ' + IntToStr(FieldCount) + #13#10
+        + 'RecordCount: ' + IntToStr(RecordCount) + #13#10
+        + 'CommandText: ' + #13#10
+        + CommandText + #13#10
+        + ProfilingReport(Profile));
+    CloseProfile(Profile);
   end;
 
   SetFieldsSortTag();
