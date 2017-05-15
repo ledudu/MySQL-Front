@@ -443,12 +443,16 @@ type
       LibLengths: MYSQL_LENGTHS;
       LibRow: MYSQL_ROW;
     end;
+    TInternRecordBuffers = TList<TRecordBufferData>;
     TRecordCompareDefs = array of record Ascending: Boolean; Field: TField; end;
   strict private
     FConnection: TMySQLConnection;
     FIndexDefs: TIndexDefs;
     FInformConvertError: Boolean;
+    FInternRecordBuffers: TInternRecordBuffers;
     FRecNo: Integer;
+    FRecordReceived: TEvent;
+    FRecordsReceived: TEvent;
     FRowsAffected: Integer;
     function GetFinishedReceiving(): Boolean; inline;
     function GetHandle(): MySQLConsts.MYSQL_RES;
@@ -469,6 +473,7 @@ type
     function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount(): Integer; override;
     function GetUniDirectional(): Boolean; virtual;
+    function InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean; virtual;
     procedure InternalClose(); override;
     procedure InternalHandleException(); override;
     procedure InternalInitFieldDefs(); override;
@@ -483,6 +488,9 @@ type
     procedure UpdateIndexDefs(); override;
     property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     property IndexDefs: TIndexDefs read FIndexDefs;
+    property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
+    property RecordReceived: TEvent read FRecordReceived;
+    property RecordsReceived: TEvent read FRecordsReceived;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -541,7 +549,6 @@ type
     strict private
       FDataSet: TMySQLDataSet;
       FIndex: Integer;
-      FRecordReceived: TEvent;
       function GetSortDef(): TIndexDef; inline;
       procedure SetIndex(AValue: Integer);
       property SortDef: TIndexDef read GetSortDef;
@@ -557,7 +564,6 @@ type
       procedure Insert(Index: Integer; const Item: PInternRecordBuffer);
       property DataSet: TMySQLDataSet read FDataSet;
       property Index: Integer read FIndex write SetIndex;
-      property RecordReceived: TEvent read FRecordReceived;
     end;
 
   strict private
@@ -569,7 +575,6 @@ type
     FilterParser: TExprParser;
     FInternRecordBuffers: TInternRecordBuffers;
     FLocateNext: Boolean;
-    FRecordsReceived: TEvent;
     FSortDef: TIndexDef;
     FTableName: string;
     InGetNextRecords: Boolean;
@@ -608,7 +613,7 @@ type
     function GetRecordCount(): Integer; override;
     function GetUniDirectional(): Boolean; override;
     procedure InternActivateFilter();
-    function InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean; virtual;
+    function InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean; override;
     procedure InternalAddRecord(Buffer: Pointer; Append: Boolean); override;
     procedure InternalCancel(); override;
     procedure InternalClose(); override;
@@ -640,7 +645,6 @@ type
     function SQLUpdate(): string; virtual;
     procedure UpdateIndexDefs(); override;
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
-    property RecordsReceived: TEvent read FRecordsReceived;
   public
     Progress: string;
     function BookmarkValid(Bookmark: TBookmark): Boolean; override;
@@ -3978,7 +3982,7 @@ end;
 
 procedure TMySQLConnection.SyncReceivingResult(const SyncThread: TSyncThread);
 var
-  DataSet: TMySQLDataSet;
+  DataSet: TMySQLQuery;
   LibRow: MYSQL_ROW;
   OldDataSize: Int64;
 begin
@@ -3988,7 +3992,7 @@ begin
   Assert(SyncThread.DataSet is TMySQLDataSet);
   Assert(Assigned(SyncThread.ResHandle));
 
-  DataSet := TMySQLDataSet(SyncThread.DataSet);
+  DataSet := TMySQLQuery(SyncThread.DataSet);
 
   OldDataSize := 0;
   repeat
@@ -4001,6 +4005,7 @@ begin
 
       TerminateCS.Enter();
       if (not SyncThread.Terminated) then
+      begin
         if (Lib.mysql_errno(SyncThread.LibHandle) <> 0) then
         begin
           SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
@@ -4011,19 +4016,20 @@ begin
           SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
           SyncThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
         end
-        else if (DataSet.DataSize >= OldDataSize + 10 * 1024) then
+        else if ((DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).DataSize >= OldDataSize + 10 * 1024)) then
         begin
-          DataSet.InternRecordBuffers.RecordReceived.SetEvent();
-          OldDataSize := DataSet.DataSize;
+          DataSet.RecordReceived.SetEvent();
+          OldDataSize := TMySQLDataSet(DataSet).DataSize;
         end;
 
-      case (DataSet.WantedRecord) of
-        wrFirst,
-        wrNext:
-          begin
-            DataSet.WantedRecord := wrNone;
-            MySQLConnectionOnSynchronize(DataSet, 1);
-          end;
+        case (TMySQLDataSet(DataSet).WantedRecord) of
+          wrFirst,
+          wrNext:
+            begin
+              TMySQLDataSet(DataSet).WantedRecord := wrNone;
+              MySQLConnectionOnSynchronize(DataSet, 1);
+            end;
+        end;
       end;
 
       TerminateCS.Leave();
@@ -4039,7 +4045,7 @@ begin
       TMySQLTable(DataSet).FLimitedDataReceived := Lib.mysql_num_rows(SyncThread.ResHandle) = TMySQLTable(DataSet).RequestedRecordCount;
 
     DataSet.RecordsReceived.SetEvent();
-    DataSet.InternRecordBuffers.RecordReceived.SetEvent(); // Release possible waiting thread
+    DataSet.RecordReceived.SetEvent(); // Release possible waiting thread
   end;
   TerminateCS.Leave();
 
@@ -5353,6 +5359,9 @@ begin
   FCommandType := ctQuery;
   FConnection := nil;
   FDatabaseName := '';
+  FInternRecordBuffers := TInternRecordBuffers.Create();
+  FRecordReceived := TEvent.Create(nil, True, False, '');
+  FRecordsReceived := TEvent.Create(nil, True, False, '');
   SyncThread := nil;
 
   FIndexDefs := TIndexDefs.Create(Self);
@@ -5376,6 +5385,9 @@ begin
   Connection := nil; // UnRegister Connection
 
   FIndexDefs.Free();
+  FInternRecordBuffers.Free();
+  FRecordReceived.Free();
+  FRecordsReceived.Free();
 
   inherited;
 end;
@@ -5553,6 +5565,12 @@ end;
 function TMySQLQuery.GetUniDirectional(): Boolean;
 begin
   Result := True;
+end;
+
+function TMySQLQuery.InternAddRecord(const LibRow: MYSQL_ROW;
+  const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean;
+begin
+  Result := False;
 end;
 
 procedure TMySQLQuery.InternalClose();
@@ -6304,7 +6322,7 @@ begin
   inherited Clear();
   FilteredRecordCount := 0;
   Index := -1;
-  RecordReceived.ResetEvent();
+  DataSet.RecordReceived.ResetEvent();
   CriticalSection.Leave();
 end;
 
@@ -6316,7 +6334,6 @@ begin
 
   CriticalSection := TCriticalSection.Create();
   Index := -1;
-  FRecordReceived := TEvent.Create(nil, True, False, '');
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Delete(Index: Integer);
@@ -6336,7 +6353,6 @@ begin
   inherited;
 
   CriticalSection.Free();
-  FRecordReceived.Free();
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
@@ -6584,7 +6600,6 @@ begin
   FilterParser := nil;
   FInternRecordBuffers := TInternRecordBuffers.Create(Self);
   FLocateNext := False;
-  FRecordsReceived := TEvent.Create(nil, True, False, '');
   FSortDef := TIndexDef.Create(nil, '', '', []);
   FTableName := '';
   InGetNextRecords := False;
@@ -6668,7 +6683,6 @@ begin
   if (Assigned(AppliedBuffers)) then
     AppliedBuffers.Free();
   FSortDef.Free();
-  FRecordsReceived.Free();
   if (Assigned(FilterParser)) then
     FreeAndNil(FilterParser);
   FInternRecordBuffers.Free();
@@ -6883,13 +6897,13 @@ begin
               and (Assigned(SyncThread) and (RecordsReceived.WaitFor(IGNORE) <> wrSignaled)
                 or not Assigned(SyncThread) and (Self is TMySQLTable) and not InGetNextRecords and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords());
             if (Wait) then
-              InternRecordBuffers.RecordReceived.ResetEvent();
+              RecordReceived.ResetEvent();
             InternRecordBuffers.CriticalSection.Leave();
             if (Wait
-              and (InternRecordBuffers.RecordReceived.WaitFor(100) = wrTimeout)) then
+              and (RecordReceived.WaitFor(100) = wrTimeout)) then
             begin
               InternRecordBuffers.CriticalSection.Enter();
-              if (InternRecordBuffers.RecordReceived.WaitFor(IGNORE) <> wrSignaled) then
+              if (RecordReceived.WaitFor(IGNORE) <> wrSignaled) then
                 WantedRecord := wrNext;
               InternRecordBuffers.CriticalSection.Leave();
             end;
@@ -9050,7 +9064,7 @@ begin
   Result := Connection.InternExecuteSQL(smDataSet, SQLSelect(AllRecords), TMySQLConnection.TResultEvent(nil), nil, Self);
   Connection.EndSynchron(5);
   if (Result) then
-    InternRecordBuffers.RecordReceived.WaitFor(INFINITE);
+    RecordReceived.WaitFor(INFINITE);
 end;
 
 procedure TMySQLTable.Sort(const ASortDef: TIndexDef);

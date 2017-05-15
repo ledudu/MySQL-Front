@@ -1978,28 +1978,24 @@ begin
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + SysUtils.LoadStr(1002));
 
-  Progress := Progress + 'c';
-
   SoundFileNavigating := '';
-  Progress := Progress + 'd';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
   begin
-  Progress := Progress + 'e';
+  Progress := Progress + '1';
     if (ValueExists('')) then
+    begin
+  Progress := Progress + '2';
       SoundFileNavigating := ReplaceEnviromentVariables(ReadString(''));
-  Progress := Progress + 'f';
+  Progress := Progress + '3';
+    end;
+  Progress := Progress + '4';
     if (not FileExists(SoundFileNavigating)) then
       SoundFileNavigating := '';
-  Progress := Progress + 'g';
 
     CloseKey();
   end;
 
-  Progress := Progress + 'h';
-
   LoadFromRegistry();
-
-  Progress := Progress + 'i';
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
