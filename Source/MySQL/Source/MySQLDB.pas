@@ -443,13 +443,15 @@ type
       LibLengths: MYSQL_LENGTHS;
       LibRow: MYSQL_ROW;
     end;
-    TInternRecordBuffers = TList<TRecordBufferData>;
+    TInternRecordBuffers = TList<PRecordBufferData>;
     TRecordCompareDefs = array of record Ascending: Boolean; Field: TField; end;
   strict private
     FConnection: TMySQLConnection;
+    FBufferSize: UInt64;
     FIndexDefs: TIndexDefs;
     FInformConvertError: Boolean;
     FInternRecordBuffers: TInternRecordBuffers;
+    FInternRecordBuffersCS: TCriticalSection;
     FRecNo: Integer;
     FRecordReceived: TEvent;
     FRecordsReceived: TEvent;
@@ -457,6 +459,7 @@ type
     function GetFinishedReceiving(): Boolean; inline;
     function GetHandle(): MySQLConsts.MYSQL_RES;
   protected
+    FDataSet: UInt64;
     FCommandText: string;
     FCommandType: TCommandType;
     FDatabaseName: string;
@@ -479,6 +482,7 @@ type
     procedure InternalInitFieldDefs(); override;
     procedure InternalOpen(); override;
     function IsCursorOpen(): Boolean; override;
+    function MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
     function RecordCompare(const CompareDefs: TRecordCompareDefs; const A, B: TMySQLQuery.PRecordBufferData; const FieldIndex: Integer = 0): Integer;
     procedure SetActive(Value: Boolean); override;
     function SetActiveEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -486,9 +490,11 @@ type
     procedure SetCommandText(const ACommandText: string); virtual;
     procedure SetConnection(const AConnection: TMySQLConnection); virtual;
     procedure UpdateIndexDefs(); override;
+    property DataSize: UInt64 read FBufferSize;
     property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     property IndexDefs: TIndexDefs read FIndexDefs;
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
+    property InternRecordBuffersCS: TCriticalSection read FInternRecordBuffersCS;
     property RecordReceived: TEvent read FRecordReceived;
     property RecordsReceived: TEvent read FRecordsReceived;
   public
@@ -553,12 +559,10 @@ type
       procedure SetIndex(AValue: Integer);
       property SortDef: TIndexDef read GetSortDef;
     public
-      CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       procedure Clear();
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
-      destructor Destroy(); override;
       function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
       function IndexFor(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer; overload;
       procedure Insert(Index: Integer; const Item: PInternRecordBuffer);
@@ -571,7 +575,7 @@ type
     FCachedUpdates: Boolean;
     FCanModify: Boolean;
     FCursorOpen: Boolean;
-    FDataSize: Int64;
+    FDataSize: UInt64;
     FilterParser: TExprParser;
     FInternRecordBuffers: TInternRecordBuffers;
     FLocateNext: Boolean;
@@ -630,7 +634,6 @@ type
     procedure InternalRefresh(); override;
     procedure InternalSetToRecord(Buffer: TRecBuf); override;
     function IsCursorOpen(): Boolean; override;
-    function MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
     procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
@@ -644,6 +647,7 @@ type
     function SQLTableClause(): string; virtual;
     function SQLUpdate(): string; virtual;
     procedure UpdateIndexDefs(); override;
+    property DataSize: UInt64 read FDataSize;
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
   public
     Progress: string;
@@ -667,7 +671,6 @@ type
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
     function SQLWhereClause(const NewData: Boolean = False): string;
-    property DataSize: Int64 read FDataSize;
     property LocateNext: Boolean read FLocateNext write FLocateNext;
     property PendingRecordCount: Integer read GetPendingRecordCount;
     property SortDef: TIndexDef read FSortDef;
@@ -2806,23 +2809,24 @@ begin
   while ((SQLIndex < Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
     Progress := Progress + 'b';
-      Assert(SyncThread = ST);
+      Assert(SyncThread = ST, 'Progress: ' + Progress);
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
+      Assert(SyncThread = ST, 'Progress: ' + Progress);
 
     if (StmtLength > 0) then
     begin
     Progress := Progress + 'c';
       // Debug 2017-04-12
-      Assert(SyncThread = ST);
+      Assert(SyncThread = ST, 'Progress: ' + Progress);
       Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
       Assert(Assigned(SyncThread.StmtLengths));
       Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
 
     Progress := Progress + 'd';
       SyncThread.StmtLengths.Add(StmtLength);
-      Assert(SyncThread = ST);
+      Assert(SyncThread = ST, 'Progress: ' + Progress);
       Inc(SQLIndex, StmtLength);
-      Assert(SyncThread = ST);
+      Assert(SyncThread = ST, 'Progress: ' + Progress);
     Progress := Progress + 'e';
     end;
   end;
@@ -5359,7 +5363,9 @@ begin
   FCommandType := ctQuery;
   FConnection := nil;
   FDatabaseName := '';
+  FBufferSize := 0;
   FInternRecordBuffers := TInternRecordBuffers.Create();
+  FInternRecordBuffersCS := TCriticalSection.Create();
   FRecordReceived := TEvent.Create(nil, True, False, '');
   FRecordsReceived := TEvent.Create(nil, True, False, '');
   SyncThread := nil;
@@ -5386,6 +5392,7 @@ begin
 
   FIndexDefs.Free();
   FInternRecordBuffers.Free();
+  FInternRecordBuffersCS.Free();
   FRecordReceived.Free();
   FRecordsReceived.Free();
 
@@ -5569,8 +5576,30 @@ end;
 
 function TMySQLQuery.InternAddRecord(const LibRow: MYSQL_ROW;
   const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean;
+var
+  BufferData: TMySQLQuery.PRecordBufferData;
+  Data: TMySQLQuery.TRecordBufferData;
+  I: Integer;
 begin
-  Result := False;
+  if (not Assigned(LibRow)) then
+    Result := True
+  else
+  begin
+    Data.LibLengths := LibLengths;
+    Data.LibRow := LibRow;
+
+    BufferData := nil;
+    Result := MoveRecordBufferData(BufferData, @Data);
+
+    if (Result) then
+    begin
+      InternRecordBuffersCS.Enter();
+      FInternRecordBuffers.Add(BufferData);
+      for I := 0 to FieldCount - 1 do
+        Inc(FBufferSize, Data.LibLengths^[I]);
+      InternRecordBuffersCS.Leave();
+    end;
+  end;
 end;
 
 procedure TMySQLQuery.InternalClose();
@@ -5985,6 +6014,49 @@ begin
   Result := Assigned(SyncThread);
 end;
 
+function TMySQLQuery.MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData;
+  const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
+var
+  I: Integer;
+  Index: Integer;
+  MemSize: Integer;
+begin
+  Assert(Assigned(SourceData));
+  Assert(Assigned(SourceData^.LibLengths));
+
+
+  if (Assigned(DestData)) then
+    FreeMem(DestData);
+
+  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
+  for I := 0 to FieldCount - 1 do
+    Inc(MemSize, SourceData^.LibLengths^[I]);
+
+  GetMem(DestData, MemSize);
+  if (not Assigned(DestData)) then
+    raise EOutOfMemory.Create(SOutOfMemory);
+
+  Result := Assigned(DestData);
+  if (Result) then
+  begin
+    DestData^.Identifier963 := 963;
+    DestData^.LibLengths := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^)]);
+    DestData^.LibRow := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^) + FieldCount * SizeOf(DestData^.LibLengths^[0])]);
+
+    MoveMemory(DestData^.LibLengths, SourceData^.LibLengths, FieldCount * SizeOf(DestData^.LibLengths^[0]));
+    Index := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
+    for I := 0 to FieldCount - 1 do
+      if (not Assigned(SourceData^.LibRow^[I])) then
+        DestData^.LibRow^[I] := nil
+      else
+      begin
+        DestData^.LibRow^[I] := @PAnsiChar(DestData)[Index];
+        MoveMemory(DestData^.LibRow^[I], SourceData^.LibRow^[I], DestData^.LibLengths^[I]);
+        Inc(Index, DestData^.LibLengths^[I]);
+      end;
+  end;
+end;
+
 procedure TMySQLQuery.Open(const DataHandle: TMySQLConnection.TDataHandle);
 var
   EndingCommentLength: Integer;
@@ -6312,7 +6384,7 @@ procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
 begin
-  CriticalSection.Enter();
+  DataSet.InternRecordBuffersCS.Enter();
   if ((DataSet.State = dsBrowse)
     and (DataSet.BufferCount > 0) and Assigned(Pointer(DataSet.ActiveBuffer()))
     and Assigned(PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer)) then
@@ -6323,7 +6395,7 @@ begin
   FilteredRecordCount := 0;
   Index := -1;
   DataSet.RecordReceived.ResetEvent();
-  CriticalSection.Leave();
+  DataSet.InternRecordBuffersCS.Leave();
 end;
 
 constructor TMySQLDataSet.TInternRecordBuffers.Create(const ADataSet: TMySQLDataSet);
@@ -6332,7 +6404,6 @@ begin
 
   FDataSet := ADataSet;
 
-  CriticalSection := TCriticalSection.Create();
   Index := -1;
 end;
 
@@ -6346,13 +6417,6 @@ begin
 
   if (Index = Count) then
     Self.Index := Self.Index - 1;
-end;
-
-destructor TMySQLDataSet.TInternRecordBuffers.Destroy();
-begin
-  inherited;
-
-  CriticalSection.Free();
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
@@ -6801,7 +6865,7 @@ begin
   else
     Result := 10;
 
-  InternRecordBuffers.CriticalSection.Enter();
+  InternRecordBuffersCS.Enter();
   Index := Field.FieldNo - 1;
   if ((not (Field.DataType in [ftWideString, ftWideMemo]))) then
     for I := 0 to InternRecordBuffers.Count - 1 do
@@ -6815,7 +6879,7 @@ begin
 
       Result := Max(Result, TextWidth(LibDecode(FieldCodePage(Field), InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
     end;
-  InternRecordBuffers.CriticalSection.Leave();
+  InternRecordBuffersCS.Leave();
 end;
 
 function TMySQLDataSet.GetNextRecords(): Integer;
@@ -6892,20 +6956,20 @@ begin
         begin
           if (NewIndex + 1 = InternRecordBuffers.Count) then
           begin
-            InternRecordBuffers.CriticalSection.Enter();
+            InternRecordBuffersCS.Enter();
             Wait := (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
               and (Assigned(SyncThread) and (RecordsReceived.WaitFor(IGNORE) <> wrSignaled)
                 or not Assigned(SyncThread) and (Self is TMySQLTable) and not InGetNextRecords and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords());
             if (Wait) then
               RecordReceived.ResetEvent();
-            InternRecordBuffers.CriticalSection.Leave();
+            InternRecordBuffersCS.Leave();
             if (Wait
               and (RecordReceived.WaitFor(100) = wrTimeout)) then
             begin
-              InternRecordBuffers.CriticalSection.Enter();
+              InternRecordBuffersCS.Enter();
               if (RecordReceived.WaitFor(IGNORE) <> wrSignaled) then
                 WantedRecord := wrNext;
-              InternRecordBuffers.CriticalSection.Leave();
+              InternRecordBuffersCS.Leave();
             end;
           end;
 
@@ -6939,14 +7003,14 @@ begin
 
   if (Result = grOk) then
   begin
-    InternRecordBuffers.CriticalSection.Enter();
+    InternRecordBuffersCS.Enter();
     InternRecordBuffers.Index := NewIndex;
 
     PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
     PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
     PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 
-    InternRecordBuffers.CriticalSection.Leave();
+    InternRecordBuffersCS.Leave();
   end;
 end;
 
@@ -6971,7 +7035,7 @@ begin
     FilterParser.Free();
   FilterParser := TExprParser.Create(Self, Filter, FilterOptions, [poExtSyntax], '', nil, FldTypeMap);
 
-  InternRecordBuffers.CriticalSection.Enter();
+  InternRecordBuffersCS.Enter();
 
   InternRecordBuffers.FilteredRecordCount := 0;
   for I := 0 to InternRecordBuffers.Count - 1 do
@@ -6981,7 +7045,7 @@ begin
       Inc(InternRecordBuffers.FilteredRecordCount);
   end;
 
-  InternRecordBuffers.CriticalSection.Leave();
+  InternRecordBuffersCS.Leave();
 end;
 
 function TMySQLDataSet.InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean;
@@ -7014,18 +7078,17 @@ begin
         InternRecordBuffer^.NewData := InternRecordBuffer^.OldData;
         InternRecordBuffer^.VisibleInFilter := not Filtered or VisibleInFilter(InternRecordBuffer);
 
-        for I := 0 to FieldCount - 1 do
-          Inc(FDataSize, Data.LibLengths^[I]);
-
         if (Filtered and InternRecordBuffer^.VisibleInFilter) then
           Inc(InternRecordBuffers.FilteredRecordCount);
 
-        InternRecordBuffers.CriticalSection.Enter();
+        InternRecordBuffersCS.Enter();
         if (Index >= 0) then
           InternRecordBuffers.Insert(Index, InternRecordBuffer)
         else
           InternRecordBuffers.Add(InternRecordBuffer);
-        InternRecordBuffers.CriticalSection.Leave();
+        for I := 0 to FieldCount - 1 do
+          Inc(FDataSize, Data.LibLengths^[I]);
+        InternRecordBuffersCS.Leave();
       end;
     end;
   end;
@@ -7106,7 +7169,7 @@ begin
     if (Success and (Connection.RowsAffected = 0)) then
       raise EDatabasePostError.Create(SRecordChanged);
 
-    InternRecordBuffers.CriticalSection.Enter();
+    InternRecordBuffersCS.Enter();
     if (DeleteByWhereClause) then
     begin
       InternRecordBuffers.Clear();
@@ -7137,7 +7200,7 @@ begin
       for I := 0 to BufferCount - 1 do
         InternalInitRecord(Buffers[I]);
     end;
-    InternRecordBuffers.CriticalSection.Leave();
+    InternRecordBuffersCS.Leave();
 
     if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
@@ -7844,48 +7907,6 @@ begin
   SetLength(FieldNames, 0);
 end;
 
-function TMySQLDataSet.MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
-var
-  I: Integer;
-  Index: Integer;
-  MemSize: Integer;
-begin
-  Assert(Assigned(SourceData));
-  Assert(Assigned(SourceData^.LibLengths));
-
-
-  if (Assigned(DestData)) then
-    FreeMem(DestData);
-
-  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
-  for I := 0 to FieldCount - 1 do
-    Inc(MemSize, SourceData^.LibLengths^[I]);
-
-  GetMem(DestData, MemSize);
-  if (not Assigned(DestData)) then
-    raise EOutOfMemory.Create(SOutOfMemory);
-
-  Result := Assigned(DestData);
-  if (Result) then
-  begin
-    DestData^.Identifier963 := 963;
-    DestData^.LibLengths := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^)]);
-    DestData^.LibRow := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^) + FieldCount * SizeOf(DestData^.LibLengths^[0])]);
-
-    MoveMemory(DestData^.LibLengths, SourceData^.LibLengths, FieldCount * SizeOf(DestData^.LibLengths^[0]));
-    Index := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
-    for I := 0 to FieldCount - 1 do
-      if (not Assigned(SourceData^.LibRow^[I])) then
-        DestData^.LibRow^[I] := nil
-      else
-      begin
-        DestData^.LibRow^[I] := @PAnsiChar(DestData)[Index];
-        MoveMemory(DestData^.LibRow^[I], SourceData^.LibRow^[I], DestData^.LibLengths^[I]);
-        Inc(Index, DestData^.LibLengths^[I]);
-      end;
-  end;
-end;
-
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   if (ActiveBuffer() > 0) then
@@ -8208,10 +8229,12 @@ begin
 
     CreateProfile(Profile);
     QuickSort(CompareDefs, 0, InternRecordBuffers.Count - 1);
-    if (ProfilingTime(Profile) > 3) then
+    if (ProfilingTime(Profile) > 1000) then
       SendToDeveloper(
         'FieldCount: ' + IntToStr(FieldCount) + #13#10
         + 'RecordCount: ' + IntToStr(RecordCount) + #13#10
+        + 'Length(CompareDefs): ' + IntToStr(Length(CompareDefs)) + #13#10
+        + 'CompareDefs[0]: ' + IntToStr(Ord(CompareDefs[0].Field.DataType)) + #13#10
         + 'CommandText: ' + #13#10
         + CommandText + #13#10
         + ProfilingReport(Profile));

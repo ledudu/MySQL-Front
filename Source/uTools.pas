@@ -3405,6 +3405,15 @@ begin
       FreeMem(TABLE_TYPE);
       SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
     end;
+
+  if (Self is TTImportExcel) then
+    // 2015-05-15
+    // I don't know why, but suddenly there are often table names with leading
+    // and trailing single quotes. Is this a bug in a Excel ODBC driver update?
+    for I := 0 to TableNames.Count - 1 do
+      if ((Length(TableNames[I]) >= 2)
+        and (TableNames[I][1] = '''') and (TableNames[I][Length(TableNames[I])] = '''')) then
+        TableNames[I] := Copy(TableNames[I], 2, Length(TableNames[I]) - 2);
 end;
 
 procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil);

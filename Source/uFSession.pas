@@ -6917,9 +6917,9 @@ begin
   Assert(Assigned(Session));
   Assert(TObject(Session) is TSSession);
   Assert(Assigned(Session.Account));
+  Assert(Accounts.Count > 0);
+  Assert(Accounts.IndexOf(Session.Account) >= 0);
   Assert(TObject(Session.Account) is TPAccount);
-  Assert(Assigned(Session.Account.Favorites));
-  Assert(TObject(Session.Account.Favorites) is TPAccount.TFavorites);
 
   Session.Account.Favorites.UnRegisterEventProc(FavoritesEvent);
   Session.UnRegisterEventProc(FormSessionEvent);
@@ -7680,12 +7680,12 @@ begin
   else
     raise ERangeError.Create(SRangeError);
 
-  // Debug 2017-02-28
-  Assert(URI.Scheme <> 'http',
-    'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+  // Debug 2017-05-16
+  Assert((URI.Param['view'] <> 'browser') or (URI.Table <> ''),
+    'URI: ' + URI.Address + #13#10
+    + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
     + 'Text: ' + Node.Text + #13#10
-    + 'Data: ' + BoolToStr(Assigned(Node.Data)));
-
+    + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True));
 
   URI.Param['view'] := ViewToParam(View);
 
@@ -7700,10 +7700,17 @@ begin
   if ((ParamToView(URI.Param['view']) in [vObjectSearch])) then
     URI.Param['view'] := Null;
 
+  // Debug 2017-05-16
+  Assert((URI.Param['view'] <> 'browser') or (URI.Table <> ''),
+    'URI: ' + URI.Address + #13#10
+    + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+    + 'Text: ' + Node.Text + #13#10
+    + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True));
+
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
 
-  // Debug 2017-03-10
+  // Debug 2017-05-16
   Assert((URI.Param['view'] <> 'browser') or (URI.Table <> ''),
     'URI: ' + URI.Address + #13#10
     + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
@@ -14514,7 +14521,7 @@ end;
 procedure TFSession.PropertiesServerExecute(Sender: TObject);
 begin
   // Debug 2017-04-30
-  Assert(not (csDestroying in ComponentState)); // Occurred on 2017-05-10. ... without a call stack
+  Assert(not (csDestroying in ComponentState)); // Occurred on 2017-05-10 and 2017-05-15. ... without a call stack
   Assert(Assigned(Wanted));
 
   Wanted.Clear();
@@ -16802,8 +16809,11 @@ begin
                 + 'Table.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Valid, True) + #13#10
                 + 'Table.ValidSource: ' + BoolToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).ValidSource, True) + #13#10
                 + 'Field: ' + URI.Param['object'] + #13#10
-                + 'Field found: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table).FieldByName(URI.Param['object'])), True)
-                + 'Fields: ' + IntToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Fields.Count) + #13#10);
+                + 'Field found: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table).FieldByName(URI.Param['object'])), True) + #13#10
+                + 'Fields: ' + IntToStr(Session.DatabaseByName(URI.Database).TableByName(URI.Table).Fields.Count) + #13#10
+                + 'Source: ' + #13#10
+                + 'FieldByName: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table).FieldByName(URI.Param['object'])), True) + #13#10
+                + Session.DatabaseByName(URI.Database).TableByName(URI.Table).Source);
               URI.Free();
 
               Table := TSTableField(CurrentData).Table;

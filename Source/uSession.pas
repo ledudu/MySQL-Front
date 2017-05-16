@@ -11335,6 +11335,8 @@ begin
 
   // Debug 2017-05-05
   Assert(Assigned(Session));
+  Assert(Sessions.Count > 0);
+  Assert(Sessions.IndexOf(Session) >= 0);
   Assert(Assigned(Session.Connection));
 
   if (ErrorCode = 0) then

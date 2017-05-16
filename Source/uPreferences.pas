@@ -1913,6 +1913,7 @@ var
   ResIndex: Integer;
   ResInfo: HRSRC;
   Resource: Pointer;
+  S: string;
   StringList: TStringList;
 begin
   inherited Create(KEY_ALL_ACCESS);
@@ -1981,14 +1982,14 @@ begin
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
   begin
-  Progress := Progress + '1';
     if (ValueExists('')) then
     begin
   Progress := Progress + '2';
-      SoundFileNavigating := ReplaceEnviromentVariables(ReadString(''));
+      S := ReadString('');
   Progress := Progress + '3';
-    end;
+      SoundFileNavigating := ReplaceEnviromentVariables(S);
   Progress := Progress + '4';
+    end;
     if (not FileExists(SoundFileNavigating)) then
       SoundFileNavigating := '';
 
@@ -2118,7 +2119,8 @@ begin
   Assert(Assigned(Self));
   Assert(TObject(Self) is TPPreferences);
   Assert(Assigned(Database),
-    'Progress: ' + Progress);
+    'Progress: ' + Progress + #13#10
+    + 'Windows: ' + TOSVersion.ToString());
 
   Database.Free();
 
