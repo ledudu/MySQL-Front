@@ -295,8 +295,8 @@ type
     PQueryBuilder: TPanel_Ext;
     PQueryBuilderBCEditor: TPanel_Ext;
     PContent: TPanel_Ext;
-    PDataBrowser: TPanel_Ext;
-    PDataBrowserSpacer: TPanel_Ext;
+    PBrowser: TPanel_Ext;
+    PBrowserSpacer: TPanel_Ext;
     PSQLEditorDBGrid: TPanel_Ext;
     PExplorer: TPanel_Ext;
     PFiles: TPanel_Ext;
@@ -440,7 +440,7 @@ type
     procedure DBGridOverflowClick(Sender: TObject; Column: TColumn);
     procedure DBGridTitleClick(Column: TColumn);
     procedure FBlobResize(Sender: TObject);
-    procedure PDataBrowserResize(Sender: TObject);
+    procedure PBrowserResize(Sender: TObject);
     procedure FFilesEnter(Sender: TObject);
     procedure FFilterChange(Sender: TObject);
     procedure FFilterDropDown(Sender: TObject);
@@ -2392,6 +2392,8 @@ procedure TFSession.TWanted.SetAddress(const AAddress: string);
 begin
   if (AAddress <> FAddress) then
   begin
+    Assert(not FSession.Session.InImport);
+
     Clear();
 
     if (not FSession.Session.Connection.InUse()) then
@@ -4978,6 +4980,11 @@ begin
 
     URI := TUURI.Create(NewAddress);
 
+    if ((URI.Param['objecttype'] = 'key') or (URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'foreignkey') or (URI.Param['objecttype'] = 'viewfield')) then
+    begin
+      URI.Param['object'] := Null;
+      URI.Param['objecttype'] := Null;
+    end;
     if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
       URI.Param['view'] := 'ide';
 
@@ -5508,12 +5515,12 @@ begin
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
   begin
     PHeader.Color := clBtnFace;
-    PDataBrowser.Color := clBtnFace;
+    PBrowser.Color := clBtnFace;
   end
   else
   begin
     PHeader.Color := Color;
-    PDataBrowser.Color := Color;
+    PBrowser.Color := Color;
   end;
 
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(tebNormalGroupHead),
@@ -5535,7 +5542,7 @@ begin
   end;
 
   SSideBar.Width := GetSystemMetrics(SM_CXFIXEDFRAME);
-  PDataBrowserSpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
+  PBrowserSpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PObjectIDESpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SQueryBuilderBCEditor.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
@@ -5546,8 +5553,8 @@ begin
 
   FrameResize(nil);
 
-  PDataBrowserSpacer.Top := FFilter.Height;
-  PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
+  PBrowserSpacer.Top := FFilter.Height;
+  PBrowser.ClientHeight := FFilter.Height + PBrowserSpacer.Height;
   TBLimitEnabled.ButtonHeight := FUDLimit.Height;
   TBLimitEnabled.Height := TBLimitEnabled.ButtonHeight;
   TBFilterEnabled.ButtonHeight := FFilter.Height;
@@ -6425,7 +6432,9 @@ procedure TFSession.DBGridDblClick(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
-  Assert(Sender is TMySQLDBGrid);
+  // Debug 2017-05-17
+  Assert(Sender is TMySQLDBGrid,
+    'Sender: ' + BoolToStr(Assigned(Sender), True));
 
   DBGrid := TMySQLDBGrid(Sender);
 
@@ -7359,9 +7368,13 @@ begin
     Window.ActiveControl := FFilter;
   except
     // Debug 2017-05-05
-    raise EAssertionFailed.Create('ActiveControl: ' + Window.ActiveControl.ClassName + #13#10
-      + 'View: ' + IntToStr(Ord(View)) + #13#10
-      + 'CurrentAddress: ' + CurrentAddress);
+    on E: Exception do
+      E.RaiseOuterException(EAssertionFailed.Create('ActiveControl: ' + Window.ActiveControl.ClassName + #13#10
+        + 'View: ' + IntToStr(Ord(View)) + #13#10
+        + 'CurrentAddress: ' + CurrentAddress + #13#10
+        + 'FFilter.Enabled: ' + BoolToStr(FFilter.Enabled, True) + #13#10#13#10
+        + E.ClassName + ':' + #13#10
+        + E.Message));
   end;
 end;
 
@@ -13768,6 +13781,8 @@ begin
     if (Assigned(SourceSession)) then
     begin
       // Debug 2017-05-14
+      Assert(Accounts.Count >= 0);
+      Assert(Sessions.IndexOf(SourceSession) >= 0);
       Assert(Assigned(SourceSession.Account));
 
       Success := True;
@@ -14113,7 +14128,7 @@ begin
     if (PBCEditor.Align = alClient) then PBCEditor.Align := alNone;
     if (PResult.Align = alClient) then PResult.Align := alNone;
     PListView.Align := alNone;
-    PDataBrowser.Align := alNone;
+    PBrowser.Align := alNone;
     PObjectIDE.Align := alNone;
     PQueryBuilder.Align := alNone;
     PBCEditor.Align := alNone;
@@ -14147,12 +14162,12 @@ begin
       FUDLimit.Position := Desktop(TSTable(CurrentData)).Limit;
       FLimitEnabled.Down := Desktop(TSTable(CurrentData)).Limited;
 
-      PDataBrowser.Top := 0;
-      PDataBrowser.Align := alTop;
-      PDataBrowser.Visible := True;
+      PBrowser.Top := 0;
+      PBrowser.Align := alTop;
+      PBrowser.Visible := True;
     end
     else
-      PDataBrowser.Visible := False;
+      PBrowser.Visible := False;
 
     if (Assigned(ActiveIDEInputDataSet)) then
     begin
@@ -14323,20 +14338,20 @@ begin
   Toolbar.Left := ClientWidth - PContent.Width;
 end;
 
-procedure TFSession.PDataBrowserResize(Sender: TObject);
+procedure TFSession.PBrowserResize(Sender: TObject);
 var
   I: Integer;
 begin
   // With higher DPI system, the width of the following components are not
   // applyed inside of a "TFrame" (Delphi XE4). So we calculate them...
 
-  for I := 0 to PDataBrowser.ControlCount - 1 do
-    if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
+  for I := 0 to PBrowser.ControlCount - 1 do
+    if (PBrowser.Controls[I] <> PBrowserSpacer) then
     begin
       // Debug 2017-05-10
-      Assert(Assigned(PDataBrowser.Controls[I]));
+      Assert(Assigned(PBrowser.Controls[I]));
 
-      PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
+      PBrowser.Controls[I].Height := PBrowser.ClientHeight - PBrowserSpacer.Height;
     end;
 
   FOffset.Left := 0;
@@ -14351,7 +14366,7 @@ begin
   TBLimitEnabled.Width := 31 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
 
   TBQuickSearchEnabled.Width := 31 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
-  TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
+  TBQuickSearchEnabled.Left := PBrowser.ClientWidth - TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
   TBFilterEnabled.Width := TBFilterEnabled.Height;
   FQuickSearch.Width := 130 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
   FQuickSearch.Left := TBQuickSearchEnabled.Left - FQuickSearch.Width;
@@ -16776,7 +16791,21 @@ begin
         ciBaseTable,
         ciView,
         ciSystemView:
-          TSTable(CurrentData).Update();
+          begin
+            // Debug 2017-05-09
+            URI := TUURI.Create(CurrentAddress);
+            Assert(Assigned(CurrentData),
+              'CurrentAddress: ' + CurrentAddress + #13#10
+              + 'ItemByAddress: ' + BoolToStr(Assigned(Session.ItemByAddress(CurrentAddress)), True) + #13#10
+              + 'Database: ' + URI.Database + #13#10
+              + 'Tables.Valid: ' + BoolToStr(Session.DatabaseByName(URI.Database).Tables.Valid, True) + #13#10
+              + 'Table: ' + URI.Table + #13#10
+              + 'TableByName: ' + BoolToStr(Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table)), True) + #13#10
+              + Session.DatabaseByName(URI.Database).TableByName(URI.Table).Source);
+            URI.Free();
+
+            TSTable(CurrentData).Update();
+          end;
         ciProcesses:
           Session.Processes.Update();
         ciUsers:

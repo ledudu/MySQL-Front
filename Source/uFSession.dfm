@@ -593,7 +593,7 @@ object FSession: TFSession
         OnResize = FQueryBuilderResize
       end
     end
-    object PDataBrowser: TPanel_Ext
+    object PBrowser: TPanel_Ext
       Left = 0
       Top = 56
       Width = 467
@@ -606,7 +606,7 @@ object FSession: TFSession
       ParentDoubleBuffered = False
       TabOrder = 0
       Visible = False
-      OnResize = PDataBrowserResize
+      OnResize = PBrowserResize
       object FOffset: TEdit
         Left = 0
         Top = 0
@@ -724,7 +724,7 @@ object FSession: TFSession
           OnClick = FQuickSearchEnabledClick
         end
       end
-      object PDataBrowserSpacer: TPanel_Ext
+      object PBrowserSpacer: TPanel_Ext
         Left = 0
         Top = 22
         Width = 467
@@ -1183,7 +1183,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 50528
+      Left = 40682
       Top = 0
       Width = 140
       Height = 22
@@ -1198,7 +1198,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 50495
+      Left = 40667
       Top = 0
       Width = 23
       Height = 22

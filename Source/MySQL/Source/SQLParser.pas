@@ -2866,6 +2866,11 @@ type
             TableIdent: TOffset;
             CloseBracket: TOffset;
           end;
+          Select: packed record
+            OpenBracket: TOffset;
+            Stmt: TOffset;
+            CloseBracket: TOffset;
+          end;
           IgnoreReplaceTag: TOffset;
           AsTag: TOffset;
           SelectStmt2: TOffset;
@@ -12626,6 +12631,15 @@ begin
     FormatNode(Nodes.Like.TableIdent, stSpaceBefore);
     FormatNode(Nodes.Like.CloseBracket);
     Commands.DecreaseIndent();
+  end
+  else if (Nodes.Select.Stmt > 0) then
+  begin
+    FormatNode(Nodes.Select.OpenBracket, stSpaceBefore);
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    FormatNode(Nodes.Select.Stmt);
+    Commands.DecreaseIndent();
+    FormatNode(Nodes.Select.CloseBracket, stReturnBefore);
   end;
   FormatNode(Nodes.TableOptionList, stSpaceBefore);
   FormatNode(Nodes.PartitionOptions, stReturnBefore);
@@ -17290,10 +17304,15 @@ begin
       if (not ErrorFound) then
         Nodes.Like.CloseBracket := ParseSymbol(ttCloseBracket);
     end
-    else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
+    else if (IsSymbol(ttOpenBracket) and IsSelectStmt()) then
     begin
-      // Where is this format definied in the manual???
-      SetError(PE_UnexpectedToken, NextToken[1]);
+      Nodes.Select.OpenBracket := ParseSymbol(ttOpenBracket);
+
+      if (not ErrorFound) then
+        Nodes.Select.Stmt := ParseSelectStmt([soSubSelect]);
+
+      if (not ErrorFound) then
+        Nodes.Select.CloseBracket := ParseSymbol(ttCloseBracket);
     end
     else if (IsSymbol(ttOpenBracket)) then
     begin
@@ -24985,7 +25004,7 @@ label
   MLComment, MLCommentL, MLCommentLSingle, MLCommentLNLDouble, MLCommentLNLSingle, MLCommentLE,
   Ident, IdentL, IdentL2, IdentLE,
     IdentCharset, IdentCharsetL, IdentCharsetLE, IdentString, IdentString2, IdentStringE,
-  Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3,
+  Quoted, QuotedL, QuotedL2, QuotedL3, QuotedLE, QuotedE, QuotedE2, QuotedE3,
     QuotedSecondQuoter, QuotedSecondQuoterL, QuotedSecondQuoterLE,
   Numeric, NumericL, NumericDot, NumericExp, NumericExpSign, NumericAlpha, NumericLE, NumericE, NumericHex,
   HexODBC, HexODBCL, HexODBCLE, HexODBCE,
@@ -25581,6 +25600,13 @@ begin
         JNE QuotedL2                     // No!
         INC NewLines                     // One new line
       QuotedL2:
+        CMP DX,'`'                       // MySQL Ident?
+        JE QuotedLE                      // Yes!
+        CMP DX,'"'                       // '"' quoter?
+        JNE QuotedL3                     // No!
+        CMP AnsiQuotes,True              // AnsiQuotes?
+        JE QuotedLE                      // Yes!
+      QuotedL3:
         CMP AX,'\'                       // Escaper?
         JNE QuotedLE                     // No!
         CMP ECX,0                        // End of SQL?

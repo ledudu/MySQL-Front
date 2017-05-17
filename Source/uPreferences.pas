@@ -8,6 +8,8 @@ uses
   Registry,
   XMLDoc, XMLIntf,
   Controls, Forms, ComCtrls, Graphics,
+uProfiling,
+uDeveloper,
   BCEditor.Editor;
 
 type
@@ -1891,7 +1893,7 @@ begin
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
   BCEditor.Font.Size := SQLFontSize;
-  BCEditor.LeftMargin.Font.Handle := BCEditor.Font.Handle;
+  BCEditor.LeftMargin.Font.Assign(BCEditor.Font);
 end;
 
 constructor TPPreferences.Create();
@@ -1984,11 +1986,19 @@ begin
   begin
     if (ValueExists('')) then
     begin
-  Progress := Progress + '2';
-      S := ReadString('');
+  Progress := Progress + '1';
+      try
+        S := ReadString('');
+      except
+        on E: Exception do
+          begin
+            Progress := Progress + '2';
+            raise EAssertionFailed.Create(E.ClassName + ':' + #13#10
+              + E.Message);
+          end;
+      end;
   Progress := Progress + '3';
       SoundFileNavigating := ReplaceEnviromentVariables(S);
-  Progress := Progress + '4';
     end;
     if (not FileExists(SoundFileNavigating)) then
       SoundFileNavigating := '';
@@ -3561,6 +3571,8 @@ begin
 end;
 
 function TPAccount.Save(): string;
+var
+  Profile: TProfile;
 begin
   if (Assigned(XML)) then
   begin
@@ -3570,10 +3582,15 @@ begin
     XMLNode(XML, 'manualurl').Text := ManualURL;
     XMLNode(XML, 'manualurl').Attributes['version'] := ManualURLVersion;
 
+    CreateProfile(Profile);
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
-
+    ProfilingPoint(Profile, 1);
     Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
+    ProfilingPoint(Profile, 2);
     Favorites.SaveToXML(XMLNode(XML, 'favorites', True));
+    if (ProfilingTime(Profile) > 10000) then
+      SendToDeveloper(ProfilingReport(Profile));
+    CloseProfile(Profile);
 
     if (ForceDirectories(DataPath)) then
     begin

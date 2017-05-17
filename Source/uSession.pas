@@ -9,6 +9,7 @@ uses
   acMYSQLSynProvider, acQBEventMetaProvider,
   BCEditor.Editor, BCEditor.Highlighter,
   SQLUtils, MySQLDB, MySQLConsts, SQLParser,
+uProfiling,
   uPreferences;
 
 type
@@ -13291,13 +13292,18 @@ end;
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
+  Profile: TProfile;
 begin
   Event := TEvent.Create(Self);
   Event.EventType := EventType;
   Event.Sender := Sender;
   Event.Items := Items;
   Event.Item := Item;
+  CreateProfile(Profile);
   DoSendEvent(Event);
+  if (ProfilingTime(Profile) >= 10000) then
+    SendToDeveloper(ProfilingReport(Profile));
+  CloseProfile(Profile);
   Event.Free();
 end;
 

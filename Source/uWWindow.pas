@@ -622,10 +622,12 @@ procedure TWWindow.aHUpdateExecute(Sender: TObject);
 begin
   if (CloseAll()) then
   begin
-    UpdateStarted := True;
     Preferences.SetupProgramExecute := DUpdate.Execute(not Assigned(Sender));
     if (Preferences.SetupProgramExecute) then
+    begin
+      UpdateStarted := True;
       Close();
+    end;
   end;
 end;
 

@@ -6848,8 +6848,10 @@ begin
     Result := nil
   else
   begin
-    Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123 = 123);
-    Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963);
+    Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123 = 123,
+      'Identifier123: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123));
+    Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963,
+      'Identifier963: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963));
 
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow;
   end;
@@ -8233,6 +8235,7 @@ begin
       SendToDeveloper(
         'FieldCount: ' + IntToStr(FieldCount) + #13#10
         + 'RecordCount: ' + IntToStr(RecordCount) + #13#10
+        + 'DataSize: ' + IntToStr(DataSize) + #13#10
         + 'Length(CompareDefs): ' + IntToStr(Length(CompareDefs)) + #13#10
         + 'CompareDefs[0]: ' + IntToStr(Ord(CompareDefs[0].Field.DataType)) + #13#10
         + 'CommandText: ' + #13#10
