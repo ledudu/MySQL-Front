@@ -2911,7 +2911,8 @@ begin
           ciView,
           ciSystemView:
             Table := TSTable(CurrentData);
-          else raise ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
+          else raise ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex))
+            + 'CurrentAddress: ' + CurrentAddress);
         end;
 
         if (not (Table.DataSet is TSTable.TDataSet) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TSTable.TDataSet(Table.DataSet).Limit < 1)) then
