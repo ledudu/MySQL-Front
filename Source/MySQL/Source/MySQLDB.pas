@@ -8455,22 +8455,14 @@ begin
           Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
       end;
   end
+  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData = PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
+    Result := ''
   else
   begin
     Result := '';
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
     begin
-      // Debug 2017-05-14
-      Assert(Assigned(Fields[I]));
-      Assert(ActiveBuffer() > 0);
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData));
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths));
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow));
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData));
-      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
-
       if ((pfInUpdate in Fields[I].ProviderFlags)
         and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
           or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
