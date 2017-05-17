@@ -4988,6 +4988,9 @@ begin
     if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
       URI.Param['view'] := 'ide';
 
+    // Debug 2017-05-17
+    Assert(URI.Address <> '');
+
     FCurrentAddress := URI.Address;
     if ((Session.Account.Desktop.Addresses.Count = 0)
       or (FCurrentAddress <> Session.Account.Desktop.Addresses[Session.Account.Desktop.Addresses.Count - 1])) then
@@ -9619,7 +9622,7 @@ begin
         OldView := Self.View;
         Self.View := View;
         // Debug 2017-04-26
-        Assert(Self.View = View,
+        Assert((Self.View = View) and (View in [vEditor, vEditor2, vEditor3]),
           'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
           + 'View: ' + IntToStr(Ord(View)) + #13#10
           + 'OldView: ' + IntToStr(Ord(OldView)) + #13#10
@@ -15326,6 +15329,9 @@ begin
     URI.Param['name'] := Null;
     URI.Param['comment'] := Null;
   end;
+
+  // Debug 2017-05-17
+  Assert(URI.Address <> '');
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
