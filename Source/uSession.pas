@@ -13302,7 +13302,8 @@ begin
   CreateProfile(Profile);
   DoSendEvent(Event);
   if (ProfilingTime(Profile) >= 10000) then
-    SendToDeveloper(ProfilingReport(Profile));
+    SendToDeveloper('EventType: ' + Ord(EventType).ToString() + #13#10
+      + ProfilingReport(Profile));
   CloseProfile(Profile);
   Event.Free();
 end;
