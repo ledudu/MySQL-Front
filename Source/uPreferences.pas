@@ -2150,7 +2150,7 @@ begin
   Routine.Free();
   Server.Free();
   Account.Free();
-  Accounts.Free();
+  Accounts.Free(); Accounts := nil; // Debug 2017-05-19
   SQLHelp.Free();
   Statement.Free();
   Table.Free();

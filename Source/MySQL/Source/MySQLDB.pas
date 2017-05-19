@@ -2617,6 +2617,13 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
+  // Debug 2017-05-19
+  if (not (not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]))) then
+    if (not Assigned(ResultHandle.SyncThread)) then
+      raise EAssertionFailed.Create(SAssertionFailed)
+    else
+      raise EAssertionFailed.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)));
+
   Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]));
 
   BeginSynchron(1);
@@ -2809,24 +2816,34 @@ begin
   while ((SQLIndex < Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
     Progress := Progress + 'b';
-      Assert(SyncThread = ST, 'Progress: ' + Progress);
+      Assert(SyncThread = ST,
+        'Progress: ' + Progress + #13#10
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
-      Assert(SyncThread = ST, 'Progress: ' + Progress);
+      Assert(SyncThread = ST,
+        'Progress: ' + Progress + #13#10
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
 
     if (StmtLength > 0) then
     begin
     Progress := Progress + 'c';
       // Debug 2017-04-12
-      Assert(SyncThread = ST, 'Progress: ' + Progress);
+      Assert(SyncThread = ST,
+        'Progress: ' + Progress + #13#10
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
       Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
       Assert(Assigned(SyncThread.StmtLengths));
       Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
 
     Progress := Progress + 'd';
       SyncThread.StmtLengths.Add(StmtLength);
-      Assert(SyncThread = ST, 'Progress: ' + Progress);
+      Assert(SyncThread = ST,
+        'Progress: ' + Progress + #13#10
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
       Inc(SQLIndex, StmtLength);
-      Assert(SyncThread = ST, 'Progress: ' + Progress);
+      Assert(SyncThread = ST,
+        'Progress: ' + Progress + #13#10
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
     Progress := Progress + 'e';
     end;
   end;
@@ -6841,6 +6858,7 @@ end;
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
+  Assert(not (csDestroying in ComponentState));
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -7911,6 +7929,9 @@ end;
 
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
+  // Debug 2017-05-19
+  Assert(not (csDestroying in ComponentState));
+
   if (ActiveBuffer() > 0) then
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
 

@@ -4191,11 +4191,23 @@ begin
               begin
                 Success := daSuccess;
 
+                Progress := Progress + 'd';
                 if (TDBObjectItem(Items[I]).DBObject is TSTable) then
                   if (not DataTable) then
                     ExecuteTable(TDBObjectItem(Items[I]), nil)
                   else
-                    ExecuteTable(TDBObjectItem(Items[I]), @ResultHandle)
+                  begin
+                Progress := Progress + 'e';
+                    ExecuteTable(TDBObjectItem(Items[I]), @ResultHandle);
+                    if (Success = daFail) then
+                Progress := Progress + 'f'
+                    else if (Success = daAbort) then
+                Progress := Progress + 'g'
+                    else if (Success = daRetry) then
+                Progress := Progress + 'h'
+                    else
+                Progress := Progress + 'i';
+                  end
                 else if (Structure) then
                   if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
                     ExecuteRoutine(TDBObjectItem(Items[I]))
@@ -4205,13 +4217,13 @@ begin
                     ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
               end;
 
-              Progress := Progress + 'd';
+              Progress := Progress + 'j';
               if (DataTable and (Success <> daSuccess)) then
               begin
-                Progress := Progress + 'e';
+                Progress := Progress + 'k';
                 Session.Connection.CancelResultHandle(ResultHandle);
               end;
-              Progress := Progress + 'f';
+              Progress := Progress + 'l';
             end;
           end;
 
@@ -6300,6 +6312,13 @@ begin
         end
       else
         case (Fields[I].DataType) of
+          ftUnknown:
+            begin
+              ValueType := SQL_TYPE_NULL;
+              ParameterType := SQL_UNKNOWN_TYPE;
+              ColumnSize := 0;
+              Parameter[I].MemSize := 0;
+            end;
           ftString:
             begin
               ValueType := SQL_C_BINARY;

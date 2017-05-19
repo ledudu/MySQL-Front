@@ -1724,6 +1724,7 @@ resourcestring
   SUnknownSQLStmt = 'Unknow SQL Stmt (%s)';
   SUnknownEngineType = 'Unknown Engine type (%s)';
   SSourceParseError = 'Source code of "%s" cannot be analyzed:' + #10#10 + '%s';
+  SInvalidForeignKeyChildField = 'Source code of "%s" cannot be analyzed - Field "%s" was not defined:' + #10#10 + '%s';
 
 type
   TMCharsetTranslation = record
@@ -5018,10 +5019,11 @@ begin
       if (not SQLParseChar(Parse, '(')) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       repeat
-        SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
-        Field := FieldByName(SQLParseValue(Parse));
+        FieldName := SQLParseValue(Parse);
+        Field := FieldByName(FieldName);
         if (not Assigned(Field)) then
-          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+          raise EConvertError.CreateFmt(SInvalidForeignKeyChildField, [Database.Name + '.' + Name, FieldName, SQL]);
+        SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
         NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := Field;
 
         SQLParseChar(Parse, ',');

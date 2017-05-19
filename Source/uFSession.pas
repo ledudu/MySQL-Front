@@ -6930,6 +6930,7 @@ begin
   Assert(Assigned(Session));
   Assert(TObject(Session) is TSSession);
   Assert(Assigned(Session.Account));
+  Assert(Assigned(Accounts));
   Assert(Accounts.Count > 0);
   Assert(Accounts.IndexOf(Session.Account) >= 0);
   Assert(TObject(Session.Account) is TPAccount);
@@ -10328,6 +10329,9 @@ function TFSession.GetEditorField(): TField;
 var
   B: Boolean; // Debug 2017-05-11
 begin
+  // Debug 2017-05-19
+  Assert(not (csDestroying in ComponentState));
+
   B := not Assigned(ActiveDBGrid);
   B := B or not Assigned(ActiveDBGrid.SelectedField);
   B := B or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob]);
@@ -10941,7 +10945,13 @@ begin
           4:
             Compare := lstrcmpi(PChar(Item1.SubItems[3]), PChar(Item2.SubItems[3]));
           5:
-            Compare := lstrcmpi(PChar(Item1.SubItems[4]), PChar(Item2.SubItems[4]));
+            begin
+              Assert(Item1.SubItems.Count > 4,
+                'Item1.ImageIndex: ' + IntToStr(Item1.ImageIndex));
+              Assert(Item2.SubItems.Count > 4,
+                'Item2.ImageIndex: ' + IntToStr(Item2.ImageIndex));
+              Compare := lstrcmpi(PChar(Item1.SubItems[4]), PChar(Item2.SubItems[4]));
+            end;
           else
             raise ERangeError.Create(SRangeError);
         end;
@@ -14146,7 +14156,15 @@ begin
     Assert(Assigned(SBlob));
     Assert(Assigned(PBlob));
 
-    SBlob.Align := alNone;
+    try
+      SBlob.Align := alNone;
+    except
+      on E: Exception do
+        E.RaiseOuterException(EAssertionFailed.Create('SBlob: ' + BoolToStr(Assigned(SBlob), True) + #13#10
+          + 'SBlobDebug: ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10#13#10
+          + E.ClassName + ':' + #13#10
+          + E.Message));
+    end;
     PBlob.Align := alNone;
 
     PBlob.Visible := False;
