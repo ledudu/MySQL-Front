@@ -1917,7 +1917,10 @@ var
   Resource: Pointer;
   S: string;
   StringList: TStringList;
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   inherited Create(KEY_ALL_ACCESS);
 
   FOnlineVersion := 0;
@@ -2119,6 +2122,11 @@ begin
 
   // Debug 2017-05-02
   Assert(Assigned(Database));
+
+  if (ProfilingTime(Profile) > 5000) then
+    SendToDeveloper(ProfilingReport(Profile));
+
+  CloseProfile(Profile);
 end;
 
 destructor TPPreferences.Destroy();

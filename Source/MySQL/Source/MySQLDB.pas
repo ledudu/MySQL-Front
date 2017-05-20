@@ -8,15 +8,6 @@ uses
   DB, DBCommon, SqlTimSt,
   SQLParser, MySQLConsts;
 
-const
-  DS_ASYNCHRON     = -1;
-  DS_MIN_ERROR     = 2300;
-  DS_SERVER_OLD    = 2300;
-  DS_OUT_OF_MEMORY = 2301;
-
-  deSortChanged = TDataEvent(Ord(High(TDataEvent)) + 1);
-  deCommitted = TDataEvent(Ord(High(TDataEvent)) + 2);
-
 type
   TMySQLMonitor = class;
   TMySQLConnection = class;                      
@@ -91,6 +82,7 @@ type
 
   EDatabasePostError = class(EDatabaseError);
   EDatabaseUpdateError = class(EDatabaseError);
+  EMySQLEncodingError = class(Exception);
 
   EMySQLError = class(EDatabaseError)
   protected
@@ -128,6 +120,7 @@ type
   public
     procedure Append(const Text: PChar; const Length: Integer; const ATraceType: TTraceType); overload;
     procedure Append(const Text: string; const ATraceType: TTraceType); overload; inline;
+    procedure Append2(const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
     procedure Clear();
     constructor Create(AOwner: TComponent); reintroduce;
     destructor Destroy(); override;
@@ -918,17 +911,6 @@ type
     property Threads[Index: Integer]: TMySQLConnection.TSyncThread read ThreadByIndex; default;
   end;
 
-const
-  MySQLZeroDate = -693593;
-
-  ftAscSortedField  = $010000;
-  ftDescSortedField = $020000;
-  ftSortedField     = $030000;
-  ftBitField        = $040000;
-  ftGeometryField   = $080000;
-  ftTimestampField  = $100000;
-  ftDateTimeField   = $200000;
-
 function BitField(const Field: TField): Boolean;
 function FieldCodePage(const Field: TField): Cardinal; inline;
 function DateTimeToStr(const DateTime: TDateTime; const FormatSettings: TFormatSettings): string; overload;
@@ -943,12 +925,29 @@ function SQLFormatToDisplayFormat(const SQLFormat: string): string;
 function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
 function WideCharToAnsiChar(const CodePage: UINT; const lpWideCharStr: LPWSTR; const cchWideChar: Integer; const lpMultiByteStr: LPSTR; const cchMultiByte: Integer): Integer;
 
-
 const
+  DS_ASYNCHRON     = -1;
+  DS_MIN_ERROR     = 2300;
+  DS_SERVER_OLD    = 2300;
+  DS_OUT_OF_MEMORY = 2301;
+
+  deSortChanged = TDataEvent(Ord(High(TDataEvent)) + 1);
+  deCommitted = TDataEvent(Ord(High(TDataEvent)) + 2);
+
   NotQuotedDataTypes = [ftShortInt, ftByte, ftSmallInt, ftWord, ftInteger, ftLongWord, ftLargeint, ftSingle, ftFloat, ftExtended];
   BinaryDataTypes = [ftString, ftBlob];
   TextDataTypes = [ftWideString, ftWideMemo];
   RightAlignedDataTypes = [ftShortInt, ftByte, ftSmallInt, ftWord, ftInteger, ftLongWord, ftLargeint, ftSingle, ftFloat, ftExtended];
+
+  MySQLZeroDate = -693593;
+
+  ftAscSortedField  = $010000;
+  ftDescSortedField = $020000;
+  ftSortedField     = $030000;
+  ftBitField        = $040000;
+  ftGeometryField   = $080000;
+  ftTimestampField  = $100000;
+  ftDateTimeField   = $200000;
 
 var
   LocaleFormatSettings: TFormatSettings;
@@ -1553,7 +1552,7 @@ begin
       SetLength(Text, cchMultiByte);
       BinToHex(BytesOf(lpMultiByteStr, cchMultiByte), 0, Text, 0, cchMultiByte);
       Hex := '0x' + string(AnsiStrings.StrPas(PAnsiChar(@Text[0])));
-      raise Exception.CreateFMT('#%d %s (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
+      raise EMySQLEncodingError.CreateFMT('#%d %s (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
     end;
   end;
 end;
@@ -1877,6 +1876,11 @@ end;
 { TMySQLMonitor ***************************************************************}
 
 procedure TMySQLMonitor.Append(const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
+begin
+  Append2(Text, Length, ATraceType);
+end;
+
+procedure TMySQLMonitor.Append2(const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
 var
   ItemLen: Integer;
   ItemText: PChar;

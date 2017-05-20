@@ -2952,8 +2952,9 @@ begin
           FNavigatorChanged(FNavigator, FNavigator.Selected);
         except
           on E: Exception do
-            raise Exception.Create('Text: ' + FNavigator.Selected.Text + #13#10
-              + E.Message);
+            E.RaiseOuterException(Exception(E.ClassType).Create(E.Message + #13#10
+              + 'Text: ' + FNavigator.Selected.Text + #13#10
+              + 'CurrentAddress: ' + CurrentAddress));
         end;
 
       FNavigator.AutoExpand := not (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) and not CheckWin32Version(6);
@@ -4717,7 +4718,14 @@ begin
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(Sender);
 
-  SSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PSQLHistory.Visible;
+  // Debug 2017-05-20
+  // ... should be one line:
+
+  SSideBar.Visible := False;
+  SSideBar.Visible := SSideBar.Visible or PNavigator.Visible;
+  SSideBar.Visible := SSideBar.Visible or PExplorer.Visible;
+  SSideBar.Visible := SSideBar.Visible or PSQLHistory.Visible;
+
   if (not SSideBar.Visible) then
     PSideBar.Visible := False
   else
@@ -11007,16 +11015,10 @@ begin
           0:
             begin
               Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
-              if (Compare = 0) then
-              begin
-                // Debug 2017-04-03
-                Assert(Item1.SubItems.Count >= 2,
-                  'ImageIndex: ' + IntToStr(Item1.ImageIndex));
-                Assert(Item2.SubItems.Count >= 2,
-                  'ImageIndex: ' + IntToStr(Item2.ImageIndex));
-
+              if ((Compare = 0) and (Item1.SubItems.Count > 1)) then
                 Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
-              end;
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(Item1.SubItems[0]), PChar(Item2.SubItems[0]));
               if (Compare = 0) then
                 Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
             end;
@@ -11026,7 +11028,7 @@ begin
               if (Compare = 0) then
                 Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
               if (Compare = 0) then
-                Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+                Compare := lstrcmpi(PChar(Item1.SubItems[0]), PChar(Item2.SubItems[0]));
             end;
           2:
             begin

@@ -2745,6 +2745,9 @@ begin
   Canvas.Font := Font;
   Canvas.Font.Color := Font.Color;
 
+  // Debug 2017-05-20
+  Assert(Assigned(Self));
+
   Workbench.Tables.Add(Self);
 
   if (Assigned(BaseTable)) then
@@ -3001,6 +3004,9 @@ end;
 
 function TWTables.GetTable(Index: Integer): TWTable;
 begin
+  // Debug 2017-05-20
+  Assert(Assigned(ITems[Index]));
+
   Result := TWTable(Items[Index]);
 end;
 

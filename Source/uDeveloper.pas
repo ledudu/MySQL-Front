@@ -1102,14 +1102,24 @@ begin
 
     Inc(EFrozenApplicationSent);
   end
+  else if (ExceptionInfo.ExceptionClass = 'EMySQLEncodingError') then
+  begin
+    ShowDialog := False;
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
+
+    MessageBox(0, PChar('Error while decoding data sent by the MySQL server:' + #10
+      + ExceptionInfo.ExceptionMessage + #10#10
+      + 'Please contact the developer of ' + LoadStr(1000) + ' to let him analyze this problem further more.'), 'Error',
+      MB_OK + MB_ICONERROR);
+  end
   else
   begin
     ShowDialog := not UpdateAvailable;
 
     if (not ShowDialog) then
     begin
-      MessageBox(0, PChar('Internal Program Error:' + #10 +
-        ExceptionInfo.ExceptionMessage), 'Error',
+      MessageBox(0, PChar('Internal Program Bug:' + #10
+        + ExceptionInfo.ExceptionMessage), 'Error',
         MB_OK + MB_ICONERROR);
 
       if (UpdateAvailable and
