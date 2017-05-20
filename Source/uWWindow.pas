@@ -1055,6 +1055,9 @@ end;
 
 destructor TWWindow.Destroy();
 begin
+  // Debug 2017-05-20
+  Assert(FSessions.Count = 0);
+
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
@@ -1076,6 +1079,9 @@ end;
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := CloseAll();
+
+  // Debug 2017-05-20
+  Assert(not CanClose or (FSessions.Count = 0));
 end;
 
 procedure TWWindow.FormCreate(Sender: TObject);

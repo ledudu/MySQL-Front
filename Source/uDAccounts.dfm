@@ -134,6 +134,9 @@ object DAccounts: TDAccounts
       Action = aOpen
       Default = True
     end
+    object miIOpenInNewWindow: TMenuItem
+      Action = aOpenInNewWindow
+    end
     object N2: TMenuItem
       Caption = '-'
     end
@@ -150,6 +153,14 @@ object DAccounts: TDAccounts
   object ActionList: TActionList
     Left = 16
     Top = 232
+    object aOpen: TAction
+      Caption = 'aOpen'
+      OnExecute = aOpenExecute
+    end
+    object aOpenInNewWindow: TAction
+      Caption = 'aOpenInNewWindow'
+      OnExecute = aOpenInNewWindowExecute
+    end
     object aNew: TAction
       Caption = 'aNew'
       ShortCut = 45
@@ -164,10 +175,6 @@ object DAccounts: TDAccounts
       Caption = 'aDelete'
       ShortCut = 46
       OnExecute = aDeleteExecute
-    end
-    object aOpen: TAction
-      Caption = 'aOpen'
-      OnExecute = aOpenExecute
     end
   end
   object HeaderMenu: TPopupMenu

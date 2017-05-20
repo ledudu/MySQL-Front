@@ -7989,11 +7989,7 @@ begin
         ftWord: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Word((@Buffer[0])^), Connection.FormatSettings));
         ftInteger: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Integer((@Buffer[0])^), Connection.FormatSettings));
         ftLongWord: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, LongWord((@Buffer[0])^), Connection.FormatSettings));
-        ftLargeint:
-          if (not (Field is TMySQLLargeWordField) or (UInt64((@Buffer[0])^) and $80000000 = 0)) then
-            RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Largeint((@Buffer[0])^), Connection.FormatSettings))
-          else
-            RBS := LibPack(UInt64ToStr(UInt64((@Buffer[0])^)));
+        ftLargeint: RBS := LibPack(UInt64ToStr(UInt64((@Buffer[0])^)));
         ftSingle: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Single((@Buffer[0])^), Connection.FormatSettings));
         ftFloat: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Double((@Buffer[0])^), Connection.FormatSettings));
         ftExtended: RBS := LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Extended((@Buffer[0])^), Connection.FormatSettings));

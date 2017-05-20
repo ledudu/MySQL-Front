@@ -1048,7 +1048,7 @@ begin
 end;
 
 initialization
-  LocaleFormatSettings := MySQLDB.LocaleFormatSettings;
+  LocaleFormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
   DurationFormatSettings := TFormatSettings.Create(LOCALE_SYSTEM_DEFAULT);
   DurationFormatSettings.TimeAMString := '';

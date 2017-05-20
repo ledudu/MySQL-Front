@@ -36,6 +36,8 @@ type
     miIOpen: TMenuItem;
     N2: TMenuItem;
     PAccounts: TPanel_Ext;
+    miIOpenInNewWindow: TMenuItem;
+    aOpenInNewWindow: TAction;
     procedure aDeleteExecute(Sender: TObject);
     procedure aEditExecute(Sender: TObject);
     procedure aNewExecute(Sender: TObject);
@@ -58,6 +60,7 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure HeaderMenuClick(Sender: TObject);
     procedure ItemMenuPopup(Sender: TObject);
+    procedure aOpenInNewWindowExecute(Sender: TObject);
   private
     IgnoreColumnResize: Boolean;
     IgnoreResize: Boolean;
@@ -81,7 +84,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl,
+  CommCtrl, ShellAPI,
   Math, StrUtils, SysConst,
   MySQLConsts,
   uDAccount, uDConnecting;
@@ -150,8 +153,14 @@ begin
   if (Open) then
     FBOk.Click()
   else
-    if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(Accounts.AccountByName(FAccounts.Selected.Caption).Desktop.Address)))) then
+    if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(TPAccount(FAccounts.Selected.Data).Desktop.Address)))) then
       FBOk.Click();
+end;
+
+procedure TDAccounts.aOpenInNewWindowExecute(Sender: TObject);
+begin
+  ShellExecute(0, 'open', PChar(Application.ExeName), PChar(TPAccount(TPAccount(FAccounts.Selected.Data).Desktop.Address)), '', SW_SHOW);
+  FBCancel.Click();
 end;
 
 procedure TDAccounts.CMSysFontChanged(var Message: TMessage);
@@ -470,6 +479,7 @@ end;
 procedure TDAccounts.ItemMenuPopup(Sender: TObject);
 begin
   aOpen.Enabled := Open and Assigned(FAccounts.Selected);
+  aOpenInNewWindow.Enabled := aOpen.Enabled and (Sessions.Count > 0);
   miIOpen.Default := Open;
   miIEdit.Default := not miIOpen.Default;
   ShowEnabledItems(ItemMenu.Items);
@@ -626,6 +636,7 @@ begin
   miHLastLogin.Caption := Preferences.LoadStr(693);
 
   aOpen.Caption := Preferences.LoadStr(581);
+  aOpenInNewWindow.Caption := Preferences.LoadStr(760);
   aNew.Caption := Preferences.LoadStr(26) + '...';
   aEdit.Caption := Preferences.LoadStr(97) + '...';
   aDelete.Caption := Preferences.LoadStr(28);
