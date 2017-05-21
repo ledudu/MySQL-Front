@@ -448,7 +448,6 @@ type
     FInternRecordBuffers: TInternRecordBuffers;
     FInternRecordBuffersCS: TCriticalSection;
     FRecNo: Integer;
-    FRecordApplied: TEvent;
     FRecordReceived: TEvent;
     FRecordsReceived: TEvent;
     FRowsAffected: Integer;
@@ -491,7 +490,6 @@ type
     property IndexDefs: TIndexDefs read FIndexDefs;
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
     property InternRecordBuffersCS: TCriticalSection read FInternRecordBuffersCS;
-    property RecordApplied: TEvent read FRecordApplied;
     property RecordReceived: TEvent read FRecordReceived;
     property RecordsReceived: TEvent read FRecordsReceived;
   public
@@ -952,8 +950,6 @@ const
   ftGeometryField   = $080000;
   ftTimestampField  = $100000;
   ftDateTimeField   = $200000;
-
-  MySQLQueryBufferSize = 1 * 1024 * 1024;
 
 var
   LocaleFormatSettings: TFormatSettings;
@@ -2232,10 +2228,7 @@ begin
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
-        if (not Terminated
-          and (not Connection.InOnResult
-            or (State <> ssReceivingResult)
-            or (DataSet is TMySQLDataSet))) then
+        if (not Terminated) then
           if ((State = ssDisconnecting)
             or ((SynchronCount > 0)
               and ((Mode = smSQL) or (State <> ssReceivingResult))
@@ -3273,7 +3266,7 @@ begin
         end;
       ssReceivingResult:
         begin
-          if (SyncThread.ErrorCode <> 0) then
+          if ((SyncThread.DataSet is TMySQLDataSet) and (SyncThread.ErrorCode <> 0)) then
             DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
 
           SyncReleaseDataSet(SyncThread.DataSet);
@@ -3415,7 +3408,8 @@ begin
   SyncThread.FinishedReceiving := False;
   SyncThread.State := ssReceivingResult;
 
-  SyncThread.RunExecute.SetEvent();
+  if (DataSet is TMySQLDataSet) then
+    SyncThread.RunExecute.SetEvent();
 
   DebugMonitor.Append('SyncBindDataSet - end - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 end;
@@ -3800,7 +3794,7 @@ begin
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
         SyncThread.CommandText, DataHandle, Assigned(SyncThread.ResHandle))
         and (SyncThread.ErrorCode > 0)
-        and (not Assigned(SyncThread.DataSet))) then
+        and (not Assigned(SyncThread.DataSet) or not (SyncThread.DataSet is TMySQLDataSet))) then
       begin
         DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
         SyncThread.State := ssAfterExecuteSQL;
@@ -4022,6 +4016,7 @@ begin
   DebugMonitor.Append('SyncReceivingResult - start - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
   Assert(SyncThread.State = ssReceivingResult);
+  Assert(SyncThread.DataSet is TMySQLDataSet);
   Assert(Assigned(SyncThread.ResHandle));
 
   DataSet := TMySQLQuery(SyncThread.DataSet);
@@ -4048,10 +4043,10 @@ begin
           SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
           SyncThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
         end
-        else if (DataSet.DataSize >= OldDataSize + 10 * 1024) then
+        else if ((DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).DataSize >= OldDataSize + 10 * 1024)) then
         begin
           DataSet.RecordReceived.SetEvent();
-          OldDataSize := DataSet.DataSize;
+          OldDataSize := TMySQLDataSet(DataSet).DataSize;
         end;
 
         case (TMySQLDataSet(DataSet).WantedRecord) of
@@ -5394,10 +5389,6 @@ begin
   FBufferSize := 0;
   FInternRecordBuffers := TInternRecordBuffers.Create();
   FInternRecordBuffersCS := TCriticalSection.Create();
-  if (not (Self is TMySQLDataSet)) then
-    FRecordApplied := TEvent.Create(nil, True, False, '')
-  else
-    FRecordApplied := nil;
   FRecordReceived := TEvent.Create(nil, True, False, '');
   FRecordsReceived := TEvent.Create(nil, True, False, '');
   SyncThread := nil;
@@ -5423,15 +5414,8 @@ begin
   Connection := nil; // UnRegister Connection
 
   FIndexDefs.Free();
-  while (FInternRecordBuffers.Count > 0) do
-  begin
-    FreeMem(FInternRecordBuffers[0]);
-    FInternRecordBuffers.Delete(0);
-  end;
   FInternRecordBuffers.Free();
   FInternRecordBuffersCS.Free();
-  if (Assigned(FRecordApplied)) then
-    FRecordApplied.Free();
   FRecordReceived.Free();
   FRecordsReceived.Free();
 
@@ -5572,10 +5556,6 @@ begin
 end;
 
 function TMySQLQuery.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
-var
-  Data: PRecordBufferData;
-  I: Integer;
-  Wait: Boolean;
 begin
   if (GetMode <> gmNext) then
     Result := grError
@@ -5586,46 +5566,24 @@ begin
     // Debug 2017-04-29
     Assert(Assigned(Connection.SyncThread.LibHandle));
 
-    Data := PRecordBufferData(ActiveBuffer());
-
-    InternRecordBuffersCS.Enter();
-
-    if (Assigned(Data^.LibRow)) then
+    PRecordBufferData(ActiveBuffer())^.LibRow := Connection.Lib.mysql_fetch_row(SyncThread.ResHandle);
+    SyncThread.FinishedReceiving := not Assigned(PRecordBufferData(ActiveBuffer())^.LibRow);
+    if (Assigned(PRecordBufferData(ActiveBuffer())^.LibRow)) then
     begin
-      FreeMem(InternRecordBuffers[0]);
-      InternRecordBuffers.Delete(0);
-
-      RecordApplied.SetEvent();
-    end;
-
-    Wait := (InternRecordBuffers.Count = 0)
-      and Assigned(SyncThread)
-      and (RecordsReceived.WaitFor(IGNORE) <> wrSignaled);
-
-    if (Wait) then
-    begin
-      RecordReceived.ResetEvent();
-      InternRecordBuffersCS.Leave();
-      RecordReceived.WaitFor(INFINITE);
-      InternRecordBuffersCS.Enter();
-    end;
-
-    if (InternRecordBuffers.Count = 0) then
-      Result := grEOF
-    else
-    begin
-      Data^.LibRow := InternRecordBuffers[0]^.LibRow;
-      Data^.LibLengths := InternRecordBuffers[0]^.LibLengths;
-      for I := 0 to FieldCount - 1 do
-        Dec(FBufferSize, Data^.LibLengths^[I]);
+      PRecordBufferData(ActiveBuffer())^.LibLengths := Connection.Lib.mysql_fetch_lengths(SyncThread.ResHandle);
 
       Inc(FRecNo);
       Result := grOk;
-    end;
-    InternRecordBuffersCS.Leave();
-
-    if (Assigned(SyncThread) and not SyncThread.Terminated) then
-      SyncThread.FinishedReceiving := Result = grEOF;
+    end
+    else if (Connection.Lib.mysql_errno(Connection.SyncThread.LibHandle) <> 0) then
+    begin
+      SyncThread.ErrorCode := Connection.Lib.mysql_errno(Connection.SyncThread.LibHandle);
+      SyncThread.ErrorMessage := Connection.GetErrorMessage(Connection.SyncThread.LibHandle);
+      Connection.DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
+      Result := grError;
+    end
+    else
+      Result := grEOF;
   end;
 end;
 
@@ -5645,7 +5603,6 @@ var
   BufferData: TMySQLQuery.PRecordBufferData;
   Data: TMySQLQuery.TRecordBufferData;
   I: Integer;
-  Wait: Boolean;
 begin
   if (not Assigned(LibRow)) then
     Result := True
@@ -5660,21 +5617,9 @@ begin
     if (Result) then
     begin
       InternRecordBuffersCS.Enter();
-
-      Wait := FBufferSize >= MySQLQueryBufferSize;
-
-      if (Wait) then
-      begin
-        RecordApplied.ResetEvent();
-        InternRecordBuffersCS.Leave();
-        RecordApplied.WaitFor(INFINITE);
-        InternRecordBuffersCS.Enter();
-      end;
-
       FInternRecordBuffers.Add(BufferData);
       for I := 0 to FieldCount - 1 do
         Inc(FBufferSize, Data.LibLengths^[I]);
-
       InternRecordBuffersCS.Leave();
     end;
   end;
