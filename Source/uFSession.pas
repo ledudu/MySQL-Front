@@ -8392,7 +8392,7 @@ begin
               TableNode := Child
             else
               Child := Child.getNextSibling();
-          if ((URI.Param['objecttype'] = Null) or (URI.Param['objecttype'] = 'view')) then
+          if ((URI.Param['objecttype'] = Null) or (URI.Param['objecttype'] = 'view') or (URI.Param['objecttype'] = 'systemview')) then
             Result := TableNode
           else
           begin

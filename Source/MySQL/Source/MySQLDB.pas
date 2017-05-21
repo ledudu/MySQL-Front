@@ -2241,7 +2241,7 @@ begin
             Connection.SyncThreadExecuted.SetEvent();
             Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
           end
-          else if (not Connection.InOnResult) then
+          else if (not Connection.InOnResult or (DataSet is TMySQLDataSet)) then
             MySQLConnectionOnSynchronize(Self, 0);
         Connection.TerminateCS.Leave();
       end;
@@ -3325,6 +3325,17 @@ begin
                 end;
             end;
         end;
+      ssAfterExecuteSQL:
+        begin
+          SyncAfterExecuteSQL(SyncThread);
+          if (Assigned(SyncThread.Done)) then
+            SyncThread.Done.SetEvent();
+          if (BesideThreadWaits) then
+          begin
+            SyncThreadExecuted.SetEvent();
+            DebugMonitor.Append('SyncThreadExecuted.Set - 7 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
+          end;
+        end;
       ssDisconnect:
         begin
           SyncThread.State := ssDisconnecting;
@@ -3341,17 +3352,6 @@ begin
           SyncDisconnected(SyncThread);
           if (Assigned(SyncThread.Done)) then
             SyncThread.Done.SetEvent();
-        end;
-      ssAfterExecuteSQL:
-        begin
-          SyncAfterExecuteSQL(SyncThread);
-          if (Assigned(SyncThread.Done)) then
-            SyncThread.Done.SetEvent();
-          if (BesideThreadWaits) then
-          begin
-            SyncThreadExecuted.SetEvent();
-            DebugMonitor.Append('SyncThreadExecuted.Set - 7 - State: ' + IntToStr(Ord(SyncThread.State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
-          end;
         end;
       else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;

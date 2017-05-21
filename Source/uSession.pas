@@ -5631,7 +5631,7 @@ end;
 
 function TSSystemView.SQLGetSource(): string;
 begin
-  Result := '';
+  Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + '=' + SQLEscape(Name) + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10
 end;
 
 { TSTables ********************************************************************}
@@ -13836,8 +13836,6 @@ begin
       if (not TSDBObject(List[I]).ValidSource) then
         SQL := SQL + TSDBObject(List[I]).SQLGetSource();
       if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
-        Tables.Add(List[I])
-      else if (((TSObject(List[I]) is TSView) or (TSObject(List[I]) is TSSystemView)) and not TSView(List[I]).ValidFields) then
         Tables.Add(List[I]);
       BaseTableInTables := BaseTableInTables or (TSObject(List[I]) is TSBaseTable);
     end
