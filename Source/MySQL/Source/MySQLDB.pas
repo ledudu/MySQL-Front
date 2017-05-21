@@ -2235,13 +2235,15 @@ begin
         if (not Terminated) then
           if ((State = ssDisconnecting)
             or ((SynchronCount > 0)
-              and ((Mode = smSQL) or not (State in [ssReceivingResult]))
+              and ((Mode = smSQL) or (State <> ssReceivingResult))
               and not Connection.BesideThreadWaits)) then
           begin
             Connection.SyncThreadExecuted.SetEvent();
             Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
           end
-          else if (not Connection.InOnResult or (DataSet is TMySQLDataSet)) then
+          else if (not Connection.InOnResult
+            or (State <> ssReceivingResult)
+            or (DataSet is TMySQLDataSet)) then
             MySQLConnectionOnSynchronize(Self, 0);
         Connection.TerminateCS.Leave();
       end;
@@ -5427,10 +5429,6 @@ begin
   end;
   FInternRecordBuffers.Free();
   FInternRecordBuffersCS.Free();
-
-  // Debug 2017-05-21
-  FInternRecordBuffersCS := nil;
-
   if (Assigned(FRecordApplied)) then
     FRecordApplied.Free();
   FRecordReceived.Free();
@@ -5682,15 +5680,7 @@ begin
       for I := 0 to FieldCount - 1 do
         Inc(FBufferSize, Data.LibLengths^[I]);
 
-      try
-        InternRecordBuffersCS.Leave();
-      except // Debug 2017-05-21
-        on E: Exception do
-          E.RaiseOuterException(Exception(E.ClassType).Create(E.Message + #13#10
-            + 'InternRecordBuffersCS: ' + BoolToStr(Assigned(InternRecordBuffersCS), True) + #13#10
-            + 'Destroing: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-            + 'Wait: ' + BoolToStr(Wait, True)));
-      end;
+      InternRecordBuffersCS.Leave();
     end;
   end;
 end;
