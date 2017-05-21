@@ -2038,15 +2038,21 @@ begin
   end;
 
 
+  ProfilingPoint(Profile, 1);
+
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
 
+  ProfilingPoint(Profile, 2);
+
   FImages := TImageList.Create(nil);
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
+
+  ProfilingPoint(Profile, 3);
 
   for I := 0 to MaxIconIndex do
     if (I = 16) then
@@ -2089,6 +2095,8 @@ begin
     begin
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
     end;
+
+  ProfilingPoint(Profile, 4);
 
   Database := TDatabase.Create();
 
