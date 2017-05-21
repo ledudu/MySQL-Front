@@ -2232,7 +2232,10 @@ begin
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
-        if (not Terminated) then
+        if (not Terminated
+          and (not Connection.InOnResult
+            or (State <> ssReceivingResult)
+            or (DataSet is TMySQLDataSet))) then
           if ((State = ssDisconnecting)
             or ((SynchronCount > 0)
               and ((Mode = smSQL) or (State <> ssReceivingResult))
@@ -2241,9 +2244,7 @@ begin
             Connection.SyncThreadExecuted.SetEvent();
             Connection.DebugMonitor.Append('SyncThreadExecuted.Set - 1 - State: ' + IntToStr(Ord(State)) + ', Thread: ' + IntToStr(GetCurrentThreadId()), ttDebug);
           end
-          else if (not Connection.InOnResult
-            or (State <> ssReceivingResult)
-            or (DataSet is TMySQLDataSet)) then
+          else
             MySQLConnectionOnSynchronize(Self, 0);
         Connection.TerminateCS.Leave();
       end;
@@ -5609,7 +5610,9 @@ begin
       InternRecordBuffersCS.Enter();
     end;
 
-    if (InternRecordBuffers.Count > 0) then
+    if (InternRecordBuffers.Count = 0) then
+      Result := grEOF
+    else
     begin
       Data^.LibRow := InternRecordBuffers[0]^.LibRow;
       Data^.LibLengths := InternRecordBuffers[0]^.LibLengths;
@@ -5618,19 +5621,11 @@ begin
 
       Inc(FRecNo);
       Result := grOk;
-    end
-    else if (Connection.Lib.mysql_errno(Connection.SyncThread.LibHandle) <> 0) then
-    begin
-      SyncThread.ErrorCode := Connection.Lib.mysql_errno(Connection.SyncThread.LibHandle);
-      SyncThread.ErrorMessage := Connection.GetErrorMessage(Connection.SyncThread.LibHandle);
-      Connection.DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
-      Result := grError;
-    end
-    else
-      Result := grEOF;
+    end;
     InternRecordBuffersCS.Leave();
 
-    SyncThread.FinishedReceiving := Result = grEOF;
+    if (Assigned(SyncThread) and not SyncThread.Terminated) then
+      SyncThread.FinishedReceiving := Result = grEOF;
   end;
 end;
 
