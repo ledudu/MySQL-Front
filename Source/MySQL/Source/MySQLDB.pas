@@ -5427,6 +5427,10 @@ begin
   end;
   FInternRecordBuffers.Free();
   FInternRecordBuffersCS.Free();
+
+  // Debug 2017-05-21
+  FInternRecordBuffersCS := nil;
+
   if (Assigned(FRecordApplied)) then
     FRecordApplied.Free();
   FRecordReceived.Free();
@@ -5604,7 +5608,7 @@ begin
       RecordReceived.ResetEvent();
       InternRecordBuffersCS.Leave();
       RecordReceived.WaitFor(INFINITE);
-      InternRecordBuffersCS.Leave();
+      InternRecordBuffersCS.Enter();
     end;
 
     if (InternRecordBuffers.Count > 0) then
@@ -5678,7 +5682,15 @@ begin
       for I := 0 to FieldCount - 1 do
         Inc(FBufferSize, Data.LibLengths^[I]);
 
-      InternRecordBuffersCS.Leave();
+      try
+        InternRecordBuffersCS.Leave();
+      except // Debug 2017-05-21
+        on E: Exception do
+          E.RaiseOuterException(Exception(E.ClassType).Create(E.Message + #13#10
+            + 'InternRecordBuffersCS: ' + BoolToStr(Assigned(InternRecordBuffersCS), True) + #13#10
+            + 'Destroing: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+            + 'Wait: ' + BoolToStr(Wait, True)));
+      end;
     end;
   end;
 end;
