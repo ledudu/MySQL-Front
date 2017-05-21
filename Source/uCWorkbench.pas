@@ -2521,6 +2521,9 @@ var
   Node: IXMLNode;
   PointsNode: IXMLNode;
 begin
+  // Debug 2017-05-20
+  Assert(Assigned(ChildTable));
+
   XMLNode(XML, 'tables/child').Attributes['name'] := ChildTable.Caption;
   XMLNode(XML, 'tables/child/align').Text := AlignToStr(InvertAlign(ControlAlign(TableA)));
   case (InvertAlign(ControlAlign(TableA))) of
@@ -2776,15 +2779,8 @@ end;
 
 function TWTable.GetCaption(): TCaption;
 begin
-  if (BaseTable.Database <> Workbench.Database) then
-    try
-      raise ERangeError.Create('BaseTable.Database: ' + BaseTable.Database.Name + #13#10
-        + 'Workbench.Database: ' + Workbench.Database.Name);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-  if (Workbench.Database.Tables.IndexOf(BaseTable) < 0) then
-    raise ERangeError.Create(SRangeError);
+  // Debug 2017-05-20
+  Assert(Assigned(BaseTable));
 
   Result := BaseTable.Name;
 end;

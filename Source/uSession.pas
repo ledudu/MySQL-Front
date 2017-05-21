@@ -4041,6 +4041,9 @@ begin
   // Debug 2017-02-06
   Assert(not DataSet.Active);
 
+  // Debug 2017-05-20
+  Assert(Session.Connection.SynchronCount = 0);
+
   Session.SendSQL(DataSet.SQLSelect(), OpenEvent);
 end;
 
@@ -12653,9 +12656,12 @@ var
 begin
   URI := TUURI.Create(Address);
 
-  Connection.BeginSynchron(10);
   if (ExecuteUpdates and (URI.Database <> '')) then
+  begin
+    Connection.BeginSynchron(10);
     Databases.Update();
+    Connection.EndSynchron(10);
+  end;
   Database := DatabaseByName(URI.Database);
   if (not Assigned(Database)) then
     Table := nil
@@ -12665,9 +12671,12 @@ begin
     if (ExecuteUpdates
       and Assigned(Table)
       and ((URI.Param['objecttype'] = 'key') or (URI.Param['objecttype'] = 'basefield') or (URI.Param['objecttype'] = 'foreigkey') or (URI.Param['objecttype'] = 'viewfield'))) then
+    begin
+      Connection.BeginSynchron(10);
       Table.Update();
+      Connection.EndSynchron(10);
+    end;
   end;
-  Connection.EndSynchron(10);
 
   if ((URI.Param['objecttype'] = 'view')
     or (URI.Param['objecttype'] = 'systemview')) then
