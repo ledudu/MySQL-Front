@@ -2057,14 +2057,21 @@ begin
   for I := 0 to MaxIconIndex do
     if (I = 16) then
     begin // ODBC icon
+  ProfilingPoint(Profile, 4);
       SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
       ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
+  ProfilingPoint(Profile, 5);
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
-        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR))
+      begin
+  ProfilingPoint(Profile, 6);
+        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR));
+  ProfilingPoint(Profile, 7);
+      end
       else
       begin
+  ProfilingPoint(Profile, 8);
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
@@ -2075,28 +2082,36 @@ begin
           LockResource(ResData), SizeOfResource(HInstance, ResInfo),
           TRUE, $00030000, 64, 64, LR_DEFAULTCOLOR);
 
+  ProfilingPoint(Profile, 9);
         Bitmap := Graphics.TBitmap.Create();
         Bitmap.PixelFormat := pf32bit;
         SetBkMode(Bitmap.Canvas.Handle, TRANSPARENT);
         Bitmap.SetSize(FImages.Width, FImages.Height);
 
+  ProfilingPoint(Profile, 10);
         GPBitmap := TGPBitmap.Create(Icon);
 
+  ProfilingPoint(Profile, 11);
         GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
         GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
         GPGraphics.DrawImage(GPBitmap, 0, 0, Bitmap.Width, Bitmap.Height);
 
+  ProfilingPoint(Profile, 12);
         ImageList_Add(FImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
 
+  ProfilingPoint(Profile, 13);
         GPGraphics.Free();
         Bitmap.Free();
+  ProfilingPoint(Profile, 14);
       end
     else if (I > 0) then
     begin
+  ProfilingPoint(Profile, 15);
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
+  ProfilingPoint(Profile, 16);
     end;
 
-  ProfilingPoint(Profile, 4);
+  ProfilingPoint(Profile, 17);
 
   Database := TDatabase.Create();
 

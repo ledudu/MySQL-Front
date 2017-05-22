@@ -1879,7 +1879,18 @@ end;
 
 procedure TMySQLMonitor.Append(const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
 begin
+  FCriticalSection.Enter();
+
   Append2(Text, Length, ATraceType);
+
+  FCriticalSection.Leave();
+
+  if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
+  begin
+    Assert(GetCurrentThreadId() = MainThreadId);
+
+    OnMonitor(Connection, Text, Length, ATraceType);
+  end;
 end;
 
 procedure TMySQLMonitor.Append2(const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
@@ -1889,8 +1900,6 @@ var
   MoveLen: Integer;
   Pos: Integer;
 begin
-  FCriticalSection.Enter();
-
   if ((Cache.MemLen > 0) and (Length > 0)) then
   begin
     ItemText := Text; ItemLen := Length;
@@ -1965,15 +1974,6 @@ begin
           end;
       end;
     end;
-  end;
-
-  FCriticalSection.Leave();
-
-  if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
-  begin
-    Assert(GetCurrentThreadId() = MainThreadId);
-
-    OnMonitor(Connection, Text, Length, ATraceType);
   end;
 end;
 
@@ -6873,7 +6873,8 @@ begin
   else
   begin
     Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123 = 123,
-      'Identifier123: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123));
+      'Identifier123: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123) + #13#10
+      + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
     Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963,
       'Identifier963: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963));
 

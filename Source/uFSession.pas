@@ -5619,8 +5619,6 @@ begin
 
   Result.ActiveLine.Indicator.Visible := False;
   Result.BorderStyle := bsNone;
-  Result.Caret.Styles.Insert := csVerticalLine;
-  Result.Caret.Styles.Overwrite := csBlock;
   Result.CompletionProposal.Columns.Add().Visible := False;
   Result.CompletionProposal.CompletionColumnIndex := 0;
   Result.CompletionProposal.Options := Result.CompletionProposal.Options
@@ -13779,6 +13777,11 @@ begin
   if (SourceAddresses.Count > 0) then
   begin
     Account := Accounts.AccountByURI(SourceAddresses[0], Session.Account);
+
+    // Debug 2017-05-22
+    Assert(Assigned(Account),
+      'SourceAddress: ' + SourceAddresses[0]);
+
     SourceSession := Sessions.SessionByAccount(Account);
     if (Assigned(SourceSession)) then
       SourceSessionCreated := False
@@ -13799,7 +13802,8 @@ begin
       // Debug 2017-05-14
       Assert(Accounts.Count >= 0);
       Assert(Sessions.IndexOf(SourceSession) >= 0);
-      Assert(Assigned(SourceSession.Account));
+      Assert(Assigned(SourceSession.Account),
+        BoolToStr(SourceSession = Session, True));
 
       Success := True;
 
