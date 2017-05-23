@@ -2824,11 +2824,13 @@ begin
     Progress := Progress + 'b';
       Assert(SyncThread = ST,
         'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
+        + SyncThread.SQL);
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
       Assert(SyncThread = ST,
         'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
+        + SyncThread.SQL);
 
     if (StmtLength > 0) then
     begin
@@ -2836,7 +2838,8 @@ begin
       // Debug 2017-04-12
       Assert(SyncThread = ST,
         'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
+        + SyncThread.SQL);
       Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
       Assert(Assigned(SyncThread.StmtLengths));
       Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
@@ -2845,11 +2848,13 @@ begin
       SyncThread.StmtLengths.Add(StmtLength);
       Assert(SyncThread = ST,
         'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
+        + SyncThread.SQL);
       Inc(SQLIndex, StmtLength);
       Assert(SyncThread = ST,
         'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True));
+        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
+        + SyncThread.SQL);
     Progress := Progress + 'e';
     end;
   end;
