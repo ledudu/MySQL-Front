@@ -1602,6 +1602,7 @@ type
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
   public
+InExport: Boolean;
 InImport: Boolean;
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
@@ -12096,6 +12097,7 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   FUserRequested := False;
+  InExport := False;
   InImport := False;
   ManualURL := '';
   UnparsableSQL := '';

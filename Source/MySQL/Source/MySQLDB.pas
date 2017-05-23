@@ -5125,116 +5125,12 @@ begin
   Result := not Assigned(LibRow) or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
-// Debug 2016-12-14
-function GetMySQLText(const Field: TField): string;
-var
-  Data: string;
-//  DataSet: TMySQLQuery;
-  FieldInfo: TFieldInfo;
-  I: Integer;
-  LibLengths: MYSQL_LENGTHS;
-  LibRow: MYSQL_ROW;
-  Msg: string;
-  SQL: string;
-  WhereClause: string;
-begin
-  LibRow := TMySQLQuery(Field.DataSet).LibRow;
-  LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
-
-  Assert(Assigned(LibRow));
-  Assert(Assigned(LibLengths));
-
-  try
-    Result := LibDecode(FieldCodePage(Field), LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
-  except
-    SetString(Data, LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
-    if (Field.DataSet is TMySQLTable) then
-      SQL := TMySQLTable(Field.DataSet).SQLSelect()
-    else
-      SQL := TMySQLQuery(Field.DataSet).CommandText;
-    Msg := 'Error while decoding data from the database server.' + #10#10
-      + 'DataSet: ' + Field.DataSet.ClassName + #10
-      + 'SQL query: ' + SQL + #10
-      + 'Field: ' + Field.FieldName + #10
-      + 'Raw data: ' + Data + #10
-      + 'Hex data: ' + SQLEscapeBin(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1], True) + #10
-      + 'Character set: ' + TMySQLQuery(Field.DataSet).Connection.CharsetResult + #10
-      + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(Field.DataSet).Connection.LibraryType)) + #10;
-
-    WhereClause := '';
-    for I := 0 to Field.DataSet.FieldCount - 1 do
-      if (pfInWhere in Field.DataSet.Fields[I].ProviderFlags) then
-      begin
-        if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-        try
-          Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
-          WhereClause := WhereClause + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(Field.DataSet.Fields[I].FieldName);
-        except
-          Msg := Msg + '???: ';
-          WhereClause := WhereClause + '???';
-        end;
-        try
-          Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
-          WhereClause := WhereClause + '=' + TMySQLQuery(Field.DataSet).SQLFieldValue(Field.DataSet.Fields[I]);
-        except
-          Msg := Msg + '???' + #10;
-          WhereClause := WhereClause + '=???';
-        end;
-      end;
-
-    if (not GetFieldInfo(Field.Origin, FieldInfo) and (FieldInfo.TableName <> '')) then
-      Msg := Msg + 'Origin: ' + Field.Origin + #10
-    else
-    begin
-      SQL := 'SELECT Hex(' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.OriginalFieldName)
-        + ') FROM ' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(TMySQLQuery(Field.DataSet).DatabaseName) + '.' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.TableName)
-        + ' WHERE ' + WhereClause + ';' + #13#10;
-
-      if (not TMySQLQuery(Field.DataSet).Connection.InUse()) then
-      begin
-        Msg := Msg + #10
-          + 'Query: ' + SQL;
-//        DataSet := TMySQLQuery.Create(nil);
-//        DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
-//        DataSet.CommandText := SQL;
-//        DataSet.Open();
-//        if (DataSet.IsEmpty()) then
-//          Msg := Msg + 'Result: <empty>' + #13#10
-//        else
-//          Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
-//        DataSet.Free();
-
-        Msg := Msg + #13#10;
-
-        SQL := 'SHOW CREATE TABLE ' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(TMySQLQuery(Field.DataSet).DatabaseName) + '.' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.TableName) + ';' + #13#10;
-        Msg := Msg + #10
-          + 'Query: ' + SQL;
-
-        try
-//          DataSet := TMySQLQuery.Create(nil);
-//          DataSet.Connection := TMySQLQuery(Field.DataSet).Connection;
-//          DataSet.CommandText := SQL;
-//          DataSet.Open();
-//          if (DataSet.IsEmpty()) then
-//            Msg := Msg + 'Result: <empty>' + #13#10
-//          else
-//            Msg := Msg + 'Result: ' + DataSet.Fields[0].AsString + #13#10;
-//          DataSet.Free();
-        except
-        end;
-      end;
-    end;
-
-    raise ERangeError.Create(Trim(Msg));
-  end;
-end;
-
 procedure TMySQLWideMemoField.GetText(var Text: string; DisplayText: Boolean);
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := GetMySQLText(Self);
+    Text := LibDecode(FieldCodePage(Self), TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideMemoField.SetAsString(const Value: string);
@@ -5275,7 +5171,7 @@ begin
   if (IsNull) then
     Text := ''
   else
-    Text := GetMySQLText(Self);
+    Text := LibDecode(FieldCodePage(Self), TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideStringField.SetAsDateTime(Value: TDateTime);
@@ -6875,6 +6771,8 @@ begin
     Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123 = 123,
       'Identifier123: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123) + #13#10
       + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
+    // Occurred: 2017-05-22 - CallStack WMTimer, ActivateHint, Identifier123: 4, Destroing: False
+
     Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963,
       'Identifier963: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963));
 
@@ -8261,7 +8159,7 @@ begin
         + 'RecordCount: ' + IntToStr(RecordCount) + #13#10
         + 'DataSize: ' + IntToStr(DataSize) + #13#10
         + 'Length(CompareDefs): ' + IntToStr(Length(CompareDefs)) + #13#10
-        + 'CompareDefs[0]: ' + IntToStr(Ord(CompareDefs[0].Field.DataType)) + #13#10
+        + 'CompareDefs[0].Field.DataType: ' + IntToStr(Ord(CompareDefs[0].Field.DataType)) + #13#10
         + 'CommandText: ' + #13#10
         + CommandText + #13#10
         + ProfilingReport(Profile));
@@ -8487,6 +8385,11 @@ begin
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
     begin
+      // Debug 2017-05-22
+      Assert(ActiveBuffer() > 0);
+      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
+      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData));
+
       if ((pfInUpdate in Fields[I].ProviderFlags)
         and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
           or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))

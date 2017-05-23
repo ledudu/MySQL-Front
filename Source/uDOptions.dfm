@@ -43,7 +43,7 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSView
+    ActivePage = TSEditor
     HotTrack = True
     MultiLine = True
     TabOrder = 0
@@ -302,7 +302,7 @@ object DOptions: TDOptions
         Left = 4
         Top = 4
         Width = 345
-        Height = 140
+        Height = 166
         Caption = 'GEditor'
         TabOrder = 0
         object FLEditorFont: TLabel
@@ -343,6 +343,14 @@ object DOptions: TDOptions
           Height = 13
           Caption = 'FLEditorWordWrap'
           FocusControl = FEditorWordWrap
+        end
+        object FLEditorCaretBeyondEOL: TLabel
+          Left = 8
+          Top = 140
+          Width = 121
+          Height = 13
+          Caption = 'FLEditorCaretBeyondEOL'
+          FocusControl = FEditorCaretBeyondEOL
         end
         object FEditorCurrRowBGColorEnabled: TCheckBox
           Left = 144
@@ -426,6 +434,14 @@ object DOptions: TDOptions
           Increment = 100
           Position = 1000
           TabOrder = 7
+        end
+        object FEditorCaretBeyondEOL: TCheckBox
+          Left = 144
+          Top = 139
+          Width = 198
+          Height = 17
+          Caption = 'FEditorCaretBeyondEOL'
+          TabOrder = 9
         end
       end
     end

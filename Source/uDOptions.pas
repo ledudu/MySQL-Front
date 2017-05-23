@@ -83,6 +83,8 @@ type
     GNavigator: TGroupBox;
     FQuickAccessVisible: TCheckBox;
     FLQuickAccessVisible: TLabel;
+    FEditorCaretBeyondEOL: TCheckBox;
+    FLEditorCaretBeyondEOL: TLabel;
     procedure FBEditorCurrRowBGColorClick(Sender: TObject);
     procedure FBEditorFontClick(Sender: TObject);
     procedure FBGridCurrRowBGColorClick(Sender: TObject);
@@ -322,6 +324,7 @@ begin
     Preferences.Editor.CurrRowBGColor := PEditorCurrRowBGColor.Color;
     Preferences.Editor.CodeCompletion := FEditorCompletionEnabled.Checked;
     Preferences.Editor.WordWrap := FEditorWordWrap.Checked;
+    Preferences.Editor.CaretBeyondEOL := FEditorCaretBeyondEOL.Checked;
     TryStrToInt(FEditorCompletionTime.Text, Preferences.Editor.CodeCompletionTime);
 
     Preferences.LogFontName := PLogFont.Font.Name;
@@ -401,6 +404,7 @@ begin
   FEditorCompletionEnabled.Checked := Preferences.Editor.CodeCompletion;
   FUDEditorCompletionTime.Position := Preferences.Editor.CodeCompletionTime;
   FEditorWordWrap.Checked := Preferences.Editor.WordWrap;
+  FEditorCaretBeyondEOL.Checked := Preferences.Editor.CaretBeyondEOL;
 
   FLogFont.Text := Preferences.LogFontName;
   PLogFont.Font.Name := Preferences.LogFontName;
@@ -505,6 +509,8 @@ begin
   FLEditorCompletionTime.Left := FUDEditorCompletionTime.Left + FUDEditorCompletionTime.Width + Canvas.TextWidth('  ');
   FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
   FEditorWordWrap.Caption := Preferences.LoadStr(892);
+  FLEditorCaretBeyondEOL.Caption := Preferences.LoadStr(494) + ':';
+  FEditorCaretBeyondEOL.Caption := Preferences.LoadStr(946);
 
   TSLog.Caption := Preferences.LoadStr(524);
   GLog.Caption := Preferences.LoadStr(524);

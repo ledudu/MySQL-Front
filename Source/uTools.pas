@@ -3980,6 +3980,8 @@ begin
     SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
+  Session.InExport := True;
+
   BeforeExecute();
 
   DataTables := TList.Create();
@@ -4254,6 +4256,8 @@ begin
   AfterExecute();
 
   DataTables.Free();
+
+  Session.InExport := False;
 
   {$IFDEF EurekaLog}
   except

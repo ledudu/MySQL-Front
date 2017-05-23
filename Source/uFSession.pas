@@ -319,6 +319,7 @@ type
     PWorkbench: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
     SBlob: TSplitter_Ext;
+    SBlob2: TSplitter_Ext;
     SQueryBuilderBCEditor: TSplitter_Ext;
     SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
@@ -920,6 +921,7 @@ type
     ProcessesListView: TListView;
     QuickAccessListView: TListView;
     SBlobDebug: TSplitter_Ext;
+    SBlob2Debug: TSplitter_Ext;
     ServerListView: TListView;
     ShellLink: TJamShellLink;
     SplitColor: TColor;
@@ -2407,6 +2409,9 @@ procedure TFSession.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
   // Debug 2017-05-12
   Assert(not FSession.Session.InImport);
+
+  // Debug 2017-05-22
+  Assert(not FSession.Session.InExport);
 
   Clear();
   if (not FSession.Session.Connection.InUse()) then
@@ -3953,11 +3958,9 @@ procedure TFSession.aETransferExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  // Debug 2017-04-03
-  Assert(Assigned(FNavigator.Selected));
-
   DTransfer.SourceSession := Session;
-  if (not (TObject(FNavigator.Selected.Data) is TSItem)) then
+  if (not Assigned(FNavigator.Selected)
+    or not (TObject(FNavigator.Selected.Data) is TSItem)) then
     DTransfer.SourceAddresses := ''
   else
     DTransfer.SourceAddresses := TSItem(FNavigator.Selected.Data).Address + #13#10;
@@ -5170,6 +5173,7 @@ begin
   ProcessesListView := nil;
   QuickAccessListView := nil;
   SBlobDebug := SBlob;
+  SBlob2Debug := SBlob;
   ServerListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
@@ -7694,13 +7698,12 @@ begin
   else if (TObject(Node.Data) is TSItem) then
     URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
-    if (Node.ImageIndex = iiBaseTable) then
-      raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-        + 'Text: ' + Node.Text + #13#10
-        + 'ClassType: ' + TObject(Node.Data).ClassName)
-    else
-      raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-        + 'Text: ' + Node.Text + #13#10) // Occurred on 2017-05-10: After this, I implemented the ClassType detection
+    raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+      + 'Text: ' + Node.Text) // Occurred on 2017-05-10: After this,
+        // I implemented the ClassType detection, but the ClassType detection failed - so Node.Data was obsolete
+        // ImageIndex = iiBaseTable
+        // 2017-05-22:
+        // SQL Log: CREATE DATABASE failed, because database already exists
   else
     raise ERangeError.Create(SRangeError);
 
@@ -8634,6 +8637,7 @@ var
 
           if (not Assigned(Child)) then
             raise ERangeError.Create('Node not found: ' + Event.Item.Name + ' (ClassType: ' + Event.Item.ClassName + ')');
+            // Occurred 2017-05-22 - SQL Log: ALTER TABLE DROP COLUMN ..., SHOW CREATE TABLE, CallStack doesn't show sender of etItemRenamed
 
           Child.Text := Event.Item.Caption;
 
@@ -13576,6 +13580,10 @@ begin
             URI.Param['cp'] := Null
           else
             URI.Param['cp'] := IntToStr(SQLEditors[View].FileCodePage);
+
+          // Debug 2017-05-22
+          Assert(URI.Address <> '');
+
           FCurrentAddress := URI.Address;
           AddressChanged(nil);
           URI.Free();
@@ -13770,6 +13778,7 @@ var
   Success: Boolean;
   Table: TSBaseTable;
   URI: TUURI;
+  S: string;
 begin
   SourceAddresses := TStringList.Create();
   SourceAddresses.Text := Addresses;
@@ -13779,8 +13788,12 @@ begin
     Account := Accounts.AccountByURI(SourceAddresses[0], Session.Account);
 
     // Debug 2017-05-22
-    Assert(Assigned(Account),
-      'SourceAddress: ' + SourceAddresses[0]);
+    if (not Assigned(Account)) then
+    begin
+      S := 'SourceAddress: ' + SourceAddresses[0] + #13#10;
+      for I := 0 to Accounts.Count - 1 do
+        S := S + 'Host: ' + Accounts[I].Connection.Host + #13#10;
+    end;
 
     SourceSession := Sessions.SessionByAccount(Account);
     if (Assigned(SourceSession)) then
@@ -14138,9 +14151,6 @@ begin
 
     OldActiveControl := Window.ActiveControl;
 
-    // Debug 2016-12-28
-    if (not Assigned(PContent)) then
-      raise ERangeError.Create(SRangeError);
     DisableAligns(PContent);
 
     if (PListView.Align = alClient) then PListView.Align := alNone;
@@ -14168,6 +14178,10 @@ begin
       on E: Exception do
         E.RaiseOuterException(EAssertionFailed.Create('SBlob: ' + BoolToStr(Assigned(SBlob), True) + #13#10
           + 'SBlobDebug: ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10#13#10
+          + 'SBlob=SBlobDebug: ' + BoolToStr(SBlob=SBlobDebug, True) + #13#10
+          + 'SBlob2: ' + BoolToStr(Assigned(SBlob2), True) + #13#10
+          + 'SBlobDebug2: ' + BoolToStr(Assigned(SBlob2Debug), True) + #13#10#13#10
+          + 'SBlob2=SBlob2Debug: ' + BoolToStr(SBlob2=SBlob2Debug, True) + #13#10#13#10
           + E.ClassName + ':' + #13#10
           + E.Message));
     end;
@@ -14921,6 +14935,10 @@ begin
           URI.Param['cp'] := Null
         else
           URI.Param['cp'] := IntToStr(SQLEditors[View].FileCodePage);
+
+        // Debug 2017-05-17
+        Assert(URI.Address <> '');
+
         FCurrentAddress := URI.Address;
         AddressChanged(nil);
         URI.Free();
@@ -15105,10 +15123,17 @@ begin
         case (Event.EventType) of
           etItemDeleted:
             if (DataByAddress(URI.Address) = Event.Item) then
-              FCurrentAddress := Session.Address;
+              begin
+                // Debug 2017-05-22
+                Assert(Session.Address <> '');
+                FCurrentAddress := Session.Address;
+              end;
           etItemRenamed:
             if (ApplyObjectRenamed(ClassIndex, URI)) then
             begin
+              // Debug 2017-05-22
+              Assert(URI.Address <> '');
+
               FCurrentAddress := URI.Address;
               AddressChanged(nil);
             end;
@@ -15357,6 +15382,8 @@ begin
 
   // Debug 2017-05-17
   Assert(URI.Address <> '');
+
+  Assert((AView <> vEditor) or (URI.Param['view'] = 'editor'));
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);

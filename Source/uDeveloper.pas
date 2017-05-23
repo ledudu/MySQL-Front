@@ -1107,10 +1107,11 @@ begin
     ShowDialog := False;
     SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
 
-    MessageBox(0, PChar('Error while decoding data sent by the MySQL server:' + #10
+    MessageBox(0, PChar('Error while decoding data sent by the database server:' + #10
       + ExceptionInfo.ExceptionMessage + #10#10
-      + 'Please contact the developer of ' + LoadStr(1000) + ' to let him analyze this problem further more.'), 'Error',
-      MB_OK + MB_ICONERROR);
+      + 'Please contact the developer of ' + LoadStr(1000) + ' to let him analyze this problem more detailed.' + #10
+      + 'Maybe this is a problem of ' + LoadStr(1000) + ' or maybe it''s a problem of the database server.'),
+      'Error', MB_OK + MB_ICONERROR);
   end
   else
   begin

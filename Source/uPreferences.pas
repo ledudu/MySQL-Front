@@ -97,6 +97,7 @@ type
       procedure LoadFromXML(const XML: IXMLNode); virtual;
       procedure SaveToXML(const XML: IXMLNode); virtual;
     public
+      CaretBeyondEOL: Boolean;
       CodeCompletion: Boolean;
       CodeCompletionTime: Integer;
       CurrRowBGColorEnabled: Boolean;
@@ -688,6 +689,7 @@ uses
   {$IFDEF EurekaLog}
   EAppCrossModule,
   {$ENDIF}
+  BCEditor.Types,
   MySQLConsts,
   CSVUtils,
   uURI;
@@ -1345,6 +1347,7 @@ constructor TPPreferences.TEditor.Create();
 begin
   inherited;
 
+  CaretBeyondEOL := False;
   CodeCompletion := False;
   CodeCompletionTime := 1000;
   CurrRowBGColorEnabled := True; CurrRowBGColor := $C0FFFF;
@@ -1355,6 +1358,7 @@ procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XMLNode(XML, 'autocompletion'))) then TryStrToBool(XMLNode(XML, 'autocompletion').Attributes['enabled'], CodeCompletion);
   if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
+  if (Assigned(XMLNode(XML, 'caret'))) then TryStrToBool(XMLNode(XML, 'caret').Attributes['beyondeol'], CaretBeyondEOL);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
   if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
@@ -1364,6 +1368,7 @@ procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
 begin
   XMLNode(XML, 'autocompletion').Attributes['enabled'] := CodeCompletion;
   XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
+  XMLNode(XML, 'caret').Attributes['beyondeol'] := CaretBeyondEOL;
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
   XMLNode(XML, 'currentrow/background/color').Text := ColorToString(CurrRowBGColor);
   XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
@@ -1894,6 +1899,10 @@ begin
   BCEditor.Font.Color := SQLFontColor;
   BCEditor.Font.Size := SQLFontSize;
   BCEditor.LeftMargin.Font.Assign(BCEditor.Font);
+  if (Editor.CaretBeyondEOL) then
+    BCEditor.Scroll.Options := BCEditor.Scroll.Options + [soPastEndOfFile, soPastEndOfLine]
+  else
+    BCEditor.Scroll.Options := BCEditor.Scroll.Options - [soPastEndOfFile, soPastEndOfLine];
 end;
 
 constructor TPPreferences.Create();
@@ -2059,19 +2068,20 @@ begin
     begin // ODBC icon
   ProfilingPoint(Profile, 4);
       SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
-      ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
   ProfilingPoint(Profile, 5);
+      ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
+  ProfilingPoint(Profile, 6);
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
       begin
-  ProfilingPoint(Profile, 6);
-        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR));
   ProfilingPoint(Profile, 7);
+        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR));
+  ProfilingPoint(Profile, 9);
       end
       else
       begin
-  ProfilingPoint(Profile, 8);
+  ProfilingPoint(Profile, 9);
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
@@ -2082,7 +2092,6 @@ begin
           LockResource(ResData), SizeOfResource(HInstance, ResInfo),
           TRUE, $00030000, 64, 64, LR_DEFAULTCOLOR);
 
-  ProfilingPoint(Profile, 9);
         Bitmap := Graphics.TBitmap.Create();
         Bitmap.PixelFormat := pf32bit;
         SetBkMode(Bitmap.Canvas.Handle, TRANSPARENT);
@@ -2114,7 +2123,6 @@ begin
   ProfilingPoint(Profile, 17);
 
   Database := TDatabase.Create();
-
   Databases := TDatabases.Create();
   Editor := TEditor.Create();
   Event := TEvent.Create();
@@ -2141,13 +2149,14 @@ begin
   User := TUser.Create();
   View := TPView.Create();
 
+  ProfilingPoint(Profile, 18);
+
   Open();
 
-  // Debug 2017-05-02
-  Assert(Assigned(Database));
-
   if (ProfilingTime(Profile) > 5000) then
-    SendToDeveloper(ProfilingReport(Profile));
+    SendToDeveloper(
+      TOSVersion.ToString() + #13#10
+      + ProfilingReport(Profile));
 
   CloseProfile(Profile);
 end;
@@ -3726,43 +3735,34 @@ var
 begin
   Result := nil;
 
-  URI := nil;
-  if (LowerCase(Copy(AURI, 1, 8)) = 'mysql://') then
-    try
-      URI := TUURI.Create(AURI);
-    except
-      URI := nil;
-    end;
+  URI := TUURI.Create(AURI);
 
-  if (Assigned(URI)) then
+  for I := 0 to Count - 1 do
   begin
-    for I := 0 to Count - 1 do
+    ZeroMemory(@URLComponents, SizeOf(URLComponents));
+    URLComponents.dwStructSize := SizeOf(URLComponents);
+    if ((Account[I].Connection.LibraryType <> ltHTTP) or (lstrcmpi(PChar(Account[I].Connection.Host), LOCAL_HOST) <> 0)) then
+      Host := LowerCase(Account[I].Connection.Host)
+    else if (InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents)) then
     begin
-      ZeroMemory(@URLComponents, SizeOf(URLComponents));
-      URLComponents.dwStructSize := SizeOf(URLComponents);
-      if ((Account[I].Connection.LibraryType <> ltHTTP) or (lstrcmpi(PChar(Account[I].Connection.Host), LOCAL_HOST) <> 0)) then
-        Host := LowerCase(Account[I].Connection.Host)
-      else if (InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents)) then
-      begin
-        Inc(URLComponents.dwHostNameLength);
-        GetMem(URLComponents.lpszHostName, URLComponents.dwHostNameLength * SizeOf(URLComponents.lpszHostName[0]));
-        InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents);
-        SetString(Host, URLComponents.lpszHostName, URLComponents.dwHostNameLength);
-        FreeMem(URLComponents.lpszHostName);
-      end
-      else
-        Host := LOCAL_HOST;
-      if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Account[I].Connection.Port)
-        and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
-      begin
-        Result := Account[I];
-        if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
-          break;
-      end;
+      Inc(URLComponents.dwHostNameLength);
+      GetMem(URLComponents.lpszHostName, URLComponents.dwHostNameLength * SizeOf(URLComponents.lpszHostName[0]));
+      InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents);
+      SetString(Host, URLComponents.lpszHostName, URLComponents.dwHostNameLength);
+      FreeMem(URLComponents.lpszHostName);
+    end
+    else
+      Host := LOCAL_HOST;
+    if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Account[I].Connection.Port)
+      and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
+    begin
+      Result := Account[I];
+      if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
+        break;
     end;
-
-    URI.Free();
   end;
+
+  URI.Free();
 end;
 
 procedure TPAccounts.AddAccount(const NewAccount: TPAccount);

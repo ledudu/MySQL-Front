@@ -272,7 +272,7 @@ object FSession: TFSession
     OnResize = PContentResize
     object SResult: TSplitter_Ext
       Left = 0
-      Top = 48
+      Top = 44
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -291,7 +291,7 @@ object FSession: TFSession
     end
     object SBlob: TSplitter_Ext
       Left = 0
-      Top = 182
+      Top = 178
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -305,8 +305,17 @@ object FSession: TFSession
       OnCanResize = SplitterCanResize
       ActiveBorder = alTop
       ActiveBorderColor = clWindow
-      ExplicitTop = 189
-      ExplicitWidth = 319
+      ExplicitTop = 182
+    end
+    object SBlob2: TSplitter_Ext
+      Left = 0
+      Top = 182
+      Width = 467
+      Height = 4
+      Cursor = crVSplit
+      Align = alBottom
+      Visible = False
+      ActiveBorderColor = clWindow
     end
     object PListView: TPanel_Ext
       Left = 0
@@ -369,7 +378,7 @@ object FSession: TFSession
     end
     object PResult: TPanel_Ext
       Left = 0
-      Top = 52
+      Top = 48
       Width = 467
       Height = 130
       Align = alBottom
