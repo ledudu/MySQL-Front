@@ -288,7 +288,6 @@ object DStatement: TDStatement
         LeftMargin.Width = 21
         ReadOnly = True
         RightMargin.Visible = False
-        Scroll.Options = [soPastEndOfLine, soWheelClickMove]
         SyncEdit.Enabled = False
         TabOrder = 0
         TokenInfo.Font.Charset = DEFAULT_CHARSET

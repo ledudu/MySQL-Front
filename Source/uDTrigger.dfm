@@ -223,7 +223,6 @@ object DTrigger: TDTrigger
           LeftMargin.MarksPanel.Visible = False
           LeftMargin.Width = 21
           RightMargin.Visible = False
-          Scroll.Options = [soPastEndOfLine, soWheelClickMove]
           SyncEdit.Enabled = False
           TabOrder = 0
           TokenInfo.Font.Charset = DEFAULT_CHARSET
@@ -363,7 +362,6 @@ object DTrigger: TDTrigger
         LeftMargin.Width = 21
         ReadOnly = True
         RightMargin.Visible = False
-        Scroll.Options = [soPastEndOfLine, soWheelClickMove]
         SyncEdit.Enabled = False
         TabOrder = 0
         TokenInfo.Font.Charset = DEFAULT_CHARSET

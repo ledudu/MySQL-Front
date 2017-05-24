@@ -866,6 +866,10 @@ begin
           CloseTab(TFSession(FSessions[I]));
       end;
   end;
+
+  // Debug 2017-05-20
+  Assert(not Result or (FSessions.Count = 0),
+    'Destroying: ' + BoolToStr(csDestroying in ComponentState));
 end;
 
 procedure TWWindow.CloseTab(const Tab: TFSession);
@@ -1055,9 +1059,6 @@ end;
 
 destructor TWWindow.Destroy();
 begin
-  // Debug 2017-05-20
-  Assert(FSessions.Count = 0);
-
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
@@ -1079,9 +1080,6 @@ end;
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := CloseAll();
-
-  // Debug 2017-05-20
-  Assert(not CanClose or (FSessions.Count = 0));
 end;
 
 procedure TWWindow.FormCreate(Sender: TObject);

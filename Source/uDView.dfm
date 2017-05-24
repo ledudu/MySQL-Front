@@ -161,7 +161,6 @@ object DView: TDView
           LeftMargin.Width = 21
           OnChange = FStatementChange
           RightMargin.Visible = False
-          Scroll.Options = [soPastEndOfLine, soWheelClickMove]
           SyncEdit.Enabled = False
           TabOrder = 7
           TokenInfo.Font.Charset = DEFAULT_CHARSET
@@ -420,7 +419,6 @@ object DView: TDView
         OnSelectionChanged = FSourceSelectionChanged
         ReadOnly = True
         RightMargin.Visible = False
-        Scroll.Options = [soPastEndOfLine, soWheelClickMove]
         SyncEdit.Enabled = False
         TabOrder = 0
         TokenInfo.Font.Charset = DEFAULT_CHARSET
