@@ -5635,7 +5635,6 @@ begin
   Result.LeftMargin.LineState.Enabled := Assigned(SObject);
   Result.LeftMargin.Marks.Visible := False;
   Result.LeftMargin.MarksPanel.Visible := False;
-  Result.MatchingPair.Enabled := True;
   Result.RightMargin.Visible := False;
   Result.Options := Result.Options + [eoTrimTrailingLines];
   Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint];

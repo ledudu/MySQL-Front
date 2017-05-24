@@ -175,6 +175,7 @@ begin
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
       begin
         UpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > ProgramVersion;
+        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
         VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' +
           IntToStr(Patch) + '.' + IntToStr(Build) + ')';
       end;
@@ -200,10 +201,7 @@ begin
           Build := StrToInt(Node.GetText());
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
-      begin
-        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
-        RecommendedUpdateAvailable := OnlineVersion > ProgramVersion;
-      end;
+        RecommendedUpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > ProgramVersion;
 
       Infos := PAD.ChildNodes.FindNode('Web_Info');
       if (Assigned(Node)) then
@@ -997,7 +995,9 @@ begin
   Result := ExceptionInfo.ExceptionClass + ':' + #13#10;
   Result := Result + ExceptionMessage + #13#10#13#10;
 
-  if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
+  if (ExceptionInfo.ExceptionClass = 'EExternalException') then
+    Result := Result + 'Windows: ' + TOSVersion.ToString() + #13#10#13#10
+  else if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
     Result := Result + 'FreezeTimeout: ' +
       IntToStr(CurrentEurekaLogOptions().FreezeTimeout) + ' Seconds' +
       #13#10#13#10

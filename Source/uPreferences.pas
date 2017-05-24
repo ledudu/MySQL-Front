@@ -1929,7 +1929,9 @@ var
 begin
   CreateProfile(Profile);
 
+  ProfilingPoint(Profile, 1);
   inherited Create(KEY_ALL_ACCESS);
+  ProfilingPoint(Profile, 2);
 
   FOnlineVersion := 0;
   FXMLDocument := nil;
@@ -1983,6 +1985,8 @@ begin
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
 
 
+  ProfilingPoint(Profile, 3);
+
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
   if (FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Desktop.xml') or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
@@ -1991,6 +1995,8 @@ begin
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + 'MySQL-Front')
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + SysUtils.LoadStr(1002));
+
+  ProfilingPoint(Profile, 4);
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -2014,6 +2020,8 @@ begin
 
   LoadFromRegistry();
 
+  ProfilingPoint(Profile, 5);
+
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   Filename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup.exe';
@@ -2026,6 +2034,8 @@ begin
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
 
+
+  ProfilingPoint(Profile, 6);
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
     and not DirectoryExists(UserPath)) then
@@ -2041,7 +2051,7 @@ begin
   end;
 
 
-  ProfilingPoint(Profile, 1);
+  ProfilingPoint(Profile, 7);
 
   MaxIconIndex := 0;
   for I := 1 to 200 do
@@ -2056,26 +2066,24 @@ begin
   for I := 0 to MaxIconIndex do
     if (I = 16) then
     begin // ODBC icon
-  ProfilingPoint(Profile, 2);
       SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
-  ProfilingPoint(Profile, 3);
+  ProfilingPoint(Profile, 8);
       Icon := GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe');
-  ProfilingPoint(Profile, 4);
+  ProfilingPoint(Profile, 9);
       ImageList_AddIcon(FImages.Handle, Icon);
-  ProfilingPoint(Profile, 5);
+  ProfilingPoint(Profile, 10);
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
       begin
-  ProfilingPoint(Profile, 6);
+  ProfilingPoint(Profile, 11);
         Icon := LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR);
-  ProfilingPoint(Profile, 7);
+  ProfilingPoint(Profile, 12);
         ImageList_AddIcon(FImages.Handle, Icon);
-  ProfilingPoint(Profile, 8);
+  ProfilingPoint(Profile, 13);
       end
       else
       begin
-  ProfilingPoint(Profile, 9);
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
@@ -2091,30 +2099,24 @@ begin
         SetBkMode(Bitmap.Canvas.Handle, TRANSPARENT);
         Bitmap.SetSize(FImages.Width, FImages.Height);
 
-  ProfilingPoint(Profile, 10);
         GPBitmap := TGPBitmap.Create(Icon);
 
-  ProfilingPoint(Profile, 11);
         GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
         GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
         GPGraphics.DrawImage(GPBitmap, 0, 0, Bitmap.Width, Bitmap.Height);
 
-  ProfilingPoint(Profile, 12);
         ImageList_Add(FImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
 
-  ProfilingPoint(Profile, 13);
         GPGraphics.Free();
         Bitmap.Free();
-  ProfilingPoint(Profile, 14);
       end
     else if (I > 0) then
     begin
-  ProfilingPoint(Profile, 15);
+  ProfilingPoint(Profile, 14);
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-  ProfilingPoint(Profile, 16);
+  ProfilingPoint(Profile, 15);
     end;
-
-  ProfilingPoint(Profile, 17);
+  ProfilingPoint(Profile, 16);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2142,8 +2144,6 @@ begin
   Trigger := TTrigger.Create();
   User := TUser.Create();
   View := TPView.Create();
-
-  ProfilingPoint(Profile, 18);
 
   Open();
 
@@ -3613,7 +3613,7 @@ begin
     Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
     ProfilingPoint(Profile, 2);
     Favorites.SaveToXML(XMLNode(XML, 'favorites', True));
-    if (ProfilingTime(Profile) > 10000) then
+    if (ProfilingTime(Profile) > 5000) then
       SendToDeveloper(ProfilingReport(Profile));
     CloseProfile(Profile);
 

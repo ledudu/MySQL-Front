@@ -457,10 +457,6 @@ object DTables: TDTables
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -513,7 +509,6 @@ object DTables: TDTables
         LeftMargin.Width = 21
         ReadOnly = True
         RightMargin.Visible = False
-        Scroll.Options = [soPastEndOfLine, soWheelClickMove]
         SyncEdit.Enabled = False
         TabOrder = 0
         TokenInfo.Font.Charset = DEFAULT_CHARSET

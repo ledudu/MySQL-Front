@@ -102,7 +102,7 @@ type
   strict private
     Cache: record
       First: Integer;
-      ItemsLen: TList;
+      ItemsLen: TList<Integer>;
       Mem: PChar;
       MemLen: Integer;
       UsedLen: Integer;
@@ -1925,8 +1925,8 @@ begin
     begin
       while ((Cache.UsedLen + ItemLen > Cache.MemLen) and (Cache.ItemsLen.Count > 0)) do
       begin
-        Inc(Cache.First, Integer(Cache.ItemsLen[0])); if (Cache.First >= Cache.MemLen) then Dec(Cache.First, Cache.MemLen);
-        Dec(Cache.UsedLen, Integer(Cache.ItemsLen[0]));
+        Inc(Cache.First, Cache.ItemsLen[0]); if (Cache.First >= Cache.MemLen) then Dec(Cache.First, Cache.MemLen);
+        Dec(Cache.UsedLen, Cache.ItemsLen[0]);
         Cache.ItemsLen.Delete(0);
       end;
 
@@ -1940,7 +1940,7 @@ begin
       end;
 
       Inc(Cache.UsedLen, ItemLen);
-      Cache.ItemsLen.Add(Pointer(ItemLen));
+      Cache.ItemsLen.Add(ItemLen);
 
       Pos := (Cache.First + Cache.UsedLen) mod Cache.MemLen;
       case (Pos) of
@@ -2000,7 +2000,7 @@ begin
   FTraceTypes := [ttRequest];
 
   Cache.First := 0;
-  Cache.ItemsLen := TList.Create();
+  Cache.ItemsLen := TList<Integer>.Create();
   Cache.Mem := nil;
   Cache.MemLen := 0;
   Cache.UsedLen := 0;
@@ -2076,8 +2076,8 @@ begin
   begin
     while (Cache.UsedLen * SizeOf(Cache.Mem[0]) > NewSize) do
     begin
-      Cache.First := (Cache.First + Integer(Cache.ItemsLen[0])) mod Cache.MemLen;
-      Dec(Cache.UsedLen, Integer(Cache.ItemsLen[0]));
+      Cache.First := (Cache.First + Cache.ItemsLen[0]) mod Cache.MemLen;
+      Dec(Cache.UsedLen, Cache.ItemsLen[0]);
       Cache.ItemsLen.Delete(0);
     end;
 
