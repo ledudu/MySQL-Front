@@ -1001,6 +1001,7 @@ begin
       // Debug 2017-05-14
       Assert(PageControl.ActivePage = TSWhat);
       Assert(FStructure.Visible);
+      Assert(FStructure.CanFocus());
 
       if (not FBForward.Enabled and FStructure.Enabled) then
         ActiveControl := FStructure

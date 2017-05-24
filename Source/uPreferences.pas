@@ -331,7 +331,6 @@ type
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
   private
-Progress: string;
     FDowndateFilename: TFileName;
     FImages: TImageList;
     FInternetAgent: string;
@@ -1900,9 +1899,9 @@ begin
   BCEditor.Font.Size := SQLFontSize;
   BCEditor.LeftMargin.Font.Assign(BCEditor.Font);
   if (Editor.CaretBeyondEOL) then
-    BCEditor.Scroll.Options := BCEditor.Scroll.Options + [soPastEndOfFile, soPastEndOfLine]
+    BCEditor.Scroll.Options := BCEditor.Scroll.Options + [soBeyondEndOfFile, soBeyondEndOfLine]
   else
-    BCEditor.Scroll.Options := BCEditor.Scroll.Options - [soPastEndOfFile, soPastEndOfLine];
+    BCEditor.Scroll.Options := BCEditor.Scroll.Options - [soBeyondEndOfFile, soBeyondEndOfLine];
 end;
 
 constructor TPPreferences.Create();
@@ -1998,18 +1997,13 @@ begin
   begin
     if (ValueExists('')) then
     begin
-  Progress := Progress + '1';
       try
         S := ReadString('');
       except
         on E: Exception do
-          begin
-            Progress := Progress + '2';
-            raise EAssertionFailed.Create(E.ClassName + ':' + #13#10
+          SendToDeveloper(E.ClassName + ':' + #13#10
               + E.Message);
-          end;
       end;
-  Progress := Progress + '3';
       SoundFileNavigating := ReplaceEnviromentVariables(S);
     end;
     if (not FileExists(SoundFileNavigating)) then
@@ -2054,30 +2048,30 @@ begin
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
 
-  ProfilingPoint(Profile, 2);
-
   FImages := TImageList.Create(nil);
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
 
-  ProfilingPoint(Profile, 3);
-
   for I := 0 to MaxIconIndex do
     if (I = 16) then
     begin // ODBC icon
-  ProfilingPoint(Profile, 4);
+  ProfilingPoint(Profile, 2);
       SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
+  ProfilingPoint(Profile, 3);
+      Icon := GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe');
+  ProfilingPoint(Profile, 4);
+      ImageList_AddIcon(FImages.Handle, Icon);
   ProfilingPoint(Profile, 5);
-      ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
-  ProfilingPoint(Profile, 6);
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
       begin
+  ProfilingPoint(Profile, 6);
+        Icon := LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR);
   ProfilingPoint(Profile, 7);
-        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR));
-  ProfilingPoint(Profile, 9);
+        ImageList_AddIcon(FImages.Handle, Icon);
+  ProfilingPoint(Profile, 8);
       end
       else
       begin
@@ -2163,15 +2157,6 @@ end;
 
 destructor TPPreferences.Destroy();
 begin
-  Progress := Progress + 'D';
-
-  // Debug 2017-05-01
-  Assert(Assigned(Self));
-  Assert(TObject(Self) is TPPreferences);
-  Assert(Assigned(Database),
-    'Progress: ' + Progress + #13#10
-    + 'Windows: ' + TOSVersion.ToString());
-
   Database.Free();
 
   Databases.Free();

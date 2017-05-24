@@ -3223,9 +3223,12 @@ begin
   else if (FieldType in [mfMediumText, mfMediumBlob]) then
     Size := (1 shl 24) - 1
   else if (FieldType in [mfLongText, mfLongBlob]) then
-    Size := (1 shl 32) - 1
-  else if (FieldType in [mfDouble]) then
+    Size := (1 shl 32) - 1;
+
+  if (FieldType in [mfDouble]) then
     SQLParseKeyword(Parse, 'PRECISION');
+  if (FieldType in [mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt, mfFloat, mfDouble, mfDecimal]) then
+    SQLParseKeyword(Parse, 'ZEROFILL');
 
   if (FieldType in TextFieldTypes) then
   begin

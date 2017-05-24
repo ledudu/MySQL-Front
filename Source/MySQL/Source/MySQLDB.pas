@@ -2814,6 +2814,9 @@ begin
   Assert(Assigned(SyncThread.StmtLengths));
   Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
+  Assert(Trim(SyncThread.SQL) <> '',
+    SQLEscapeBin(SyncThread.SQL, True) + #13#10
+    + SQLEscapeBin(SQL, True));
 
   Progress := 'a';
 
@@ -6506,6 +6509,10 @@ begin
   end;
 
   EnableControls();
+
+  // Debug 2017-05-24
+  Resync([]); // Is this needed? Maybe without this, there is a problem in SQLUpdate while the following update
+
   DataEvent(deCommitted, NativeInt(False));
 end;
 
@@ -8392,8 +8399,13 @@ begin
     begin
       // Debug 2017-05-22
       Assert(ActiveBuffer() > 0);
+
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
+      // Occurred on 2017-05-24
+      // In AfterCommit I placed a Resync([]) as a solution for this problem.
+
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData));
+
 
       if ((pfInUpdate in Fields[I].ProviderFlags)
         and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])

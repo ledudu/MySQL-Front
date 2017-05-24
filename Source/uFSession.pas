@@ -5638,7 +5638,7 @@ begin
   Result.MatchingPair.Enabled := True;
   Result.RightMargin.Visible := False;
   Result.Options := Result.Options + [eoTrimTrailingLines];
-  Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint] + [soPastEndOfFile];
+  Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint];
   Result.SyncEdit.Enabled := False;
   Result.OnChange := BCEditorChange;
   Result.OnBeforeCompletionProposalExecute := BCEditorBeforeCompletionProposalExecute;
@@ -8638,6 +8638,7 @@ var
           if (not Assigned(Child)) then
             raise ERangeError.Create('Node not found: ' + Event.Item.Name + ' (ClassType: ' + Event.Item.ClassName + ')');
             // Occurred 2017-05-22 - SQL Log: ALTER TABLE DROP COLUMN ..., SHOW CREATE TABLE, CallStack doesn't show sender of etItemRenamed
+            // Occurred 2017-05-24 - SQL Log: ALTER TABLE DROP COLUMN ..., SHOW CREATE TABLE, CallStack doesn't show sender of etItemRenamed
 
           Child.Text := Event.Item.Caption;
 
@@ -9639,7 +9640,8 @@ begin
           + 'View: ' + IntToStr(Ord(View)) + #13#10
           + 'OldView: ' + IntToStr(Ord(OldView)) + #13#10
           + 'OldAddress: ' + OldAddress + #13#10
-          + 'CurrentAddress: ' + CurrentAddress);
+          + 'CurrentAddress: ' + CurrentAddress + #13#10
+          + 'LastSelectedDatabase: ' + LastSelectedDatabase);
 
         Window.ActiveControl := ActiveBCEditor;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of

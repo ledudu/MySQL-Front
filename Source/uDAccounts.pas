@@ -172,8 +172,12 @@ end;
 
 function TDAccounts.Execute(): Boolean;
 begin
-  // Debug 2017-04-27
-  Assert(not Visible);
+  // Debug 2017-05-24
+  Assert(not Visible and Enabled and not (fsModal in FFormState) and (FormStyle <> fsMDIChild),
+    'Visible: ' + BoolToStr(Visible, True) + #13#10
+    + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
+    + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+    + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True));
 
   Result := ShowModal() = mrOk;
 end;
