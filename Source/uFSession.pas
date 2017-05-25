@@ -15264,6 +15264,8 @@ end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
 begin
+  Assert(AAddress <> '');
+
   ChangeCurrentAddress(AAddress);
 end;
 

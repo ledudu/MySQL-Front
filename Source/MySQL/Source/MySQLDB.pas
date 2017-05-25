@@ -439,7 +439,7 @@ type
       LibRow: MYSQL_ROW;
     end;
     TInternRecordBuffers = TList<PRecordBufferData>;
-    TRecordCompareDefs = array of record Ascending: Boolean; Field: TField; end;
+    TRecordCompareDefs = array of record Ascending: Boolean; DataSize: Integer; Field: TField; end;
   strict private
     FConnection: TMySQLConnection;
     FBufferSize: UInt64;
@@ -536,6 +536,7 @@ type
       Identifier123: Integer;
       NewData: TMySQLQuery.PRecordBufferData;
       OldData: TMySQLQuery.PRecordBufferData;
+      SortIndex: Integer;
       VisibleInFilter: Boolean;
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
@@ -2814,15 +2815,12 @@ begin
   Assert(Assigned(SyncThread.StmtLengths));
   Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
-  Assert(Trim(SyncThread.SQL) <> '',
-    SQLEscapeBin(SyncThread.SQL, True) + #13#10
-    + SQLEscapeBin(SQL, True));
 
   Progress := 'a';
 
   SQLIndex := 1;
-  StmtLength := 1; // ... to make sure, the first SQLStmtLength will be executed
-  while ((SQLIndex < Length(SyncThread.SQL)) and (StmtLength > 0)) do
+  StmtLength := 1; // ... to make sure, the first SQLStmtLength will be handled
+  while ((SQLIndex <= Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
     Progress := Progress + 'b';
       Assert(SyncThread = ST,
@@ -3061,6 +3059,10 @@ begin
   begin
     FCharsetClient := LowerCase(ACharset);
     FCodePageClient := CharsetToCodePage(FCharsetClient);
+
+    // Debug 2017-05-25
+    Assert(FCodePageClient <> 0,
+      'FCharsetClient: ' + FCharsetClient);
 
     if (Connected and Assigned(Lib.mysql_options) and Assigned(SyncThread)) then
       Lib.mysql_options(Handle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharsetClient)));
@@ -3587,6 +3589,10 @@ begin
       FCodePageClient := CharsetToCodePage(FCharsetClient);
       FCharsetResult := FCharsetClient;
       FCodePageResult := FCodePageResult;
+
+      // Debug 2017-05-25
+      Assert(FCodePageClient <> 0,
+        'FCharsetClient: ' + FCharsetClient);
 
       FHostInfo := LibDecode(CodePageResult, Lib.mysql_get_host_info(SyncThread.LibHandle));
       FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((MySQLVersion > 40100) or (Lib.LibraryType = ltHTTP)) and not ((50000 <= MySQLVersion) and (MySQLVersion < 50007));
@@ -5369,7 +5375,7 @@ begin
           ftByte: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Byte(Buffer^) := StrToInt(S); end;
           ftSmallInt: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Smallint(Buffer^) := StrToInt(S); end;
           ftWord: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Word(Buffer^) := StrToInt(S); end;
-          ftInteger: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Longint(Buffer^) := StrToInt(S); end;
+          ftInteger: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Integer(Buffer^) := StrToInt(S); end;
           ftLongWord: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); LongWord(Buffer^) := StrToInt64(S); end;
           ftLargeint:
             if (not (Field is TMySQLLargeWordField)) then
@@ -6035,10 +6041,6 @@ var
   StringA, StringB: string;
 begin
   Field := CompareDefs[FieldIndex].Field;
-
-  // Debug 2017-02-13
-  Assert(Assigned(A));
-  Assert(Assigned(B));
 
   if (A = B) then
     Result := 0
@@ -6784,6 +6786,7 @@ begin
       'Identifier123: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier123) + #13#10
       + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
     // Occurred: 2017-05-22 - CallStack WMTimer, ActivateHint, Identifier123: 4, Destroing: False
+    // Occurred: 2017-05-25 - CallStack aDDeleteRecordExecute, DrawCell: Identifier123: 132272, Destroing: False
 
     Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963,
       'Identifier963: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963));
@@ -7127,6 +7130,10 @@ begin
       for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
         Index := InternRecordBuffers.IndexOf(DeleteBookmarks^[I]);
+
+        // Debug 2017-05-25
+        Assert(Index >= 0);
+
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
         if (Filtered) then
@@ -8099,20 +8106,92 @@ begin
 end;
 
 procedure TMySQLDataSet.Sort(const ASortDef: TIndexDef);
+var
+  CompareDefs: TRecordCompareDefs;
+  SortBuffers: array of PAnsiChar;
 
-  procedure QuickSort(const CompareDefs: TRecordCompareDefs; const Lo, Hi: Integer);
+  function Compare(const RecA, RecB: Integer; const Def: Integer): Integer;
   var
-    L, R: Integer;
-    M: PInternRecordBuffer;
+    BufferA: Pointer;
+    BufferB: Pointer;
+    NullA: Boolean;
+    NullB: Boolean;
+  begin
+    if (RecA = RecB) then
+      Result := 0
+    else
+    begin
+      NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
+      NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
+      if (NullA and not NullB) then
+        Result := -1
+      else if (not NullA and NullB) then
+        Result := +1
+      else
+      begin
+        BufferA := @SortBuffers[Def][InternRecordBuffers[RecA].SortIndex * CompareDefs[Def].DataSize];
+        BufferB := @SortBuffers[Def][InternRecordBuffers[RecB].SortIndex * CompareDefs[Def].DataSize];
+        if (BitField(CompareDefs[Def].Field)) then
+          Result := Sign(UInt64(BufferA^) - UInt64(BufferB^))
+        else
+          case (CompareDefs[Def].Field.DataType) of
+            ftString: Result := lstrcmpi(PChar(PString(BufferA)^), PChar(PString(BufferB)^));
+            ftShortInt: Result := Sign(ShortInt(BufferA^) - ShortInt(BufferB^));
+            ftByte: Result := Sign(Byte(BufferA^) - Byte(BufferB^));
+            ftSmallInt: Result := Sign(SmallInt(BufferA^) - SmallInt(BufferB^));
+            ftWord: Result := Sign(Word(BufferA^) - Word(BufferB^));
+            ftInteger: Result := Sign(Integer(BufferA^) - Integer(BufferB^));
+            ftLongWord: Result := Sign(LongWord(BufferA^) - LongWord(BufferB^));
+            ftLargeInt:
+              if (not (CompareDefs[Def].Field is TMySQLLargeWordField)) then
+                Result := Sign(LargeInt(BufferA^) - LargeInt(BufferB^))
+              else
+                Result := Sign(UInt64(BufferA^) - UInt64(BufferB^));
+            ftSingle: Result := Sign(Single(BufferA^) - Single(BufferB^));
+            ftFloat: Result := Sign(Double(BufferA^) - Double(BufferB^));
+            ftExtended: Result := Sign(Extended(BufferA^) - Extended(BufferB^));
+            ftDate,
+            ftDateTime,
+            ftTime: Result := Sign(TDateTime(BufferA^) - TDateTime(BufferB^));
+            ftTimeStamp: Result := AnsiStrings.StrComp(PAnsiChar(PString(BufferA^)), PAnsiChar(PString(BufferB^)));
+            ftWideString,
+            ftWideMemo: Result := lstrcmpi(PChar(PString(BufferA)^), PChar(PString(BufferB)^));
+            ftBlob:
+              if (PAnsiString(BufferA)^ = PAnsiString(BufferB)^) then
+                Result := 0
+              else if (PAnsiString(BufferA)^ < PAnsiString(BufferB)^) then
+                Result := -1
+              else
+                Result := 1;
+            else
+              raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [CompareDefs[Def].Field.Name, Integer(CompareDefs[Def].Field.DataType)]);
+          end;
+        end;
+    end;
+
+    if (Result = 0) then
+    begin
+      if (Def + 1 < Length(CompareDefs)) then
+        Result := Compare(RecA, RecB, Def + 1);
+    end
+    else if (not CompareDefs[Def].Ascending) then
+      Result := -Result;
+  end;
+
+  procedure QuickSort(const Lo, Hi: Integer);
+  var
+    L: Integer;
+    M: Integer;
+    R: Integer;
   begin
     L := Lo;
     R := Hi;
-    M := InternRecordBuffers[(L + R + 1) div 2];
+    M := (L + R + 1) div 2;
 
     while (L <= R) do
     begin
-      while (RecordCompare(CompareDefs, InternRecordBuffers[L]^.NewData, M^.NewData) < 0) do Inc(L);
-      while (RecordCompare(CompareDefs, InternRecordBuffers[R]^.NewData, M^.NewData) > 0) do Dec(R);
+      while (Compare(L, M, 0) < 0) do Inc(L);
+      while (Compare(R, M, 0) > 0) do Dec(R);
       if (L <= R) then
       begin
         InternRecordBuffers.Exchange(L, R);
@@ -8120,17 +8199,20 @@ procedure TMySQLDataSet.Sort(const ASortDef: TIndexDef);
       end;
     end;
 
-    if (Lo < R) then QuickSort(CompareDefs, Lo, R);
-    if (L < Hi) then QuickSort(CompareDefs, L, Hi);
+    if (Lo < R) then QuickSort(Lo, R);
+    if (L < Hi) then QuickSort(L, Hi);
   end;
 
 var
-  CompareDefs: TRecordCompareDefs;
+  Buffer: Pointer;
+  Def: Integer;
   FieldName: string;
   I: Integer;
+  Len: Integer;
+  Mem: Pointer;
   OldBookmark: TBookmark;
   Pos: Integer;
-  Profile: TProfile;
+  Rec: Integer;
 begin
   Connection.Terminate();
 
@@ -8163,19 +8245,131 @@ begin
             CompareDefs[I].Ascending := False;
     until (FieldName = '');
 
-    CreateProfile(Profile);
-    QuickSort(CompareDefs, 0, InternRecordBuffers.Count - 1);
-    if (ProfilingTime(Profile) > 1000) then
-      SendToDeveloper(
-        'FieldCount: ' + IntToStr(FieldCount) + #13#10
-        + 'RecordCount: ' + IntToStr(RecordCount) + #13#10
-        + 'DataSize: ' + IntToStr(DataSize) + #13#10
-        + 'Length(CompareDefs): ' + IntToStr(Length(CompareDefs)) + #13#10
-        + 'CompareDefs[0].Field.DataType: ' + IntToStr(Ord(CompareDefs[0].Field.DataType)) + #13#10
-        + 'CommandText: ' + #13#10
-        + CommandText + #13#10
-        + ProfilingReport(Profile));
-    CloseProfile(Profile);
+    SetLength(SortBuffers, Length(CompareDefs));
+    for Def := 0 to Length(CompareDefs) - 1 do
+    begin
+      if (BitField(CompareDefs[Def].Field)) then
+        CompareDefs[Def].DataSize := SizeOf(UInt64)
+      else
+        case (CompareDefs[Def].Field.DataType) of
+          ftString: CompareDefs[Def].DataSize := SizeOf(string);
+          ftShortInt: CompareDefs[Def].DataSize := SizeOf(ShortInt);
+          ftByte: CompareDefs[Def].DataSize := SizeOf(Byte);
+          ftSmallInt: CompareDefs[Def].DataSize := SizeOf(SmallInt);
+          ftWord: CompareDefs[Def].DataSize := SizeOf(Word);
+          ftInteger: CompareDefs[Def].DataSize := SizeOf(Integer);
+          ftLongWord: CompareDefs[Def].DataSize := SizeOf(LongWord);
+          ftLargeInt:
+            if (not (CompareDefs[Def].Field is TMySQLLargeWordField)) then
+              CompareDefs[Def].DataSize := SizeOf(LargeInt)
+            else
+              CompareDefs[Def].DataSize := SizeOf(UInt64);
+          ftSingle: CompareDefs[Def].DataSize := SizeOf(Single);
+          ftFloat: CompareDefs[Def].DataSize := SizeOf(Double);
+          ftExtended: CompareDefs[Def].DataSize := SizeOf(Extended);
+          ftDate,
+          ftDateTime,
+          ftTime: CompareDefs[Def].DataSize := SizeOf(TDateTime);
+          ftTimeStamp: CompareDefs[Def].DataSize := SizeOf(AnsiString);
+          ftWideString,
+          ftWideMemo: CompareDefs[Def].DataSize := SizeOf(string);
+          ftBlob: CompareDefs[Def].DataSize := SizeOf(AnsiString);
+          else
+            raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [CompareDefs[Def].Field.Name, Integer(CompareDefs[Def].Field.DataType)]);
+        end;
+      GetMem(Mem, InternRecordBuffers.Count * CompareDefs[Def].DataSize);
+      SortBuffers[Def] := Mem;
+      case (CompareDefs[Def].Field.DataType) of
+        ftString,
+        ftTimeStamp,
+        ftWideString,
+        ftWideMemo,
+        ftBlob:
+          ZeroMemory(SortBuffers[Def], InternRecordBuffers.Count * CompareDefs[Def].DataSize);
+      end;
+    end;
+
+    for Rec := 0 to InternRecordBuffers.Count - 1 do
+    begin
+      InternRecordBuffers[Rec].SortIndex := Rec;
+      for Def := 0 to Length(CompareDefs) - 1 do
+        if (Assigned(InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1])) then
+        begin
+          Buffer := @SortBuffers[Def][Rec * CompareDefs[Def].DataSize];
+          case (CompareDefs[Def].Field.DataType) of
+            ftString:
+              begin
+                Len := AnsiCharToWideChar(FieldCodePage(CompareDefs[Def].Field),
+                  InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1], InternRecordBuffers[Rec].NewData^.LibLengths[CompareDefs[Def].Field.FieldNo - 1], nil, 0);
+                SetLength(PString(Buffer)^, Len);
+                AnsiCharToWideChar(FieldCodePage(CompareDefs[Def].Field),
+                  InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1], InternRecordBuffers[Rec].NewData^.LibLengths[CompareDefs[Def].Field.FieldNo - 1],
+                  PChar(PString(Buffer)^), Len);
+              end;
+            ftShortInt,
+            ftByte,
+            ftSmallInt,
+            ftWord,
+            ftInteger,
+            ftLongWord,
+            ftLargeInt,
+            ftSingle,
+            ftFloat,
+            ftExtended,
+            ftDate,
+            ftDateTime,
+            ftTime: GetFieldData(CompareDefs[Def].Field, Buffer, InternRecordBuffers[Rec].NewData);
+            ftTimeStamp: SetString(PAnsiString(Buffer)^, InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1], InternRecordBuffers[Rec].NewData^.LibLengths[CompareDefs[Def].Field.FieldNo - 1]);
+            ftWideString,
+            ftWideMemo:
+              begin
+                Len := AnsiCharToWideChar(FieldCodePage(CompareDefs[Def].Field),
+                  InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1], InternRecordBuffers[Rec].NewData^.LibLengths[CompareDefs[Def].Field.FieldNo - 1], nil, 0);
+                SetLength(PString(Buffer)^, Len);
+                AnsiCharToWideChar(FieldCodePage(CompareDefs[Def].Field),
+                  InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1], InternRecordBuffers[Rec].NewData^.LibLengths[CompareDefs[Def].Field.FieldNo - 1],
+                  PChar(PString(Buffer)^), Len);
+              end;
+            ftBlob: SetString(PAnsiString(Buffer)^, InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1], InternRecordBuffers[Rec].NewData^.LibLengths[CompareDefs[Def].Field.FieldNo - 1]);
+            else
+              raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [CompareDefs[Def].Field.Name, Ord(CompareDefs[Def].Field.DataType)]);
+          end;
+        end;
+    end;
+
+    QuickSort(0, InternRecordBuffers.Count - 1);
+
+    for Def := 0 to Length(CompareDefs) - 1 do
+      case (CompareDefs[Def].Field.DataType) of
+        ftString:
+          for Rec := 0 to InternRecordBuffers.Count - 1 do
+          begin
+            Buffer := @SortBuffers[Def][Rec * CompareDefs[Def].DataSize];
+            PString(Buffer)^ := '';
+          end;
+        ftTimeStamp:
+          for Rec := 0 to InternRecordBuffers.Count - 1 do
+          begin
+            Buffer := @SortBuffers[Def][Rec * CompareDefs[Def].DataSize];
+            PAnsiString(Buffer)^ := '';
+          end;
+        ftWideString,
+        ftWideMemo:
+          for Rec := 0 to InternRecordBuffers.Count - 1 do
+          begin
+            Buffer := @SortBuffers[Def][Rec * CompareDefs[Def].DataSize];
+            PString(Buffer)^ := '';
+          end;
+        ftBlob:
+          for Rec := 0 to InternRecordBuffers.Count - 1 do
+          begin
+            Buffer := @SortBuffers[Def][Rec * CompareDefs[Def].DataSize];
+            PAnsiString(Buffer)^ := '';
+          end;
+      end;
+
+    for Def := 0 to Length(CompareDefs) - 1 do
+      FreeMem(SortBuffers[Def]);
   end;
 
   SetFieldsSortTag();

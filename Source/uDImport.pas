@@ -1518,6 +1518,8 @@ begin
   // Debug 2017-05-08
   Assert(Assigned(Infos));
   Assert(Assigned(FDoneTime));
+  Assert(Visible);
+  Assert(not (csDestroying in ComponentState));
   FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos^.Progress;

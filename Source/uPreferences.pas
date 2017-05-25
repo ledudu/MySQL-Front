@@ -2028,6 +2028,8 @@ begin
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
 
+  ProfilingPoint(Profile, 6);
+
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
@@ -2035,7 +2037,7 @@ begin
     FDowndateFilename := '';
 
 
-  ProfilingPoint(Profile, 6);
+  ProfilingPoint(Profile, 7);
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
     and not DirectoryExists(UserPath)) then
@@ -2051,8 +2053,6 @@ begin
   end;
 
 
-  ProfilingPoint(Profile, 7);
-
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2064,23 +2064,11 @@ begin
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
 
   for I := 0 to MaxIconIndex do
-    if (I = 16) then
-    begin // ODBC icon
-      SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
-  ProfilingPoint(Profile, 8);
-      Icon := GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe');
-  ProfilingPoint(Profile, 9);
-      ImageList_AddIcon(FImages.Handle, Icon);
-  ProfilingPoint(Profile, 10);
-    end
-    else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
+    if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
       begin
-  ProfilingPoint(Profile, 11);
         Icon := LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR);
-  ProfilingPoint(Profile, 12);
         ImageList_AddIcon(FImages.Handle, Icon);
-  ProfilingPoint(Profile, 13);
       end
       else
       begin
@@ -2111,12 +2099,7 @@ begin
         Bitmap.Free();
       end
     else if (I > 0) then
-    begin
-  ProfilingPoint(Profile, 14);
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-  ProfilingPoint(Profile, 15);
-    end;
-  ProfilingPoint(Profile, 16);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2147,7 +2130,7 @@ begin
 
   Open();
 
-  if (ProfilingTime(Profile) > 5000) then
+  if (ProfilingTime(Profile) > 3000) then
     SendToDeveloper(
       TOSVersion.ToString() + #13#10
       + ProfilingReport(Profile));

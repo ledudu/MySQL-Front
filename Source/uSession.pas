@@ -4042,9 +4042,6 @@ begin
   DataSet.QuickSearch := QuickSearch;
   DataSet.SortDef.Assign(ASortDef);
 
-  // Debug 2017-02-06
-  Assert(not DataSet.Active);
-
   // Debug 2017-05-20
   Assert(Session.Connection.SynchronCount = 0);
 

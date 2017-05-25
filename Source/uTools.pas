@@ -3980,7 +3980,7 @@ begin
     SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
-  Session.InExport := True;
+  Session.InExport := True; try
 
   BeforeExecute();
 
@@ -4257,7 +4257,7 @@ begin
 
   DataTables.Free();
 
-  Session.InExport := False;
+  finally Session.InExport := False; end;
 
   {$IFDEF EurekaLog}
   except
@@ -4368,6 +4368,7 @@ var
   Fields: array of TField;
   I: Integer;
   IndexDefs: TIndexDefs;
+  Progress: string;
   SQL: string;
   Table: TSTable;
 begin
@@ -4377,18 +4378,27 @@ begin
     DataSet := nil
   else
   begin
+    Progress := Progress + '1';
+
     DataSet := TMySQLQuery.Create(nil);
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
+    Progress := Progress + '2';
       DataSet.Open(ResultHandle^);
       if (not DataSet.Active) then
+      begin
+    Progress := Progress + '3';
         DoError(DatabaseError(Session), Item, False, SQL);
+      end;
     end;
 
     if (Success = daSuccess) then
     begin
+    Progress := Progress + '4';
       if (Assigned(Session.Connection.OnUpdateIndexDefs)) then
       begin
+    Progress := Progress + '5';
+
         // Set Field[I].ReadOnly for virtual fields
         IndexDefs := TIndexDefs.Create(DataSet);
         Session.Connection.OnUpdateIndexDefs(DataSet, IndexDefs);
@@ -4400,6 +4410,14 @@ begin
         Fields[I] := DataSet.Fields[I];
     end;
   end;
+
+  Assert((Success <> daSuccess)
+    or not Assigned(ResultHandle.SyncThread)
+    or (ResultHandle.SyncThread.DebugState <> ssResult),
+      'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+      + 'Progress: ' + Progress + #13#10
+      + 'Log: ' + #13#10
+      + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
 
   if (Success = daSuccess) then
   begin

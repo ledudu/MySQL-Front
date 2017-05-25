@@ -350,7 +350,6 @@ type
     procedure aSSearchFindNotFound(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
-    procedure FormDeactivate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -1080,6 +1079,10 @@ end;
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := CloseAll();
+
+  // Debug 2017-05-20
+  Assert(not CanClose or (FSessions.Count = 0),
+    'Destroying: ' + BoolToStr(csDestroying in ComponentState));
 end;
 
 procedure TWWindow.FormCreate(Sender: TObject);
@@ -1200,14 +1203,14 @@ begin
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
   Application.HelpFile := ExtractFilePath(Application.ExeName) + Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - 4) + '.chm';
+  Application.OnActivate := ApplicationActivate;
+  Application.OnDeactivate := ApplicationDeactivate;
   {$IFNDEF EurekaLog}
   Application.OnException := ApplicationException;
   {$ENDIF}
   Application.OnMessage := ApplicationMessage;
   Application.OnModalBegin := ApplicationModalBegin;
   Application.OnModalEnd := ApplicationModalEnd;
-  Application.OnActivate := ApplicationActivate;
-  Application.OnDeactivate := ApplicationDeactivate;
 
   Accounts := TPAccounts.Create(DBLogin);
 
@@ -1256,11 +1259,6 @@ begin
     StatusBar.Panels[I].Text := '';
 end;
 
-procedure TWWindow.FormDeactivate(Sender: TObject);
-begin
-  SetTimer(Handle, tiFormDeactivated, 100, nil);
-end;
-
 procedure TWWindow.FormDestroy(Sender: TObject);
 var
   ErrorMessage: string;
@@ -1279,14 +1277,14 @@ begin
   end;
   TabControlRepaint.Free();
 
+  Application.OnActivate := nil;
+  Application.OnDeactivate := nil;
   {$IFNDEF EurekaLog}
   Application.OnException := nil;
   {$ENDIF}
   Application.OnMessage := nil;
   Application.OnModalBegin := nil;
   Application.OnModalEnd := nil;
-  Application.OnActivate := nil;
-  Application.OnDeactivate := nil;
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);

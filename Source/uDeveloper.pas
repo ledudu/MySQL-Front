@@ -1163,7 +1163,7 @@ initialization
 
   if (GetUTCTime() < IncHour(GetCompileTime(), 24)) then
   begin
-    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+//    FreezeThreadClass := TMainThreadFreezeDetectionThread;
     CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
     CurrentEurekaLogOptions().FreezeActivate := True;
     InitCheckFreeze();
