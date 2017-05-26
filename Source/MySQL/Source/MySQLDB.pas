@@ -8130,10 +8130,14 @@ var
     begin
       Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count),
         'RecA: ' + IntToStr(RecA) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+        + 'Def: ' + IntToStr(Def) + #13#10
+        + 'CompareDefs: ' + IntToStr(Length(CompareDefs)));
       Assert((0 <= RecB) and (RecB < InternRecordBuffers.Count),
         'RecA: ' + IntToStr(RecB) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+        + 'Def: ' + IntToStr(Def) + #13#10
+        + 'CompareDefs: ' + IntToStr(Length(CompareDefs)));
 
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
@@ -8237,7 +8241,7 @@ begin
 
   OldBookmark := Bookmark;
 
-  if ((ASortDef.Fields <> '') and (InternRecordBuffers.Count > 0)) then
+  if ((ASortDef.Fields <> '') and (InternRecordBuffers.Count > 1)) then
   begin
     SetLength(CompareDefs, 0);
     Pos := 1;

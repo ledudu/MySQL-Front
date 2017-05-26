@@ -693,6 +693,9 @@ uses
   CSVUtils,
   uURI;
 
+var
+  Profile: TProfile;
+
 function VersionStrToVersion(VersionStr: string): Integer;
 begin
   if (Pos('.', VersionStr) = 0) then
@@ -1925,7 +1928,6 @@ var
   Resource: Pointer;
   S: string;
   StringList: TStringList;
-  Profile: TProfile;
 begin
   CreateProfile(Profile);
 
@@ -2028,14 +2030,14 @@ ProfilingPoint(Profile, 5);
 ProfilingPoint(Profile, 6);
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
-ProfilingPoint(Profile, 7);
+ProfilingPoint(Profile, 14);
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
-ProfilingPoint(Profile, 8);
+ProfilingPoint(Profile, 15);
 
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
@@ -2052,7 +2054,7 @@ ProfilingPoint(Profile, 8);
   end;
 
 
-ProfilingPoint(Profile, 9);
+ProfilingPoint(Profile, 16);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2100,7 +2102,7 @@ ProfilingPoint(Profile, 9);
       end
     else if (I > 0) then
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-ProfilingPoint(Profile, 10);
+ProfilingPoint(Profile, 17);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2278,11 +2280,13 @@ var
   SearchRec: TSearchRec;
   SetupProgramFileInfo: VS_FIXEDFILEINFO;
 begin
+ProfilingPoint(Profile, 8);
   Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Filename));
   Ext := ExtractFileExt(Filename);
   Name := ExtractFileName(Filename);
   Name := LeftStr(Name, Length(Name) - Length(Ext));
 
+ProfilingPoint(Profile, 9);
   if (UpdateRemoved = '') then
   begin
     if (not GetFileInfo(Filename, SetupProgramFileInfo)
@@ -2290,6 +2294,7 @@ begin
       MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext))
     else
     begin
+ProfilingPoint(Profile, 10);
       Found := False;
       repeat
         Found := Found
@@ -2297,10 +2302,12 @@ begin
       until (FindNext(SearchRec) <> 0);
       FindClose(SearchRec);
 
+ProfilingPoint(Profile, 11);
       if (Found) then
         DeleteFile(Filename)
       else
       begin
+ProfilingPoint(Profile, 12);
         if (FileExists(Directory + Name + ' (1)' + Ext)) then
         begin
           if (FileExists(Directory + Name + ' (2)' + Ext)) then
@@ -2324,6 +2331,7 @@ begin
           MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
         end;
         MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
+ProfilingPoint(Profile, 13);
       end;
     end;
   end
@@ -3580,8 +3588,6 @@ begin
 end;
 
 function TPAccount.Save(): string;
-var
-  Profile: TProfile;
 begin
   if (Assigned(XML)) then
   begin
@@ -3591,15 +3597,11 @@ begin
     XMLNode(XML, 'manualurl').Text := ManualURL;
     XMLNode(XML, 'manualurl').Attributes['version'] := ManualURLVersion;
 
-    CreateProfile(Profile);
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
-    ProfilingPoint(Profile, 1);
     Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
-    ProfilingPoint(Profile, 2);
     Favorites.SaveToXML(XMLNode(XML, 'favorites', True));
     if (ProfilingTime(Profile) > 5000) then
       SendToDeveloper(ProfilingReport(Profile));
-    CloseProfile(Profile);
 
     if (ForceDirectories(DataPath)) then
     begin

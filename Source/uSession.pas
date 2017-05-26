@@ -9589,13 +9589,13 @@ begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
-  // On a 5.0.0-alpha-max-debug server, there was no "Engine" field as a result
-  // of SHOW ENGINES. Is there a "Type" field?
-  Assert(UseInformationSchema or Assigned(DataSet.FindField('Engine')),
-    'Field[0]: ' + DataSet.Fields[0].FieldName);
-
-
   if (Assigned(DataSet) and not DataSet.IsEmpty()) then
+  begin
+    // On a 5.0.0-alpha-max-debug server, there was no "Engine" field as a result
+    // of SHOW ENGINES. Is there a "Type" field?
+    Assert(UseInformationSchema or Assigned(DataSet.FindField('Engine')),
+      'Field[0]: ' + DataSet.Fields[0].FieldName);
+
     repeat
       if ((not UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'DISABLED') <> 0))
         or (UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'DISABLED') <> 0))) then
@@ -9632,6 +9632,7 @@ begin
         end;
       end;
     until (not DataSet.FindNext());
+  end;
 
   Result := inherited;
 

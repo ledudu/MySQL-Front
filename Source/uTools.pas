@@ -4168,8 +4168,10 @@ begin
                   or not Assigned(ResultHandle.SyncThread)
                   or (ResultHandle.SyncThread.DebugState <> ssResult),
                     'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+                    + 'Success: ' + IntToStr(Ord(Success)) + #13#10
                     + 'Progress: ' + Progress + #13#10
                     + 'Log: ' + #13#10
+                    + 'SyncThread: ' + BoolToStr(Assigned(ResultHandle.SyncThread), True) + #13#10
                     + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
 
                 Progress := Progress + 'b';
@@ -4182,8 +4184,10 @@ begin
                     or not Assigned(ResultHandle.SyncThread)
                     or (ResultHandle.SyncThread.DebugState <> ssResult),
                       'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+                      + 'Success: ' + IntToStr(Ord(Success)) + #13#10
                       + 'Progress: ' + Progress + #13#10
                       + 'Log: ' + #13#10
+                      + 'SyncThread: ' + BoolToStr(Assigned(ResultHandle.SyncThread), True) + #13#10
                       + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
                 end;
                 Progress := Progress + 'c';
