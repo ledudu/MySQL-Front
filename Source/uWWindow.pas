@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows, Messages,
-  SysUtils, Classes, Types, Actions,
+  SysUtils, Classes, Types, Actions, Generics.Collections,
   Graphics, Controls, Forms, Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls,
   ImgList, Menus, StdActns, ActnCtrls, StdCtrls, ToolWin,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
@@ -385,7 +385,7 @@ type
   private
     AddTabParam: string;
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
-    FSessions: TList;
+    FSessions: TList<TFSession>;
     MouseDownPoint: TPoint;
     UpdateFound: Boolean;
     ModalForm: TForm;
@@ -1227,7 +1227,7 @@ begin
   else
     CToolBar.EdgeBorders := [];
 
-  FSessions := TList.Create();
+  FSessions := TList<TFSession>.Create();
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
@@ -1337,7 +1337,7 @@ begin
   if (not Assigned(FSessions) or (TabControl.TabIndex < 0) or (FSessions.Count <= TabControl.TabIndex)) then
     Result := nil
   else
-    Result := TFSession(FSessions[TabControl.TabIndex]);
+    Result := FSessions[TabControl.TabIndex];
 end;
 
 function TWWindow.GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
@@ -1382,7 +1382,7 @@ begin
   begin
     if (Assigned(ActiveTab)) then
       DeactivateTab(ActiveTab);
-    ActivateTab(TFSession(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))]));
+    ActivateTab(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))]);
   end;
 end;
 
@@ -1405,7 +1405,7 @@ procedure TWWindow.SetActiveTab(const FSession: TFSession);
 begin
   TabControl.TabIndex := FSessions.IndexOf(FSession);
 
-  TFSession(FSessions[FSessions.IndexOf(FSession)]).BringToFront();
+  FSessions[FSessions.IndexOf(FSession)].BringToFront();
 end;
 
 procedure TWWindow.SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
@@ -1462,7 +1462,7 @@ end;
 procedure TWWindow.TabControlChange(Sender: TObject);
 begin
   if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
-    ActivateTab(TFSession(FSessions[TabControl.TabIndex]));
+    ActivateTab(FSessions[TabControl.TabIndex]);
 end;
 
 procedure TWWindow.TabControlChanging(Sender: TObject;
@@ -1483,7 +1483,7 @@ begin
     for I := 0 to FSessions.Count - 1 do
     begin
       MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := TFSession(FSessions[I]).ToolBarData.Caption;
+      MenuItem.Caption := FSessions[I].ToolBarData.Caption;
       MenuItem.RadioItem := True;
       MenuItem.Checked := I = TabControl.TabIndex;
       MenuItem.OnClick := mtTabsClick;
@@ -1505,7 +1505,7 @@ begin
 
   TabControl.Tabs.Clear();
   for I := 0 to FSessions.Count - 1 do
-    TabControl.Tabs.Add(TFSession(FSessions[I]).Session.Account.Name);
+    TabControl.Tabs.Add(FSessions[I].Session.Account.Name);
 
   TabControl.TabIndex := NewTabIndex;
 end;
@@ -1578,7 +1578,7 @@ begin
     TabControl.Hint := ''
   else
   begin
-    Tab := TFSession(FSessions[Index]);
+    Tab := FSessions[Index];
 
     S := Tab.Session.Caption;
     if (Tab.ToolBarData.Caption <> '') then
@@ -1696,7 +1696,7 @@ begin
   if (not (csDestroying in ComponentState)) then
   begin
     for I := 0 to FSessions.Count - 1 do
-      try TFSession(FSessions[I]).CrashRescue(); except end;
+      try FSessions[I].CrashRescue(); except end;
 
     try Accounts.Save(); except; end;
     try Preferences.Save(); except; end;
@@ -1881,7 +1881,7 @@ begin
 
   if (Assigned(FSessions)) then
     for I := 0 to FSessions.Count - 1 do
-      SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
+      SendMessage(FSessions[0].Handle, Message.Msg, Message.WParam, Message.LParam);
 end;
 
 procedure TWWindow.UMMySQLConnectionSynchronize(var Message: TMessage);

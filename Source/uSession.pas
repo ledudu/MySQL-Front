@@ -1528,7 +1528,9 @@ type
   type
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemRenamed,
+        etItemDeleted, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL,
+        etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -9586,6 +9588,12 @@ var
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
+
+  // On a 5.0.0-alpha-max-debug server, there was no "Engine" field as a result
+  // of SHOW ENGINES. Is there a "Type" field?
+  Assert(UseInformationSchema or Assigned(DataSet.FindField('Engine')),
+    'Field[0]: ' + DataSet.Fields[0].FieldName);
+
 
   if (Assigned(DataSet) and not DataSet.IsEmpty()) then
     repeat

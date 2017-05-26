@@ -4411,13 +4411,14 @@ begin
     end;
   end;
 
-  Assert((Success <> daSuccess)
-    or not Assigned(ResultHandle.SyncThread)
-    or (ResultHandle.SyncThread.DebugState <> ssResult),
-      'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
-      + 'Progress: ' + Progress + #13#10
-      + 'Log: ' + #13#10
-      + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
+  if (Data) then
+    Assert((Success <> daSuccess)
+      or not Assigned(ResultHandle.SyncThread)
+      or (ResultHandle.SyncThread.DebugState <> ssResult),
+        'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
+        + 'Progress: ' + Progress + #13#10
+        + 'Log: ' + #13#10
+        + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
 
   if (Success = daSuccess) then
   begin

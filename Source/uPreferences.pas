@@ -2020,15 +2020,15 @@ begin
 
   LoadFromRegistry();
 
-  ProfilingPoint(Profile, 5);
 
+ProfilingPoint(Profile, 5);
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   Filename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup.exe';
+ProfilingPoint(Profile, 6);
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
-
-  ProfilingPoint(Profile, 6);
+ProfilingPoint(Profile, 7);
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
@@ -2036,8 +2036,6 @@ begin
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
 
-
-  ProfilingPoint(Profile, 7);
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
     and not DirectoryExists(UserPath)) then
