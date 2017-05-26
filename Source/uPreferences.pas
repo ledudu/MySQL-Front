@@ -3600,8 +3600,6 @@ begin
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
     Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
     Favorites.SaveToXML(XMLNode(XML, 'favorites', True));
-    if (ProfilingTime(Profile) > 5000) then
-      SendToDeveloper(ProfilingReport(Profile));
 
     if (ForceDirectories(DataPath)) then
     begin
