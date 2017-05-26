@@ -2035,6 +2035,7 @@ ProfilingPoint(Profile, 7);
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
+ProfilingPoint(Profile, 8);
 
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
@@ -2051,6 +2052,7 @@ ProfilingPoint(Profile, 7);
   end;
 
 
+ProfilingPoint(Profile, 9);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2098,6 +2100,7 @@ ProfilingPoint(Profile, 7);
       end
     else if (I > 0) then
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
+ProfilingPoint(Profile, 10);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();

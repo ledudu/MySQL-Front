@@ -7168,7 +7168,14 @@ begin
   Index := InternRecordBuffers.IndexOf(Bookmark);
 
   if (Index >= 0) then
+  begin
     InternRecordBuffers.Index := Index;
+
+    // Prepare for Resync()
+    // This is a bad solution, but in Resync the index will be taken from
+    // ActiveBuffer...
+    PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+  end;
 end;
 
 procedure TMySQLDataSet.InternalInitFieldDefs();

@@ -2044,8 +2044,8 @@ end;
 function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = True): string;
 label
   StringL,
+  Unquoted, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedTerminatorsE, UnquotedC, UnquotedLE,
   Quoted, QuotedE,
-  Unquoted, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
   Terminators: PChar = #9#10#13#32'",-.:;=`'; // Characters, terminating the value
@@ -2130,17 +2130,25 @@ begin
         MOV EBX,[Terminators]            // Terminating characters
       UnquotedTerminatorsL:
         CMP WORD PTR [EBX],0             // All terminators checked?
-        JE UnquotedC                     // Yes!
+        JE UnquotedTerminatorsE          // Yes!
         CMP AX,[EBX]                     // Charcter in SQL = Terminator?
         JE Finish                        // Yes!
         ADD EBX,2                        // Next character in Terminators
         JMP UnquotedTerminatorsL
+      UnquotedTerminatorsE:
+        CMP AX,'/'                       // '/'?
+        JNE UnquotedC                    // No!
+        CMP ECX,2                        // Two or more characters left?
+        JB UnquotedC                     // No!
+        CMP WORD PTR [ESI + 2],'*'                // '/*'?
+        JE Finish                        // Yes!
 
       UnquotedC:
         MOVSW                            // Copy character from SQL to Result
       UnquotedLE:
-        LOOP StringL
-        JMP Finish
+        JECXZ Finish                     // End of SQL!
+        DEC ECX
+        JMP StringL
 
       // -------------------
 
