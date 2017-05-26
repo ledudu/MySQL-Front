@@ -8128,6 +8128,13 @@ var
       Result := 0
     else
     begin
+      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count),
+        'RecA: ' + IntToStr(RecA) + #13#10
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+      Assert((0 <= RecB) and (RecB < InternRecordBuffers.Count),
+        'RecA: ' + IntToStr(RecB) + #13#10
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       if (NullA and not NullB) then

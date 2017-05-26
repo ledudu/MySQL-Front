@@ -4411,7 +4411,7 @@ begin
     end;
   end;
 
-  if (Data) then
+  if (Data and Assigned(ResultHandle.SyncThread)) then
     Assert((Success <> daSuccess)
       or not Assigned(ResultHandle.SyncThread)
       or (ResultHandle.SyncThread.DebugState <> ssResult),
