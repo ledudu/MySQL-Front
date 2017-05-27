@@ -187,6 +187,11 @@ begin
 
       if (I >= TMySQLDBGrid(Grid).LeftCol) then
       begin
+        // Debug 2017-05-27
+        Assert(Assigned(TMySQLDBGrid(Grid)));
+        Assert(Assigned(TMySQLDBGrid(Grid).HeaderControl));
+        Assert(Assigned(TMySQLDBGrid(Grid).HeaderControl.Sections));
+
         Section := TMySQLDBGrid(Grid).HeaderControl.Sections.Insert(I - TMySQLDBGrid(Grid).LeftCol);
         Section.MinWidth := TMySQLDBGrid(Grid).HeaderControl.Height;
         Section.MaxWidth := TMySQLDBGrid(Grid).Width - TMySQLDBGrid(Grid).HeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);

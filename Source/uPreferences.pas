@@ -1990,7 +1990,9 @@ begin
   ProfilingPoint(Profile, 3);
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
+  ProfilingPoint(Profile, 4);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
+  ProfilingPoint(Profile, 5);
   if (FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Desktop.xml') or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
     FUserPath := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName))
   else if (SysUtils.LoadStr(1002) = '') then
@@ -1998,7 +2000,7 @@ begin
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + SysUtils.LoadStr(1002));
 
-  ProfilingPoint(Profile, 4);
+  ProfilingPoint(Profile, 6);
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -2023,21 +2025,21 @@ begin
   LoadFromRegistry();
 
 
-ProfilingPoint(Profile, 5);
+ProfilingPoint(Profile, 7);
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   Filename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup.exe';
-ProfilingPoint(Profile, 6);
+ProfilingPoint(Profile, 8);
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
-ProfilingPoint(Profile, 14);
+ProfilingPoint(Profile, 15);
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
-ProfilingPoint(Profile, 15);
+ProfilingPoint(Profile, 16);
 
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
@@ -2054,7 +2056,7 @@ ProfilingPoint(Profile, 15);
   end;
 
 
-ProfilingPoint(Profile, 16);
+ProfilingPoint(Profile, 17);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2102,7 +2104,7 @@ ProfilingPoint(Profile, 16);
       end
     else if (I > 0) then
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-ProfilingPoint(Profile, 17);
+ProfilingPoint(Profile, 18);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2280,13 +2282,13 @@ var
   SearchRec: TSearchRec;
   SetupProgramFileInfo: VS_FIXEDFILEINFO;
 begin
-ProfilingPoint(Profile, 8);
+ProfilingPoint(Profile, 9);
   Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Filename));
   Ext := ExtractFileExt(Filename);
   Name := ExtractFileName(Filename);
   Name := LeftStr(Name, Length(Name) - Length(Ext));
 
-ProfilingPoint(Profile, 9);
+ProfilingPoint(Profile, 10);
   if (UpdateRemoved = '') then
   begin
     if (not GetFileInfo(Filename, SetupProgramFileInfo)
@@ -2294,7 +2296,7 @@ ProfilingPoint(Profile, 9);
       MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext))
     else
     begin
-ProfilingPoint(Profile, 10);
+ProfilingPoint(Profile, 11);
       Found := False;
       repeat
         Found := Found
@@ -2302,12 +2304,12 @@ ProfilingPoint(Profile, 10);
       until (FindNext(SearchRec) <> 0);
       FindClose(SearchRec);
 
-ProfilingPoint(Profile, 11);
+ProfilingPoint(Profile, 12);
       if (Found) then
         DeleteFile(Filename)
       else
       begin
-ProfilingPoint(Profile, 12);
+ProfilingPoint(Profile, 13);
         if (FileExists(Directory + Name + ' (1)' + Ext)) then
         begin
           if (FileExists(Directory + Name + ' (2)' + Ext)) then
@@ -2331,7 +2333,7 @@ ProfilingPoint(Profile, 12);
           MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
         end;
         MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
-ProfilingPoint(Profile, 13);
+ProfilingPoint(Profile, 14);
       end;
     end;
   end

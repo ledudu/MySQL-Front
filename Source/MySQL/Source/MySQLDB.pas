@@ -8196,29 +8196,31 @@ var
       Result := -Result;
   end;
 
-  procedure QuickSort(const Lo, Hi: Integer);
+  procedure QuickSort(Lo, Hi: Integer);
   var
     L: Integer;
     M: Integer;
     R: Integer;
   begin
-    L := Lo;
-    R := Hi;
-    M := (L + R + 1) div 2;
-
-    while (L <= R) do
-    begin
-      while (Compare(L, M, 0) < 0) do Inc(L);
-      while (Compare(R, M, 0) > 0) do Dec(R);
-      if (L <= R) then
-      begin
-        InternRecordBuffers.Exchange(L, R);
-        Inc(L); Dec(R);
-      end;
-    end;
-
-    if (Lo < R) then QuickSort(Lo, R);
-    if (L < Hi) then QuickSort(L, Hi);
+    repeat
+      L := Lo;
+      R := Hi;
+      M := (Lo + Hi) shr 1;
+      repeat
+        while (Compare(L, M, 0)) < 0 do Inc(L);
+        while (Compare(R, M, 0)) > 0 do Dec(R);
+        if (L <= R) then
+        begin
+          if (L <> R) then
+            InternRecordBuffers.Exchange(L, R);
+          Inc(L);
+          Dec(R);
+        end;
+      until (L > R);
+      if (Lo < R) then
+        QuickSort(Lo, R);
+      Lo := L;
+    until (L >= Hi);
   end;
 
 var

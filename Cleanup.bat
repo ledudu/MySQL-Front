@@ -59,6 +59,8 @@ for /D /R %%I in (*) do (
   if exist "%%I\*.drc" DEL %%I\*.drc"
   if exist "%%I\*.dproj.local" DEL %%I\*.dproj.local"
   if exist "%%I\*.identcache" DEL "%%I\*.identcache"
+  if exist "%%I\*.tvsconfig" DEL "%%I\*.tvsconfig"
+  if exist "%%I\*.vlb" DEL %%I\*.vlb"
 )
 
 CHOICE /M "Clean built packages"
