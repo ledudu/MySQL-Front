@@ -8128,13 +8128,10 @@ var
       Result := 0
     else
     begin
-      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count),
+      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count)
+        and (0 <= RecB) and (RecB < InternRecordBuffers.Count),
         'RecA: ' + IntToStr(RecA) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-        + 'Def: ' + IntToStr(Def) + #13#10
-        + 'CompareDefs: ' + IntToStr(Length(CompareDefs)));
-      Assert((0 <= RecB) and (RecB < InternRecordBuffers.Count),
-        'RecA: ' + IntToStr(RecB) + #13#10
+        + 'RecB: ' + IntToStr(RecB) + #13#10
         + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
         + 'Def: ' + IntToStr(Def) + #13#10
         + 'CompareDefs: ' + IntToStr(Length(CompareDefs)));

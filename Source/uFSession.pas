@@ -4746,7 +4746,16 @@ begin
     PSideBar.EnableAlign();
 
     if (aVNavigator.Checked) then
-      Window.ActiveControl := FNavigator
+      try
+        Window.ActiveControl := FNavigator
+      except
+        on E: Exception do
+          E.RaiseOuterException(Exception(E.ClassType).Create(E.Message + #13#10
+            + 'Enabled: ' + BoolToStr(FNavigator.Enabled, True) + #13#10
+            + 'Visible: ' + BoolToStr(FNavigator.Visible, True) + #13#10
+            + 'ParentForm ' + GetParentForm(FNavigator).Name + #13#10
+            + 'CanFocus: ' + BoolToStr(FNavigator.CanFocus, True)));
+      end
     else if (aVExplorer.Checked) then
       Window.ActiveControl := FFolders
     else if (aVSQLHistory.Checked) then
@@ -6980,6 +6989,10 @@ begin
   Session.Account.Desktop.LogHeight := PLog.Height;
   if (CurrentAddress <> '') then
   begin
+    // Debug 2017-05-28
+    Assert(Copy(CurrentAddress, 1, 5) = 'mysql',
+      'CurrentAddress: ' + CurrentAddress);
+
     URI := TUURI.Create(CurrentAddress);
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
@@ -7777,7 +7790,7 @@ procedure TFSession.FNavigatorDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   I: Integer;
   Index: Integer;
-  Objects: string;
+  Addresses: string;
   SourceNode: TTreeNode;
   TargetNode: TTreeNode;
 begin
@@ -7824,50 +7837,46 @@ begin
       SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
 
       case (SourceNode.ImageIndex) of
-        iiDatabase:   Objects := Objects + 'Database='    + SourceNode.Text + #13#10;
-        iiBaseTable:  Objects := Objects + 'Table='       + SourceNode.Text + #13#10;
-        iiView:       Objects := Objects + 'View='        + SourceNode.Text + #13#10;
-        iiProcedure:  Objects := Objects + 'Procedure='   + SourceNode.Text + #13#10;
-        iiFunction:   Objects := Objects + 'Function='    + SourceNode.Text + #13#10;
-        iiEvent:      Objects := Objects + 'Event='       + SourceNode.Text + #13#10;
-        iiKey:        Objects := Objects + 'Index='       + SourceNode.Text + #13#10;
+        iiDatabase,
+        iiBaseTable,
+        iiView,
+        iiProcedure,
+        iiFunction,
+        iiEvent,
+        iiKey,
         iiBaseField,
         iiVirtualField,
-        iiViewField:  Objects := Objects + 'Field='       + SourceNode.Text + #13#10;
-        iiForeignKey: Objects := Objects + 'ForeignKey='  + SourceNode.Text + #13#10;
-        iiTrigger:    Objects := Objects + 'Trigger='     + SourceNode.Text + #13#10;
-        iiUser:       Objects := Objects + 'User='        + SourceNode.Text + #13#10;
+        iiViewField,
+        iiForeignKey,
+        iiTrigger,
+        iiUser:
+          Addresses := AddressByData(SourceNode.Data) + #13#10;
       end;
-      if (Objects <> '') then
-        Objects := 'Address=' + AddressByData(SourceNode.Data) + #13#10 + Objects;
     end
     else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name)) then
     begin
-      SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigatorNodeByAddress(TFSession(TComponent(TListView(Source).Owner)).CurrentAddress);
-
       for I := 0 to TListView(Source).Items.Count - 1 do
         if (TListView(Source).Items[I].Selected) then
           case (TListView(Source).Items[I].ImageIndex) of
-            iiDatabase:   Objects := Objects + 'Database='   + TListView(Source).Items[I].Caption + #13#10;
-            iiBaseTable:  Objects := Objects + 'Table='      + TListView(Source).Items[I].Caption + #13#10;
-            iiView:       Objects := Objects + 'View='       + TListView(Source).Items[I].Caption + #13#10;
-            iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
-            iiFunction:   Objects := Objects + 'Function='   + TListView(Source).Items[I].Caption + #13#10;
-            iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
-            iiKey:        Objects := Objects + 'Key='        + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
+            iiDatabase,
+            iiBaseTable,
+            iiView,
+            iiProcedure,
+            iiFunction,
+            iiEvent,
+            iiKey,
             iiBaseField,
             iiVirtualField,
-            iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
-            iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
-            iiTrigger:    Objects := Objects + 'Trigger='    + TListView(Source).Items[I].Caption + #13#10;
-            iiUser:       Objects := Objects + 'User='       + TListView(Source).Items[I].Caption + #13#10;
+            iiViewField,
+            iiForeignKey,
+            iiTrigger,
+            iiUser:
+              Addresses := AddressByData(TListView(Source).Items[I].Data) + #13#10;
           end;
-      if (Objects <> '') then
-        Objects := 'Address=' + AddressByData(SourceNode.Data) + #13#10 + Objects;
     end;
 
-    if (Objects <> '') then
-      PasteExecute(TargetNode, Objects);
+    if (Addresses <> '') then
+      PasteExecute(TargetNode, Addresses);
   end;
 end;
 

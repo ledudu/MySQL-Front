@@ -424,6 +424,7 @@ type
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
+    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -456,7 +457,8 @@ uses
   ESysInfo,
   {$ENDIF}
   acQBLocalizer,
-  MySQLConsts, HTTPTunnel, SQLUtils,
+  BCEditor.Editor,
+  MySQLConsts, HTTPTunnel, SQLUtils, MySQLDBGrid,
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate, uDMail, uDDowndate;
@@ -1058,6 +1060,10 @@ end;
 
 destructor TWWindow.Destroy();
 begin
+  // Debug 2017-05-27
+  Assert(FSessions.Count = 0,
+    'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
@@ -1999,6 +2005,36 @@ begin
   end;
 end;
 
+procedure TWWindow.WMActivate(var Message: TWMActivate);
+begin
+  if ((ActiveControl is TBCEditor)
+    or (ActiveControl is TMySQLDBGrid)) then
+    case (Message.Active) of
+      WA_INACTIVE:
+        begin
+          aECopy.ShortCut := 0;
+          aECopy.SecondaryShortCuts.Clear();
+          aECut.ShortCut := 0;
+          aEDelete.ShortCut := 0;
+          aEPaste.ShortCut := 0;
+          aEPaste.SecondaryShortCuts.Clear();
+          aESelectAll.ShortCut := 0;
+        end;
+      WA_ACTIVE:
+        begin
+          aECopy.ShortCut := 16451;
+          aECopy.SecondaryShortCuts.Text := 'Ctrl+Ins';
+          aECut.ShortCut := 16472;
+          aEDelete.ShortCut := 16430;
+          aEPaste.ShortCut := 16470;
+          aEPaste.SecondaryShortCuts.Text := 'Shift+Ins';
+          aESelectAll.ShortCut := 16449;
+        end;
+    end;
+
+  inherited;
+end;
+
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);
 var
   Control: TControl;
@@ -2046,7 +2082,6 @@ var
   PopupChildVisible: Boolean;
 begin
   if (not (csDestroying in ComponentState)) then
-  begin
     if (Message.WindowPos^.flags and SWP_NOMOVE = 0) then
       HidePopupChildren()
     else if (Message.WindowPos^.flags and SWP_NOZORDER = 0) then
@@ -2057,7 +2092,6 @@ begin
       if (PopupChildVisible) then
         Message.WindowPos^.flags := Message.WindowPos^.flags or SWP_NOZORDER;
     end;
-  end;
 
   inherited;
 end;

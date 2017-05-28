@@ -1140,15 +1140,6 @@ object WWindow: TWWindow
       ImageIndex = 7
       ShortCut = 16472
     end
-    object aEDelete: TEditDelete
-      Category = 'Edit'
-      Caption = 'aEDelete'
-      Enabled = False
-      HelpContext = 1027
-      HelpType = htContext
-      ImageIndex = 10
-      ShortCut = 16430
-    end
     object aECopy: TEditCopy
       Category = 'Edit'
       Caption = 'aECopy'
@@ -1159,6 +1150,15 @@ object WWindow: TWWindow
       SecondaryShortCuts.Strings = (
         'Ctrl+Ins')
       ShortCut = 16451
+    end
+    object aEDelete: TEditDelete
+      Category = 'Edit'
+      Caption = 'aEDelete'
+      Enabled = False
+      HelpContext = 1027
+      HelpType = htContext
+      ImageIndex = 10
+      ShortCut = 16430
     end
     object aECopyToFile: TAction
       Category = 'Edit'

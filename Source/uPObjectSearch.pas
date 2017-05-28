@@ -33,7 +33,7 @@ type
     function GetTriggers(): Boolean;
     procedure SetLocation(ALocation: TObject);
     procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
-    procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
+    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
@@ -174,9 +174,9 @@ begin
   FComment.Caption := Preferences.LoadStr(111);
 end;
 
-procedure TPObjectSearch.WMActivate(var Msg: TWMActivate);
+procedure TPObjectSearch.WMActivate(var Message: TWMActivate);
 begin
-  if ((Msg.Active <> WA_INACTIVE) and Assigned(PopupParent)) then
+  if ((Message.Active <> WA_INACTIVE) and Assigned(PopupParent)) then
     SendMessage(PopupParent.Handle, WM_NCACTIVATE, WPARAM(TRUE), 0);
 
   inherited;

@@ -11350,6 +11350,8 @@ begin
   Result := False;
 
   // Debug 2017-05-05
+  Assert(Assigned(Self));
+  Assert(TObject(Self) is TSItemSearch);
   Assert(Assigned(Session));
   Assert(Sessions.Count > 0);
   Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-05-17

@@ -2032,14 +2032,14 @@ ProfilingPoint(Profile, 7);
 ProfilingPoint(Profile, 8);
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
-ProfilingPoint(Profile, 15);
+ProfilingPoint(Profile, 19);
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
-ProfilingPoint(Profile, 16);
+ProfilingPoint(Profile, 20);
 
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
@@ -2056,7 +2056,7 @@ ProfilingPoint(Profile, 16);
   end;
 
 
-ProfilingPoint(Profile, 17);
+ProfilingPoint(Profile, 21);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2104,7 +2104,7 @@ ProfilingPoint(Profile, 17);
       end
     else if (I > 0) then
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-ProfilingPoint(Profile, 18);
+ProfilingPoint(Profile, 22);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2132,6 +2132,8 @@ ProfilingPoint(Profile, 18);
   Trigger := TTrigger.Create();
   User := TUser.Create();
   View := TPView.Create();
+
+ProfilingPoint(Profile, 23);
 
   Open();
 
@@ -2339,6 +2341,7 @@ ProfilingPoint(Profile, 14);
   end
   else
   begin
+ProfilingPoint(Profile, 15);
     if (GetFileInfo(Filename, SetupProgramFileInfo)
       and FileExists(Directory + Name + ' (2)' + Ext)
       and GetFileInfo(Directory + Name + ' (2)' + Ext, SearchFileInfo)
@@ -2364,10 +2367,13 @@ ProfilingPoint(Profile, 14);
     end;
 
    UpdateRemoved := '';
+ProfilingPoint(Profile, 16);
   end;
 
+ProfilingPoint(Profile, 17);
   if (FileExists(Filename)) then
     DeleteFile(Filename);
+ProfilingPoint(Profile, 18);
 end;
 
 procedure TPPreferences.LoadFromRegistry();
