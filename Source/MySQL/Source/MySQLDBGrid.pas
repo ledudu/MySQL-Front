@@ -1030,7 +1030,15 @@ begin
     begin
       Col := Col + 1;
       for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
-        SelectedFields.Add(Columns[I].Field);
+        try // Debug 2017-05-29
+          SelectedFields.Add(Columns[I].Field);
+        except
+          on E: Exception do
+            E.RaiseOuterException(Exception(E.ClassType).Create(E.Message + #13#10
+              + 'Col: ' + IntToStr(Col) + #13#10
+              + 'ShiftDownAnchor: ' + IntToStr(ShiftDownAnchor.Col) + #13#10
+              + 'Count: ' + IntToStr(Columns.Count)));
+        end;
       if (Col > ShiftDownAnchor.Col) then
         InvalidateCol(Col);
     end;

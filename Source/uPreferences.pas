@@ -2032,14 +2032,14 @@ ProfilingPoint(Profile, 7);
 ProfilingPoint(Profile, 8);
   if (FileExists(Filename)) then
     HandleSetupProgram(Filename);
-ProfilingPoint(Profile, 19);
+ProfilingPoint(Profile, 23);
 
   Filename := ExtractFileName(Application.ExeName);
   Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
   FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
   if (not FileExists(FDowndateFilename)) then
     FDowndateFilename := '';
-ProfilingPoint(Profile, 20);
+ProfilingPoint(Profile, 24);
 
 
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
@@ -2056,7 +2056,7 @@ ProfilingPoint(Profile, 20);
   end;
 
 
-ProfilingPoint(Profile, 21);
+ProfilingPoint(Profile, 25);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2104,7 +2104,7 @@ ProfilingPoint(Profile, 21);
       end
     else if (I > 0) then
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-ProfilingPoint(Profile, 22);
+ProfilingPoint(Profile, 26);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2133,7 +2133,7 @@ ProfilingPoint(Profile, 22);
   User := TUser.Create();
   View := TPView.Create();
 
-ProfilingPoint(Profile, 23);
+ProfilingPoint(Profile, 27);
 
   Open();
 
@@ -2293,12 +2293,17 @@ ProfilingPoint(Profile, 9);
 ProfilingPoint(Profile, 10);
   if (UpdateRemoved = '') then
   begin
+ProfilingPoint(Profile, 11);
     if (not GetFileInfo(Filename, SetupProgramFileInfo)
       or (FindFirst(Directory + Name + ' (*)' + Ext, faNormal, SearchRec) <> 0)) then
-      MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext))
+    begin
+ProfilingPoint(Profile, 12);
+      MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
+ProfilingPoint(Profile, 13);
+    end
     else
     begin
-ProfilingPoint(Profile, 11);
+ProfilingPoint(Profile, 14);
       Found := False;
       repeat
         Found := Found
@@ -2306,12 +2311,12 @@ ProfilingPoint(Profile, 11);
       until (FindNext(SearchRec) <> 0);
       FindClose(SearchRec);
 
-ProfilingPoint(Profile, 12);
+ProfilingPoint(Profile, 15);
       if (Found) then
         DeleteFile(Filename)
       else
       begin
-ProfilingPoint(Profile, 13);
+ProfilingPoint(Profile, 16);
         if (FileExists(Directory + Name + ' (1)' + Ext)) then
         begin
           if (FileExists(Directory + Name + ' (2)' + Ext)) then
@@ -2335,13 +2340,14 @@ ProfilingPoint(Profile, 13);
           MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
         end;
         MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
-ProfilingPoint(Profile, 14);
+ProfilingPoint(Profile, 17);
       end;
     end;
+ProfilingPoint(Profile, 18);
   end
   else
   begin
-ProfilingPoint(Profile, 15);
+ProfilingPoint(Profile, 19);
     if (GetFileInfo(Filename, SetupProgramFileInfo)
       and FileExists(Directory + Name + ' (2)' + Ext)
       and GetFileInfo(Directory + Name + ' (2)' + Ext, SearchFileInfo)
@@ -2367,13 +2373,13 @@ ProfilingPoint(Profile, 15);
     end;
 
    UpdateRemoved := '';
-ProfilingPoint(Profile, 16);
+ProfilingPoint(Profile, 20);
   end;
 
-ProfilingPoint(Profile, 17);
+ProfilingPoint(Profile, 21);
   if (FileExists(Filename)) then
     DeleteFile(Filename);
-ProfilingPoint(Profile, 18);
+ProfilingPoint(Profile, 22);
 end;
 
 procedure TPPreferences.LoadFromRegistry();

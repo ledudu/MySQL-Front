@@ -389,6 +389,7 @@ type
     MouseDownPoint: TPoint;
     UpdateFound: Boolean;
     ModalForm: TForm;
+    Progress: string;
     QuitAfterShow: Boolean;
     TabControlDragMarkedTabIndex: Integer;
     TabControlDragStartTabIndex: Integer;
@@ -853,8 +854,11 @@ begin
   // Why is it needed to check the ComponentState???
   // Without this, sometimes this method will be called by FormCloseQuery
   // while csDestroying is set. :-/
+  Progress := Progress + 'b';
+
   if (not (csDestroying in ComponentState)) then
   begin
+  Progress := Progress + 'c';
     Result := True;
     for I := FSessions.Count - 1 downto 0 do
       if (Result) then
@@ -1062,7 +1066,7 @@ destructor TWWindow.Destroy();
 begin
   // Debug 2017-05-27
   Assert(FSessions.Count = 0,
-    'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+    'Progress: ' + Progress);
 
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
@@ -1084,11 +1088,18 @@ end;
 
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+  Progress := Progress + 'a';
+
   CanClose := CloseAll();
 
   // Debug 2017-05-20
   Assert(not CanClose or (FSessions.Count = 0),
     'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+
+  if (CanClose) then
+    Progress := Progress + 'd'
+  else
+    Progress := Progress + 'e';
 end;
 
 procedure TWWindow.FormCreate(Sender: TObject);

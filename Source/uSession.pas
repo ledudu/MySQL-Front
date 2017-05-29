@@ -5009,10 +5009,6 @@ begin
 
       if (not FForeignKeys.InsertIndex(NewName, Index)) then
       begin
-        // Debug 2017-03-30
-        Assert(DeleteList.IndexOf(FForeignKeys.Items[Index]) >= 0,
-          SQL);
-
         DeleteList.Delete(DeleteList.IndexOf(FForeignKeys.Items[Index]));
         FForeignKeys[Index].Clear();
       end
@@ -5027,8 +5023,6 @@ begin
       repeat
         FieldName := SQLParseValue(Parse);
         Field := FieldByName(FieldName);
-        if (not Assigned(Field)) then
-          raise EConvertError.CreateFmt(SInvalidForeignKeyChildField, [Database.Name + '.' + Name, FieldName, SQL]);
         SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
         NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := Field;
 
@@ -5086,6 +5080,15 @@ begin
         NewForeignKey.OnUpdate := utSetDefault
       else if (SQLParseKeyword(Parse, 'NO ACTION')) then
         NewForeignKey.OnUpdate := utNoAction;
+
+      // Sometimes, the MySQL server reports a foreign key with an invalid
+      // field name -> remove the foreign key!
+      for I := Length(NewForeignKey.Fields) - 1 downto 0 do
+        if (not Assigned(NewForeignKey.Fields[I])) then
+        begin
+          ForeignKeys.Delete(ForeignKeys.IndexByName(NewForeignKey.Name));
+          break;
+        end;
 
       Inc(Index);
       SQLParseChar(Parse, ',');

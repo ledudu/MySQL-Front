@@ -1003,6 +1003,12 @@ begin
       Assert(FStructure.Visible);
       Assert(GetParentForm(FStructure) = Self,
         'Parent: ' + BoolToStr(Assigned(FStructure.Parent), True));
+      Assert(GWhat.Visible and GWhat.Enabled,
+        'Visible: ' + BoolToStr(GWhat.Visible, True) + #13#10
+        + 'Enabled: ' + BoolToStr(GWhat.Enabled, True));
+      Assert(TSWhat.Visible and GWhat.Enabled,
+        'Visible: ' + BoolToStr(TSWhat.Visible, True) + #13#10
+        + 'Enabled: ' + BoolToStr(TSWhat.Enabled, True));
       Assert(FStructure.CanFocus());
 
       if (not FBForward.Enabled and FStructure.Enabled) then

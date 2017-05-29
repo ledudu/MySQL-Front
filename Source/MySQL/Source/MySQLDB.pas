@@ -2764,7 +2764,6 @@ var
   StmtIndex: Integer;
   StmtLength: Integer;
   ST: TSyncThread;
-Progress: string;
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
@@ -2811,52 +2810,21 @@ begin
 
   // Debug 2017-02-04
   ST := SyncThread;
-  Assert(TerminatedThreads.IndexOf(SyncThread) < 0);
-  Assert(Assigned(SyncThread.StmtLengths));
-  Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
-  Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
-
-  Progress := 'a';
 
   SQLIndex := 1;
-  StmtLength := 1; // ... to make sure, the first SQLStmtLength will be handled
+  StmtLength := 1; // ... make sure, the first SQLStmtLength will be handled
   while ((SQLIndex <= Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
-    Progress := Progress + 'b';
-      Assert(SyncThread = ST,
-        'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
-        + SyncThread.SQL);
+    Assert(SyncThread = ST,
+      SQLEscapeBin(SyncThread.SQL, True));
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
-      Assert(SyncThread = ST,
-        'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
-        + SyncThread.SQL);
+    Assert(SyncThread = ST,
+      SQLEscapeBin(SyncThread.SQL, True));
 
     if (StmtLength > 0) then
     begin
-    Progress := Progress + 'c';
-      // Debug 2017-04-12
-      Assert(SyncThread = ST,
-        'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
-        + SyncThread.SQL);
-      Assert(Assigned(SyncThread)); // Occurred on 2017-04-28
-      Assert(Assigned(SyncThread.StmtLengths));
-      Assert(TObject(SyncThread.StmtLengths) is TList<Integer>);
-
-    Progress := Progress + 'd';
       SyncThread.StmtLengths.Add(StmtLength);
-      Assert(SyncThread = ST,
-        'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
-        + SyncThread.SQL);
       Inc(SQLIndex, StmtLength);
-      Assert(SyncThread = ST,
-        'Progress: ' + Progress + #13#10
-        + 'SyncThread: ' + BoolToStr(Assigned(SyncThread), True) + #13#10
-        + SyncThread.SQL);
-    Progress := Progress + 'e';
     end;
   end;
 
@@ -8128,20 +8096,14 @@ var
       Result := 0
     else
     begin
-      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count)
-        and (0 <= RecB) and (RecB < InternRecordBuffers.Count),
-        'RecA: ' + IntToStr(RecA) + #13#10
-        + 'RecB: ' + IntToStr(RecB) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-        + 'Def: ' + IntToStr(Def) + #13#10
-        + 'CompareDefs: ' + IntToStr(Length(CompareDefs)));
-
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
-      if (NullA and not NullB) then
-        Result := -1
+      if (NullA and NullB) then
+        Result := 0
       else if (not NullA and NullB) then
         Result := +1
+      else if (NullA and not NullB) then
+        Result := -1
       else
       begin
         BufferA := @SortBuffers[Def][InternRecordBuffers[RecA].SortIndex * CompareDefs[Def].DataSize];
@@ -8174,10 +8136,10 @@ var
             ftBlob:
               if (PAnsiString(BufferA)^ = PAnsiString(BufferB)^) then
                 Result := 0
-              else if (PAnsiString(BufferA)^ < PAnsiString(BufferB)^) then
-                Result := -1
+              else if (PAnsiString(BufferA)^ > PAnsiString(BufferB)^) then
+                Result := 1
               else
-                Result := 1;
+                Result := -1;
             else
               raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [CompareDefs[Def].Field.Name, Integer(CompareDefs[Def].Field.DataType)]);
           end;
@@ -8249,7 +8211,11 @@ begin
       if (FieldName <> '') then
       begin
         SetLength(CompareDefs, Length(CompareDefs) + 1);
-        CompareDefs[Length(CompareDefs) - 1].Field := FieldByName(FieldName);
+        CompareDefs[Length(CompareDefs) - 1].Field := FindField(FieldName);
+        // Debug 2017-05-29
+        Assert(Assigned(CompareDefs[Length(CompareDefs) - 1].Field),
+          'SortDef.Fields: ' + SortDef.Fields + #13#10
+          + 'FieldName: ' + FieldName);
         CompareDefs[Length(CompareDefs) - 1].Ascending := True;
       end;
     until (FieldName = '');
