@@ -1491,6 +1491,7 @@ type
   TSItemSearch = class(TSItems)
   private
     FSession: TSSession;
+    IsRunning: Boolean;
     NeededTables: TList;
     procedure AddColumns(const DataSet: TMySQLQuery);
     procedure AddTables(const DataSet: TMySQLQuery);
@@ -1556,7 +1557,6 @@ type
     FDatabases: TSDatabases;
     FEngines: TSEngines;
     FFieldTypes: TSFieldTypes;
-    FItemSearches: TSItemSearches;
     FMetadataProvider: TacEventMetadataProvider;
     FPlugins: TSPlugins;
     FProcesses: TSProcesses;
@@ -1665,7 +1665,6 @@ InImport: Boolean;
     property Engines: TSEngines read FEngines;
     property FieldTypes: TSFieldTypes read FFieldTypes;
     property InformationSchema: TSDatabase read FInformationSchema;
-    property ItemSearches: TSItemSearches read FItemSearches;
     property LowerCaseTableNames: Byte read FLowerCaseTableNames;
     property MetadataProvider: TacEventMetadataProvider read FMetadataProvider;
     property PerformanceSchema: TSDatabase read FPerformanceSchema;
@@ -5004,7 +5003,11 @@ begin
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       if (not SQLParseChar(Parse, '(', False)) then
+      begin
         NewName := SQLParseValue(Parse); // Index Name
+        if (NewName = '') then
+          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      end;
 
 
       if (not FForeignKeys.InsertIndex(NewName, Index)) then
@@ -10210,6 +10213,9 @@ begin
 
       Item := Process[Index];
 
+      // Debug 2017-05-29
+      Assert(Item.Name <> '');
+
       if (Assigned(ItemSearch)) then
         ItemSearch.Add(Item);
     until (not DataSet.FindNext());
@@ -11319,23 +11325,20 @@ end;
 
 constructor TSItemSearch.Create(const ASession: TSSession);
 begin
-  // Debug 2017-05-09
-  Assert(Assigned(ASession));
-
   inherited;
 
   FSession := ASession;
 
+  IsRunning := False;
   Location := nil;
   Text := '';
   NeededTables := TList.Create();
-
-  Session.ItemSearches.Add(Self);
 end;
 
 destructor TSItemSearch.Destroy();
 begin
-  Session.ItemSearches.Delete(Session.ItemSearches.IndexOf(Self));
+  if (IsRunning) then
+    Session.Connection.Terminate();
 
   inherited;
 
@@ -11351,14 +11354,6 @@ var
   Table: TSTable;
 begin
   Result := False;
-
-  // Debug 2017-05-05
-  Assert(Assigned(Self));
-  Assert(TObject(Self) is TSItemSearch);
-  Assert(Assigned(Session));
-  Assert(Sessions.Count > 0);
-  Assert(Sessions.IndexOf(Session) >= 0); // Occurred on 2017-05-17
-  Assert(Assigned(Session.Connection));
 
   if (ErrorCode = 0) then
   begin
@@ -11410,6 +11405,8 @@ begin
 
     DataSet.Free();
   end;
+
+  IsRunning := False;
 end;
 
 function TSItemSearch.SQLDatabaseNames(): string;
@@ -11671,10 +11668,12 @@ begin
   if (Count > 0) then
     Session.SendEvent(etItemsValid, Self, Self);
 
-  // Debug 2017-04-01
-  Assert(Assigned(Session));
-
-  Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
+  Result := (SQL = '');
+  if (not Result) then
+  begin
+    Result := Session.SendSQL(SQL, SearchResult);
+    IsRunning := not Result;
+  end;
 end;
 
 function TSItemSearch.Step2(): Boolean;
@@ -11753,10 +11752,12 @@ begin
   if (Count > 0) then
     Session.SendEvent(etItemsValid, Self, Self);
 
-  // Debug 2017-04-01
-  Assert(Assigned(Session));
-
-  Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
+  Result := (SQL = '');
+  if (not Result) then
+  begin
+    Result := Session.SendSQL(SQL, SearchResult);
+    IsRunning := not Result;
+  end;
 end;
 
 { TSSession.TEvent ************************************************************}
@@ -12103,7 +12104,6 @@ begin
   EventProcs := TList<TEventProc>.Create();
   FCurrentUser := '';
   FInformationSchema := nil;
-  FItemSearches := TSItemSearches.Create();
   FLowerCaseTableNames := 0;
   FMetadataProvider := TacEventMetadataProvider.Create(nil);
   FPerformanceSchema := nil;
@@ -12367,7 +12367,6 @@ begin
   if (Assigned(FDatabases)) then FDatabases.Free();
   if (Assigned(FEngines)) then FEngines.Free();
   if (Assigned(FFieldTypes)) then FFieldTypes.Free();
-  if (Assigned(FItemSearches)) then FItemSearches.Free();
   if (Assigned(FPlugins)) then FPlugins.Free();
   if (Assigned(FProcesses)) then FProcesses.Free();
   if (Assigned(FQuickAccess)) then FQuickAccess.Free();

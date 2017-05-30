@@ -4158,10 +4158,6 @@ begin
 
     DImport.Execute();
 
-    // Debug 2017-01-06
-    if (not Assigned(FNavigator)) then
-      raise ERangeError.Create(SRangeError);
-
     UpdateAfterAddressChanged();
   end;
 end;
@@ -15585,7 +15581,13 @@ begin
     case (View) of
       vObjects,
       vObjectSearch:
-        if (Assigned(ActiveListView)) then Count := ActiveListView.Items.Count;
+        if (Assigned(ActiveListView)) then
+        begin
+          Assert(ActiveListView is TListView,
+            'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+
+          Count := ActiveListView.Items.Count;
+        end;
       vBrowser:
         if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
       vIDE,

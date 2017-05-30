@@ -2104,6 +2104,8 @@ ProfilingPoint(Profile, 25);
       end
     else if (I > 0) then
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
+
+  // 2017-05-29: 2.6 Sec
 ProfilingPoint(Profile, 26);
 
   Database := TDatabase.Create();
@@ -2276,6 +2278,7 @@ end;
 
 procedure TPPreferences.HandleSetupProgram(const Filename: TFileName);
 var
+  B: Boolean;
   Directory: TFileName;
   Ext: TFileName;
   Found: Boolean;
@@ -2284,17 +2287,18 @@ var
   SearchRec: TSearchRec;
   SetupProgramFileInfo: VS_FIXEDFILEINFO;
 begin
-ProfilingPoint(Profile, 9);
   Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Filename));
   Ext := ExtractFileExt(Filename);
   Name := ExtractFileName(Filename);
   Name := LeftStr(Name, Length(Name) - Length(Ext));
 
-ProfilingPoint(Profile, 10);
+ProfilingPoint(Profile, 9);
   if (UpdateRemoved = '') then
   begin
+ProfilingPoint(Profile, 10);
+    B := GetFileInfo(Filename, SetupProgramFileInfo);
 ProfilingPoint(Profile, 11);
-    if (not GetFileInfo(Filename, SetupProgramFileInfo)
+    if (not B
       or (FindFirst(Directory + Name + ' (*)' + Ext, faNormal, SearchRec) <> 0)) then
     begin
 ProfilingPoint(Profile, 12);
@@ -2303,6 +2307,8 @@ ProfilingPoint(Profile, 13);
     end
     else
     begin
+      // 2017-05-29: 4.1 Sec.
+      // 2017-05-29: 3.0 Sec.
 ProfilingPoint(Profile, 14);
       Found := False;
       repeat
@@ -2311,6 +2317,10 @@ ProfilingPoint(Profile, 14);
       until (FindNext(SearchRec) <> 0);
       FindClose(SearchRec);
 
+      // 2017-05-29: 8.3 Sec.
+      // 2017-05-29: 7.4 Sec.
+      // 2017-05-29: 1.5 Sec.
+      // 2017-05-29: 0.9 Sec.
 ProfilingPoint(Profile, 15);
       if (Found) then
         DeleteFile(Filename)
@@ -2340,6 +2350,8 @@ ProfilingPoint(Profile, 16);
           MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
         end;
         MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
+
+        // 2017-05-29: 6,7 Sec.
 ProfilingPoint(Profile, 17);
       end;
     end;
@@ -2379,6 +2391,7 @@ ProfilingPoint(Profile, 20);
 ProfilingPoint(Profile, 21);
   if (FileExists(Filename)) then
     DeleteFile(Filename);
+  // 2017-05-29: 1,6 Sec.
 ProfilingPoint(Profile, 22);
 end;
 
@@ -2524,6 +2537,8 @@ end;
 
 procedure TPPreferences.Open();
 begin
+  FXMLDocument := nil;
+
   if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
 end;
 
@@ -3911,6 +3926,8 @@ var
   J: Integer;
 begin
   Clear();
+
+  FXMLDocument := nil;
 
   XMLDocument.Options := XMLDocument.Options - [doNodeAutoCreate];
 

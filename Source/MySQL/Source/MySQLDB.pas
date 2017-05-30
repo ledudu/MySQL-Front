@@ -541,6 +541,7 @@ type
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
+      Identifier432: Integer;
       Index: Integer;
       InternRecordBuffer: PInternRecordBuffer;
       BookmarkFlag: TBookmarkFlag;
@@ -2810,6 +2811,8 @@ begin
 
   // Debug 2017-02-04
   ST := SyncThread;
+  if (SyncThread.SQL = '') then
+    raise EDatabaseError.Create('Empty query');
 
   SQLIndex := 1;
   StmtLength := 1; // ... make sure, the first SQLStmtLength will be handled
@@ -2817,6 +2820,7 @@ begin
   begin
     Assert(SyncThread = ST,
       SQLEscapeBin(SyncThread.SQL, True));
+    SyncThread.SQL := '';
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
     Assert(SyncThread = ST,
       SQLEscapeBin(SyncThread.SQL, True));
@@ -6454,6 +6458,7 @@ begin
   if (not Assigned(Result)) then
     raise EOutOfMemory.Create(SOutOfMemory);
 
+  PExternRecordBuffer(Result)^.Identifier432 := 432;
   PExternRecordBuffer(Result)^.Index := -1;
   PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
   PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
@@ -6730,6 +6735,9 @@ end;
 function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
   Assert(Active);
+  Assert(not (csDestroying in ComponentState));
+  Assert(ActiveBuffer() > 0);
+  Assert(PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432);
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -6743,6 +6751,8 @@ function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
   Assert(not (csDestroying in ComponentState));
+  Assert(ActiveBuffer() > 0);
+  Assert(PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432);
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -8096,6 +8106,14 @@ var
       Result := 0
     else
     begin
+      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count)
+        and (0 <= RecB) and (RecB < InternRecordBuffers.Count),
+        'RecA: ' + IntToStr(RecA) + #13#10
+        + 'RecB: ' + IntToStr(RecB) + #13#10
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count)
+        + 'Def: ' + IntToStr(Def) + #13#10
+        + 'Defs.Count: ' + IntToStr(Length(CompareDefs)));
+
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       if (NullA and NullB) then
@@ -8574,16 +8592,17 @@ begin
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
     begin
-      // Debug 2017-05-22
-      Assert(ActiveBuffer() > 0);
-
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer));
-      // Occurred on 2017-05-24
-      // In AfterCommit I placed a Resync([]) as a solution for this problem.
+      // Debug 2017-05-29
 
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData));
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths));
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow));
+
+      if (pfInUpdate in Fields[I].ProviderFlags) then
+        if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])) then
+        if (not (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))) then
+        if (not (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1]))) then
+        Write;
 
       if ((pfInUpdate in Fields[I].ProviderFlags)
         and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])

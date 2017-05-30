@@ -3973,7 +3973,6 @@ var
   ResultHandle: TMySQLConnection.TResultHandle;
   SQL: string;
   Table: TSTable;
-  Progress: string;
 begin
   {$IFDEF EurekaLog}
   try
@@ -4137,7 +4136,6 @@ begin
         SQL := SQL + ';' + #13#10;
       end;
 
-    Progress := 'a';
     if ((SQL = '') or Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin
       for I := 0 to Items.Count - 1 do
@@ -4163,57 +4161,19 @@ begin
 
               if (DataTable) then
               begin
-                // Debug 2017-02-17
-                Assert((Success <> daSuccess)
-                  or not Assigned(ResultHandle.SyncThread)
-                  or (ResultHandle.SyncThread.DebugState <> ssResult),
-                    'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
-                    + 'Success: ' + IntToStr(Ord(Success)) + #13#10
-                    + 'Progress: ' + Progress + #13#10
-                    + 'Log: ' + #13#10
-                    + 'SyncThread: ' + BoolToStr(Assigned(ResultHandle.SyncThread), True) + #13#10
-                    + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
-
-                Progress := Progress + 'b';
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
-                begin
                   DoError(DatabaseError(Session), nil, True);
-
-                  // Debug 2017-02-17
-                  Assert((Success <> daSuccess)
-                    or not Assigned(ResultHandle.SyncThread)
-                    or (ResultHandle.SyncThread.DebugState <> ssResult),
-                      'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
-                      + 'Success: ' + IntToStr(Ord(Success)) + #13#10
-                      + 'Progress: ' + Progress + #13#10
-                      + 'Log: ' + #13#10
-                      + 'SyncThread: ' + BoolToStr(Assigned(ResultHandle.SyncThread), True) + #13#10
-                      + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
-                end;
-                Progress := Progress + 'c';
               end;
 
               if (Success <> daAbort) then
               begin
                 Success := daSuccess;
 
-                Progress := Progress + 'd';
                 if (TDBObjectItem(Items[I]).DBObject is TSTable) then
                   if (not DataTable) then
                     ExecuteTable(TDBObjectItem(Items[I]), nil)
                   else
-                  begin
-                Progress := Progress + 'e';
-                    ExecuteTable(TDBObjectItem(Items[I]), @ResultHandle);
-                    if (Success = daFail) then
-                Progress := Progress + 'f'
-                    else if (Success = daAbort) then
-                Progress := Progress + 'g'
-                    else if (Success = daRetry) then
-                Progress := Progress + 'h'
-                    else
-                Progress := Progress + 'i';
-                  end
+                    ExecuteTable(TDBObjectItem(Items[I]), @ResultHandle)
                 else if (Structure) then
                   if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
                     ExecuteRoutine(TDBObjectItem(Items[I]))
@@ -4223,13 +4183,8 @@ begin
                     ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
               end;
 
-              Progress := Progress + 'j';
               if (DataTable and (Success <> daSuccess)) then
-              begin
-                Progress := Progress + 'k';
                 Session.Connection.CancelResultHandle(ResultHandle);
-              end;
-              Progress := Progress + 'l';
             end;
           end;
 
@@ -4372,7 +4327,6 @@ var
   Fields: array of TField;
   I: Integer;
   IndexDefs: TIndexDefs;
-  Progress: string;
   SQL: string;
   Table: TSTable;
 begin
@@ -4382,27 +4336,18 @@ begin
     DataSet := nil
   else
   begin
-    Progress := Progress + '1';
-
     DataSet := TMySQLQuery.Create(nil);
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
-    Progress := Progress + '2';
       DataSet.Open(ResultHandle^);
       if (not DataSet.Active) then
-      begin
-    Progress := Progress + '3';
         DoError(DatabaseError(Session), Item, False, SQL);
-      end;
     end;
 
     if (Success = daSuccess) then
     begin
-    Progress := Progress + '4';
       if (Assigned(Session.Connection.OnUpdateIndexDefs)) then
       begin
-    Progress := Progress + '5';
-
         // Set Field[I].ReadOnly for virtual fields
         IndexDefs := TIndexDefs.Create(DataSet);
         Session.Connection.OnUpdateIndexDefs(DataSet, IndexDefs);
@@ -4414,15 +4359,6 @@ begin
         Fields[I] := DataSet.Fields[I];
     end;
   end;
-
-  if (Data and Assigned(ResultHandle) and Assigned(ResultHandle.SyncThread)) then
-    Assert((Success <> daSuccess)
-      or not Assigned(ResultHandle.SyncThread)
-      or (ResultHandle.SyncThread.DebugState <> ssResult),
-        'DebugState: ' + IntToStr(Ord(ResultHandle.SyncThread.DebugState)) + #13#10
-        + 'Progress: ' + Progress + #13#10
-        + 'Log: ' + #13#10
-        + ResultHandle.SyncThread.Connection.DebugMonitor.CacheText);
 
   if (Success = daSuccess) then
   begin
@@ -8335,7 +8271,7 @@ begin
       SQLExecuted.Free();
     end;
 
-    if (Success <> daAbort) then
+    if (Assigned(DataSet)) then
     begin
       if (Success <> daSuccess) then
         DataSet.Connection.Terminate();
