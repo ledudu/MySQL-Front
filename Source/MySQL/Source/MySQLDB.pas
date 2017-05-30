@@ -2820,7 +2820,6 @@ begin
   begin
     Assert(SyncThread = ST,
       SQLEscapeBin(SyncThread.SQL, True));
-    SyncThread.SQL := '';
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
     Assert(SyncThread = ST,
       SQLEscapeBin(SyncThread.SQL, True));
