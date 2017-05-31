@@ -450,7 +450,7 @@ implementation {***************************************************************}
 
 uses
   ShellApi, ShlObj, CommCtrl, ShLwApi, WinINet,
-  SysConst, StrUtils, IniFiles, Variants, Math, Zip, DateUtils,
+  SysConst, StrUtils, IniFiles, Variants, Math, Zip, DateUtils, IOUtils,
   DBConsts,
   Themes,
   ODBCAPI,
@@ -563,15 +563,33 @@ begin
 end;
 
 procedure TWWindow.aHDowndateExecute(Sender: TObject);
+var
+  Ext: string;
+  I: Integer;
+  Filename: string;
+  FilenameP: array [0 .. MAX_PATH] of Char;
 begin
-  if (DDowndate.Execute()) then
+  if (DDowndate.Execute()
+    and FileExists(Preferences.DowndateFilename)
+    and (GetTempPath(MAX_PATH, @FilenameP) > 0)) then
   begin
-    Preferences.SetupProgram := Preferences.DowndateFilename;
-    Preferences.SetupProgramExecute := FileExists(Preferences.SetupProgram);
+    Filename := ExtractFileName(Preferences.DowndateFilename);
+    if (not FileExists(FilenameP + Filename)) then
+      Filename := FilenameP + Filename
+    else
+    begin
+      Ext := ExtractFileExt(Filename);
+      Delete(Filename, Length(Filename) - Length(Ext) + 1, Length(Ext));
+      I := 2;
+      while (FileExists(FilenameP + Filename + ' (' + IntToStr(I) + ')' + Ext)) do Inc(I);
+      Filename := FilenameP + Filename + ' (' + IntToStr(I) + ')' + Ext;
+    end;
+
+    Preferences.SetupProgramExecute := MoveFile(PChar(Preferences.DowndateFilename), PChar(Filename));
     if (Preferences.SetupProgramExecute) then
     begin
+      Preferences.SetupProgram := Filename;
       ObsoleteVersion := ProgramVersion;
-      Preferences.UpdateRemoved := IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '.' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild);
       Close();
     end;
   end;
@@ -757,7 +775,7 @@ begin
 
     MsgBox('Internal Program Error:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if (UpdateAvailable) then
+    if (UpdateAvailable and (ObsoleteVersion <= ProgramVersion)) then
       InformOnlineUpdateFound();
     if (ObsoleteVersion < ProgramVersion) then
       ObsoleteVersion := ProgramVersion;

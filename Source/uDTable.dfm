@@ -82,6 +82,10 @@ object DTable: TDTable
     TabOrder = 4
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -943,7 +947,6 @@ object DTable: TDTable
         CodeFolding.Hint.Font.Height = -12
         CodeFolding.Hint.Font.Name = 'Courier New'
         CodeFolding.Hint.Font.Style = []
-        CodeFolding.Hint.Indicator.Glyph.Visible = False
         CodeFolding.Width = 16
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <

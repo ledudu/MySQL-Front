@@ -2231,68 +2231,75 @@ begin
           Inc(FileBuffer.Index, BOMLength);
 
           if ((CodePage = CP_UNICODE) and (GetFileSize(Handle, nil) mod 2 <> 0)) then
-            raise ERangeError.Create('Invalid File Size');
+          begin
+            Error.ErrorType := TE_File;
+            Error.ErrorCode := GetLastError();
+            Error.ErrorMessage := Preferences.LoadStr(947);
+            Error.Session := nil;
+            DoError(Error, nil, False);
+          end;
         end;
 
-        case (CodePage) of
-          CP_UNICODE:
-            begin
-              Index := 1 + Length(FileContent.Str);
-              Size := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
-              SetLength(FileContent.Str, Length(FileContent.Str) + Size div SizeOf(Char));
-              if (Size > 0) then
-                MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Size);
-              FileBuffer.Index := BytesPerSector;
-            end;
-          else
-            begin
-              // UTF-8 coded bytes has to be separated well for the
-              // MultiByteToWideChar function.
-              UTF8Bytes := 0;
-              if ((CodePage = CP_UTF8) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) then
-                repeat
-                  Inc(UTF8Bytes);
-                until ((BytesPerSector + ReadSize - UTF8Bytes - 1 = 0)
-                  or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = 0)
-                  or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 <> $80));
-
-              if (BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index > 0) then
+        if (Success = daSuccess) then
+          case (CodePage) of
+            CP_UNICODE:
               begin
-                repeat
-                  Len := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
-                  if ((Len = 0) and (GetLastError() = ERROR_NO_UNICODE_TRANSLATION)) then
-                    Dec(ReadSize);
-                until ((Len > 0) or (ReadSize = 0));
-
-                if (Len > 0) then
-                begin
-                  SetLength(FileContent.Str, Length(FileContent.Str) + Len);
-                  MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
-                end
-                else if (GetLastError() = ERROR_NO_UNICODE_TRANSLATION) then
-                begin
-                  Error.ErrorType := TE_File;
-                  Error.ErrorCode := GetLastError();
-                  Error.ErrorMessage := Preferences.LoadStr(933, ExtractFileName(Filename), IntToStr(CodePage));
-                  Error.Session := nil;
-                  DoError(Error, nil, False);
-                end
-                else
-                begin
-                  Error.ErrorType := TE_File;
-                  Error.ErrorCode := GetLastError();
-                  Error.ErrorMessage := SysErrorMessage(GetLastError());
-                  Error.Session := nil;
-                  DoError(Error, nil, False);
-                end;
+                Index := 1 + Length(FileContent.Str);
+                Size := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
+                SetLength(FileContent.Str, Length(FileContent.Str) + Size div SizeOf(Char));
+                if (Size > 0) then
+                  MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Size);
+                FileBuffer.Index := BytesPerSector;
               end;
+            else
+              begin
+                // UTF-8 coded bytes has to be separated well for the
+                // MultiByteToWideChar function.
+                UTF8Bytes := 0;
+                if ((CodePage = CP_UTF8) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) then
+                  repeat
+                    Inc(UTF8Bytes);
+                  until ((BytesPerSector + ReadSize - UTF8Bytes - 1 = 0)
+                    or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = 0)
+                    or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 <> $80));
 
-              if (UTF8Bytes > 0) then
-                MoveMemory(@FileBuffer.Mem[BytesPerSector - UTF8Bytes], @FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes], UTF8Bytes);
+                if (BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index > 0) then
+                begin
+                  repeat
+                    Len := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
+                    if ((Len = 0) and (GetLastError() = ERROR_NO_UNICODE_TRANSLATION)) then
+                      Dec(ReadSize);
+                  until ((Len > 0) or (ReadSize = 0));
 
-              FileBuffer.Index := BytesPerSector - UTF8Bytes;
-            end;
-        end;
+                  if (Len > 0) then
+                  begin
+                    SetLength(FileContent.Str, Length(FileContent.Str) + Len);
+                    MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
+                  end
+                  else if (GetLastError() = ERROR_NO_UNICODE_TRANSLATION) then
+                  begin
+                    Error.ErrorType := TE_File;
+                    Error.ErrorCode := GetLastError();
+                    Error.ErrorMessage := Preferences.LoadStr(933, ExtractFileName(Filename), IntToStr(CodePage));
+                    Error.Session := nil;
+                    DoError(Error, nil, False);
+                  end
+                  else
+                  begin
+                    Error.ErrorType := TE_File;
+                    Error.ErrorCode := GetLastError();
+                    Error.ErrorMessage := SysErrorMessage(GetLastError());
+                    Error.Session := nil;
+                    DoError(Error, nil, False);
+                  end;
+                end;
+
+                if (UTF8Bytes > 0) then
+                  MoveMemory(@FileBuffer.Mem[BytesPerSector - UTF8Bytes], @FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes], UTF8Bytes);
+
+                FileBuffer.Index := BytesPerSector - UTF8Bytes;
+              end;
+          end;
 
         Inc(FilePos, ReadSize);
       end;

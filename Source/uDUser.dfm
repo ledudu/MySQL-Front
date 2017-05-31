@@ -344,7 +344,6 @@ object DUser: TDUser
         CodeFolding.Hint.Font.Height = -12
         CodeFolding.Hint.Font.Name = 'Courier New'
         CodeFolding.Hint.Font.Style = []
-        CodeFolding.Hint.Indicator.Glyph.Visible = False
         CodeFolding.Width = 16
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <

@@ -52,6 +52,8 @@ type
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
+function DecodeVersion(const Str: string; out Version: Integer): Boolean;
+function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 {$IFDEF EurekaLog}
 function GetCallerLocation(const Level: Integer = 2): TELLocationInfo;
 {$ENDIF}
@@ -63,6 +65,7 @@ function LocationToStr(Location: TELLocationInfo): string;
 function ProcAddrToStr(const Proc: Pointer): string;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
+function VersionString(const Version: Integer): string;
 
 const
   MailPattern = '(?:[a-z0-9!#$%&''*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&''*+/=?^_`{|}~'
@@ -122,6 +125,41 @@ begin
     raise EAssertionFailed.Create('Assertion failed') at ErrorAddr;
 end;
 
+function DecodeVersion(const Str: string; out Version: Integer): Boolean;
+var
+  Build: Integer;
+  Code: Integer;
+  Major: Integer;
+  Minor: Integer;
+  Patch: Integer;
+  S: string;
+begin
+  Result := False;
+  S := Str;
+  if (Pos('.', S) > 0) then
+  begin
+    Val(S, Major, Code);
+    Delete(S, 1, Pos('.', S));
+    if (Pos('.', S) > 0) then
+    begin
+      Val(S, Minor, Code);
+      Delete(S, 1, Pos('.', S));
+      if (Pos('.', S) > 0) then
+      begin
+        Val(S, Patch, Code);
+        Delete(S, 1, Pos('.', S));
+        if (Pos('.', S) = 0) then
+        begin
+          Val(S, Build, Code);
+          Result := Code = 0;
+          if (Result) then
+            Version := EncodeVersion(Major, Minor, Patch, Build);
+        end;
+      end;
+    end;
+  end;
+end;
+
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 begin
   Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
@@ -176,8 +214,7 @@ begin
       begin
         UpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > ProgramVersion;
         OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
-        VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' +
-          IntToStr(Patch) + '.' + IntToStr(Build) + ')';
+        VersionString(OnlineVersion);
       end;
 
       Major := -1;
@@ -561,7 +598,25 @@ begin
 {$ENDIF}
 end;
 
-{ TCheckOnlineVersionThread *************************************************** }
+function VersionString(const Version: Integer): string;
+var
+  Build: Integer;
+  I: Integer;
+  Major: Integer;
+  Minor: Integer;
+  Patch: Integer;
+begin
+  I := Version;
+  Major := I div 100000000;
+  I := I - Major * 100000000;
+  Minor := I div 1000000;
+  I := I - Minor * 1000000;
+  Patch := I div 10000;
+  Build := I - Patch * 10000;
+  Result := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
+end;
+
+{ TCheckOnlineVersionThread ***************************************************}
 
 constructor TCheckOnlineVersionThread.Create();
 begin

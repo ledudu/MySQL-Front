@@ -2623,7 +2623,9 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
-  Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady, ssNext, ssAfterExecuteSQL]));
+  if (Assigned(ResultHandle.SyncThread)) then
+    Assert(ResultHandle.SyncThread.State in [ssClose, ssReady, ssFirst, ssNext, ssAfterExecuteSQL],
+      'State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)));
 
   BeginSynchron(1);
   if (ResultHandle.SQLIndex = Length(ResultHandle.SQL) + 1) then
@@ -2757,6 +2759,7 @@ var
   StmtLength: Integer;
   ST: TSyncThread;
   Progress: string;
+  S: string;
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
@@ -2815,13 +2818,18 @@ begin
       'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
       + 'Empty: ' + BoolToStr(SyncThread.SQL = '', True) + #13#10
       + 'Progress: ' + Progress + #13#10
-      + SQLEscapeBin(SyncThread.SQL, True));
+      + SQLEscapeBin(SQL, True));
+    S := SyncThread.SQL;
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
     Assert(SyncThread = ST,
       'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
       + 'Empty: ' + BoolToStr(SyncThread.SQL = '', True) + #13#10
       + 'Progress: ' + Progress + #13#10
-      + SQLEscapeBin(SyncThread.SQL, True));
+      + SQLEscapeBin(SyncThread.SQL, True) + #13#10
+      + 'Nils' + #13#10
+      + SQLEscapeBin(SQL, True) + #13#10
+      + 'Nils' + #13#10
+      + SQLEscapeBin(S, True) + #13#10);
 
     if (StmtLength > 0) then
     begin
@@ -8090,6 +8098,15 @@ var
       Result := 0
     else
     begin
+      // Debug 2017-05-31
+      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count)
+        and (0 <= RecB) and (RecB < InternRecordBuffers.Count),
+        'RecA: ' + IntToStr(RecA) + #13#10
+        + 'RecB: ' + IntToStr(RecB) + #13#10
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count)
+        + 'Def: ' + IntToStr(Def) + #13#10
+        + 'Defs.Count: ' + IntToStr(Length(CompareDefs)));
+
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       if (NullA and NullB) then
@@ -8571,6 +8588,7 @@ begin
       // Debug 2017-05-29
 
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData));
+      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963);
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths));
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow));
 

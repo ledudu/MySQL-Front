@@ -457,6 +457,10 @@ object DTables: TDTables
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -473,7 +477,6 @@ object DTables: TDTables
         CodeFolding.Hint.Font.Height = -12
         CodeFolding.Hint.Font.Name = 'Courier New'
         CodeFolding.Hint.Font.Style = []
-        CodeFolding.Hint.Indicator.Glyph.Visible = False
         CodeFolding.Width = 16
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <

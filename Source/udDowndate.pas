@@ -69,7 +69,7 @@ begin
   if (UpdateAvailable) then
   begin
     MsgBoxHelpContext := HelpContext;
-    Result := MsgBox(Preferences.LoadStr(944, Preferences.DowndateVersionStr), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_HELP + MB_ICONQUESTION) = IDYES;
+    Result := MsgBox(Preferences.LoadStr(944, VersionString(Preferences.DowndateVersion)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_HELP + MB_ICONQUESTION) = IDYES;
   end
   else
     Result := ShowModal() = mrOk;

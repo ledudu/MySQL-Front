@@ -331,22 +331,23 @@ type
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
   private
-    FDowndateFilename: TFileName;
+    FDowndateAvailable: Boolean;
+    FDowndateFilename: string;
     FImages: TImageList;
     FInternetAgent: string;
     FLanguage: TLanguage;
-    FOnlineVersion: Integer;
     FUserPath: TFileName;
     FXMLDocument: IXMLDocument;
     OldAssociateSQL: Boolean;
     procedure LoadFromRegistry();
     procedure LoadFromXML(const XML: IXMLNode);
-    function GetDowndateVersionStr(): string;
+    function GetDowndateFilename(): string;
+    function GetDowndateVersion(): Integer;
     function GetFilename(): TFileName;
     function GetLanguage(): TLanguage;
     function GetLanguagePath(): TFileName;
     function GetXMLDocument(): IXMLDocument;
-    procedure HandleSetupProgram(const Filename: TFileName);
+    procedure HandleSetupProgram();
     procedure SaveToRegistry();
     function SaveToXML(const XML: IXMLNode): string;
   protected
@@ -412,7 +413,6 @@ type
     Top: Integer;
     Transfer: TTransfer;
     Trigger: TTrigger;
-    UpdateRemoved: string;
     User: TUser;
     View: TPView;
     Width: Integer;
@@ -423,8 +423,9 @@ type
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
     procedure Open();
     function Save(): string;
-    property DowndateFilename: TFileName read FDowndateFilename;
-    property DowndateVersionStr: string read GetDowndateVersionStr;
+    property DowndateAvailable: Boolean read FDowndateAvailable;
+    property DowndateFilename: string read GetDowndateFilename;
+    property DowndateVersion: Integer read GetDowndateVersion;
     property Filename: TFileName read GetFilename;
     property Images: TImageList read FImages;
     property InternetAgent: string read FInternetAgent;
@@ -1923,7 +1924,6 @@ var
   NonClientMetrics: TNonClientMetrics;
   Path: string;
   ResData: HGLOBAL;
-  ResIndex: Integer;
   ResInfo: HRSRC;
   Resource: Pointer;
   S: string;
@@ -1935,7 +1935,7 @@ begin
   inherited Create(KEY_ALL_ACCESS);
   ProfilingPoint(Profile, 2);
 
-  FOnlineVersion := 0;
+  FDowndateFilename := '';
   FXMLDocument := nil;
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
@@ -2025,23 +2025,6 @@ begin
   LoadFromRegistry();
 
 
-ProfilingPoint(Profile, 7);
-  Filename := ExtractFileName(Application.ExeName);
-  Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
-  Filename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup.exe';
-ProfilingPoint(Profile, 8);
-  if (FileExists(Filename)) then
-    HandleSetupProgram(Filename);
-ProfilingPoint(Profile, 23);
-
-  Filename := ExtractFileName(Application.ExeName);
-  Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename)));
-  FDowndateFilename := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim + Filename + '_Setup (2).exe';
-  if (not FileExists(FDowndateFilename)) then
-    FDowndateFilename := '';
-ProfilingPoint(Profile, 24);
-
-
   if (DirectoryExists(PChar(@Foldername) + PathDelim + 'SQL-Front' + PathDelim)
     and not DirectoryExists(UserPath)) then
   begin
@@ -2054,6 +2037,14 @@ ProfilingPoint(Profile, 24);
     StringList.SaveToFile(Filename);
     StringList.Free();
   end;
+
+
+  if (SetupProgramInstalled) then
+    HandleSetupProgram();
+
+ProfilingPoint(Profile, 11);
+  FDowndateAvailable := GetDowndateVersion() > 0;
+ProfilingPoint(Profile, 12);
 
 
 ProfilingPoint(Profile, 25);
@@ -2108,6 +2099,8 @@ ProfilingPoint(Profile, 25);
   // 2017-05-29: 2.6 Sec
   // 2017-05-31: 2.6 Sec
   // 2017-05-31: 4.4 Sec
+  // 2017-05-31: 2.5 Sec, 16 px, Win 10
+  // 2017-05-31: 1.4 Sec, Win 10
 ProfilingPoint(Profile, 26);
 
   Database := TDatabase.Create();
@@ -2140,6 +2133,8 @@ ProfilingPoint(Profile, 26);
 ProfilingPoint(Profile, 27);
 
   Open();
+
+  // 2017-05-31: 3.9 Sec.
 
   if (ProfilingTime(Profile) > 3000) then
     SendToDeveloper(
@@ -2188,17 +2183,48 @@ begin
   inherited;
 end;
 
-function TPPreferences.GetDowndateVersionStr(): string;
+function TPPreferences.GetDowndateVersion(): Integer;
 var
-  FileInfo: VS_FIXEDFILEINFO;
+  Directory: string;
+  Ext: string;
+  MaxVersion: Integer;
+  Name: string;
+  S: string;
+  SearchRec: TSearchRec;
+  Version: Integer;
 begin
-  if (not FileExists(DowndateFilename)
-    or not GetFileInfo(DowndateFilename, FileInfo)) then
-    Result := ''
-  else
-    Result :=
-      IntToStr(FileInfo.dwFileVersionMS shr 16) + '.' + IntToStr(FileInfo.dwFileVersionMS and $FFFF)
-        + '  (Build ' + IntToStr(FileInfo.dwFileVersionLS shr 16) + '.' + IntToStr(FileInfo.dwFileVersionLS and $FFFF) + ')';
+  Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim;
+  Ext := ExtractFileExt(Application.ExeName);
+  Name := ExtractFileName(Application.ExeName);
+  Name := LeftStr(Name, Length(Name) - Length(Ext));
+
+  MaxVersion := 0;
+
+  if (FindFirst(Directory + Name + '_Setup_*.*.*.*.exe', faNormal, SearchRec) = 0) then
+  begin
+    repeat
+      S := SearchRec.Name;
+      Delete(S, 1, Length(Name + '_Setup_'));
+      if (DecodeVersion(LeftStr(S, Length(S) - Length('.exe')), Version)
+        and (Version > MaxVersion)
+        and (Version <> ProgramVersion)) then
+      begin
+        MaxVersion := Version;
+        FDowndateFilename := Directory + SearchRec.Name;
+      end;
+    until (FindNext(SearchRec) <> 0);
+    FindClose(SearchRec);
+  end;
+
+  Result := MaxVersion;
+end;
+
+function TPPreferences.GetDowndateFilename(): string;
+begin
+  if (FDowndateFilename = '') then
+    GetDowndateVersion();
+
+  Result := FDowndateFilename;
 end;
 
 function TPPreferences.GetFilename(): TFileName;
@@ -2279,124 +2305,66 @@ begin
   Result := FXMLDocument;
 end;
 
-procedure TPPreferences.HandleSetupProgram(const Filename: TFileName);
+procedure TPPreferences.HandleSetupProgram();
 var
-  B: Boolean;
+  Count: Integer;
   Directory: TFileName;
   Ext: TFileName;
-  Found: Boolean;
+  FileInfo: VS_FIXEDFILEINFO;
+  MinVersion: Integer;
+  MinVersionFilename: string;
   Name: TFileName;
-  SearchFileInfo: VS_FIXEDFILEINFO;
+  S: string;
   SearchRec: TSearchRec;
-  SetupProgramFileInfo: VS_FIXEDFILEINFO;
+  Version: Integer;
 begin
-  Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Filename));
-  Ext := ExtractFileExt(Filename);
-  Name := ExtractFileName(Filename);
+  Directory := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Install' + PathDelim;
+  Ext := ExtractFileExt(Application.ExeName);
+  Name := ExtractFileName(Application.ExeName);
   Name := LeftStr(Name, Length(Name) - Length(Ext));
 
-ProfilingPoint(Profile, 9);
-  if (UpdateRemoved = '') then
+  // Rename old named setup programs before 2017-06-01
+  if (FindFirst(Directory + Name + '_Setup (*).exe', faNormal, SearchRec) = 0) then
   begin
-ProfilingPoint(Profile, 10);
-    B := GetFileInfo(Filename, SetupProgramFileInfo);
-    // 2017-05-30: 5.7 Sec.
-    // 2017-05-30: 3.9 Sec.
-    // 2017-05-30: 1.7 Sec.
-    // 2017-05-30: 1.3 Sec.
-ProfilingPoint(Profile, 11);
-    if (not B
-      or (FindFirst(Directory + Name + ' (*)' + Ext, faNormal, SearchRec) <> 0)) then
-    begin
-ProfilingPoint(Profile, 12);
-      MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
-ProfilingPoint(Profile, 13);
-    end
-    else
-    begin
-ProfilingPoint(Profile, 14);
-      Found := False;
-      repeat
-        Found := Found
-          or (GetFileInfo(Directory + SearchRec.Name, SearchFileInfo) and CompareMem(@SearchFileInfo, @SetupProgramFileInfo, SizeOf(VS_FIXEDFILEINFO)));
-      until (FindNext(SearchRec) <> 0);
-      FindClose(SearchRec);
-
-      // 2017-05-30: 1.5 Sec.
-      // 2017-05-30: 2.9 Sec.
-      // 2017-05-30: 4.0 Sec.
-ProfilingPoint(Profile, 15);
-      if (Found) then
-        DeleteFile(Filename)
-      else
-      begin
-ProfilingPoint(Profile, 16);
-        if (FileExists(Directory + Name + ' (1)' + Ext)) then
-        begin
-          if (FileExists(Directory + Name + ' (2)' + Ext)) then
-          begin
-            if (FileExists(Directory + Name + ' (3)' + Ext)) then
-            begin
-              if (FileExists(Directory + Name + ' (4)' + Ext)) then
-              begin
-                if (FileExists(Directory + Name + ' (5)' + Ext)) then
-                begin
-                  if (FileExists(Directory + Name + ' (6)' + Ext)) then
-                    DeleteFile(Directory + Name + ' (6)' + Ext);
-                  MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (6)' + Ext));
-                end;
-                MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
-              end;
-              MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
-            end;
-            MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
-          end;
-          MoveFile(PChar(Directory + Name + ' (1)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
-        end;
-        MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
-
-        // 2017-05-30: 6.6 Sec.
-ProfilingPoint(Profile, 17);
-      end;
-    end;
-ProfilingPoint(Profile, 18);
-  end
-  else
-  begin
-ProfilingPoint(Profile, 19);
-    if (GetFileInfo(Filename, SetupProgramFileInfo)
-      and FileExists(Directory + Name + ' (2)' + Ext)
-      and GetFileInfo(Directory + Name + ' (2)' + Ext, SearchFileInfo)
-      and CompareMem(@SearchFileInfo, @SetupProgramFileInfo, SizeOf(VS_FIXEDFILEINFO))) then
-    begin
-      if (FileExists(Directory + Name + ' (1)' + Ext)) then
-        DeleteFile(Directory + Name + ' (1)' + Ext);
-      MoveFile(PChar(Directory + Name + ' (2)' + Ext), PChar(Directory + Name + ' (1)' + Ext));
-      if (FileExists(Directory + Name + ' (3)' + Ext)) then
-      begin
-        MoveFile(PChar(Directory + Name + ' (3)' + Ext), PChar(Directory + Name + ' (2)' + Ext));
-        if (FileExists(Directory + Name + ' (4)' + Ext)) then
-        begin
-          MoveFile(PChar(Directory + Name + ' (4)' + Ext), PChar(Directory + Name + ' (3)' + Ext));
-          if (FileExists(Directory + Name + ' (5)' + Ext)) then
-          begin
-            MoveFile(PChar(Directory + Name + ' (5)' + Ext), PChar(Directory + Name + ' (4)' + Ext));
-            if (FileExists(Directory + Name + ' (6)' + Ext)) then
-              MoveFile(PChar(Directory + Name + ' (6)' + Ext), PChar(Directory + Name + ' (5)' + Ext));
-          end;
-        end;
-      end;
-    end;
-
-   UpdateRemoved := '';
-ProfilingPoint(Profile, 20);
+    repeat
+      if (GetFileInfo(Directory + SearchRec.Name, FileInfo)) then
+        MoveFile(
+          PChar(Directory + SearchRec.Name),
+          PChar(Directory + Name + '_Setup_'
+            + IntToStr(FileInfo.dwFileVersionMS shr 16) + '.'
+            + IntToStr(FileInfo.dwFileVersionMS and $FFFF) + '.'
+            + IntToStr(FileInfo.dwFileVersionLS shr 16) + '.'
+            + IntToStr(FileInfo.dwFileVersionLS and $FFFF)
+            + '.exe'));
+    until (FindNext(SearchRec) <> 0);
+    FindClose(SearchRec);
   end;
 
-ProfilingPoint(Profile, 21);
-  if (FileExists(Filename)) then
-    DeleteFile(Filename);
-  // 2017-05-29: 1,6 Sec.
-ProfilingPoint(Profile, 22);
+ProfilingPoint(Profile, 7);
+  Count := 0;
+  MinVersion := MaxInt;
+  if (FindFirst(Directory + Name + '_Setup_*.*.*.*.exe', faNormal, SearchRec) = 0) then
+  begin
+    repeat
+      S := SearchRec.Name;
+      Delete(S, 1, Length(Name + '_Setup_'));
+      if (DecodeVersion(LeftStr(S, Length(S) - Length('.exe')), Version)) then
+      begin
+        if ((Count = 0) or (Version < MinVersion)) then
+        begin
+          MinVersion := Version;
+          MinVersionFilename := Directory + SearchRec.Name;
+        end;
+        Inc(Count);
+      end;
+    until (FindNext(SearchRec) <> 0);
+    FindClose(SearchRec);
+  end;
+ProfilingPoint(Profile, 9);
+
+  if (Count > 6) then
+    DeleteFile(MinVersionFilename);
+ProfilingPoint(Profile, 10);
 end;
 
 procedure TPPreferences.LoadFromRegistry();
@@ -2427,7 +2395,6 @@ begin
     if (ValueExists('Path') and DirectoryExists(ReadString('Path'))) then Path := IncludeTrailingPathDelimiter(ReadString('Path'));
     if (ValueExists('SetupProgram') and FileExists(ReadString('SetupProgram'))) then SetupProgram := ReadString('SetupProgram');
     if (ValueExists('SetupProgramInstalled')) then SetupProgramInstalled := ReadBool('SetupProgramInstalled');
-    if (ValueExists('UpdateRemoved')) then UpdateRemoved := ReadString('UpdateRemoved');
 
     CloseKey();
   end;
@@ -2609,10 +2576,6 @@ begin
     else if (ValueExists('SetupProgramInstalled')) then
       DeleteValue('SetupProgramInstalled');
     WriteString('Path', Path);
-    if (UpdateRemoved <> '') then
-      WriteString('UpdateRemoved', UpdateRemoved)
-    else if (ValueExists('UpdateRemoved')) then
-      DeleteValue('UpdateRemoved');
 
     CloseKey();
   end;

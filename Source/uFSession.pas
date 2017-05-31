@@ -1622,7 +1622,7 @@ end;
 procedure TFSession.TDatabaseDesktop.CloseBuilderResult();
 begin
   if (Assigned(FBuilderDBGrid)) then
-    FreeAndNil(FBuilderDBGrid);
+    FSession.FreeDBGrid(FBuilderDBGrid);
   if (Assigned(DataSet)) then
     FreeAndNil(DataSet);
 end;
@@ -10343,17 +10343,10 @@ begin
 end;
 
 function TFSession.GetEditorField(): TField;
-var
-  B: Boolean; // Debug 2017-05-11
 begin
-  // Debug 2017-05-19
-  Assert(not (csDestroying in ComponentState));
-
-  B := not Assigned(ActiveDBGrid);
-  B := B or not Assigned(ActiveDBGrid.SelectedField);
-  B := B or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob]);
-
-  if (B) then
+  if (not Assigned(ActiveDBGrid)
+    or not Assigned(ActiveDBGrid.SelectedField)
+    or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
     Result := nil
   else
     Result := ActiveDBGrid.SelectedField;
