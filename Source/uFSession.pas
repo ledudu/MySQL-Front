@@ -2394,6 +2394,7 @@ procedure TFSession.TWanted.SetAddress(const AAddress: string);
 begin
   if (AAddress <> FAddress) then
   begin
+    // Debug 2017-05-22
     Assert(not FSession.Session.InImport);
 
     Clear();

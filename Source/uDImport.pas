@@ -155,7 +155,6 @@ type
     FLReferrers: array of TLabel;
     FSourceFields: array of TEdit;
     Import: TTImport;
-Progress: string; // Debug 2017-01-27
     ProgressInfos: TTool.TProgressInfos;
     Space: Integer;
     TableNames: TTableNames;
@@ -343,12 +342,6 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
-  // Debug 2017-02-19
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise EAssertionFailed.Create(SRangeError);
-
-  Progress := 'a';
-
   ModalResult := mrNone;
 
   if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile]) and (Filename = '')) then
@@ -361,13 +354,7 @@ begin
   if (ModalResult = mrCancel) then
     Result := False
   else
-  begin
-    Progress := Progress + 'b';
     Result := ShowModal() = mrOk;
-    Progress := Progress + 'c'
-  end;
-
-  Progress := Progress + 'd';
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -546,60 +533,26 @@ begin
     // the application, but why???
   else
   begin
-    Progress := Progress + 'f';
-
-    if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
-      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress);
-
     if (Assigned(Import) and Import.Suspended) then
     begin
       Import.Free();
       Import := nil;
     end;
 
-
-    if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
-      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress);
-
-
     if (Assigned(Import)) then
     begin
-      Progress := Progress + 'g';
       Import.Terminate();
       TerminateTime := Now();
       CanClose := False;
     end
     else
-    begin
-      Progress := Progress + 'h';
       CanClose := True;
-    end;
 
     FBCancel.Enabled := CanClose;
     if (FBCancel.Enabled) then
       EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_ENABLED)
     else
       EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_DISABLED);
-
-    if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
-      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress);
-
-    Progress := Progress + 'i';
   end;
 end;
 
@@ -1085,7 +1038,6 @@ begin
     Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
     Import.Start();
-    Progress := Progress + 'k';
   end;
 
   CheckActivePageChange(TSExecute);

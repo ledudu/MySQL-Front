@@ -363,6 +363,8 @@ begin
 end;
 
 procedure TDAccount.FormShow(Sender: TObject);
+var
+  AllowModify: Boolean;
 begin
   if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
   begin
@@ -390,6 +392,8 @@ begin
     FUser.Text := 'root';
     FPassword.Text := '';
     FDatabase.Text := '';
+
+    AllowModify := True;
   end
   else
   begin
@@ -411,12 +415,33 @@ begin
     FUser.Text := Username;
     FPassword.Text := Password;
     FDatabase.Text := Account.Connection.Database;
+
+    AllowModify := Account.SessionCount = 0;
   end;
+
+  FName.Enabled := AllowModify;
+  FHost.Enabled := AllowModify;
+  FPort.Enabled := AllowModify;
+  FUDPort.Enabled := AllowModify;
+  FConnectionType.Enabled := AllowModify;
+  FLibraryFilename.Enabled := AllowModify;
+  FHTTPTunnelURI.Enabled := AllowModify;
+  FUser.Enabled := AllowModify;
+  FPassword.Enabled := AllowModify;
+  FDatabase.Enabled := AllowModify;
+  FBDatabase.Enabled := AllowModify;
 
   FConnectionTypeChange(nil);
 
+  FBOk.Visible := AllowModify;
+  if (AllowModify) then
+    FBCancel.Caption := Preferences.LoadStr(30)
+  else
+    FBCancel.Caption := Preferences.LoadStr(231);
+
   ActiveControl := FBCancel;
-  ActiveControl := FHost;
+  if (FHost.Enabled) then
+    ActiveControl := FHost;
 end;
 
 function TDAccount.GetAccountName(): string;
@@ -447,7 +472,6 @@ begin
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

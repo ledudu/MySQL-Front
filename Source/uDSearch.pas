@@ -734,9 +734,6 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
     I: Integer;
     Objects: TList;
   begin
-    // Debug 2017-04-03
-    Assert(Assigned(Session));
-
     Objects := TList.Create();
     case (Node.ImageIndex) of
       iiServer:
@@ -785,121 +782,124 @@ begin
   ExecuteSession := TSSession(Node.Data);
   if (not Assigned(ExecuteSession) and not Assigned(Node.Parent)) then
     ExecuteSession := GetSession(Node);
-  InitializeNode(ExecuteSession, FSelect.Selected);
-
-  if (not Assigned(Wanted.Page)) then
+  if (Assigned(ExecuteSession)) then
   begin
-    Preferences.Find.FindTextMRU.Add(Trim(FFFindText.Text));
+    InitializeNode(ExecuteSession, FSelect.Selected);
 
-    Preferences.Find.Options := [];
-    if (FFMatchCase.Checked) then
-      Include(Preferences.Find.Options, foMatchCase);
-    if (FFWholeValue.Checked) then
-      Include(Preferences.Find.Options, foWholeValue);
-    if (FFRegExpr.Checked) then
-      Include(Preferences.Find.Options, foRegExpr);
-
-    Preferences.Replace.FindTextMRU.Add(Trim(FRFindText.Text));
-    Preferences.Replace.ReplaceTextMRU.Add(Trim(FReplaceText.Text));
-
-    Preferences.Replace.Options := [];
-    if (FRMatchCase.Checked) then
-      Include(Preferences.Replace.Options, roMatchCase);
-    if (FRWholeValue.Checked) then
-      Include(Preferences.Replace.Options, roWholeValue);
-    if (FRRegExpr.Checked) then
-      Include(Preferences.Replace.Options, roRegExpr);
-
-    if (SearchOnly) then
+    if (not Assigned(Wanted.Page)) then
     begin
-      Search := TTSearch.Create(ExecuteSession);
-      Search.Wnd := Self.Handle;
-      Search.FindText := Trim(FFFindText.Text);
-      Search.MatchCase := FFMatchCase.Checked;
-      Search.RegExpr := FFRegExpr.Checked;
-      Search.WholeValue := FFWholeValue.Checked;
-    end
-    else
-    begin
-      DConnecting.Session := TSSession.Create(uSession.Sessions, ExecuteSession.Account);
-      if (not DConnecting.Execute()) then
-        DConnecting.Session.Free()
+      Preferences.Find.FindTextMRU.Add(Trim(FFFindText.Text));
+
+      Preferences.Find.Options := [];
+      if (FFMatchCase.Checked) then
+        Include(Preferences.Find.Options, foMatchCase);
+      if (FFWholeValue.Checked) then
+        Include(Preferences.Find.Options, foWholeValue);
+      if (FFRegExpr.Checked) then
+        Include(Preferences.Find.Options, foRegExpr);
+
+      Preferences.Replace.FindTextMRU.Add(Trim(FRFindText.Text));
+      Preferences.Replace.ReplaceTextMRU.Add(Trim(FReplaceText.Text));
+
+      Preferences.Replace.Options := [];
+      if (FRMatchCase.Checked) then
+        Include(Preferences.Replace.Options, roMatchCase);
+      if (FRWholeValue.Checked) then
+        Include(Preferences.Replace.Options, roWholeValue);
+      if (FRRegExpr.Checked) then
+        Include(Preferences.Replace.Options, roRegExpr);
+
+      if (SearchOnly) then
+      begin
+        Search := TTSearch.Create(ExecuteSession);
+        Search.Wnd := Self.Handle;
+        Search.FindText := Trim(FFFindText.Text);
+        Search.MatchCase := FFMatchCase.Checked;
+        Search.RegExpr := FFRegExpr.Checked;
+        Search.WholeValue := FFWholeValue.Checked;
+      end
       else
       begin
-        ReplaceSession := DConnecting.Session;
-        Search := TTReplace.Create(ExecuteSession, ReplaceSession);
+        DConnecting.Session := TSSession.Create(uSession.Sessions, ExecuteSession.Account);
+        if (not DConnecting.Execute()) then
+          DConnecting.Session.Free()
+        else
+        begin
+          ReplaceSession := DConnecting.Session;
+          Search := TTReplace.Create(ExecuteSession, ReplaceSession);
 
-        TTReplace(Search).Wnd := Self.Handle;
-        TTReplace(Search).OnError := OnError;
-        TTReplace(Search).FindText := Trim(FRFindText.Text);
-        TTReplace(Search).ReplaceText := Trim(FReplaceText.Text);
-        TTReplace(Search).MatchCase := FRMatchCase.Checked;
-        TTReplace(Search).WholeValue := FRWholeValue.Checked;
-        TTReplace(Search).RegExpr := FRRegExpr.Checked;
+          TTReplace(Search).Wnd := Self.Handle;
+          TTReplace(Search).OnError := OnError;
+          TTReplace(Search).FindText := Trim(FRFindText.Text);
+          TTReplace(Search).ReplaceText := Trim(FReplaceText.Text);
+          TTReplace(Search).MatchCase := FRMatchCase.Checked;
+          TTReplace(Search).WholeValue := FRWholeValue.Checked;
+          TTReplace(Search).RegExpr := FRRegExpr.Checked;
+        end;
       end;
-    end;
-    Search.OnSearched := OnSearched;
+      Search.OnSearched := OnSearched;
 
-    List := TList.Create();
-    for I := 0 to FSelect.Items.Count - 1 do
-      if (FSelect.Items[I].Selected) then
-        if (FSelect.Items[I].ImageIndex = iiServer) then
-        begin
-          for K := 0 to ExecuteSession.Databases.Count - 1 do
+      List := TList.Create();
+      for I := 0 to FSelect.Items.Count - 1 do
+        if (FSelect.Items[I].Selected) then
+          if (FSelect.Items[I].ImageIndex = iiServer) then
           begin
-            Database := ExecuteSession.Databases[K];
-            if (not (Database is TSSystemDatabase)) then
-              for J := 0 to Database.Tables.Count - 1 do
-              begin
-                Table := Database.Tables[J];
-                List.Add(Table);
-                Search.Add(Table, nil);
-              end;
-          end;
-        end
-        else if (FSelect.Items[I].ImageIndex = iiDatabase) then
-        begin
-          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
-          for J := 0 to Database.Tables.Count - 1 do
+            for K := 0 to ExecuteSession.Databases.Count - 1 do
+            begin
+              Database := ExecuteSession.Databases[K];
+              if (not (Database is TSSystemDatabase)) then
+                for J := 0 to Database.Tables.Count - 1 do
+                begin
+                  Table := Database.Tables[J];
+                  List.Add(Table);
+                  Search.Add(Table, nil);
+                end;
+            end;
+          end
+          else if (FSelect.Items[I].ImageIndex = iiDatabase) then
           begin
-            Table := Database.Tables[J];
+            Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
+            for J := 0 to Database.Tables.Count - 1 do
+            begin
+              Table := Database.Tables[J];
+              List.Add(Table);
+              Search.Add(Table);
+            end;
+          end
+          else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
+          begin
+            Table := TSTable(FSelect.Items[I].Data);
             List.Add(Table);
             Search.Add(Table);
-          end;
-        end
-        else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
-        begin
-          Table := TSTable(FSelect.Items[I].Data);
-          List.Add(Table);
-          Search.Add(Table);
-        end
-        else if (FSelect.Items[I].ImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent]) then
-          Search.Add(FSelect.Items[I].Data)
-        else if (FSelect.Selected.ImageIndex in [iiBaseField, iiViewField, iiVirtualField]) then
-        begin
-          Table := TSTable(FSelect.Items[I].Parent.Data);
-          List.Add(Table);
-          Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
-        end
-        else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
-        begin
-          Table := TSTable(FSelect.Items[I].Data);
-          List.Add(Table);
-          Search.Add(Table);
-        end
-        else
-          raise ERangeError.Create(SRangeError);
-    if (not SearchOnly) then
-      for I := 0 to List.Count - 1 do
-        if (TObject(List) is TSTable) then
-          TSTable(List[I]).InvalidateData();
-    List.Free();
+          end
+          else if (FSelect.Items[I].ImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent]) then
+            Search.Add(FSelect.Items[I].Data)
+          else if (FSelect.Selected.ImageIndex in [iiBaseField, iiViewField, iiVirtualField]) then
+          begin
+            Table := TSTable(FSelect.Items[I].Parent.Data);
+            List.Add(Table);
+            Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
+          end
+          else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
+          begin
+            Table := TSTable(FSelect.Items[I].Data);
+            List.Add(Table);
+            Search.Add(Table);
+          end
+          else
+            raise ERangeError.Create(SRangeError);
+      if (not SearchOnly) then
+        for I := 0 to List.Count - 1 do
+          if (TObject(List) is TSTable) then
+            TSTable(List[I]).InvalidateData();
+      List.Free();
 
-    FBBack.Enabled := False;
+      FBBack.Enabled := False;
 
-    Search.OnTerminate := OnTerminate;
-    Search.OnUpdate := OnUpdate;
-    Search.Start();
+      Search.OnTerminate := OnTerminate;
+      Search.OnUpdate := OnUpdate;
+      Search.Start();
+    end;
   end;
 
   if (Assigned(Wanted.Page)) then
@@ -908,7 +908,7 @@ begin
     SetControlCursor(GProgress, crDefault);
 
   CheckActivePageChange(TSExecute);
-  FBBack.Enabled := False;
+  FBBack.Enabled := not Assigned(Wanted.Page) and not Assigned(Search);
   ActiveControl := FBCancel;
 end;
 

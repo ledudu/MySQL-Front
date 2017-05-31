@@ -2084,8 +2084,6 @@ begin
     end;
 
     GetMem(NewMem, NewSize);
-    if (not Assigned(NewMem)) then
-      raise EOutOfMemory.Create(SOutOfMemory);
 
     if (Cache.UsedLen > 0) then
       if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
@@ -2625,14 +2623,7 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
-  // Debug 2017-05-19
-  if (not (not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]))) then
-    if (not Assigned(ResultHandle.SyncThread)) then
-      raise EAssertionFailed.Create(SAssertionFailed)
-    else
-      raise EAssertionFailed.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)));
-
-  Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssFirst, ssNext, ssAfterExecuteSQL]));
+  Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady, ssNext, ssAfterExecuteSQL]));
 
   BeginSynchron(1);
   if (ResultHandle.SQLIndex = Length(ResultHandle.SQL) + 1) then
@@ -2765,6 +2756,7 @@ var
   StmtIndex: Integer;
   StmtLength: Integer;
   ST: TSyncThread;
+  Progress: string;
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
@@ -2818,17 +2810,26 @@ begin
   StmtLength := 1; // ... make sure, the first SQLStmtLength will be handled
   while ((SQLIndex <= Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
+    Progress := Progress + '.';
     Assert(SyncThread = ST,
-      SQLEscapeBin(SyncThread.SQL, True));
+      'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+      + 'Empty: ' + BoolToStr(SyncThread.SQL = '', True) + #13#10
+      + 'Progress: ' + Progress + #13#10
+      + SQLEscapeBin(SyncThread.SQL, True));
     StmtLength := SQLStmtLength(@SyncThread.SQL[SQLIndex], Length(SyncThread.SQL) - (SQLIndex - 1));
     Assert(SyncThread = ST,
-      SQLEscapeBin(SyncThread.SQL, True));
+      'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+      + 'Empty: ' + BoolToStr(SyncThread.SQL = '', True) + #13#10
+      + 'Progress: ' + Progress + #13#10
+      + SQLEscapeBin(SyncThread.SQL, True));
 
     if (StmtLength > 0) then
     begin
       SyncThread.StmtLengths.Add(StmtLength);
       Inc(SQLIndex, StmtLength);
     end;
+
+    Progress := Progress + '.';
   end;
 
   if ((SyncThread.StmtLengths.Count > 0) and not CharInSet(SyncThread.SQL[SQLIndex - 1], [#10, #13, ';'])) then
@@ -2985,15 +2986,7 @@ begin
   else
   begin
     MoveMemory(buf, local_infile^.Buffer, Size);
-    try // Debug 2017-01-11
     Inc(local_infile^.Position, Size);
-    except
-      on E: Exception do
-        raise ERangeError.Create('buf_len: ' + IntToStr(buf_len) + #13#10
-          + 'local_infile^.BufferSize: ' + IntToStr(local_infile^.BufferSize) + #13#10
-          + 'Size: ' + IntToStr(Size) + #13#10
-          + 'local_infile^.Position: ' + IntToStr(local_infile^.Position));
-    end;
     Result := Size;
   end;
 end;
@@ -5243,8 +5236,6 @@ end;
 function TMySQLQuery.AllocRecordBuffer(): TRecordBuffer;
 begin
   GetMem(Result, SizeOf(PRecordBufferData(Result)^));
-  if (not Assigned(Result)) then
-    raise EOutOfMemory.Create(SOutOfMemory);
 
   if (Assigned(Result)) then
   begin
@@ -5937,8 +5928,6 @@ begin
     Inc(MemSize, SourceData^.LibLengths^[I]);
 
   GetMem(DestData, MemSize);
-  if (not Assigned(DestData)) then
-    raise EOutOfMemory.Create(SOutOfMemory);
 
   Result := Assigned(DestData);
   if (Result) then
@@ -6439,8 +6428,6 @@ end;
 function TMySQLDataSet.AllocInternRecordBuffer(): PInternRecordBuffer;
 begin
   GetMem(Result, SizeOf(Result^));
-  if (not Assigned(Result)) then
-    raise EOutOfMemory.Create(SOutOfMemory);
 
   if (Assigned(Result)) then
   begin
@@ -6454,8 +6441,6 @@ end;
 function TMySQLDataSet.AllocRecordBuffer(): TRecordBuffer;
 begin
   GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
-  if (not Assigned(Result)) then
-    raise EOutOfMemory.Create(SOutOfMemory);
 
   PExternRecordBuffer(Result)^.Identifier432 := 432;
   PExternRecordBuffer(Result)^.Index := -1;
@@ -6735,8 +6720,7 @@ function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
   Assert(Active);
   Assert(not (csDestroying in ComponentState));
-  Assert(ActiveBuffer() > 0);
-  Assert(PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432);
+  Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432));
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -6750,8 +6734,7 @@ function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
   Assert(not (csDestroying in ComponentState));
-  Assert(ActiveBuffer() > 0);
-  Assert(PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432);
+  Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432));
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -7841,7 +7824,11 @@ begin
   Assert(not (csDestroying in ComponentState));
 
   if (ActiveBuffer() > 0) then
+  begin
+    Assert(PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432,
+      'Identifier432: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Identifier432));
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+  end;
 
   inherited;
 end;
@@ -7963,8 +7950,6 @@ begin
       Inc(MemSize, OldData^.LibLengths^[I]);
 
   GetMem(NewData, MemSize);
-  if (not Assigned(NewData)) then
-    raise EOutOfMemory  .Create(SOutOfMemory);
 
   NewData^.Identifier963 := 963;
   NewData^.LibLengths := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^)]);
@@ -8105,21 +8090,13 @@ var
       Result := 0
     else
     begin
-      Assert((0 <= RecA) and (RecA < InternRecordBuffers.Count)
-        and (0 <= RecB) and (RecB < InternRecordBuffers.Count),
-        'RecA: ' + IntToStr(RecA) + #13#10
-        + 'RecB: ' + IntToStr(RecB) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count)
-        + 'Def: ' + IntToStr(Def) + #13#10
-        + 'Defs.Count: ' + IntToStr(Length(CompareDefs)));
-
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       if (NullA and NullB) then
         Result := 0
-      else if (not NullA and NullB) then
-        Result := +1
       else if (NullA and not NullB) then
+        Result := +1
+      else if (not NullA and NullB) then
         Result := -1
       else
       begin

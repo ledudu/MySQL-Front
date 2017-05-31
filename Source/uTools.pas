@@ -1680,11 +1680,10 @@ begin
     SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
+  Session.InImport := True; try
+
   BeforeExecute();
 
-  Session.InImport := True;
-
-  try
   Open();
 
   for I := 0 to Items.Count - 1 do
@@ -1723,10 +1722,9 @@ begin
       if (Success = daFail) then Success := daSuccess;
     end;
 
-  finally
-    Session.InImport := False;
-  end;
   AfterExecute();
+
+  finally Session.InImport := False; end;
 
   {$IFDEF EurekaLog}
   except
@@ -2126,40 +2124,48 @@ var
   SectorsPerCluser: DWord;
   TotalNumberOfClusters: DWord;
 begin
-  Result := True;
+  Handle := CreateFile(PChar(Filename),
+                       GENERIC_READ,
+                       FILE_SHARE_READ,
+                       nil,
+                       OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, 0);
 
-  try
-    Handle := CreateFile(PChar(Filename),
-                         GENERIC_READ,
-                         FILE_SHARE_READ,
-                         nil,
-                         OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, 0);
-
-    if (Handle = INVALID_HANDLE_VALUE) then
-      DoError(SysError(), nil, False)
+  if (Handle = INVALID_HANDLE_VALUE) then
+  begin
+    Error := SysError();
+    Result := False;
+  end
+  else
+  begin
+    FFileSize := GetFileSize(Handle, nil);
+    if (FFileSize = 0) then
+    begin
+      FileBuffer.Mem := nil;
+      Result := True;
+    end
+    else if (not GetDiskFreeSpace(PChar(ExtractFileDrive(Filename)), SectorsPerCluser, BytesPerSector, NumberofFreeClusters, TotalNumberOfClusters)) then
+    begin
+      Error := SysError();
+      Result := False;
+    end
+    else if (BytesPerSector = 0) then
+    begin
+      Error.ErrorType := TE_File;
+      Error.ErrorCode := GetLastError();
+      Error.ErrorMessage := 'Unknown sector size on drive "' + ExtractFileDrive(Filename) + '" (Filename: "' + Filename + '")';
+      Error.Session := nil;
+      DoError(Error, nil, False);
+      Result := False;
+    end
     else
     begin
-      FFileSize := GetFileSize(Handle, nil);
-      if (FFileSize = 0) then
-        FileBuffer.Mem := nil
-      else
-      begin
-        if (not GetDiskFreeSpace(PChar(ExtractFileDrive(Filename)), SectorsPerCluser, BytesPerSector, NumberofFreeClusters, TotalNumberOfClusters)) then
-          RaiseLastOSError()
-        else if (BytesPerSector = 0) then
-          raise ERangeError.Create('Unknown sector size on drive "' + ExtractFileDrive(Filename) + '" (Filename: "' + Filename + '")');
-        FileBuffer.Size := BytesPerSector + Min(FFileSize, FilePacketSize);
-        Inc(FileBuffer.Size, BytesPerSector - FileBuffer.Size mod BytesPerSector);
-        FileBuffer.Mem := VirtualAlloc(nil, FileBuffer.Size, MEM_COMMIT, PAGE_READWRITE);
-        FileBuffer.Index := BytesPerSector;
+      FileBuffer.Size := BytesPerSector + Min(FFileSize, FilePacketSize);
+      Inc(FileBuffer.Size, BytesPerSector - FileBuffer.Size mod BytesPerSector);
+      FileBuffer.Mem := VirtualAlloc(nil, FileBuffer.Size, MEM_COMMIT, PAGE_READWRITE);
+      FileBuffer.Index := BytesPerSector;
 
-        ReadContent();
-      end;
+      Result := ReadContent();
     end;
-  except
-    Error := SysError();
-
-    Result := False;
   end;
 end;
 
@@ -2227,7 +2233,6 @@ begin
           if ((CodePage = CP_UNICODE) and (GetFileSize(Handle, nil) mod 2 <> 0)) then
             raise ERangeError.Create('Invalid File Size');
         end;
-        Inc(FilePos, ReadSize);
 
         case (CodePage) of
           CP_UNICODE:
@@ -2253,7 +2258,12 @@ begin
 
               if (BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index > 0) then
               begin
-                Len := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
+                repeat
+                  Len := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
+                  if ((Len = 0) and (GetLastError() = ERROR_NO_UNICODE_TRANSLATION)) then
+                    Dec(ReadSize);
+                until ((Len > 0) or (ReadSize = 0));
+
                 if (Len > 0) then
                 begin
                   SetLength(FileContent.Str, Length(FileContent.Str) + Len);
@@ -2283,6 +2293,8 @@ begin
               FileBuffer.Index := BytesPerSector - UTF8Bytes;
             end;
         end;
+
+        Inc(FilePos, ReadSize);
       end;
     end;
   end;

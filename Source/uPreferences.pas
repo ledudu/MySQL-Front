@@ -2106,6 +2106,8 @@ ProfilingPoint(Profile, 25);
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
 
   // 2017-05-29: 2.6 Sec
+  // 2017-05-31: 2.6 Sec
+  // 2017-05-31: 4.4 Sec
 ProfilingPoint(Profile, 26);
 
   Database := TDatabase.Create();
@@ -2141,7 +2143,8 @@ ProfilingPoint(Profile, 27);
 
   if (ProfilingTime(Profile) > 3000) then
     SendToDeveloper(
-      TOSVersion.ToString() + #13#10
+      'SM_CXSMICON: ' + IntToStr(GetSystemMetrics(SM_CXSMICON)) + #13#10
+      + TOSVersion.ToString() + #13#10
       + ProfilingReport(Profile));
 
   CloseProfile(Profile);
@@ -2297,6 +2300,10 @@ ProfilingPoint(Profile, 9);
   begin
 ProfilingPoint(Profile, 10);
     B := GetFileInfo(Filename, SetupProgramFileInfo);
+    // 2017-05-30: 5.7 Sec.
+    // 2017-05-30: 3.9 Sec.
+    // 2017-05-30: 1.7 Sec.
+    // 2017-05-30: 1.3 Sec.
 ProfilingPoint(Profile, 11);
     if (not B
       or (FindFirst(Directory + Name + ' (*)' + Ext, faNormal, SearchRec) <> 0)) then
@@ -2307,8 +2314,6 @@ ProfilingPoint(Profile, 13);
     end
     else
     begin
-      // 2017-05-29: 4.1 Sec.
-      // 2017-05-29: 3.0 Sec.
 ProfilingPoint(Profile, 14);
       Found := False;
       repeat
@@ -2317,10 +2322,9 @@ ProfilingPoint(Profile, 14);
       until (FindNext(SearchRec) <> 0);
       FindClose(SearchRec);
 
-      // 2017-05-29: 8.3 Sec.
-      // 2017-05-29: 7.4 Sec.
-      // 2017-05-29: 1.5 Sec.
-      // 2017-05-29: 0.9 Sec.
+      // 2017-05-30: 1.5 Sec.
+      // 2017-05-30: 2.9 Sec.
+      // 2017-05-30: 4.0 Sec.
 ProfilingPoint(Profile, 15);
       if (Found) then
         DeleteFile(Filename)
@@ -2351,7 +2355,7 @@ ProfilingPoint(Profile, 16);
         end;
         MoveFile(PChar(Filename), PChar(Directory + Name + ' (1)' + Ext));
 
-        // 2017-05-29: 6,7 Sec.
+        // 2017-05-30: 6.6 Sec.
 ProfilingPoint(Profile, 17);
       end;
     end;

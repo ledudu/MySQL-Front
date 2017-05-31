@@ -1223,6 +1223,9 @@ begin
           for I := 0 to Length(FSourceFields) - 1 do
             if (FSourceFields[I].ItemIndex > 0) then
             begin
+              // Debug
+              Assert(Assigned(DBObjects[0]));
+
               SetLength(Export.TableFields, Length(Export.TableFields) + 1);
               Export.TableFields[Length(Export.TableFields) - 1] := TSTable(DBObjects[0]).Fields[FSourceFields[I].ItemIndex - 1];
               SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
