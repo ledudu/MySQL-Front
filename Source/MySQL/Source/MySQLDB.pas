@@ -8286,6 +8286,11 @@ begin
     for Rec := 0 to InternRecordBuffers.Count - 1 do
     begin
       InternRecordBuffers[Rec].SortIndex := Rec;
+
+      // Debug 2017-06-01
+      Assert(Assigned(InternRecordBuffers[Rec].NewData));
+      Assert(Assigned(InternRecordBuffers[Rec].NewData^.LibRow));
+
       for Def := 0 to Length(CompareDefs) - 1 do
         if (Assigned(InternRecordBuffers[Rec].NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1])) then
         begin

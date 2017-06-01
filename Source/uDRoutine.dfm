@@ -324,11 +324,6 @@ object DRoutine: TDRoutine
         ActiveLine.Indicator.Visible = False
         ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
-        CodeFolding.Hint.Font.Charset = DEFAULT_CHARSET
-        CodeFolding.Hint.Font.Color = clWindowText
-        CodeFolding.Hint.Font.Height = -12
-        CodeFolding.Hint.Font.Name = 'Courier New'
-        CodeFolding.Hint.Font.Style = []
         CodeFolding.Width = 16
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
@@ -363,19 +358,8 @@ object DRoutine: TDRoutine
         LeftMargin.MarksPanel.Visible = False
         LeftMargin.Width = 21
         OnChange = FSourceChange
-        RightMargin.Visible = False
         SyncEdit.Enabled = False
         TabOrder = 0
-        TokenInfo.Font.Charset = DEFAULT_CHARSET
-        TokenInfo.Font.Color = clWindowText
-        TokenInfo.Font.Height = -12
-        TokenInfo.Font.Name = 'Courier New'
-        TokenInfo.Font.Style = []
-        TokenInfo.Title.Font.Charset = DEFAULT_CHARSET
-        TokenInfo.Title.Font.Color = clWindowText
-        TokenInfo.Title.Font.Height = -12
-        TokenInfo.Title.Font.Name = 'Courier New'
-        TokenInfo.Title.Font.Style = []
       end
     end
   end

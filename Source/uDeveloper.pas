@@ -214,7 +214,7 @@ begin
       begin
         UpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > ProgramVersion;
         OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
-        VersionString(OnlineVersion);
+        VersionStr := VersionString(OnlineVersion);
       end;
 
       Major := -1;
