@@ -472,7 +472,6 @@ object DTables: TDTables
         ActiveLine.Indicator.Visible = False
         ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
-        CodeFolding.Width = 16
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
           item

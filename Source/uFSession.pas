@@ -934,6 +934,7 @@ type
     Wanted: TWanted;
 Progress: string;
     procedure aDCancelExecute(Sender: TObject);
+    procedure aDPropertiesServerExecute(Sender: TObject);
     function AddressByData(const Data: TCustomData): string;
     procedure AddressChanged(Sender: TObject);
     procedure AddressChanging(const Sender: TObject; const NewAddress: String;
@@ -1074,7 +1075,6 @@ Progress: string;
     procedure PasteExecute(const Node: TTreeNode; const Addresses: string);
     procedure PContentChange(Sender: TObject);
     function PostObject(Sender: TObject): Boolean;
-    procedure PropertiesServerExecute(Sender: TObject);
     function QuickAccessStep1(): Boolean;
     function QuickAccessStep2(): Boolean;
     function RenameSItem(const SItem: TSItem; const NewName: string): Boolean;
@@ -3419,6 +3419,19 @@ begin
 
     SendQuery(Sender, SQL);
   end;
+end;
+
+procedure TFSession.aDPropertiesServerExecute(Sender: TObject);
+begin
+  // Debug 2017-04-30
+  Assert(not (csDestroying in ComponentState)); // Occurred on 2017-05-10 and 2017-05-15. ... without a call stack
+  Assert(Assigned(Wanted));
+
+  Wanted.Clear();
+
+  DServer.Session := Session;
+  DServer.Tab := Self;
+  DServer.Execute();
 end;
 
 procedure TFSession.aDRunSelectionExecute(Sender: TObject);
@@ -6831,72 +6844,69 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  if (not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
-  begin
-    SortDef := TIndexDef.Create(nil, '', '', []);
+  SortDef := TIndexDef.Create(nil, '', '', []);
 
-    OldDescending := True;
+  OldDescending := True;
 
-    Pos := 1;
-    repeat
-      FieldName := ExtractFieldName(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).SortDef.Fields, Pos);
-      if (FieldName <> '') then
-        if (FieldName <> ActiveDBGrid.Fields[Column.Index].FieldName) then
-        begin
-          if (SortDef.Fields <> '') then SortDef.Fields := SortDef.Fields + ';';
-          SortDef.Fields := SortDef.Fields + FieldName;
-        end
-        else
-          OldDescending := False;
-    until (FieldName = '');
-
-    Pos := 1;
-    repeat
-      FieldName := ExtractFieldName(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).SortDef.DescFields, Pos);
-      if (FieldName <> '') then
-        if (FieldName <> ActiveDBGrid.Fields[Column.Index].FieldName) then
-        begin
-          if (SortDef.DescFields <> '') then SortDef.DescFields := SortDef.DescFields + ';';
-          SortDef.DescFields := SortDef.DescFields + FieldName;
-        end
-        else
-          OldDescending := True;
-    until (FieldName = '');
-
-    if (ssShift in ActiveDBGrid.MouseDownShiftState) then
-    begin
-      if (SortDef.Fields <> '') then SortDef.Fields := ';' + SortDef.Fields;
-      SortDef.Fields := ActiveDBGrid.Fields[Column.Index].FieldName + SortDef.Fields;
-      if (not OldDescending) then
+  Pos := 1;
+  repeat
+    FieldName := ExtractFieldName(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).SortDef.Fields, Pos);
+    if (FieldName <> '') then
+      if (FieldName <> ActiveDBGrid.Fields[Column.Index].FieldName) then
       begin
-        if (SortDef.DescFields <> '') then SortDef.DescFields := ';' + SortDef.DescFields;
-        SortDef.DescFields := ActiveDBGrid.Fields[Column.Index].FieldName + SortDef.DescFields;
-      end;
-    end
-    else if (ssCtrl in ActiveDBGrid.MouseDownShiftState) then
-    begin
-      if (SortDef.Fields <> '') then SortDef.Fields := SortDef.Fields + ';';
-      SortDef.Fields := SortDef.Fields + ActiveDBGrid.Fields[Column.Index].FieldName;
-      if (not OldDescending) then
+        if (SortDef.Fields <> '') then SortDef.Fields := SortDef.Fields + ';';
+        SortDef.Fields := SortDef.Fields + FieldName;
+      end
+      else
+        OldDescending := False;
+  until (FieldName = '');
+
+  Pos := 1;
+  repeat
+    FieldName := ExtractFieldName(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).SortDef.DescFields, Pos);
+    if (FieldName <> '') then
+      if (FieldName <> ActiveDBGrid.Fields[Column.Index].FieldName) then
       begin
         if (SortDef.DescFields <> '') then SortDef.DescFields := SortDef.DescFields + ';';
-        SortDef.DescFields := SortDef.DescFields + ActiveDBGrid.Fields[Column.Index].FieldName;
-      end;
-    end
-    else
+        SortDef.DescFields := SortDef.DescFields + FieldName;
+      end
+      else
+        OldDescending := True;
+  until (FieldName = '');
+
+  if (ssShift in ActiveDBGrid.MouseDownShiftState) then
+  begin
+    if (SortDef.Fields <> '') then SortDef.Fields := ';' + SortDef.Fields;
+    SortDef.Fields := ActiveDBGrid.Fields[Column.Index].FieldName + SortDef.Fields;
+    if (not OldDescending) then
     begin
-      SortDef.Fields := '';
-      SortDef.DescFields := '';
-      SortDef.Fields := ActiveDBGrid.Fields[Column.Index].FieldName;
-      if (not OldDescending) then
-        SortDef.DescFields := ActiveDBGrid.Fields[Column.Index].FieldName;
+      if (SortDef.DescFields <> '') then SortDef.DescFields := ';' + SortDef.DescFields;
+      SortDef.DescFields := ActiveDBGrid.Fields[Column.Index].FieldName + SortDef.DescFields;
     end;
-
-    ActiveDBGrid.SelectedRows.Clear();
-    TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
-
-    SortDef.Free();
+  end
+  else if (ssCtrl in ActiveDBGrid.MouseDownShiftState) then
+  begin
+    if (SortDef.Fields <> '') then SortDef.Fields := SortDef.Fields + ';';
+    SortDef.Fields := SortDef.Fields + ActiveDBGrid.Fields[Column.Index].FieldName;
+    if (not OldDescending) then
+    begin
+      if (SortDef.DescFields <> '') then SortDef.DescFields := SortDef.DescFields + ';';
+      SortDef.DescFields := SortDef.DescFields + ActiveDBGrid.Fields[Column.Index].FieldName;
+    end;
+  end
+  else
+  begin
+    SortDef.Fields := '';
+    SortDef.DescFields := '';
+    SortDef.Fields := ActiveDBGrid.Fields[Column.Index].FieldName;
+    if (not OldDescending) then
+      SortDef.DescFields := ActiveDBGrid.Fields[Column.Index].FieldName;
   end;
+
+  ActiveDBGrid.SelectedRows.Clear();
+  TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
+
+  SortDef.Free();
 end;
 
 function TFSession.Desktop(const Database: TSDatabase): TDatabaseDesktop;
@@ -6938,13 +6948,13 @@ var
   View: TView;
 begin
   // Debug 2017-05-14
+  Assert(Assigned(Accounts));
   Assert(Assigned(Sessions));
   Assert(Sessions.Count > 0);
   Assert(Sessions.IndexOf(Session) >= 0);
   Assert(Assigned(Session));
   Assert(TObject(Session) is TSSession);
   Assert(Assigned(Session.Account));
-  Assert(Assigned(Accounts));
   Assert(Accounts.Count > 0);
   Assert(Accounts.IndexOf(Session.Account) >= 0);
   Assert(TObject(Session.Account) is TPAccount);
@@ -8590,6 +8600,18 @@ var
       Node := Node.Parent;
     end;
 
+    Node := FNavigatorMenuNode;
+    while (Assigned(Node)) do
+    begin
+      if (Node = Child) then
+        // Debug 2017-06-01
+        Assert(False);
+        // Why is the FNaviatorMenu still assiged???
+
+//        FNavigatorMenuNode := nil;
+      Node := Node.Parent;
+    end;
+
     Child.Data := nil;
     Child.Delete();
   end;
@@ -9515,7 +9537,7 @@ begin
     aDCreateTrigger.OnExecute := aDCreateTriggerExecute;
     aDCreateEvent.OnExecute := aDCreateEventExecute;
     aDCreateUser.OnExecute := aDCreateUserExecute;
-    aDEditServer.OnExecute := PropertiesServerExecute;
+    aDEditServer.OnExecute := aDPropertiesServerExecute;
     aDEditDatabase.OnExecute := aDPropertiesExecute;
     aDEditTable.OnExecute := aDPropertiesExecute;
     aDEditView.OnExecute := aDPropertiesExecute;
@@ -9725,6 +9747,9 @@ end;
 
 procedure TFSession.FreeDBGrid(const DBGrid: TMySQLDBGrid);
 begin
+  // Debug 2017-06-01
+  Assert(Assigned(DBGrid));
+
   FText.OnChange := nil;
   PBlob.Parent := PContent;
   PBlob.Visible := False;
@@ -10178,7 +10203,7 @@ begin
   if (Assigned(Result)) then
   begin
     // Debug 2017-01-24
-    // Occurred on 2017-05-09 the first time (but the detailes wasn't implemented than)
+    // Occurred on 2017-06-01 - View: vBuilder, CurrentAddress and CurrentClassIndex Ok
     Assert(Assigned(TUnprotectedDBGrid(Result).DataLink),
       'View: ' + IntToStr(Ord(View)) + #13#10
       + 'CurrentAddress: ' + CurrentAddress + #13#10
@@ -14574,19 +14599,6 @@ begin
   end;
 end;
 
-procedure TFSession.PropertiesServerExecute(Sender: TObject);
-begin
-  // Debug 2017-04-30
-  Assert(not (csDestroying in ComponentState)); // Occurred on 2017-05-10 and 2017-05-15. ... without a call stack
-  Assert(Assigned(Wanted));
-
-  Wanted.Clear();
-
-  DServer.Session := Session;
-  DServer.Tab := Self;
-  DServer.Execute();
-end;
-
 procedure TFSession.PToolBarBlobResize(Sender: TObject);
 begin
   if (Assigned(TBBlob.Images)) then
@@ -15370,7 +15382,7 @@ begin
   end;
   if (not (AView in [vObjectSearch])) then
   begin
-    URI.Param['text'] := Trim(FObjectSearch.Text);
+    URI.Param['text'] := Null;
     URI.Param['databases'] := Null;
     URI.Param['tables'] := Null;
     URI.Param['routines'] := Null;

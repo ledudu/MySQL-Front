@@ -183,7 +183,6 @@ object DTrigger: TDTrigger
           ActiveLine.Indicator.Visible = False
           ActiveLine.Visible = False
           Anchors = [akLeft, akTop, akRight, akBottom]
-          CodeFolding.Width = 16
           CompletionProposal.CloseChars = '()[]. '
           CompletionProposal.Columns = <
             item
@@ -304,7 +303,6 @@ object DTrigger: TDTrigger
         ActiveLine.Indicator.Visible = False
         ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
-        CodeFolding.Width = 16
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
           item

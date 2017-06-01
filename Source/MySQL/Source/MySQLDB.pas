@@ -6743,6 +6743,7 @@ begin
   Assert(Active);
   Assert(not (csDestroying in ComponentState));
   Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432));
+  // AV: 2017-06-01 - CallStack WMTimer, ActivateHint
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -8103,9 +8104,11 @@ var
         and (0 <= RecB) and (RecB < InternRecordBuffers.Count),
         'RecA: ' + IntToStr(RecA) + #13#10
         + 'RecB: ' + IntToStr(RecB) + #13#10
-        + 'Count: ' + IntToStr(InternRecordBuffers.Count)
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
         + 'Def: ' + IntToStr(Def) + #13#10
-        + 'Defs.Count: ' + IntToStr(Length(CompareDefs)));
+        + 'Defs.Count: ' + IntToStr(Length(CompareDefs)) + #13#10
+        + 'DataType: ' + IntToStr(Ord(CompareDefs[Def].Field.DataType)) + #13#10
+        + 'Asc: ' + BoolToStr(CompareDefs[Def].Ascending, True));
 
       NullA := not Assigned(InternRecordBuffers[RecA]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
       NullB := not Assigned(InternRecordBuffers[RecB]^.NewData^.LibRow[CompareDefs[Def].Field.FieldNo - 1]);
@@ -9379,6 +9382,7 @@ end;
 //  Len: Integer;
 //  RBS: RawByteString;
 //  SQL: string;
+//  SL: TStringList;
 initialization
 //  Hex := '';
 //  SetLength(RBS, Length(Hex) div 2);
@@ -9386,6 +9390,11 @@ initialization
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);
+//
+//  SL := TStringList.Create();
+//  SL.Text := SQL;
+//  SL.SaveToFile('C:\Test.sql');
+//  SL.Free();
 
   MySQLConnectionOnSynchronize := nil;
 

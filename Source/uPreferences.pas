@@ -2323,6 +2323,8 @@ begin
   Name := ExtractFileName(Application.ExeName);
   Name := LeftStr(Name, Length(Name) - Length(Ext));
 
+ProfilingPoint(Profile, 7);
+
   // Rename old named setup programs before 2017-06-01
   if (FindFirst(Directory + Name + '_Setup (*).exe', faNormal, SearchRec) = 0) then
   begin
@@ -2340,7 +2342,7 @@ begin
     FindClose(SearchRec);
   end;
 
-ProfilingPoint(Profile, 7);
+ProfilingPoint(Profile, 8);
   Count := 0;
   MinVersion := MaxInt;
   if (FindFirst(Directory + Name + '_Setup_*.*.*.*.exe', faNormal, SearchRec) = 0) then
