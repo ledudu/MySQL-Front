@@ -272,7 +272,7 @@ object FSession: TFSession
     OnResize = PContentResize
     object SResult: TSplitter_Ext
       Left = 0
-      Top = 44
+      Top = 40
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -289,9 +289,20 @@ object FSession: TFSession
       ExplicitTop = 36
       ExplicitWidth = 319
     end
-    object SBlob: TSplitter_Ext
+    object SBlob0: TSplitter_Ext
       Left = 0
       Top = 178
+      Width = 467
+      Height = 4
+      Cursor = crVSplit
+      Align = alBottom
+      Visible = False
+      ActiveBorderColor = clWindow
+      ExplicitTop = 182
+    end
+    object SBlob: TSplitter_Ext
+      Left = 0
+      Top = 174
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -378,7 +389,7 @@ object FSession: TFSession
     end
     object PResult: TPanel_Ext
       Left = 0
-      Top = 48
+      Top = 44
       Width = 467
       Height = 130
       Align = alBottom
@@ -1192,7 +1203,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 120172
+      Left = 32752
       Top = 0
       Width = 140
       Height = 22
@@ -1204,10 +1215,9 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
-      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 120012
+      Left = 32752
       Top = 0
       Width = 23
       Height = 22
@@ -1216,7 +1226,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0

@@ -318,6 +318,7 @@ type
     PHeader: TPanel_Ext;
     PWorkbench: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
+    SBlob0: TSplitter_Ext;
     SBlob: TSplitter_Ext;
     SBlob2: TSplitter_Ext;
     SQueryBuilderBCEditor: TSplitter_Ext;
@@ -920,6 +921,7 @@ type
     PResultHeight: Integer;
     ProcessesListView: TListView;
     QuickAccessListView: TListView;
+    SBlob0Debug: TSplitter_Ext;
     SBlobDebug: TSplitter_Ext;
     SBlob2Debug: TSplitter_Ext;
     ServerListView: TListView;
@@ -1175,6 +1177,11 @@ DateUtils,
   uDUser, uDQuickFilter, uWSQLHelp, uDTransfer, uDSearch, uDServer,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
   uDConnecting, uDExecutingSQL;
+
+// Debug 2017-06-02
+type
+  TUnprotectedDBGrid = class(TMySQLDBGrid)
+  end;
 
 const
   nlHost = 0;
@@ -1609,7 +1616,12 @@ begin
       DataSource.Enabled := False;
     end;
     if (not Assigned(FBuilderDBGrid)) then
+    begin
       FBuilderDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
+
+      // Debug 2017-06-02
+      Assert(Assigned(TUnprotectedDBGrid(FBuilderDBGrid).DataLink));
+    end;
     DataSource.DataSet := DataSet;
 
     FSession.ActiveDBGrid := FBuilderDBGrid;
@@ -2396,6 +2408,9 @@ begin
   begin
     // Debug 2017-05-22
     Assert(not FSession.Session.InImport);
+
+    // Debug 2017-05-22
+    Assert(not FSession.Session.InExport);
 
     Clear();
 
@@ -5191,8 +5206,9 @@ begin
   ObjectSearchListView := nil;
   ProcessesListView := nil;
   QuickAccessListView := nil;
+  SBlob0Debug := SBlob0;
   SBlobDebug := SBlob;
-  SBlob2Debug := SBlob;
+  SBlob2Debug := SBlob2;
   ServerListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
@@ -10089,11 +10105,6 @@ begin
   aVBlobRTF.Visible := (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
 end;
 
-// Debug 2017-01-24
-type
-  TUnprotectedDBGrid = class(TMySQLDBGrid)
-  end;
-
 function TFSession.GetActiveBCEditor(): TBCEditor;
 var
   I: Integer;
@@ -14203,6 +14214,9 @@ begin
         E.RaiseOuterException(EAssertionFailed.Create('SBlob: ' + BoolToStr(Assigned(SBlob), True) + #13#10
           + 'SBlobDebug: ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10#13#10
           + 'SBlob=SBlobDebug: ' + BoolToStr(SBlob=SBlobDebug, True) + #13#10
+          + 'SBlob0: ' + BoolToStr(Assigned(SBlob0), True) + #13#10
+          + 'SBlobDebug0: ' + BoolToStr(Assigned(SBlob0Debug), True) + #13#10#13#10
+          + 'SBlob0=SBlob0Debug: ' + BoolToStr(SBlob0=SBlob0Debug, True) + #13#10#13#10
           + 'SBlob2: ' + BoolToStr(Assigned(SBlob2), True) + #13#10
           + 'SBlobDebug2: ' + BoolToStr(Assigned(SBlob2Debug), True) + #13#10#13#10
           + 'SBlob2=SBlob2Debug: ' + BoolToStr(SBlob2=SBlob2Debug, True) + #13#10#13#10

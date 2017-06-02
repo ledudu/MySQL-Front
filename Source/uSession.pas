@@ -4708,6 +4708,8 @@ begin
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       NewName := SQLParseValue(Parse);
     end;
+    if (NewName = '') then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (not SQLParseChar(Parse, '(')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);

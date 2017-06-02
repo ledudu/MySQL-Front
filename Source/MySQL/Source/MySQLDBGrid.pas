@@ -219,8 +219,18 @@ end;
 { TMySQLDBGrid.TMySQLDBGridDataLink *******************************************}
 
 procedure TMySQLDBGrid.TGridDataLink.DataEvent(Event: TDataEvent; Info: NativeInt);
+var
+  I: Integer;
 begin
   case (Ord(Event)) of
+    Ord(deDataSetChange):
+      begin
+        // Debug 2017-06-02
+        for I := 0 to TDBGrid(Grid).Columns.Count - 1 do
+          Assert(Assigned(TDBGrid(Grid).Columns[I].Field),
+            'FieldName: ' + TDBGrid(Grid).Columns[I].FieldName);
+        inherited;
+      end;
     Ord(deSortChanged):
       TMySQLDBGrid(Grid).SetHeaderColumnArrows();
     Ord(deCommitted):
@@ -627,6 +637,9 @@ end;
 function TMySQLDBGrid.CreateDataLink(): DBGrids.TGridDataLink;
 begin
   Result := TGridDataLink.Create(Self);
+
+  // Debug 2017-06-02
+  Assert(Assigned(Result));
 end;
 
 function TMySQLDBGrid.CreateEditor(): TInplaceEdit;

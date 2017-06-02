@@ -8130,14 +8130,18 @@ var
             ftShortInt: Result := Sign(ShortInt(BufferA^) - ShortInt(BufferB^));
             ftByte: Result := Sign(Byte(BufferA^) - Byte(BufferB^));
             ftSmallInt: Result := Sign(SmallInt(BufferA^) - SmallInt(BufferB^));
-            ftWord: Result := Sign(Word(BufferA^) - Word(BufferB^));
+            ftWord: Result := Sign(Integer(Word(BufferA^)) - Integer(Word(BufferB^)));
             ftInteger: Result := Sign(Integer(BufferA^) - Integer(BufferB^));
-            ftLongWord: Result := Sign(LongWord(BufferA^) - LongWord(BufferB^));
+            ftLongWord: Result := Sign(Int64(LongWord(BufferA^)) - Int64(LongWord(BufferB^)));
             ftLargeInt:
               if (not (CompareDefs[Def].Field is TMySQLLargeWordField)) then
                 Result := Sign(LargeInt(BufferA^) - LargeInt(BufferB^))
+              else if (UInt64(BufferA^) = UInt64(BufferB^)) then
+                Result := 0
+              else if (UInt64(BufferA^) > UInt64(BufferB^)) then
+                Result := 1
               else
-                Result := Sign(UInt64(BufferA^) - UInt64(BufferB^));
+                Result := -1;
             ftSingle: Result := Sign(Single(BufferA^) - Single(BufferB^));
             ftFloat: Result := Sign(Double(BufferA^) - Double(BufferB^));
             ftExtended: Result := Sign(Extended(BufferA^) - Extended(BufferB^));

@@ -1929,11 +1929,7 @@ var
   S: string;
   StringList: TStringList;
 begin
-  CreateProfile(Profile);
-
-  ProfilingPoint(Profile, 1);
   inherited Create(KEY_ALL_ACCESS);
-  ProfilingPoint(Profile, 2);
 
   FDowndateFilename := '';
   FXMLDocument := nil;
@@ -1987,20 +1983,14 @@ begin
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
 
 
-  ProfilingPoint(Profile, 3);
-
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
-  ProfilingPoint(Profile, 4);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  ProfilingPoint(Profile, 5);
   if (FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName)) + 'Desktop.xml') or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
     FUserPath := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName))
   else if (SysUtils.LoadStr(1002) = '') then
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + 'MySQL-Front')
   else
     FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(StrPas(PChar(@Foldername))) + SysUtils.LoadStr(1002));
-
-  ProfilingPoint(Profile, 6);
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -2042,31 +2032,36 @@ begin
   if (SetupProgramInstalled) then
     HandleSetupProgram();
 
-ProfilingPoint(Profile, 11);
   FDowndateAvailable := GetDowndateVersion() > 0;
-ProfilingPoint(Profile, 12);
 
 
-ProfilingPoint(Profile, 25);
+CreateProfile(Profile);
+
+ProfilingPoint(Profile, 1);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
+ProfilingPoint(Profile, 2);
 
   FImages := TImageList.Create(nil);
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
+ProfilingPoint(Profile, 3);
 
   for I := 0 to MaxIconIndex do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
       begin
         Icon := LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR);
+ProfilingPoint(Profile, 4);
         ImageList_AddIcon(FImages.Handle, Icon);
+ProfilingPoint(Profile, 5);
       end
       else
       begin
+ProfilingPoint(Profile, 6);
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
@@ -2076,32 +2071,36 @@ ProfilingPoint(Profile, 25);
         Icon := CreateIconFromResourceEx(
           LockResource(ResData), SizeOfResource(HInstance, ResInfo),
           TRUE, $00030000, 64, 64, LR_DEFAULTCOLOR);
+ProfilingPoint(Profile, 7);
 
         Bitmap := Graphics.TBitmap.Create();
         Bitmap.PixelFormat := pf32bit;
         SetBkMode(Bitmap.Canvas.Handle, TRANSPARENT);
         Bitmap.SetSize(FImages.Width, FImages.Height);
+ProfilingPoint(Profile, 8);
 
         GPBitmap := TGPBitmap.Create(Icon);
+ProfilingPoint(Profile, 9);
 
         GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
         GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
         GPGraphics.DrawImage(GPBitmap, 0, 0, Bitmap.Width, Bitmap.Height);
+ProfilingPoint(Profile, 10);
 
         ImageList_Add(FImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
 
+ProfilingPoint(Profile, 11);
         GPGraphics.Free();
         Bitmap.Free();
       end
     else if (I > 0) then
+    begin
+ProfilingPoint(Profile, 12);
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
+ProfilingPoint(Profile, 13);
+    end;
 
-  // 2017-05-29: 2.6 Sec
-  // 2017-05-31: 2.6 Sec
-  // 2017-05-31: 4.4 Sec
-  // 2017-05-31: 2.5 Sec, 16 px, Win 10
-  // 2017-05-31: 1.4 Sec, Win 10
-ProfilingPoint(Profile, 26);
+ProfilingPoint(Profile, 14);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2130,19 +2129,17 @@ ProfilingPoint(Profile, 26);
   User := TUser.Create();
   View := TPView.Create();
 
-ProfilingPoint(Profile, 27);
+ProfilingPoint(Profile, 15);
 
   Open();
 
-  // 2017-05-31: 3.9 Sec.
+if (ProfilingTime(Profile) > 3000) then
+  SendToDeveloper(
+    'SM_CXSMICON: ' + IntToStr(GetSystemMetrics(SM_CXSMICON)) + #13#10
+    + TOSVersion.ToString() + #13#10
+    + ProfilingReport(Profile));
 
-  if (ProfilingTime(Profile) > 3000) then
-    SendToDeveloper(
-      'SM_CXSMICON: ' + IntToStr(GetSystemMetrics(SM_CXSMICON)) + #13#10
-      + TOSVersion.ToString() + #13#10
-      + ProfilingReport(Profile));
-
-  CloseProfile(Profile);
+CloseProfile(Profile);
 end;
 
 destructor TPPreferences.Destroy();
