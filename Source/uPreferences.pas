@@ -8,8 +8,6 @@ uses
   Registry,
   XMLDoc, XMLIntf,
   Controls, Forms, ComCtrls, Graphics,
-uProfiling,
-uDeveloper,
   BCEditor.Editor;
 
 type
@@ -690,12 +688,8 @@ uses
   EAppCrossModule,
   {$ENDIF}
   BCEditor.Types,
-  MySQLConsts,
-  CSVUtils,
-  uURI;
-
-var
-  Profile: TProfile;
+  MySQLConsts, CSVUtils,
+  uURI, uDeveloper;
 
 function VersionStrToVersion(VersionStr: string): Integer;
 begin
@@ -1926,7 +1920,6 @@ var
   ResData: HGLOBAL;
   ResInfo: HRSRC;
   Resource: Pointer;
-  S: string;
   StringList: TStringList;
 begin
   inherited Create(KEY_ALL_ACCESS);
@@ -1996,16 +1989,10 @@ begin
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
   begin
     if (ValueExists('')) then
-    begin
       try
-        S := ReadString('');
+        SoundFileNavigating := ReplaceEnviromentVariables(ReadString(''));
       except
-        on E: Exception do
-          SendToDeveloper(E.ClassName + ':' + #13#10
-              + E.Message);
       end;
-      SoundFileNavigating := ReplaceEnviromentVariables(S);
-    end;
     if (not FileExists(SoundFileNavigating)) then
       SoundFileNavigating := '';
 
@@ -2035,33 +2022,25 @@ begin
   FDowndateAvailable := GetDowndateVersion() > 0;
 
 
-CreateProfile(Profile);
-
-ProfilingPoint(Profile, 1);
   MaxIconIndex := 0;
   for I := 1 to 200 do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
-ProfilingPoint(Profile, 2);
 
   FImages := TImageList.Create(nil);
   FImages.ColorDepth := cd32Bit;
   FImages.Height := GetSystemMetrics(SM_CYSMICON);
   FImages.Width := GetSystemMetrics(SM_CXSMICON);
-ProfilingPoint(Profile, 3);
 
   for I := 0 to MaxIconIndex do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       if (FImages.Width = 16) then
       begin
         Icon := LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR);
-ProfilingPoint(Profile, 4);
         ImageList_AddIcon(FImages.Handle, Icon);
-ProfilingPoint(Profile, 5);
       end
       else
       begin
-ProfilingPoint(Profile, 6);
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
@@ -2071,36 +2050,26 @@ ProfilingPoint(Profile, 6);
         Icon := CreateIconFromResourceEx(
           LockResource(ResData), SizeOfResource(HInstance, ResInfo),
           TRUE, $00030000, 64, 64, LR_DEFAULTCOLOR);
-ProfilingPoint(Profile, 7);
 
         Bitmap := Graphics.TBitmap.Create();
         Bitmap.PixelFormat := pf32bit;
         SetBkMode(Bitmap.Canvas.Handle, TRANSPARENT);
         Bitmap.SetSize(FImages.Width, FImages.Height);
-ProfilingPoint(Profile, 8);
 
         GPBitmap := TGPBitmap.Create(Icon);
-ProfilingPoint(Profile, 9);
 
         GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
         GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
         GPGraphics.DrawImage(GPBitmap, 0, 0, Bitmap.Width, Bitmap.Height);
-ProfilingPoint(Profile, 10);
 
         ImageList_Add(FImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
 
-ProfilingPoint(Profile, 11);
         GPGraphics.Free();
         Bitmap.Free();
       end
     else if (I > 0) then
-    begin
-ProfilingPoint(Profile, 12);
       ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
-ProfilingPoint(Profile, 13);
-    end;
 
-ProfilingPoint(Profile, 14);
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
@@ -2129,17 +2098,8 @@ ProfilingPoint(Profile, 14);
   User := TUser.Create();
   View := TPView.Create();
 
-ProfilingPoint(Profile, 15);
 
   Open();
-
-if (ProfilingTime(Profile) > 3000) then
-  SendToDeveloper(
-    'SM_CXSMICON: ' + IntToStr(GetSystemMetrics(SM_CXSMICON)) + #13#10
-    + TOSVersion.ToString() + #13#10
-    + ProfilingReport(Profile));
-
-CloseProfile(Profile);
 end;
 
 destructor TPPreferences.Destroy();
