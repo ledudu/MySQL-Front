@@ -419,17 +419,26 @@ begin
     AllowModify := Account.SessionCount = 0;
   end;
 
-  FName.Enabled := AllowModify;
-  FHost.Enabled := AllowModify;
-  FPort.Enabled := AllowModify;
+  FName.ReadOnly := not AllowModify;
+  FHost.ReadOnly := not AllowModify;
+  FPort.ReadOnly := not AllowModify;
   FUDPort.Enabled := AllowModify;
   FConnectionType.Enabled := AllowModify;
-  FLibraryFilename.Enabled := AllowModify;
-  FHTTPTunnelURI.Enabled := AllowModify;
-  FUser.Enabled := AllowModify;
-  FPassword.Enabled := AllowModify;
-  FDatabase.Enabled := AllowModify;
+  FLibraryFilename.ReadOnly := not AllowModify;
+  FHTTPTunnelURI.ReadOnly := not AllowModify;
+  FUser.ReadOnly := not AllowModify;
+  FPassword.ReadOnly := not AllowModify;
+  FDatabase.ReadOnly := not AllowModify;
   FBDatabase.Enabled := AllowModify;
+
+  if (FName.ReadOnly) then FName.Font.Color := clGrayText else FName.Font.Color := clWindowText;
+  if (FHost.ReadOnly) then FHost.Font.Color := clGrayText else FHost.Font.Color := clWindowText;
+  if (FPort.ReadOnly) then FPort.Font.Color := clGrayText else FPort.Font.Color := clWindowText;
+  if (FLibraryFilename.ReadOnly) then FLibraryFilename.Font.Color := clGrayText else FLibraryFilename.Font.Color := clWindowText;
+  if (FHTTPTunnelURI.ReadOnly) then FHTTPTunnelURI.Font.Color := clGrayText else FHTTPTunnelURI.Font.Color := clWindowText;
+  if (FUser.ReadOnly) then FUser.Font.Color := clGrayText else FUser.Font.Color := clWindowText;
+  if (FPassword.ReadOnly) then FPassword.Font.Color := clGrayText else FPassword.Font.Color := clWindowText;
+  if (FDatabase.ReadOnly) then FDatabase.Font.Color := clGrayText else FDatabase.Font.Color := clWindowText;
 
   FConnectionTypeChange(nil);
 

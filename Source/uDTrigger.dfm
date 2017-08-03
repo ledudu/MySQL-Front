@@ -40,7 +40,7 @@ object DTrigger: TDTrigger
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSBasics
+    ActivePage = TSSource
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -180,7 +180,6 @@ object DTrigger: TDTrigger
           Top = 192
           Width = 281
           Height = 73
-          ActiveLine.Indicator.Visible = False
           ActiveLine.Visible = False
           Anchors = [akLeft, akTop, akRight, akBottom]
           CompletionProposal.CloseChars = '()[]. '
@@ -205,16 +204,13 @@ object DTrigger: TDTrigger
           Font.Name = 'Courier New'
           Font.Style = []
           LeftMargin.Bookmarks.Visible = False
-          LeftMargin.Font.Charset = DEFAULT_CHARSET
-          LeftMargin.Font.Color = 13408665
-          LeftMargin.Font.Height = -12
-          LeftMargin.Font.Name = 'Courier New'
-          LeftMargin.Font.Style = []
+          LeftMargin.Colors.Foreground = clBlack
           LeftMargin.LineNumbers.DigitCount = 2
           LeftMargin.LineState.Enabled = False
           LeftMargin.Marks.Visible = False
           LeftMargin.MarksPanel.Visible = False
-          LeftMargin.Width = 21
+          LeftMargin.Width = 23
+          PopupMenu = MSource
           SyncEdit.Enabled = False
           TabOrder = 0
         end
@@ -300,7 +296,6 @@ object DTrigger: TDTrigger
         Top = 8
         Width = 297
         Height = 273
-        ActiveLine.Indicator.Visible = False
         ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
@@ -325,16 +320,13 @@ object DTrigger: TDTrigger
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Font.Charset = DEFAULT_CHARSET
-        LeftMargin.Font.Color = 13408665
-        LeftMargin.Font.Height = -12
-        LeftMargin.Font.Name = 'Courier New'
-        LeftMargin.Font.Style = []
+        LeftMargin.Colors.Foreground = clBlack
         LeftMargin.LineNumbers.DigitCount = 2
         LeftMargin.LineState.Enabled = False
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
-        LeftMargin.Width = 21
+        LeftMargin.Width = 23
+        PopupMenu = MSource
         ReadOnly = True
         SyncEdit.Enabled = False
         TabOrder = 0

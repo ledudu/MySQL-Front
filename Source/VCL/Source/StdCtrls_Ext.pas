@@ -38,7 +38,7 @@ implementation {***************************************************************}
 
 uses
   StrUtils,
-  StdActns, Clipbrd;
+  StdActns, Clipbrd, Consts;
 
 procedure Register();
 begin
@@ -53,9 +53,23 @@ procedure TComboBox_Ext.CopyToClipboard();
 var
   ClipboardData: HGLOBAL;
   Len: Integer;
+  Opened: Boolean;
+  Retry: Integer;
   S: String;
 begin
-  if (OpenClipboard(Handle)) then
+  Retry := 0;
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (not Opened) then
+    begin
+      Sleep(50);
+      Inc(Retry);
+    end;
+  until (Opened or (Retry = 10));
+
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else
   begin
     try
       EmptyClipboard();
@@ -95,9 +109,23 @@ procedure TComboBox_Ext.PasteFromClipboard();
 var
   ClipboardData: HGLOBAL;
   I: Integer;
-  S: string;
+  Opened: Boolean;
+  Retry: Integer;
+  S: String;
 begin
-  if (OpenClipboard(Handle)) then
+  Retry := 0;
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (not Opened) then
+    begin
+      Sleep(50);
+      Inc(Retry);
+    end;
+  until (Opened or (Retry = 10));
+
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else
   begin
     try
       ClipboardData := GetClipboardData(CF_UNICODETEXT);

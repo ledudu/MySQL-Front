@@ -336,7 +336,6 @@ object DUser: TDUser
         Top = 8
         Width = 297
         Height = 187
-        ActiveLine.Indicator.Visible = False
         ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
@@ -361,16 +360,13 @@ object DUser: TDUser
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Font.Charset = DEFAULT_CHARSET
-        LeftMargin.Font.Color = 13408665
-        LeftMargin.Font.Height = -12
-        LeftMargin.Font.Name = 'Courier New'
-        LeftMargin.Font.Style = []
+        LeftMargin.Colors.Foreground = clBlack
         LeftMargin.LineNumbers.DigitCount = 2
         LeftMargin.LineState.Enabled = False
         LeftMargin.Marks.Visible = False
         LeftMargin.MarksPanel.Visible = False
-        LeftMargin.Width = 21
+        LeftMargin.Width = 23
+        PopupMenu = MSource
         ReadOnly = True
         SyncEdit.Enabled = False
         TabOrder = 0

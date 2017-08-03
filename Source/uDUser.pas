@@ -280,6 +280,9 @@ begin
 
   BorderStyle := bsSizeable;
 
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
+
   FRights.SmallImages := Preferences.Images;
 
   FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
@@ -542,9 +545,6 @@ begin
 
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToBCEditor(FSource);
-
-  msCopy.Action := aECopy; msCopy.ShortCut := 0;
-  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBOk.Enabled := False;
 

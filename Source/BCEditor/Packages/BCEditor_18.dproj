@@ -46,7 +46,7 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\Source\BCEditor.Register.dcr"/>
+        <DCCReference Include="..\Resource\BCEditor.Designtime.dcr"/>
         <DCCReference Include="designide.dcp"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
@@ -55,36 +55,18 @@
         <DCCReference Include="..\Source\BCEditor.Consts.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.ActiveLine.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Base.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Caret.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.CodeFolding.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.CodeFolding.Hint.Form.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.CompletionProposal.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.CompletionProposal.PopupWindow.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Directories.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Glyph.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.InternalImage.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.KeyCommands.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.LeftMargin.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Marks.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.MatchingPair.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Minimap.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Minimap.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Minimap.Shadow.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.PopupWindow.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Replace.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.RightMargin.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.RightMargin.Colors.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.Scroll.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Search.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Selection.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.SpecialChars.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.SyncEdit.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.SyncEdit.Colors.pas"/>
         <DCCReference Include="..\Source\BCEditor.Editor.Tabs.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.TokenInfo.PopupWindow.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Editor.WordWrap.pas"/>
         <DCCReference Include="..\Source\BCEditor.Export.HTML.pas"/>
         <DCCReference Include="..\Source\BCEditor.Highlighter.pas"/>
         <DCCReference Include="..\Source\BCEditor.KeyboardHandler.pas"/>
@@ -93,9 +75,6 @@
         <DCCReference Include="..\Source\BCEditor.MacroRecorder.pas"/>
         <DCCReference Include="..\Source\BCEditor.Print.pas"/>
         <DCCReference Include="..\Source\BCEditor.Print.Preview.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Register.pas"/>
-        <DCCReference Include="..\Source\BCEditor.Search.pas"/>
-        <DCCReference Include="..\Source\BCEditor.StyleHooks.pas"/>
         <DCCReference Include="..\Source\BCEditor.PaintHelper.pas"/>
         <DCCReference Include="..\Source\BCEditor.Types.pas"/>
         <DCCReference Include="..\Source\BCEditor.Utils.pas"/>

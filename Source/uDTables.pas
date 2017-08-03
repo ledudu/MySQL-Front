@@ -252,6 +252,9 @@ begin
 
   BorderStyle := bsSizeable;
 
+  msCopy.Action := aECopy;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
+
   if ((Preferences.Table.Width >= Width) and (Preferences.Table.Height >= Height)) then
   begin
     Width := Preferences.Table.Width;
@@ -508,9 +511,6 @@ begin
 
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToBCEditor(FSource);
-
-  msCopy.Action := aECopy;
-  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

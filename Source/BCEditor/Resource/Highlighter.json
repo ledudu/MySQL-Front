@@ -1319,6 +1319,9 @@
               "Element": "Type",
               "Comment": "Field"
             },
+            "SyncEdit": {
+              "Enabled": true
+            },
             "Words": [
               "bigint",
               "blob",

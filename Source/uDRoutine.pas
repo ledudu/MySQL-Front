@@ -311,6 +311,13 @@ begin
 
   BorderStyle := bsSizeable;
 
+  msUndo.Action := aEUndo; msCut.ShortCut := 0;
+  msCut.Action := aECut; msCut.ShortCut := 0;
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msPaste.Action := aEPaste; msPaste.ShortCut := 0;
+  msDelete.Action := aEDelete; msDelete.ShortCut := 0;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
+
   FDependencies.RowSelect := CheckWin32Version(6);
 
   TSBasics.TabVisible := False;
@@ -572,13 +579,6 @@ begin
 
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToBCEditor(FSource);
-
-  msUndo.Action := aEUndo; msCut.ShortCut := 0;
-  msCut.Action := aECut; msCut.ShortCut := 0;
-  msCopy.Action := aECopy; msCopy.ShortCut := 0;
-  msPaste.Action := aEPaste; msPaste.ShortCut := 0;
-  msDelete.Action := aEDelete; msDelete.ShortCut := 0;
-  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

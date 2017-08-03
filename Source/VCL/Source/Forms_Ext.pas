@@ -25,7 +25,7 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure Paint(); override;
   public
-    procedure ApplyWinAPIUpdates(const Control: TWinControl; const StatusFont: TLogFont); virtual;
+    procedure ApplyWinAPIUpdates(const Control: TWinControl); virtual;
     constructor Create(AOwner: TComponent); override;
   published
     property ShowGripper: Boolean read FShowGripper write FShowGripper default True;
@@ -57,13 +57,13 @@ end;
 
 { TForm_Ext *******************************************************************}
 
-procedure TForm_Ext.ApplyWinAPIUpdates(const Control: TWinControl; const StatusFont: TLogFont);
+procedure TForm_Ext.ApplyWinAPIUpdates(const Control: TWinControl);
 var
   I: Integer;
 begin
   for I := 0 to Control.ControlCount - 1 do
     if (Control.Controls[I] is TWinControl) then
-      ApplyWinAPIUpdates(TWinControl(Control.Controls[I]), StatusFont);
+      ApplyWinAPIUpdates(TWinControl(Control.Controls[I]));
 
   if (Control is TListView) then
   begin
@@ -123,11 +123,7 @@ begin
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-  begin
     Font.Handle := CreateFontIndirect(NonClientMetrics.lfMessageFont);
-
-    ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
-  end;
 
   if ((BorderStyle = bsSizeable) and (MouseDownPoint.X >= 0)) then
   begin

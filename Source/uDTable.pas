@@ -1058,6 +1058,9 @@ begin
 
   BorderStyle := bsSizeable;
 
+  msCopy.Action := aECopy;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
+
   SetWindowLong(FAutoIncrement.Handle, GWL_STYLE, GetWindowLong(FAutoIncrement.Handle, GWL_STYLE) or ES_NUMBER);
   FFields.RowSelect := CheckWin32Version(6);
   FKeys.RowSelect := CheckWin32Version(6);
@@ -1846,9 +1849,6 @@ begin
   aPCreatePartition.Caption := Preferences.LoadStr(26) + '...';
   aPDeletePartition.Caption := Preferences.LoadStr(28);
   aPEditPartition.Caption := Preferences.LoadStr(97) + '...';
-
-  msCopy.Action := aECopy;
-  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

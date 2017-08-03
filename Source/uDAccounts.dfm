@@ -73,8 +73,8 @@ object DAccounts: TDAccounts
       BevelOuter = bvLowered
       ParentBackground = False
       TabOrder = 0
-      OnResize = FAccountsResize
-      object FAccounts: TListView_Ext
+      OnResize = FListResize
+      object FList: TListView_Ext
         Left = 2
         Top = 2
         Width = 302
@@ -95,12 +95,12 @@ object DAccounts: TDAccounts
         RowSelect = True
         TabOrder = 0
         ViewStyle = vsReport
-        OnColumnClick = FAccountsColumnClick
-        OnCompare = FAccountsCompare
-        OnContextPopup = FAccountsContextPopup
-        OnDblClick = FAccountsDblClick
-        OnSelectItem = FAccountsSelectItem
-        OnColumnResize = FAccountsColumnResize
+        OnColumnClick = FListColumnClick
+        OnCompare = FListCompare
+        OnContextPopup = FListContextPopup
+        OnDblClick = FListDblClick
+        OnSelectItem = FListSelectItem
+        OnColumnResize = FListColumnResize
       end
     end
   end
@@ -140,11 +140,20 @@ object DAccounts: TDAccounts
     object N2: TMenuItem
       Caption = '-'
     end
+    object miICopy: TMenuItem
+      Caption = 'aECopy'
+    end
+    object miIPaste: TMenuItem
+      Caption = 'aEPaste'
+    end
     object miINew: TMenuItem
       Action = aNew
     end
     object miIDelete: TMenuItem
       Action = aDelete
+    end
+    object N1: TMenuItem
+      Caption = '-'
     end
     object miIEdit: TMenuItem
       Action = aEdit

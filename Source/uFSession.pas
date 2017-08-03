@@ -632,7 +632,6 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure FObjectIDEGridUpdateAction(Sender: TObject;
       var CanExecute: Boolean);
-    procedure ToolButton1Click(Sender: TObject);
   type
     TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
@@ -865,10 +864,6 @@ type
     ActiveListView: TListView;
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
-    BCEditorBeforeDrag: record
-      SelLength: Integer;
-      SelStart: Integer;
-    end;
     BMPImage: TBitmap;
     CloseButtonHot: TPicture;
     CloseButtonNormal: TPicture;
@@ -2179,13 +2174,6 @@ begin
   inherited;
 end;
 
-{ TFSession.TDBGridDropData.TIEnumFORMATETC ***********************************}
-
-function TFSession.TDBGridDropData.Skip(celt: Longint): HResult;
-begin
-  Result := S_FALSE;
-end;
-
 { TFSession.TDBGridDropData ***************************************************}
 
 function TFSession.TDBGridDropData.Clone(out Enum: IEnumFormatEtc): HResult;
@@ -2365,6 +2353,11 @@ function TFSession.TDBGridDropData.SetData(const formatetc: TFormatEtc;
   var medium: TStgMedium; fRelease: BOOL): HResult;
 begin
   Result := E_FAIL;
+end;
+
+function TFSession.TDBGridDropData.Skip(celt: Longint): HResult;
+begin
+  Result := S_FALSE;
 end;
 
 { TFSession.TWanted ***********************************************************}
@@ -3006,9 +2999,9 @@ begin
     aVBrowser.Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
     aVIDE.Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
     aVBuilder.Enabled := LastSelectedDatabase <> '';
-    aVSQLEditor.Enabled := True;
-    aVSQLEditor2.Enabled := True;
-    aVSQLEditor3.Enabled := True;
+    aVEditor.Enabled := True;
+    aVEditor2.Enabled := True;
+    aVEditor3.Enabled := True;
     aVDiagram.Enabled := LastSelectedDatabase <> '';
     aDRun.Enabled :=
       ((View in [vEditor, vEditor2, vEditor3])
@@ -3515,9 +3508,7 @@ begin
   Retry := 0;
   repeat
     Opened := OpenClipboard(Handle);
-    if (Opened) then
-      CloseClipboard()
-    else
+    if (not Opened) then
     begin
       Sleep(50);
       Inc(Retry);
@@ -3527,8 +3518,9 @@ begin
 
   Addresses := '';
 
-  if (not Opened
-    or not Assigned(Window.ActiveControl)) then
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else if (not Assigned(Window.ActiveControl)) then
   begin
     MessageBeep(MB_ICONERROR);
     Exit;
@@ -3631,16 +3623,16 @@ begin
     Retry := 0;
     repeat
       Opened := OpenClipboard(Handle);
-      if (Opened) then
-        CloseClipboard()
-      else
+      if (not Opened) then
       begin
         Sleep(50);
         Inc(Retry);
       end;
     until (Opened or (Retry = 10));
 
-    if (OpenClipboard(Handle)) then
+    if (not Opened) then
+      raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+    else
     begin
       try
         EmptyClipboard();
@@ -3703,9 +3695,7 @@ begin
   Retry := 0;
   repeat
     Opened := OpenClipboard(Handle);
-    if (Opened) then
-      CloseClipboard()
-    else
+    if (not Opened) then
     begin
       Sleep(50);
       Inc(Retry);
@@ -3714,7 +3704,7 @@ begin
 
 
   if (not Opened) then
-    MessageBeep(MB_ICONERROR)
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
   begin
     if (not Assigned(EditorField)) then
@@ -4321,7 +4311,7 @@ var
 begin
   Window.ActiveControl := ActiveBCEditor;
 
-  if (ActiveBCEditor.SelectionAvailable) then
+  if (ActiveBCEditor.SelLength <> 0) then
   begin
     ErrorPosOffset := ActiveBCEditor.SelStart;
     SQL := ActiveBCEditor.SelText;
@@ -4358,7 +4348,7 @@ begin
   begin
     SQL := Session.SQLParser.FormatSQL();
 
-    if (ActiveBCEditor.SelectionAvailable) then
+    if (ActiveBCEditor.SelLength <> 0) then
       ActiveBCEditor.SelText := SQL
     else
     begin
@@ -4549,11 +4539,11 @@ begin
     NewView := vBuilder
   else if (Sender = aVDiagram) then
     NewView := vDiagram
-  else if (Sender = aVSQLEditor) then
+  else if (Sender = aVEditor) then
     NewView := vEditor
-  else if (Sender = aVSQLEditor2) then
+  else if (Sender = aVEditor2) then
     NewView := vEditor2
-  else if (Sender = aVSQLEditor3) then
+  else if (Sender = aVEditor3) then
     NewView := vEditor3
   else
     raise ERangeError.Create(SRangeError);
@@ -5048,9 +5038,9 @@ begin
     aVIDE.Checked := NewView = vIDE;
     aVBuilder.Checked := NewView = vBuilder;
     aVDiagram.Checked := NewView = vDiagram;
-    aVSQLEditor.Checked := NewView = vEditor;
-    aVSQLEditor2.Checked := NewView = vEditor2;
-    aVSQLEditor3.Checked := NewView = vEditor3;
+    aVEditor.Checked := NewView = vEditor;
+    aVEditor2.Checked := NewView = vEditor2;
+    aVEditor3.Checked := NewView = vEditor3;
 
     case (NewView) of
       vBrowser:
@@ -5169,7 +5159,6 @@ end;
 constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
 var
   Kind: TPAccount.TDesktop.TListViewKind;
-  NonClientMetrics: TNonClientMetrics;
 begin
   Progress := 'a';
 
@@ -5256,9 +5245,9 @@ begin
   tbIDE.Action := aVIDE; tbIDE.Caption := tbIDE.Caption;
   tbBuilder.Action := aVBuilder; tbBuilder.Caption := tbBuilder.Caption;
   tbDiagram.Action := aVDiagram; tbDiagram.Caption := tbDiagram.Caption;
-  tbEditor.Action := aVSQLEditor; tbEditor.Caption := tbEditor.Caption;
-  tbEditor2.Action := aVSQLEditor2; tbEditor2.Caption := tbEditor2.Caption;
-  tbEditor3.Action := aVSQLEditor3; tbEditor3.Caption := tbEditor3.Caption;
+  tbEditor.Action := aVEditor; tbEditor.Caption := tbEditor.Caption;
+  tbEditor2.Action := aVEditor2; tbEditor2.Caption := tbEditor2.Caption;
+  tbEditor3.Action := aVEditor3; tbEditor3.Caption := tbEditor3.Caption;
 
   miSNavigator.Action := aVNavigator;
   miSSQLHistory.Action := aVSQLHistory;
@@ -5472,9 +5461,7 @@ begin
   Perform(UM_PREFERENCES_CHANGED, 0, 0);
   Perform(CM_SYSFONTCHANGED, 0, 0);
 
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
+  Window.ApplyWinAPIUpdates(Self);
 
 
   Progress := 'b';
@@ -5641,8 +5628,6 @@ begin
 end;
 
 function TFSession.CreateBCEditor(SObject: TSObject): TBCEditor;
-var
-  NonClientMetrics: TNonClientMetrics;
 begin
   Result := TBCEditor.Create(Self);
 
@@ -5656,7 +5641,6 @@ begin
   Result.PopupMenu := MSQLEditor;
   Result.Tag := NativeInt(SObject);
 
-  Result.ActiveLine.Indicator.Visible := False;
   Result.BorderStyle := bsNone;
   Result.CompletionProposal.Columns.Add().Visible := False;
   Result.CompletionProposal.CompletionColumnIndex := 0;
@@ -5666,12 +5650,9 @@ begin
   Result.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
   Result.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
   Result.LeftMargin.Bookmarks.Visible := False;
-  Result.LeftMargin.LineNumbers.DigitCount := 2;
-  Result.LeftMargin.LineState.Enabled := Assigned(SObject);
+  Result.LeftMargin.LineState.Visible := Assigned(SObject);
   Result.LeftMargin.Marks.Visible := False;
-  Result.LeftMargin.MarksPanel.Visible := False;
   Result.Options := Result.Options + [eoTrimTrailingLines];
-  Result.Scroll.Options := Result.Scroll.Options - [soShowVerticalScrollHint];
   Result.SyncEdit.Enabled := False;
   Result.OnChange := BCEditorChange;
   Result.OnBeforeCompletionProposalExecute := BCEditorBeforeCompletionProposalExecute;
@@ -5689,7 +5670,7 @@ begin
 
   Preferences.ApplyToBCEditor(Result);
   Session.ApplyToBCEditor(Result);
-  Result.WordWrap.Enabled := Preferences.Editor.WordWrap;
+  Result.WordWrap := Preferences.Editor.WordWrap;
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -5697,9 +5678,7 @@ begin
   Result.Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
+  Window.ApplyWinAPIUpdates(Result);
 end;
 
 function TFSession.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -5873,14 +5852,10 @@ begin
   Result.Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
+  Window.ApplyWinAPIUpdates(Result);
 end;
 
 function TFSession.CreateListView(const Data: TCustomData): TListView;
-var
-  NonClientMetrics: TNonClientMetrics;
 begin
   Result := TListView.Create(FListView.Owner);
 
@@ -5937,16 +5912,12 @@ begin
   Result.Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
+  Window.ApplyWinAPIUpdates(Result);
 
   ListViewInitialize(Result);
 end;
 
 function TFSession.CreatePDBGrid(): TPanel_Ext;
-var
-  NonClientMetrics: TNonClientMetrics;
 begin
   Result := TPanel_Ext.Create(Owner);
 
@@ -5971,14 +5942,10 @@ begin
   Result.Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
+  Window.ApplyWinAPIUpdates(Result);
 end;
 
 function TFSession.CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
-var
-  NonClientMetrics: TNonClientMetrics;
 begin
   Result := TTabControl.Create(Owner);
 
@@ -5996,9 +5963,7 @@ begin
   Result.Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
+  Window.ApplyWinAPIUpdates(Result);
 end;
 
 function TFSession.CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
@@ -6830,7 +6795,7 @@ end;
 
 procedure TFSession.DBGridOverflowClick(Sender: TObject; Column: TColumn);
 var
-  Coord: TPoint;
+  Screen: TPoint;
   DBGrid: TMySQLDBGrid;
   I: Integer;
   MenuItem: TMenuItem;
@@ -6848,8 +6813,8 @@ begin
       MenuItem.OnClick := MDBGridOverflowClick;
       MDBGridOverflow.Items.Add(MenuItem);
     end;
-    Coord := DBGrid.ClientToScreen(Point(DBGrid.ClientWidth, 0));
-    MDBGridOverflow.Popup(Coord.X, Coord.Y);
+    Screen := DBGrid.ClientToScreen(Point(DBGrid.ClientWidth, 0));
+    MDBGridOverflow.Popup(Screen.X, Screen.Y);
   end;
 end;
 
@@ -7099,11 +7064,10 @@ begin
   Format.lindex := -1;
   Format.tymed := TYMED_HGLOBAL;
 
-  if (dataObj.QueryGetData(Format) <> S_OK) then
-  begin
-    dwEffect := DROPEFFECT_NONE;
-    Result := S_OK;
-  end
+  if (dwEffect = DROPEFFECT_NONE) then
+    Result := E_INVALIDARG
+  else if (dataObj.QueryGetData(Format) <> S_OK) then
+    Result := E_UNEXPECTED
   else
     Result := DragOver(grfKeyState, pt, dwEffect);
 end;
@@ -7115,12 +7079,8 @@ end;
 
 function TFSession.DragLeave(): HResult;
 begin
-  if (Assigned(ActiveBCEditor) and ActiveBCEditor.AlwaysShowCaret) then
-  begin
-    ActiveBCEditor.SelStart := BCEditorBeforeDrag.SelStart;
-    ActiveBCEditor.SelLength := BCEditorBeforeDrag.SelLength;
-    ActiveBCEditor.AlwaysShowCaret := False;
-  end;
+  if (Assigned(ActiveBCEditor)) then
+    ActiveBCEditor.InsertPos := Point(-1, -1);
 
   Result := S_OK;
 end;
@@ -7141,14 +7101,7 @@ begin
   begin
     BCEditor := TBCEditor(Control);
 
-    if (not BCEditor.AlwaysShowCaret) then
-    begin
-      BCEditorBeforeDrag.SelStart := ActiveBCEditor.SelStart;
-      BCEditorBeforeDrag.SelLength := ActiveBCEditor.SelLength;
-      BCEditor.AlwaysShowCaret := True;
-    end;
-
-    BCEditor.CaretPos := BCEditor.ClientToPos(ClientCoord.X, ClientCoord.X);
+    BCEditor.InsertPos := BCEditor.ClientToPos(ClientCoord.X, ClientCoord.X);
     Result := S_OK;
   end
   else if (Control is TMySQLDBGrid) then
@@ -9531,9 +9484,9 @@ begin
     aVBrowser.OnExecute := aViewExecute;
     aVIDE.OnExecute := aViewExecute;
     aVBuilder.OnExecute := aViewExecute;
-    aVSQLEditor.OnExecute := aViewExecute;
-    aVSQLEditor2.OnExecute := aViewExecute;
-    aVSQLEditor3.OnExecute := aViewExecute;
+    aVEditor.OnExecute := aViewExecute;
+    aVEditor2.OnExecute := aViewExecute;
+    aVEditor3.OnExecute := aViewExecute;
     aVDiagram.OnExecute := aViewExecute;
     aVNavigator.OnExecute := aVSideBarExecute;
     aVExplorer.OnExecute := aVSideBarExecute;
@@ -9591,9 +9544,9 @@ begin
     aVBrowser.Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
     aVIDE.Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
     aVBuilder.Enabled := LastSelectedDatabase <> '';
-    aVSQLEditor.Enabled := True;
-    aVSQLEditor2.Enabled := True;
-    aVSQLEditor3.Enabled := True;
+    aVEditor.Enabled := True;
+    aVEditor2.Enabled := True;
+    aVEditor3.Enabled := True;
     aVDiagram.Enabled := LastSelectedDatabase <> '';
     aVNavigator.Enabled := True;
     aVExplorer.Enabled := True;
@@ -9708,9 +9661,9 @@ begin
   aVBrowser.Enabled := False;
   aVIDE.Enabled := False;
   aVBuilder.Enabled := False;
-  aVSQLEditor.Enabled := False;
-  aVSQLEditor2.Enabled := False;
-  aVSQLEditor3.Enabled := False;
+  aVEditor.Enabled := False;
+  aVEditor2.Enabled := False;
+  aVEditor3.Enabled := False;
   aVDiagram.Enabled := False;
   aVNavigator.Enabled := False;
   aVExplorer.Enabled := False;
@@ -13288,14 +13241,9 @@ begin
 end;
 
 procedure TFSession.MSQLEditorPopup(Sender: TObject);
-var
-  I: Integer;
 begin
   BCEditorChange(ActiveBCEditor);
   ShowEnabledItems(MSQLEditor.Items);
-
-  for I := 0 to MSQLEditor.Items.Count - 1 do
-    MSQLEditor.Items[I].Visible := MSQLEditor.Items[I].Visible and (MSQLEditor.PopupPoint.X - ActiveBCEditor.ClientOrigin.X > ActiveBCEditor.LeftMargin.Width);
 end;
 
 procedure TFSession.MSQLHistoryPopup(Sender: TObject);
@@ -16023,7 +15971,6 @@ procedure TFSession.BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   DatabaseName: string;
   S: string;
-  SelStart: Integer;
 begin
   if (Sender is TBCEditor) then
   begin
@@ -16049,11 +15996,8 @@ begin
 
     if (S <> '') then
     begin
-      SelStart := TBCEditor(Sender).SelStart;
+      TBCEditor(Sender).CaretPos := TBCEditor(Sender).InsertPos;
       TBCEditor(Sender).SelText := S;
-      TBCEditor(Sender).SelStart := SelStart;
-      TBCEditor(Sender).SelLength := Length(S);
-      TBCEditor(Sender).AlwaysShowCaret := False;
     end;
 
     Window.ActiveControl := TBCEditor(Sender);
@@ -16074,20 +16018,10 @@ begin
   else
     Accept := False;
 
-  if (Accept) then
-  begin
-    if ((Sender = ActiveBCEditor) and not ActiveBCEditor.AlwaysShowCaret) then
-    begin
-      BCEditorBeforeDrag.SelStart := ActiveBCEditor.SelStart;
-      BCEditorBeforeDrag.SelLength := ActiveBCEditor.SelLength;
-      ActiveBCEditor.AlwaysShowCaret := True;
-    end;
-
-    ActiveBCEditor.CaretPos := ActiveBCEditor.ClientToPos
-    (X, Y);
-    ActiveBCEditor.Invalidate();
-    ActiveBCEditor.Update();
-  end;
+  if (not Accept) then
+    ActiveBCEditor.InsertPos := Point(-1, -1)
+  else
+    ActiveBCEditor.InsertPos := ActiveBCEditor.ClientToPos(X, Y);
 end;
 
 function TFSession.BCEditorDrop(const BCEditor: TBCEditor; const dataObj: IDataObject;
@@ -16128,7 +16062,10 @@ begin
     end;
 
     if (Text <> '') then
+    begin
+      BCEditor.CaretPos := BCEditor.InsertPos;
       BCEditor.SelText := Text;
+    end;
 
     if (not Assigned(Medium.unkForRelease)) then
       ReleaseStgMedium(Medium)
@@ -16349,11 +16286,6 @@ begin
   PHeaderCheckElements(nil);
 end;
 
-procedure TFSession.ToolButton1Click(Sender: TObject);
-begin
-  ActiveDBGrid.DataSource.DataSet.Resync([]);
-end;
-
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);
 begin
   Wanted.Clear();
@@ -16389,12 +16321,8 @@ end;
 
 procedure TFSession.TreeViewEndDrag(Sender, Target: TObject; X, Y: Integer);
 begin
-  if (Assigned(ActiveBCEditor) and (ActiveBCEditor.AlwaysShowCaret)) then
-  begin
-    ActiveBCEditor.SelStart := BCEditorBeforeDrag.SelStart;
-    ActiveBCEditor.SelLength := BCEditorBeforeDrag.SelLength;
-    ActiveBCEditor.AlwaysShowCaret := False;
-  end;
+  if (Assigned(ActiveBCEditor)) then
+    ActiveBCEditor.InsertPos := Point(-1, -1);
 end;
 
 procedure TFSession.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
@@ -16791,11 +16719,11 @@ begin
     if (PBCEditor.Controls[I] is TBCEditor) then
     begin
       Preferences.ApplyToBCEditor(TBCEditor(PBCEditor.Controls[I]));
-      TBCEditor(PBCEditor.Controls[I]).WordWrap.Enabled := Preferences.Editor.WordWrap;
+      TBCEditor(PBCEditor.Controls[I]).WordWrap := Preferences.Editor.WordWrap;
     end;
 
   Preferences.ApplyToBCEditor(FQueryBuilderBCEditor);
-  FQueryBuilderBCEditor.WordWrap.Enabled := Preferences.Editor.WordWrap;
+  FQueryBuilderBCEditor.WordWrap := Preferences.Editor.WordWrap;
 
   smEEmpty.Caption := Preferences.LoadStr(181);
 
@@ -17017,9 +16945,9 @@ begin
   tbIDE.Down := aVIDE.Checked;
   tbBuilder.Down := aVBuilder.Checked;
   tbDiagram.Down := aVDiagram.Checked;
-  tbEditor.Down := aVSQLEditor.Checked;
-  tbEditor2.Down := aVSQLEditor2.Checked;
-  tbEditor3.Down := aVSQLEditor3.Checked;
+  tbEditor.Down := aVEditor.Checked;
+  tbEditor2.Down := aVEditor2.Checked;
+  tbEditor3.Down := aVEditor3.Checked;
 
   if ((View <> vObjectSearch) and Assigned(ObjectSearch)) then
   begin

@@ -632,7 +632,7 @@ type
     property TabCount: Integer read GetTabCount;
   end;
 
-  TPAccounts = class(TList)
+  TPAccounts = class(TList<TPAccount>)
   type
     TDBLogin = function(const Account: Pointer): Boolean of object;
   private
@@ -643,7 +643,6 @@ type
     function GetDefault(): TPAccount; inline;
     function GetFilename(): TFileName;
     function GetXMLDocument(): IXMLDocument;
-    function GetFAccounts(Index: Integer): TPAccount; inline;
     procedure SetDefault(const AAccount: TPAccount);
   protected
     Section: string;
@@ -653,14 +652,13 @@ type
     function AccountByName(const AccountName: string): TPAccount;
     function AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
     procedure AddAccount(const NewAccount: TPAccount);
-    procedure Clear(); override;
+    procedure Clear();
     constructor Create(const ADBLogin: TDBLogin);
     function DeleteAccount(const AAccount: TPAccount): Boolean;
     destructor Destroy(); override;
     procedure Open();
     function Save(): string;
     procedure UpdateAccount(const Account, NewAccount: TPAccount);
-    property Account[Index: Integer]: TPAccount read GetFAccounts; default;
     property Default: TPAccount read GetDefault write SetDefault;
     property DBLogin: TDBLogin read FDBLogin;
     property Filename: TFileName read GetFilename;
@@ -1895,11 +1893,10 @@ begin
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
   BCEditor.Font.Size := SQLFontSize;
-  BCEditor.LeftMargin.Font.Assign(BCEditor.Font);
   if (Editor.CaretBeyondEOL) then
-    BCEditor.Scroll.Options := BCEditor.Scroll.Options + [soBeyondEndOfFile, soBeyondEndOfLine]
+    BCEditor.Options := BCEditor.Options + [eoBeyondEndOfFile, eoBeyondEndOfLine]
   else
-    BCEditor.Scroll.Options := BCEditor.Scroll.Options - [soBeyondEndOfFile, soBeyondEndOfLine];
+    BCEditor.Options := BCEditor.Options - [eoBeyondEndOfFile, eoBeyondEndOfLine];
 end;
 
 constructor TPPreferences.Create();
@@ -3641,8 +3638,8 @@ begin
   Result := nil;
 
   for I:=0 to Count - 1 do
-    if (Account[I].Name = AccountName) then
-      Result := Account[I];
+    if (Items[I].Name = AccountName) then
+      Result := Items[I];
 end;
 
 function TPAccounts.AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
@@ -3660,22 +3657,22 @@ begin
   begin
     ZeroMemory(@URLComponents, SizeOf(URLComponents));
     URLComponents.dwStructSize := SizeOf(URLComponents);
-    if ((Account[I].Connection.LibraryType <> ltHTTP) or (lstrcmpi(PChar(Account[I].Connection.Host), LOCAL_HOST) <> 0)) then
-      Host := LowerCase(Account[I].Connection.Host)
-    else if (InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents)) then
+    if ((Items[I].Connection.LibraryType <> ltHTTP) or (lstrcmpi(PChar(Items[I].Connection.Host), LOCAL_HOST) <> 0)) then
+      Host := LowerCase(Items[I].Connection.Host)
+    else if (InternetCrackUrl(PChar(Items[I].Connection.HTTPTunnelURI), Length(Items[I].Connection.HTTPTunnelURI), 0, URLComponents)) then
     begin
       Inc(URLComponents.dwHostNameLength);
       GetMem(URLComponents.lpszHostName, URLComponents.dwHostNameLength * SizeOf(URLComponents.lpszHostName[0]));
-      InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents);
+      InternetCrackUrl(PChar(Items[I].Connection.HTTPTunnelURI), Length(Items[I].Connection.HTTPTunnelURI), 0, URLComponents);
       SetString(Host, URLComponents.lpszHostName, URLComponents.dwHostNameLength);
       FreeMem(URLComponents.lpszHostName);
     end
     else
       Host := LOCAL_HOST;
-    if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Account[I].Connection.Port)
-      and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
+    if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Items[I].Connection.Port)
+      and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Items[I].Connection.Username)) = 0))) then
     begin
-      Result := Account[I];
+      Result := Items[I];
       if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
         break;
     end;
@@ -3697,14 +3694,14 @@ begin
   XML := Accounts.XMLDocument.DocumentElement.AddChild('account');
   XML.Attributes['name'] := NewAccount.Name;
   Add(TPAccount.Create(Self, XML));
-  Account[Count - 1].Assign(NewAccount);
+  Items[Count - 1].Assign(NewAccount);
 end;
 
 procedure TPAccounts.Clear();
 begin
   while (Count > 0) do
   begin
-    Account[0].Free();
+    Items[0].Free();
     Delete(0);
   end;
 
@@ -3781,7 +3778,7 @@ begin
 
   Index := IndexOf(AAccount);
 
-  Account[Index].Free();
+  Items[Index].Free();
   Delete(Index);
 
   Save();
@@ -3809,11 +3806,6 @@ end;
 function TPAccounts.GetFilename(): TFileName;
 begin
   Result := Preferences.UserPath + 'Accounts.xml';
-end;
-
-function TPAccounts.GetFAccounts(Index: Integer): TPAccount;
-begin
-  Result := TPAccount(Items[Index]);
 end;
 
 function TPAccounts.GetXMLDocument(): IXMLDocument;
@@ -3858,11 +3850,11 @@ begin
     begin
       Index := TList(Self).Count;
       for J := TList(Self).Count - 1 downto 0 do
-        if (lstrcmpi(PChar(string(XMLDocument.DocumentElement.ChildNodes[I].Attributes['name'])), PChar(Account[J].Name)) <= 0) then
+        if (lstrcmpi(PChar(string(XMLDocument.DocumentElement.ChildNodes[I].Attributes['name'])), PChar(Items[J].Name)) <= 0) then
           Index := J;
 
       Insert(Index, TPAccount.Create(Self, XMLDocument.DocumentElement.ChildNodes[I]));
-      Account[Index].Load();
+      Items[Index].Load();
     end;
   end;
 
@@ -3880,8 +3872,8 @@ begin
   XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 
   for I := 0 to Count - 1 do
-    if (Account[I].Modified) then
-      ErrorMessage := Account[I].Save();
+    if (Items[I].Modified) then
+      ErrorMessage := Items[I].Save();
 
   XMLNode(XMLDocument.DocumentElement, 'default').Text := DefaultAccountName;
 

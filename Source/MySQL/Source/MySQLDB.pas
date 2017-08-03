@@ -966,8 +966,6 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
-uProfiling,
-uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -6358,22 +6356,17 @@ begin
   Result := -1;
   Left := 0;
   Right := Count - 1;
-  while (Left <= Right) do
+  while (Left < Right) do
   begin
     Mid := (Right - Left) div 2 + Left;
 
-    if (Mid <> IgnoreIndex) then
-      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid]^.NewData, @Data)
-    else if (Left < Mid) then
-      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid - 1]^.NewData, @Data)
-    else if (Right > Mid) then
-      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid + 1]^.NewData, @Data)
-    else
-    begin
-      Comp := 0; // ... to avoid compiler warnings
-      Left := Mid + 1 + Comp;
-      break;
-    end;
+    if (Mid = IgnoreIndex) then
+      if (Right > Mid) then
+        Inc(Mid)
+      else
+        Dec(Mid);
+
+    Comp := DataSet.RecordCompare(CompareDefs, Items[Mid]^.NewData, @Data);
     case (Comp) of
       -1: Left := Mid + 1;
       0: begin Result := Mid; break; end;
@@ -6382,7 +6375,9 @@ begin
   end;
 
   if ((Result < 0) and (IgnoreIndex >= 0)) then
-    Result := Left;
+    Result := Left + 1;
+
+  Assert(Result >= 0);
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; const Item: PInternRecordBuffer);

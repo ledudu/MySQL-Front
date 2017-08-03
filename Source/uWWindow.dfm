@@ -503,7 +503,7 @@ object WWindow: TWWindow
       HelpContext = 1125
       ImageIndex = 99
     end
-    object aVSQLEditor: TAction
+    object aVEditor: TAction
       Category = 'View'
       Caption = 'aVSQLEditor'
       Enabled = False
@@ -512,18 +512,18 @@ object WWindow: TWWindow
       ImageIndex = 3
       ShortCut = 119
     end
-    object aVSQLEditor2: TAction
+    object aVEditor2: TAction
       Category = 'View'
-      Caption = 'aVSQLEditor2'
+      Caption = 'aVEditor2'
       Enabled = False
       HelpContext = 1037
       HelpType = htContext
       ImageIndex = 3
       ShortCut = 119
     end
-    object aVSQLEditor3: TAction
+    object aVEditor3: TAction
       Category = 'View'
-      Caption = 'aVSQLEditor3'
+      Caption = 'aVEditor3'
       Enabled = False
       HelpContext = 1037
       HelpType = htContext
@@ -1425,7 +1425,7 @@ object WWindow: TWWindow
         RadioItem = True
       end
       object miVSQLEditor: TMenuItem
-        Action = aVSQLEditor
+        Action = aVEditor
         RadioItem = True
       end
       object N12: TMenuItem

@@ -16,12 +16,13 @@ type
     aEdit: TAction;
     aNew: TAction;
     aOpen: TAction;
+    aOpenInNewWindow: TAction;
     FBCancel: TButton;
     FBDelete: TButton;
     FBEdit: TButton;
     FBNew: TButton;
     FBOk: TButton;
-    FAccounts: TListView_Ext;
+    FList: TListView_Ext;
     GAccounts: TGroupBox_Ext;
     HeaderMenu: TPopupMenu;
     ItemMenu: TPopupMenu;
@@ -30,44 +31,48 @@ type
     miHDatabase: TMenuItem;
     miHLastLogin: TMenuItem;
     miHUser: TMenuItem;
+    miICopy: TMenuItem;
     miIDelete: TMenuItem;
     miIEdit: TMenuItem;
     miINew: TMenuItem;
     miIOpen: TMenuItem;
+    miIOpenInNewWindow: TMenuItem;
+    miIPaste: TMenuItem;
+    N1: TMenuItem;
     N2: TMenuItem;
     PAccounts: TPanel_Ext;
-    miIOpenInNewWindow: TMenuItem;
-    aOpenInNewWindow: TAction;
     procedure aDeleteExecute(Sender: TObject);
     procedure aEditExecute(Sender: TObject);
     procedure aNewExecute(Sender: TObject);
     procedure aOpenExecute(Sender: TObject);
+    procedure aOpenInNewWindowExecute(Sender: TObject);
     procedure FBOkEnabledCheck(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FAccountsColumnClick(Sender: TObject; Column: TListColumn);
-    procedure FAccountsColumnResize(Sender: TObject; Column: TListColumn);
-    procedure FAccountsCompare(Sender: TObject; Item1, Item2: TListItem;
+    procedure FListColumnClick(Sender: TObject; Column: TListColumn);
+    procedure FListColumnResize(Sender: TObject; Column: TListColumn);
+    procedure FListCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
-    procedure FAccountsContextPopup(Sender: TObject; MousePos: TPoint;
+    procedure FListContextPopup(Sender: TObject; MousePos: TPoint;
       var Handled: Boolean);
-    procedure FAccountsDblClick(Sender: TObject);
-    procedure FAccountsResize(Sender: TObject);
-    procedure FAccountsSelectItem(Sender: TObject; Item: TListItem;
+    procedure FListDblClick(Sender: TObject);
+    procedure FListResize(Sender: TObject);
+    procedure FListSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure HeaderMenuClick(Sender: TObject);
     procedure ItemMenuPopup(Sender: TObject);
-    procedure aOpenInNewWindowExecute(Sender: TObject);
   private
     IgnoreColumnResize: Boolean;
     IgnoreResize: Boolean;
     MinColumnWidth: Integer;
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    procedure aECopyExecute(Sender: TObject);
+    procedure aEPasteExecute(Sender: TObject);
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TPAccount);
-    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
@@ -85,7 +90,8 @@ implementation {***************************************************************}
 
 uses
   CommCtrl, ShellAPI,
-  Math, StrUtils, SysConst,
+  Math, StrUtils, SysConst, Types,
+  Clipbrd, Consts,
   MySQLConsts,
   uDAccount, uDConnecting;
 
@@ -107,19 +113,57 @@ end;
 
 procedure TDAccounts.aDeleteExecute(Sender: TObject);
 begin
-  if (MsgBox(Preferences.LoadStr(46, FAccounts.Selected.Caption), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
-    if (Accounts.DeleteAccount(Accounts.AccountByName(FAccounts.Selected.Caption))) then
+  if (MsgBox(Preferences.LoadStr(46, FList.Selected.Caption), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
+    if (Accounts.DeleteAccount(Accounts.AccountByName(FList.Selected.Caption))) then
     begin
       SetFAccounts(nil);
       FBCancel.Caption := Preferences.LoadStr(231);
     end;
 
-  ActiveControl := FAccounts;
+  ActiveControl := FList;
+end;
+
+procedure TDAccounts.aECopyExecute(Sender: TObject);
+var
+  Global: HGLOBAL;
+  Opened: Boolean;
+  Retry: Integer;
+  S: string;
+begin
+  Retry := 0;
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (not Opened) then
+    begin
+      Sleep(50);
+      Inc(Retry);
+    end;
+  until (Opened or (Retry = 10));
+
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else
+  begin
+    try
+      S := TPAccount(FList.Selected.Data).Name;
+      Global := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+      StrPCopy(GlobalLock(Global), S);
+      SetClipboardData(CF_UNICODETEXT, Global);
+      GlobalUnlock(Global);
+
+      Global := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+      StrPCopy(GlobalLock(Global), S);
+      SetClipboardData(CF_ACCOUNT, Global);
+      GlobalUnlock(Global);
+    finally
+      CloseClipboard();
+    end;
+  end;
 end;
 
 procedure TDAccounts.aEditExecute(Sender: TObject);
 begin
-  DAccount.Account := Accounts.AccountByName(FAccounts.Selected.Caption);
+  DAccount.Account := Accounts.AccountByName(FList.Selected.Caption);
   DAccount.Username := DAccount.Account.Connection.Username;
   DAccount.Password := DAccount.Account.Connection.Password;
   if (DAccount.Execute()) then
@@ -127,7 +171,69 @@ begin
     SetFAccounts(Accounts.AccountByName(DAccount.AccountName));
     FBCancel.Caption := Preferences.LoadStr(231);
   end;
-  ActiveControl := FAccounts;
+  ActiveControl := FList;
+end;
+
+procedure TDAccounts.aEPasteExecute(Sender: TObject);
+var
+  Account: TPAccount;
+  AccountName: string;
+  ClipboardData: Pointer;
+  Global: HGLOBAL;
+  I: Integer;
+  Opened: Boolean;
+  Retry: Integer;
+  SourceAccount: TPAccount;
+begin
+  Retry := 0;
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (not Opened) then
+    begin
+      Sleep(50);
+      Inc(Retry);
+    end;
+  until (Opened or (Retry = 10));
+
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else
+  begin
+    try
+      Global := GetClipboardData(CF_ACCOUNT);
+      if (Global <> 0) then
+      begin
+        ClipboardData := GlobalLock(Global);
+        if (Assigned(ClipboardData)) then
+          AccountName := StrPas(PChar(ClipboardData));
+        GlobalUnlock(Global);
+      end;
+    finally
+      CloseClipboard();
+    end;
+
+    SourceAccount := Accounts.AccountByName(AccountName);
+    if (Assigned(SourceAccount)) then
+    begin
+      I := 1;
+      while (Assigned(Accounts.AccountByName(AccountName))) do
+      begin
+        if (I = 1) then
+          AccountName := Preferences.LoadStr(680, SourceAccount.Name)
+        else
+          AccountName := Preferences.LoadStr(681, SourceAccount.Name, IntToStr(I));
+        Inc(I);
+      end;
+
+      Account := TPAccount.Create(Accounts);
+      Account.Assign(SourceAccount);
+      Account.Name := AccountName;
+      Accounts.AddAccount(Account);
+      Account.Free();
+
+      SetFAccounts(Accounts.AccountByName(AccountName));
+    end;
+  end;
 end;
 
 procedure TDAccounts.aNewExecute(Sender: TObject);
@@ -138,14 +244,14 @@ begin
   if (DAccount.Execute()) then
   begin
     Accounts.Save();
-    FAccounts.Items.BeginUpdate();
-    FAccounts.Items.Clear();
+    FList.Items.BeginUpdate();
+    FList.Items.Clear();
     SetFAccounts(Accounts.AccountByName(DAccount.AccountName));
-    FAccounts.Items.EndUpdate();
+    FList.Items.EndUpdate();
     FBCancel.Caption := Preferences.LoadStr(231);
   end;
 
-  ActiveControl := FAccounts;
+  ActiveControl := FList;
 end;
 
 procedure TDAccounts.aOpenExecute(Sender: TObject);
@@ -153,13 +259,13 @@ begin
   if (Open) then
     FBOk.Click()
   else
-    if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(TPAccount(FAccounts.Selected.Data).Desktop.Address)))) then
+    if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(TPAccount(FList.Selected.Data).Desktop.Address)))) then
       FBOk.Click();
 end;
 
 procedure TDAccounts.aOpenInNewWindowExecute(Sender: TObject);
 begin
-  ShellExecute(0, 'open', PChar(Application.ExeName), PChar(TPAccount(TPAccount(FAccounts.Selected.Data).Desktop.Address)), '', SW_SHOW);
+  ShellExecute(0, 'open', PChar(Application.ExeName), PChar(TPAccount(TPAccount(FList.Selected.Data).Desktop.Address)), '', SW_SHOW);
   FBCancel.Click();
 end;
 
@@ -167,7 +273,7 @@ procedure TDAccounts.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
 
-  MinColumnWidth := FAccounts.Canvas.TextWidth('ee');
+  MinColumnWidth := FList.Canvas.TextWidth('ee');
 end;
 
 function TDAccounts.Execute(): Boolean;
@@ -184,12 +290,12 @@ end;
 
 procedure TDAccounts.FBOkEnabledCheck(Sender: TObject);
 begin
-  FBOk.Enabled := Assigned(FAccounts.Selected);
+  FBOk.Enabled := Assigned(FList.Selected);
 end;
 
 procedure TDAccounts.FormActivate(Sender: TObject);
 begin
-  if (FAccounts.Items.Count = 0) then
+  if (FList.Items.Count = 0) then
     aNew.Execute();
 end;
 
@@ -197,7 +303,7 @@ procedure TDAccounts.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if ((ModalResult = mrOk) and not Assigned(Session)) then
   begin
-    Session := TSSession.Create(Sessions, Accounts.AccountByName(FAccounts.Selected.Caption));
+    Session := TSSession.Create(Sessions, Accounts.AccountByName(FList.Selected.Caption));
     DConnecting.Session := Session;
     CanClose := DConnecting.Execute();
     if (not CanClose) then
@@ -207,12 +313,15 @@ end;
 
 procedure TDAccounts.FormCreate(Sender: TObject);
 begin
-  FAccounts.SmallImages := Preferences.Images;
+  FList.SmallImages := Preferences.Images;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
   BorderStyle := bsSizeable;
+
+  miICopy.Action := aECopy;
+  miIPaste.Action := aEPaste;
 
   IgnoreColumnResize := False;
   IgnoreResize := False;
@@ -221,23 +330,26 @@ end;
 procedure TDAccounts.FormHide(Sender: TObject);
 begin
   if (ModalResult = mrOk) then
-    Accounts.Default := Accounts.AccountByName(FAccounts.Selected.Caption);
+    Accounts.Default := Accounts.AccountByName(FList.Selected.Caption);
+
+  aECopy.OnExecute := nil;
+  aEPaste.OnExecute := nil;
 
   Preferences.Accounts.Height := Height;
   Preferences.Accounts.Width := Width;
-  if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHName.Tag)) then
+  if (FList.Columns[FList.Tag] = TListColumn(miHName.Tag)) then
     Preferences.Accounts.Sort.Column := acName
-  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHHost.Tag)) then
+  else if (FList.Columns[FList.Tag] = TListColumn(miHHost.Tag)) then
     Preferences.Accounts.Sort.Column := acHost
-  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHUser.Tag)) then
+  else if (FList.Columns[FList.Tag] = TListColumn(miHUser.Tag)) then
     Preferences.Accounts.Sort.Column := acUser
-  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHDatabase.Tag)) then
+  else if (FList.Columns[FList.Tag] = TListColumn(miHDatabase.Tag)) then
     Preferences.Accounts.Sort.Column := acDatabase
-  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHLastLogin.Tag)) then
+  else if (FList.Columns[FList.Tag] = TListColumn(miHLastLogin.Tag)) then
     Preferences.Accounts.Sort.Column := acLastLogin;
-  Preferences.Accounts.Sort.Ascending := FAccounts.Columns[FAccounts.Tag].Tag = 1;
+  Preferences.Accounts.Sort.Ascending := FList.Columns[FList.Tag].Tag = 1;
   Preferences.Accounts.Width := Width;
-  Preferences.Accounts.Widths[acName] := FAccounts.Columns[0].Width;
+  Preferences.Accounts.Widths[acName] := FList.Columns[0].Width;
   if (not miHHost.Checked) then
     Preferences.Accounts.Widths[acHost] := -1
   else
@@ -269,7 +381,10 @@ begin
   else
     Caption := Preferences.LoadStr(1);
 
-  FAccounts.Tag := -1;
+  aECopy.OnExecute := aECopyExecute;
+  aEPaste.OnExecute := aEPasteExecute;
+
+  FList.Tag := -1;
   miHName.Checked := True;
   miHHost.Checked := Preferences.Accounts.Widths[acHost] >= 0;
   miHUser.Checked := Preferences.Accounts.Widths[acUser] >= 0;
@@ -290,17 +405,17 @@ begin
     TListColumn(miHName.Tag).Width := Preferences.Accounts.Widths[acName];
 
   case (Preferences.Accounts.Sort.Column) of
-    acName: FAccounts.Tag := TListColumn(miHName.Tag).Index;
-    acHost: FAccounts.Tag := TListColumn(miHHost.Tag).Index;
-    acUser: FAccounts.Tag := TListColumn(miHUser.Tag).Index;
-    acDatabase: FAccounts.Tag := TListColumn(miHDatabase.Tag).Index;
-    acLastLogin: FAccounts.Tag := TListColumn(miHLastLogin.Tag).Index;
+    acName: FList.Tag := TListColumn(miHName.Tag).Index;
+    acHost: FList.Tag := TListColumn(miHHost.Tag).Index;
+    acUser: FList.Tag := TListColumn(miHUser.Tag).Index;
+    acDatabase: FList.Tag := TListColumn(miHDatabase.Tag).Index;
+    acLastLogin: FList.Tag := TListColumn(miHLastLogin.Tag).Index;
   end;
-  if ((0 <= FAccounts.Tag) and (FAccounts.Tag < FAccounts.Columns.Count)) then
+  if ((0 <= FList.Tag) and (FList.Tag < FList.Columns.Count)) then
     if (Preferences.Accounts.Sort.Ascending) then
-      FAccounts.Columns[FAccounts.Tag].Tag := 1
+      FList.Columns[FList.Tag].Tag := 1
     else
-      FAccounts.Columns[FAccounts.Tag].Tag := -1;
+      FList.Columns[FList.Tag].Tag := -1;
 
   Session := nil;
 
@@ -313,7 +428,7 @@ begin
   FBOk.Default := Open;
   FBCancel.Default := not FBOk.Default;
 
-  ActiveControl := FAccounts;
+  ActiveControl := FList;
 
   FBOkEnabledCheck(Sender);
 
@@ -322,38 +437,38 @@ end;
 
 procedure TDAccounts.HeaderMenuClick(Sender: TObject);
 begin
-  FAccounts.Tag := 0;
+  FList.Tag := 0;
 
-  if (not Assigned(FAccounts.Selected)) then
+  if (not Assigned(FList.Selected)) then
     SetFAccounts(nil)
   else
-    SetFAccounts(TPAccount(FAccounts.Selected.Data));
+    SetFAccounts(TPAccount(FList.Selected.Data));
 end;
 
-procedure TDAccounts.FAccountsColumnClick(Sender: TObject;
+procedure TDAccounts.FListColumnClick(Sender: TObject;
   Column: TListColumn);
 var
   I: Integer;
 begin
-  for I := 0 to FAccounts.Columns.Count - 1 do
-    if (FAccounts.Column[I] <> Column) then
-      FAccounts.Column[I].Tag := 0
-    else if (FAccounts.Column[I].Tag < 0) then
-      FAccounts.Column[I].Tag := 1
-    else if (FAccounts.Column[I].Tag > 0) then
-      FAccounts.Column[I].Tag := -1
-    else if (I = FAccounts.Columns.Count - 1) then
-      FAccounts.Column[I].Tag := -1
+  for I := 0 to FList.Columns.Count - 1 do
+    if (FList.Column[I] <> Column) then
+      FList.Column[I].Tag := 0
+    else if (FList.Column[I].Tag < 0) then
+      FList.Column[I].Tag := 1
+    else if (FList.Column[I].Tag > 0) then
+      FList.Column[I].Tag := -1
+    else if (I = FList.Columns.Count - 1) then
+      FList.Column[I].Tag := -1
     else
-      FAccounts.Column[I].Tag := 1;
+      FList.Column[I].Tag := 1;
 
-  FAccounts.Tag := Column.Index;
-  FAccounts.AlphaSort();
+  FList.Tag := Column.Index;
+  FList.AlphaSort();
 
-  ListViewShowSortDirection(FAccounts);
+  ListViewShowSortDirection(FList);
 end;
 
-procedure TDAccounts.FAccountsColumnResize(Sender: TObject; Column: TListColumn);
+procedure TDAccounts.FListColumnResize(Sender: TObject; Column: TListColumn);
 var
   ColumnIndex: Integer;
   I: Integer;
@@ -362,35 +477,35 @@ begin
   if (not IgnoreColumnResize) then
   begin
     ColumnIndex := -1;
-    for I := 0 to FAccounts.Columns.Count - 1 do
-      if (FAccounts.Columns[I] = Column) then
+    for I := 0 to FList.Columns.Count - 1 do
+      if (FList.Columns[I] = Column) then
         ColumnIndex := I;
 
-    if ((0 <= ColumnIndex) and (ColumnIndex < FAccounts.Columns.Count - 1)) then
+    if ((0 <= ColumnIndex) and (ColumnIndex < FList.Columns.Count - 1)) then
     begin
       IgnoreColumnResize := True;
       IgnoreResize := True;
-      FAccounts.DisableAlign();
+      FList.DisableAlign();
 
       ColumnWidthSum := 0;
-      for I := 0 to FAccounts.Columns.Count - 1 do
+      for I := 0 to FList.Columns.Count - 1 do
         if (I <> ColumnIndex + 1) then
-          Inc(ColumnWidthSum, FAccounts.Columns[I].Width);
-      FAccounts.Columns[ColumnIndex + 1].Width := Max(FAccounts.ClientWidth - ColumnWidthSum, MinColumnWidth);
+          Inc(ColumnWidthSum, FList.Columns[I].Width);
+      FList.Columns[ColumnIndex + 1].Width := Max(FList.ClientWidth - ColumnWidthSum, MinColumnWidth);
 
-      FAccounts.EnableAlign();
+      FList.EnableAlign();
       IgnoreResize := False;
       IgnoreColumnResize := False;
     end;
   end;
 end;
 
-procedure TDAccounts.FAccountsCompare(Sender: TObject; Item1,
+procedure TDAccounts.FListCompare(Sender: TObject; Item1,
   Item2: TListItem; Data: Integer; var Compare: Integer);
 var
   Column: TListColumn;
 begin
-  Column := FAccounts.Columns[FAccounts.Tag];
+  Column := FList.Columns[FList.Tag];
 
   if (Column = TListColumn(miHName.Tag)) then
     Compare := TListColumn(miHName.Tag).Tag * Sign(lstrcmpi(PChar(TPAccount(Item1.Data).Name), PChar(TPAccount(Item2.Data).Name)))
@@ -406,21 +521,21 @@ begin
     raise ERangeError.Create(SRangeError);
 end;
 
-procedure TDAccounts.FAccountsContextPopup(Sender: TObject; MousePos: TPoint;
+procedure TDAccounts.FListContextPopup(Sender: TObject; MousePos: TPoint;
   var Handled: Boolean);
 var
   HeaderRect: TRect;
   Pos: TPoint;
 begin
-  GetWindowRect(ListView_GetHeader(FAccounts.Handle), HeaderRect);
-  Pos := FAccounts.ClientToScreen(MousePos);
+  GetWindowRect(ListView_GetHeader(FList.Handle), HeaderRect);
+  Pos := FList.ClientToScreen(MousePos);
   if PtInRect(HeaderRect, Pos) then
     HeaderMenu.Popup(Pos.X, Pos.Y)
   else
     ItemMenu.Popup(Pos.X, Pos.Y);
 end;
 
-procedure TDAccounts.FAccountsDblClick(Sender: TObject);
+procedure TDAccounts.FListDblClick(Sender: TObject);
 begin
   if (Open and FBOk.Enabled) then
     FBOk.Click()
@@ -428,42 +543,42 @@ begin
     aEdit.Execute();
 end;
 
-procedure TDAccounts.FAccountsResize(Sender: TObject);
+procedure TDAccounts.FListResize(Sender: TObject);
 var
   ColumnWidthsSum: Integer;
   I: Integer;
   LastColumnWidth: Integer;
 begin
-  if (not IgnoreResize and (FAccounts.Columns.Count > 0)) then
+  if (not IgnoreResize and (FList.Columns.Count > 0)) then
   begin
     ColumnWidthsSum := 0;
-    for I := 0 to FAccounts.Columns.Count - 1 do
-      Inc(ColumnWidthsSum, FAccounts.Columns[I].Width);
+    for I := 0 to FList.Columns.Count - 1 do
+      Inc(ColumnWidthsSum, FList.Columns[I].Width);
     if (ColumnWidthsSum > 0) then
     begin
       IgnoreColumnResize := True;
       IgnoreResize := True;
-      FAccounts.DisableAlign();
+      FList.DisableAlign();
 
-      LastColumnWidth := FAccounts.ClientWidth;
-      for I := 0 to FAccounts.Columns.Count - 2 do
+      LastColumnWidth := FList.ClientWidth;
+      for I := 0 to FList.Columns.Count - 2 do
       begin
-        FAccounts.Columns[I].Width := FAccounts.Columns[I].Width * FAccounts.ClientWidth div ColumnWidthsSum;
-        Dec(LastColumnWidth, FAccounts.Columns[I].Width);
+        FList.Columns[I].Width := FList.Columns[I].Width * FList.ClientWidth div ColumnWidthsSum;
+        Dec(LastColumnWidth, FList.Columns[I].Width);
       end;
-      FAccounts.Columns[FAccounts.Columns.Count - 1].Width := LastColumnWidth;
+      FList.Columns[FList.Columns.Count - 1].Width := LastColumnWidth;
 
-      FAccounts.EnableAlign();
+      FList.EnableAlign();
       IgnoreResize := False;
       IgnoreColumnResize := False;
     end;
   end;
 
-  if (Assigned(FAccounts.ItemFocused) and (FAccounts.Items.Count > 1) and (FAccounts.ItemFocused.Position.Y - FAccounts.ClientHeight + (FAccounts.Items[1].Top - FAccounts.Items[0].Top) > 0)) then
-    FAccounts.Scroll(0, FAccounts.ItemFocused.Position.Y - FAccounts.ClientHeight + (FAccounts.Items[1].Top - FAccounts.Items[0].Top));
+  if (Assigned(FList.ItemFocused) and (FList.Items.Count > 1) and (FList.ItemFocused.Position.Y - FList.ClientHeight + (FList.Items[1].Top - FList.Items[0].Top) > 0)) then
+    FList.Scroll(0, FList.ItemFocused.Position.Y - FList.ClientHeight + (FList.Items[1].Top - FList.Items[0].Top));
 end;
 
-procedure TDAccounts.FAccountsSelectItem(Sender: TObject; Item: TListItem;
+procedure TDAccounts.FListSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 var
   Account: TPAccount;
@@ -473,6 +588,8 @@ begin
   else
     Account := Accounts.AccountByName(Item.Caption);
 
+  aECopy.Enabled := Assigned(Item) and Selected;
+  aEPaste.Enabled := not Selected and IsClipboardFormatAvailable(CF_ACCOUNT);
   aDelete.Enabled := Assigned(Item) and Selected and Assigned(Account) and (Account.SessionCount = 0);
   aEdit.Enabled := Assigned(Item) and Selected and Assigned(Account);
 
@@ -482,12 +599,12 @@ end;
 
 procedure TDAccounts.ItemMenuPopup(Sender: TObject);
 begin
-  aOpen.Enabled := Open and Assigned(FAccounts.Selected);
-  aOpenInNewWindow.Enabled := aOpen.Enabled and (Sessions.Count > 0);
+  aOpen.Enabled := Open and Assigned(FList.Selected);
+  aOpenInNewWindow.Enabled := aOpen.Enabled;
   miIOpen.Default := Open;
   miIEdit.Default := not miIOpen.Default;
   ShowEnabledItems(ItemMenu.Items);
-  miINew.Visible := not Assigned(FAccounts.Selected);
+  miINew.Visible := not Assigned(FList.Selected);
 end;
 
 procedure TDAccounts.ListViewShowSortDirection(const ListView: TListView);
@@ -525,68 +642,68 @@ var
   OldColumnWidths: array[0 .. 5 {HeaderMenu.Items.Count} - 1] of Integer;
 begin
   IgnoreColumnResize := True;
-  FAccounts.DisableAlign();
-  FAccounts.Columns.BeginUpdate();
-  FAccounts.Items.BeginUpdate();
-  FAccounts.Items.Clear();
+  FList.DisableAlign();
+  FList.Columns.BeginUpdate();
+  FList.Items.BeginUpdate();
+  FList.Items.Clear();
 
-  OldColumnCount := FAccounts.Columns.Count;
-  for I := 0 to FAccounts.Columns.Count - 1 do
-    OldColumnWidths[I] := FAccounts.Columns[I].Width;
-  FAccounts.Columns.Clear();
+  OldColumnCount := FList.Columns.Count;
+  for I := 0 to FList.Columns.Count - 1 do
+    OldColumnWidths[I] := FList.Columns[I].Width;
+  FList.Columns.Clear();
   if (not miHName.Checked) then
     miHName.Tag := 0
   else
   begin
-    FAccounts.Columns.Add().Caption := ReplaceStr(miHName.Caption, '&', '');
-    miHName.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+    FList.Columns.Add().Caption := ReplaceStr(miHName.Caption, '&', '');
+    miHName.Tag := NativeInt(FList.Columns[FList.Columns.Count - 1]);
   end;
   if (not miHHost.Checked) then
     miHHost.Tag := 0
   else
   begin
-    FAccounts.Columns.Add().Caption := ReplaceStr(miHHost.Caption, '&', '');
-    miHHost.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+    FList.Columns.Add().Caption := ReplaceStr(miHHost.Caption, '&', '');
+    miHHost.Tag := NativeInt(FList.Columns[FList.Columns.Count - 1]);
   end;
   if (not miHUser.Checked) then
     miHUser.Tag := 0
   else
   begin
-    FAccounts.Columns.Add().Caption := ReplaceStr(miHUser.Caption, '&', '');
-    miHUser.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+    FList.Columns.Add().Caption := ReplaceStr(miHUser.Caption, '&', '');
+    miHUser.Tag := NativeInt(FList.Columns[FList.Columns.Count - 1]);
   end;
   if (not miHDatabase.Checked) then
     miHDatabase.Tag := 0
   else
   begin
-    FAccounts.Columns.Add().Caption := ReplaceStr(miHDatabase.Caption, '&', '');
-    miHDatabase.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+    FList.Columns.Add().Caption := ReplaceStr(miHDatabase.Caption, '&', '');
+    miHDatabase.Tag := NativeInt(FList.Columns[FList.Columns.Count - 1]);
   end;
   if (not miHLastLogin.Checked) then
     miHLastLogin.Tag := 0
   else
   begin
-    FAccounts.Columns.Add().Caption := ReplaceStr(miHLastLogin.Caption, '&', '');
-    miHLastLogin.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+    FList.Columns.Add().Caption := ReplaceStr(miHLastLogin.Caption, '&', '');
+    miHLastLogin.Tag := NativeInt(FList.Columns[FList.Columns.Count - 1]);
   end;
-  NewColumnCount := FAccounts.Columns.Count;
+  NewColumnCount := FList.Columns.Count;
 
-  FAccounts.Columns.EndUpdate();
+  FList.Columns.EndUpdate();
 
-  LastColumnWidth := FAccounts.ClientWidth;
-  for I := 0 to FAccounts.Columns.Count - 2 do
+  LastColumnWidth := FList.ClientWidth;
+  for I := 0 to FList.Columns.Count - 2 do
   begin
-    FAccounts.Columns[I].Width := OldColumnWidths[I] * OldColumnCount div NewColumnCount;
-    Dec(LastColumnWidth, FAccounts.Columns[I].Width);
+    FList.Columns[I].Width := OldColumnWidths[I] * OldColumnCount div NewColumnCount;
+    Dec(LastColumnWidth, FList.Columns[I].Width);
   end;
-  FAccounts.Columns[FAccounts.Columns.Count - 1].Width := LastColumnWidth;
+  FList.Columns[FList.Columns.Count - 1].Width := LastColumnWidth;
 
   if (Accounts.Count = 0) then
-    FAccountsSelectItem(FAccounts, nil, False)
+    FListSelectItem(FList, nil, False)
   else
     for I := 0 to Accounts.Count - 1 do
     begin
-      Item := FAccounts.Items.Add();
+      Item := FList.Items.Add();
       Item.Caption := Accounts[I].Name;
       if (miHHost.Checked) then
         Item.SubItems.Add(Accounts[I].Connection.Caption);
@@ -603,32 +720,32 @@ begin
       Item.Data := Accounts[I];
     end;
 
-  if ((0 <= FAccounts.Tag) and (FAccounts.Tag < FAccounts.Columns.Count)) then
-    FAccountsColumnClick(Account, FAccounts.Columns[FAccounts.Tag]);
+  if ((0 <= FList.Tag) and (FList.Tag < FList.Columns.Count)) then
+    FListColumnClick(Account, FList.Columns[FList.Tag]);
 
-  if (not Assigned(ASelected)) and (FAccounts.Items.Count > 0) then
-    FAccounts.Selected := FAccounts.Items.Item[0]
+  if (not Assigned(ASelected)) and (FList.Items.Count > 0) then
+    FList.Selected := FList.Items.Item[0]
   else
-    for I := 0 to FAccounts.Items.Count - 1 do
-      if (ASelected <> nil) and (FAccounts.Items.Item[I].Caption = ASelected.Name) then
-        FAccounts.Selected := FAccounts.Items.Item[I];
+    for I := 0 to FList.Items.Count - 1 do
+      if (ASelected <> nil) and (FList.Items.Item[I].Caption = ASelected.Name) then
+        FList.Selected := FList.Items.Item[I];
 
-  FAccounts.ItemFocused := FAccounts.Selected;
-  FAccountsResize(nil);
+  FList.ItemFocused := FList.Selected;
+  FListResize(nil);
 
-  FAccounts.Items.EndUpdate();
-  FAccounts.EnableAlign();
+  FList.Items.EndUpdate();
+  FList.EnableAlign();
   IgnoreColumnResize := False;
 end;
 
 procedure TDAccounts.UMPostShow(var Message: TMessage);
 begin
-  ListViewShowSortDirection(FAccounts);
+  ListViewShowSortDirection(FList);
 end;
 
 procedure TDAccounts.UMPreferencesChanged(var Message: TMessage);
 begin
-  FAccounts.Canvas.Font := Font;
+  FList.Canvas.Font := Font;
 
   Preferences.Images.GetIcon(40, Icon);
 

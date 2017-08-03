@@ -142,6 +142,13 @@ begin
 
   BorderStyle := bsSizeable;
 
+  msUndo.Action := aEUndo; msCut.ShortCut := 0;
+  msCut.Action := aECut; msCut.ShortCut := 0;
+  msCopy.Action := aECopy; msCopy.ShortCut := 0;
+  msPaste.Action := aEPaste; msPaste.ShortCut := 0;
+  msDelete.Action := aEDelete; msDelete.ShortCut := 0;
+  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
+
   PageControl.ActivePage := TSBasics;
 end;
 
@@ -366,13 +373,6 @@ begin
   TSPlugins.Caption := Preferences.LoadStr(811);
   FPlugins.Columns[0].Caption := Preferences.LoadStr(35);
   FPlugins.Columns[1].Caption := Preferences.LoadStr(111);
-
-  msUndo.Action := aEUndo; msCut.ShortCut := 0;
-  msCut.Action := aECut; msCut.ShortCut := 0;
-  msCopy.Action := aECopy; msCopy.ShortCut := 0;
-  msPaste.Action := aEPaste; msPaste.ShortCut := 0;
-  msDelete.Action := aEDelete; msDelete.ShortCut := 0;
-  msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBCancel.Caption := Preferences.LoadStr(231);

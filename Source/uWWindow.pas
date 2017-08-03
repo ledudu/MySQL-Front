@@ -123,9 +123,9 @@ type
     aVIDE: TAction;
     aVRefresh: TAction;
     aVRefreshAll: TAction;
-    aVSQLEditor: TAction;
-    aVSQLEditor2: TAction;
-    aVSQLEditor3: TAction;
+    aVEditor: TAction;
+    aVEditor2: TAction;
+    aVEditor3: TAction;
     aVSQLHistory: TAction;
     aVSQLLog: TAction;
     CToolBar: TCoolBar;
@@ -1036,9 +1036,9 @@ begin
   aVBrowser.Checked := False;
   aVIDE.Checked := False;
   aVBuilder.Checked := False;
-  aVSQLEditor.Checked := False;
-  aVSQLEditor2.Checked := False;
-  aVSQLEditor3.Checked := False;
+  aVEditor.Checked := False;
+  aVEditor2.Checked := False;
+  aVEditor3.Checked := False;
   aVNavigator.Checked := False;
   aVExplorer.Checked := False;
   aVSQLHistory.Checked := False;
@@ -1055,9 +1055,9 @@ begin
   aVIDE.Enabled := False;
   aVBuilder.Enabled := False;
   aVDiagram.Enabled := False;
-  aVSQLEditor.Enabled := False;
-  aVSQLEditor2.Enabled := False;
-  aVSQLEditor3.Enabled := False;
+  aVEditor.Enabled := False;
+  aVEditor2.Enabled := False;
+  aVEditor3.Enabled := False;
   aVNavigator.Enabled := False;
   aVExplorer.Enabled := False;
   aVSQLHistory.Enabled := False;
@@ -1209,9 +1209,9 @@ begin
   uBase.aVIDE := aVIDE;
   uBase.aVRefresh := aVRefresh;
   uBase.aVRefreshAll := aVRefreshAll;
-  uBase.aVSQLEditor := aVSQLEditor;
-  uBase.aVSQLEditor2 := aVSQLEditor2;
-  uBase.aVSQLEditor3 := aVSQLEditor3;
+  uBase.aVEditor := aVEditor;
+  uBase.aVEditor2 := aVEditor2;
+  uBase.aVEditor3 := aVEditor3;
   uBase.aVSQLHistory := aVSQLHistory;
   uBase.aVSQLLog := aVSQLLog;
 
@@ -1784,9 +1784,9 @@ begin
   aVIDE.Caption := Preferences.LoadStr(865);
   aVBuilder.Caption := Preferences.LoadStr(852);
   aVDiagram.Caption := Preferences.LoadStr(800);
-  aVSQLEditor.Caption := Preferences.LoadStr(6);
-  aVSQLEditor2.Caption := Preferences.LoadStr(6) + ' #2';
-  aVSQLEditor3.Caption := Preferences.LoadStr(6) + ' #3';
+  aVEditor.Caption := Preferences.LoadStr(6);
+  aVEditor2.Caption := Preferences.LoadStr(6) + ' #2';
+  aVEditor3.Caption := Preferences.LoadStr(6) + ' #3';
   miVSidebar.Caption := Preferences.LoadStr(736);
   aVNavigator.Caption := Preferences.LoadStr(10);
   aVExplorer.Caption := Preferences.LoadStr(435);
