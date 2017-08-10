@@ -213,7 +213,7 @@ type
       property DebugSQL: string read SQL; // Debug 2017-02-19
     end;
 
-    TTerminatedThreads = class(TList)
+    TTerminatedThreads = class(TList<TSyncThread>)
     strict private
       CriticalSection: TCriticalSection;
       FConnection: TMySQLConnection;
@@ -222,8 +222,8 @@ type
     public
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
-      function Add(const Item: Pointer): Integer; reintroduce;
-      procedure Delete(const Item: Pointer); overload;
+      function Add(const Item: TSyncThread): Integer; reintroduce;
+      procedure Delete(const Item: TSyncThread); overload;
     end;
 
   strict private
@@ -900,19 +900,17 @@ type
     procedure GetText(var Text: string; DisplayText: Boolean); override;
   end;
 
-  TMySQLSyncThreads = class(TList)
+  TMySQLSyncThreads = class(TList<TMySQLConnection.TSyncThread>)
   strict private
     CriticalSection: TCriticalSection;
-    function ThreadByIndex(Index: Integer): TMySQLConnection.TSyncThread; inline;
   public
-    function Add(Item: Pointer): Integer;
+    function Add(Item: TMySQLConnection.TSyncThread): Integer;
     constructor Create();
     procedure Delete(Index: Integer);
     destructor Destroy(); override;
     procedure Lock();
     procedure Release();
     function ThreadByThreadId(const ThreadID: TThreadID): TMySQLConnection.TSyncThread;
-    property Threads[Index: Integer]: TMySQLConnection.TSyncThread read ThreadByIndex; default;
   end;
 
 function BitField(const Field: TField): Boolean;
@@ -2108,7 +2106,7 @@ end;
 
 { TMySQLConnection.TTerminatedThreads *****************************************}
 
-function TMySQLConnection.TTerminatedThreads.Add(const Item: Pointer): Integer;
+function TMySQLConnection.TTerminatedThreads.Add(const Item: TSyncThread): Integer;
 begin
   CriticalSection.Enter();
 
@@ -2126,7 +2124,7 @@ begin
   CriticalSection := TCriticalSection.Create();
 end;
 
-procedure TMySQLConnection.TTerminatedThreads.Delete(const Item: Pointer);
+procedure TMySQLConnection.TTerminatedThreads.Delete(const Item: TSyncThread);
 var
   Index: Integer;
 begin
@@ -2145,7 +2143,7 @@ begin
 
   while (Count > 0) do
   begin
-    TerminateThread(TThread(Items[0]).Handle, 1);
+    TerminateThread(Items[0].Handle, 1);
     inherited Delete(0);
   end;
 
@@ -2480,7 +2478,7 @@ begin
     end;
   TerminateCS.Enter();
   for I := 0 to TerminatedThreads.Count - 1 do
-    TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
+    TerminateThread(TerminatedThreads[I].Handle, 0);
   TerminateCS.Leave();
   TerminatedThreads.Free();
 
@@ -9316,11 +9314,11 @@ end;
 
 { TMySQLSyncThreads ****************************************************************}
 
-function TMySQLSyncThreads.Add(Item: Pointer): Integer;
+function TMySQLSyncThreads.Add(Item: TMySQLConnection.TSyncThread): Integer;
 begin
   CriticalSection.Enter();
 
-  Result := inherited;
+  Result := inherited Add(Item);
 
   CriticalSection.Leave();
 end;
@@ -9358,18 +9356,13 @@ begin
   CriticalSection.Leave();
 end;
 
-function TMySQLSyncThreads.ThreadByIndex(Index: Integer): TMySQLConnection.TSyncThread;
-begin
-  Result := TMySQLConnection.TSyncThread(Items[Index]);
-end;
-
 function TMySQLSyncThreads.ThreadByThreadId(const ThreadID: TThreadID): TMySQLConnection.TSyncThread;
 var
   I: Integer;
 begin
   for I := 0 to Count - 1 do
-    if (Threads[I].ThreadID = ThreadID) then
-      Exit(Threads[I]);
+    if (Items[I].ThreadID = ThreadID) then
+      Exit(Items[I]);
 
   Result := nil;
 end;

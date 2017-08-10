@@ -190,7 +190,6 @@ object DTrigger: TDTrigger
               Font.Height = -12
               Font.Name = 'Courier New'
               Font.Style = []
-              Items = <>
               Title.Font.Charset = DEFAULT_CHARSET
               Title.Font.Color = clWindowText
               Title.Font.Height = -12
@@ -205,11 +204,6 @@ object DTrigger: TDTrigger
           Font.Style = []
           LeftMargin.Bookmarks.Visible = False
           LeftMargin.Colors.Foreground = clBlack
-          LeftMargin.LineNumbers.DigitCount = 2
-          LeftMargin.LineState.Enabled = False
-          LeftMargin.Marks.Visible = False
-          LeftMargin.MarksPanel.Visible = False
-          LeftMargin.Width = 23
           PopupMenu = MSource
           SyncEdit.Enabled = False
           TabOrder = 0
@@ -306,7 +300,6 @@ object DTrigger: TDTrigger
             Font.Height = -12
             Font.Name = 'Courier New'
             Font.Style = []
-            Items = <>
             Title.Font.Charset = DEFAULT_CHARSET
             Title.Font.Color = clWindowText
             Title.Font.Height = -12
@@ -321,15 +314,11 @@ object DTrigger: TDTrigger
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
         LeftMargin.Colors.Foreground = clBlack
-        LeftMargin.LineNumbers.DigitCount = 2
-        LeftMargin.LineState.Enabled = False
-        LeftMargin.Marks.Visible = False
-        LeftMargin.MarksPanel.Visible = False
-        LeftMargin.Width = 23
         PopupMenu = MSource
         ReadOnly = True
         SyncEdit.Enabled = False
         TabOrder = 0
+        WantReturns = False
       end
     end
   end

@@ -12,7 +12,7 @@ uses
   DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
   PNGImage, GIFImg, Jpeg, ToolWin,
   BCHexEditor, BCHexEditorEx,
-  BCEditor.Editor, BCEditor.Editor.CompletionProposal, BCEditor.Editor.KeyCommands,
+  BCEditor.Editor, BCEditor.Properties, BCEditor.Editor.KeyCommands,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -614,9 +614,6 @@ type
     procedure SSideBarCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
     procedure SSideBarMoved(Sender: TObject);
-    procedure BCEditorBeforeCompletionProposalExecute(Sender: TObject;
-      const Columns: TBCEditorCompletionProposalColumns; const Input: string;
-      var CanExecute: Boolean);
     procedure ToolBarResize(Sender: TObject);
     procedure ToolBarTabsClick(Sender: TObject);
     procedure ToolButtonStyleClick(Sender: TObject);
@@ -960,9 +957,11 @@ Progress: string;
     procedure aVSQLLogExecute(Sender: TObject);
     procedure BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
     procedure BCEditorChange(Sender: TObject);
-    procedure BCEditorCompletionProposalCanceled(Sender: TObject);
-    procedure BCEditorCompletionProposalSelected(Sender: TObject;
-      var ASelectedItem: string);
+    procedure BCEditorCompletionProposalClose(Sender: TObject;
+      var SelectedItem: string);
+    procedure BCEditorCompletionProposalShow(Sender: TObject;
+      const Columns: TBCEditorCompletionProposalColumns; const Input: string;
+      var CanExecute: Boolean);
     procedure BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure BCEditorDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
@@ -5655,10 +5654,9 @@ begin
   Result.Options := Result.Options + [eoTrimTrailingLines];
   Result.SyncEdit.Enabled := False;
   Result.OnChange := BCEditorChange;
-  Result.OnBeforeCompletionProposalExecute := BCEditorBeforeCompletionProposalExecute;
   Result.OnCaretChanged := BCEditorCaretChanged;
-  Result.OnCompletionProposalCanceled := BCEditorCompletionProposalCanceled;
-  Result.OnCompletionProposalSelected := BCEditorCompletionProposalSelected;
+  Result.OnCompletionProposalClose := BCEditorCompletionProposalClose;
+  Result.OnCompletionProposalShow := BCEditorCompletionProposalShow;
   Result.OnDragDrop := BCEditorDragDrop;
   Result.OnDragOver := BCEditorDragOver;
   Result.OnEnter := BCEditorEnter;
@@ -15609,7 +15607,70 @@ begin
   end;
 end;
 
-procedure TFSession.BCEditorBeforeCompletionProposalExecute(Sender: TObject;
+procedure TFSession.BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
+begin
+  if (Window.ActiveControl = Sender) then
+    StatusBar.Panels[sbNavigation].Text := IntToStr(Pos.X) + ':' + IntToStr(Pos.Y);
+end;
+
+procedure TFSession.BCEditorChange(Sender: TObject);
+var
+  ClassIndex: TClassIndex; // Cache for speeding
+  DDLStmt: TSQLDDLStmt;
+  Empty: Boolean; // Cache for speeding
+  Parse: TSQLParse;
+  SelSQL: string; // Cache for speeding
+  SQL: string; // Cache for speeding
+begin
+  KillTimer(Handle, tiShowSynCompletion);
+
+  SynCompletionPending.Active := False;
+
+  SelSQL := TBCEditor(Sender).SelText; // Cache for speeding
+  if (View <> vIDE) then
+  begin
+    SQL := '';
+    ClassIndex := ciUnknown;
+  end
+  else
+  begin
+    SQL := TBCEditor(Sender).Text; // Cache for speeding
+    ClassIndex := CurrentClassIndex; // Cache for speeding
+  end;
+  Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
+
+  aFSave.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
+  aFSaveAs.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
+  aERedo.Enabled := TBCEditor(Sender).CanRedo;
+  aECopyToFile.Enabled := (SelSQL <> '');
+  aEPasteFromFile.Enabled := (View in [vEditor, vEditor2, vEditor3]);
+
+  aDPostObject.Enabled := (View = vIDE)
+    and TBCEditor(Sender).Modified
+    and SQLSingleStmt(SQL)
+    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+      or (ClassIndex in [ciEvent, ciTrigger]));
+
+  aDRun.Enabled :=
+    ((View in [vEditor, vEditor2, vEditor3]) and not Empty
+    or (View in [vBuilder]) and FQueryBuilder.Visible
+    or (View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent])) and not Empty;
+  aDRunSelection.Enabled :=
+    ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
+  aEFormatSQL.Enabled := not Empty;
+
+  StatusBarRefresh();
+end;
+
+procedure TFSession.BCEditorCompletionProposalClose(Sender: TObject;
+  var SelectedItem: string);
+begin
+  TBCEditorCompletionProposal(Sender).Columns[0].Items.Clear();
+  TBCEditorCompletionProposal(Sender).Columns[1].Items.Clear();
+end;
+
+procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
   const Columns: TBCEditorCompletionProposalColumns; const Input: string; var CanExecute: Boolean);
 
   procedure AddItem(const Display: string; const Insert: string);
@@ -15896,75 +15957,6 @@ begin
 
     Session.SQLParser.Clear();
   end;
-end;
-
-procedure TFSession.BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
-begin
-  if (Window.ActiveControl = Sender) then
-    StatusBar.Panels[sbNavigation].Text := IntToStr(Pos.X) + ':' + IntToStr(Pos.Y);
-end;
-
-procedure TFSession.BCEditorChange(Sender: TObject);
-var
-  ClassIndex: TClassIndex; // Cache for speeding
-  DDLStmt: TSQLDDLStmt;
-  Empty: Boolean; // Cache for speeding
-  Parse: TSQLParse;
-  SelSQL: string; // Cache for speeding
-  SQL: string; // Cache for speeding
-begin
-  KillTimer(Handle, tiShowSynCompletion);
-
-  SynCompletionPending.Active := False;
-
-  SelSQL := TBCEditor(Sender).SelText; // Cache for speeding
-  if (View <> vIDE) then
-  begin
-    SQL := '';
-    ClassIndex := ciUnknown;
-  end
-  else
-  begin
-    SQL := TBCEditor(Sender).Text; // Cache for speeding
-    ClassIndex := CurrentClassIndex; // Cache for speeding
-  end;
-  Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
-
-  aFSave.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
-  aFSaveAs.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
-  aERedo.Enabled := TBCEditor(Sender).CanRedo;
-  aECopyToFile.Enabled := (SelSQL <> '');
-  aEPasteFromFile.Enabled := (View in [vEditor, vEditor2, vEditor3]);
-
-  aDPostObject.Enabled := (View = vIDE)
-    and TBCEditor(Sender).Modified
-    and SQLSingleStmt(SQL)
-    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-      or (ClassIndex in [ciEvent, ciTrigger]));
-
-  aDRun.Enabled :=
-    ((View in [vEditor, vEditor2, vEditor3]) and not Empty
-    or (View in [vBuilder]) and FQueryBuilder.Visible
-    or (View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent])) and not Empty;
-  aDRunSelection.Enabled :=
-    ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
-  aEFormatSQL.Enabled := not Empty;
-
-  StatusBarRefresh();
-end;
-
-procedure TFSession.BCEditorCompletionProposalSelected(Sender: TObject;
-  var ASelectedItem: string);
-begin
-  TBCEditorCompletionProposal(Sender).Columns[0].Items.Clear();
-  TBCEditorCompletionProposal(Sender).Columns[1].Items.Clear();
-end;
-
-procedure TFSession.BCEditorCompletionProposalCanceled(Sender: TObject);
-begin
-  TBCEditorCompletionProposal(Sender).Columns[0].Items.Clear();
-  TBCEditorCompletionProposal(Sender).Columns[1].Items.Clear();
 end;
 
 procedure TFSession.BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);
