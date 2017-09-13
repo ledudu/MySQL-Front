@@ -72,17 +72,13 @@ object DEvent: TDEvent
     Top = 8
     Width = 381
     Height = 483
-    ActivePage = TSBasics
+    ActivePage = TSSource
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -212,7 +208,6 @@ object DEvent: TDEvent
           Top = 377
           Width = 341
           Height = 45
-          ActiveLine.Visible = False
           Anchors = [akLeft, akTop, akRight, akBottom]
           CompletionProposal.CloseChars = '()[]. '
           CompletionProposal.Columns = <
@@ -235,9 +230,9 @@ object DEvent: TDEvent
           Font.Name = 'Courier New'
           Font.Style = []
           LeftMargin.Bookmarks.Visible = False
-          LeftMargin.Colors.Foreground = clBlack
+          Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
           PopupMenu = MSource
-          SyncEdit.Enabled = False
+          SyncEditOptions = [seoCaseSensitive]
           TabOrder = 0
         end
         object FEnabled: TCheckBox
@@ -527,10 +522,6 @@ object DEvent: TDEvent
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -610,10 +601,6 @@ object DEvent: TDEvent
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -622,7 +609,6 @@ object DEvent: TDEvent
         Top = 8
         Width = 357
         Height = 431
-        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
@@ -645,10 +631,10 @@ object DEvent: TDEvent
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Colors.Foreground = clBlack
+        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True
-        SyncEdit.Enabled = False
+        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
         WantReturns = False
       end

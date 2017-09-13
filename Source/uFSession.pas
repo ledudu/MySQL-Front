@@ -12,7 +12,7 @@ uses
   DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
   PNGImage, GIFImg, Jpeg, ToolWin,
   BCHexEditor, BCHexEditorEx,
-  BCEditor.Editor, BCEditor.Properties, BCEditor.Editor.KeyCommands,
+  BCEditor, BCEditor.Properties, BCEditor.Commands,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -2504,7 +2504,7 @@ begin
     else if (aDCreateUser.Enabled) then aDCreateUser.Execute();
   end
   else if (Window.ActiveControl = ActiveBCEditor) then
-    ActiveBCEditor.CommandProcessor(ecToggleMode, #0, nil)
+    ActiveBCEditor.ProcessCommand(ecToggleTextMode, nil)
   else if (Window.ActiveControl = ActiveDBGrid) and (not ActiveDBGrid.EditorMode) then
     aDInsertRecord.Execute();
 end;
@@ -4468,7 +4468,7 @@ end;
 procedure TFSession.aSynCompletionExecuteExecute(Sender: TObject);
 begin
   with SynCompletionPending do
-    ActiveBCEditor.CommandProcessor(ecCompletionProposal, #0, nil);
+    ActiveBCEditor.ProcessCommand(ecShowCompletionProposal, nil);
   SynCompletionPending.Active := False;
 end;
 
@@ -5652,7 +5652,6 @@ begin
   Result.LeftMargin.LineState.Visible := Assigned(SObject);
   Result.LeftMargin.Marks.Visible := False;
   Result.Options := Result.Options + [eoTrimTrailingLines];
-  Result.SyncEdit.Enabled := False;
   Result.OnChange := BCEditorChange;
   Result.OnCaretChanged := BCEditorCaretChanged;
   Result.OnCompletionProposalClose := BCEditorCompletionProposalClose;
@@ -17035,7 +17034,7 @@ begin
       begin
         KillTimer(Handle, Msg.TimerID);
         if (Window.Active and (View in [vEditor, vEditor2, vEditor3])) then
-          ActiveBCEditor.CommandProcessor(ecCompletionProposal, #0, nil);
+          ActiveBCEditor.ProcessCommand(ecShowCompletionProposal, nil);
       end;
     tiStatusBar:
       begin

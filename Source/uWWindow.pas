@@ -457,7 +457,7 @@ uses
   ESysInfo,
   {$ENDIF}
   acQBLocalizer,
-  BCEditor.Editor,
+  BCEditor,
   MySQLConsts, HTTPTunnel, SQLUtils, MySQLDBGrid,
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,

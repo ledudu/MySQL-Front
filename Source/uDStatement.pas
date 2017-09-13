@@ -6,7 +6,7 @@ uses
   Windows, Messages,
   SysUtils, Variants, Classes,
   Graphics, Controls, Forms, Dialogs, Menus, ComCtrls, StdCtrls,
-  BCEditor.Editor,
+  BCEditor,
   Forms_Ext, StdCtrls_Ext,
   uBase, uSession, BCEditor.Highlighter;
 

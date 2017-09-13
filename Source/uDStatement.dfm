@@ -44,10 +44,6 @@ object DStatement: TDStatement
     TabOrder = 0
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         227)
@@ -232,10 +228,6 @@ object DStatement: TDStatement
       Caption = 'TSSource'
       ParentShowHint = False
       ShowHint = True
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         227)
@@ -244,7 +236,6 @@ object DStatement: TDStatement
         Top = 8
         Width = 297
         Height = 203
-        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
@@ -267,10 +258,10 @@ object DStatement: TDStatement
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Colors.Foreground = clBlack
+        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True
-        SyncEdit.Enabled = False
+        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
         WantReturns = False
       end

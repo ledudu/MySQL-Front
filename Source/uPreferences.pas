@@ -8,7 +8,7 @@ uses
   Registry,
   XMLDoc, XMLIntf,
   Controls, Forms, ComCtrls, Graphics,
-  BCEditor.Editor;
+  BCEditor;
 
 type
   TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
@@ -1887,8 +1887,11 @@ end;
 
 procedure TPPreferences.ApplyToBCEditor(const BCEditor: TBCEditor);
 begin
-  BCEditor.ActiveLine.Visible := Editor.CurrRowBGColorEnabled;
-  BCEditor.ActiveLine.Color := Editor.CurrRowBGColor;
+  if (Editor.CurrRowBGColorEnabled) then
+    BCEditor.Options := BCEditor.Options + [eoHighlightCurrentLine]
+  else
+    BCEditor.Options := BCEditor.Options - [eoHighlightCurrentLine];
+  BCEditor.Colors.CurrentLine.Background := Editor.CurrRowBGColor;
   BCEditor.Font.Name := SQLFontName;
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
@@ -2183,7 +2186,7 @@ end;
 
 function TPPreferences.GetFilename(): TFileName;
 begin
-  Result := UserPath + 'Desktop.xml';
+  Result := UserPath + TPath.DirectorySeparatorChar + 'Desktop.xml';
 end;
 
 function TPPreferences.GetLanguage(): TLanguage;

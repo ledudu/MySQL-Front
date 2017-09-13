@@ -11,6 +11,7 @@ type
     DisableFreezeDetection: Boolean;
     LastCount: Int64;
     Points: array of record
+      Count: Integer;
       Disabled: Integer;
       Sum: Int64;
     end;
@@ -87,12 +88,14 @@ begin
   while (Index >= Length(Profile.Points)) do
   begin
     SetLength(Profile.Points, Length(Profile.Points) + 1);
+    Profile.Points[Length(Profile.Points) - 1].Count := 0;
     Profile.Points[Length(Profile.Points) - 1].Disabled := 0;
     Profile.Points[Length(Profile.Points) - 1].Sum := 0;
   end;
 
   if (Profile.Points[Index].Disabled = 0) then
   begin
+    Inc(Profile.Points[Index].Count);
     if (not QueryPerformanceCounter(Count)) then Count := 0;
     Inc(Profile.Points[Index].Sum, Count - Profile.LastCount);
     Profile.LastCount := Count;
@@ -128,10 +131,10 @@ begin
       Inc(Sum, Profile.Points[Index].Sum);
 
     for Index := 1 to Length(Profile.Points) - 1 do
-      Result := Result + Format('%2d:  %7s %s  %3d %s' + #13#10, [Index, FormatFloat('#,##0.000', Profile.Points[Index].Sum * 1000 div Frequency / 1000, FormatSettings), 's', Profile.Points[Index].Sum * 100 div Sum, '%']);
+      Result := Result + Format('%2d:  %4d  %7s %s  %3d %s' + #13#10, [Index, Profile.Points[Index].Count, FormatFloat('#,##0.000', Profile.Points[Index].Sum * 1000 div Frequency / 1000, FormatSettings), 's', Profile.Points[Index].Sum * 100 div Sum, '%']);
 
-    Result := Result + Format('----------------------' + #13#10, []);
-    Result := Result + Format('     %7s %s  %3d %s' + #13#10, [FormatFloat('#,##0.000', Sum * 1000 div Frequency / 1000, FormatSettings), 's', 100, '%']);
+    Result := Result + Format('---------------------------' + #13#10, []);
+    Result := Result + Format('           %7s %s  %3d %s' + #13#10, [FormatFloat('#,##0.000', Sum * 1000 div Frequency / 1000, FormatSettings), 's', 100, '%']);
 
     if (Filename <> '') then
     begin

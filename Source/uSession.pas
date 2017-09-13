@@ -7,7 +7,7 @@ uses
   SysUtils, Classes, SyncObjs, Generics.Collections,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
-  BCEditor.Editor, BCEditor.Highlighter,
+  BCEditor, BCEditor.Highlighter,
   SQLUtils, MySQLDB, MySQLConsts, SQLParser,
 uProfiling,
   uPreferences;

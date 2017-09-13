@@ -48,10 +48,6 @@ object DView: TDView
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -117,33 +113,13 @@ object DView: TDView
           Top = 224
           Width = 281
           Height = 27
-          ActiveLine.Visible = False
           Anchors = [akLeft, akTop, akRight, akBottom]
-          CompletionProposal.CloseChars = '()[]. '
-          CompletionProposal.Columns = <
-            item
-              Font.Charset = DEFAULT_CHARSET
-              Font.Color = clWindowText
-              Font.Height = -12
-              Font.Name = 'Courier New'
-              Font.Style = []
-              Title.Font.Charset = DEFAULT_CHARSET
-              Title.Font.Color = clWindowText
-              Title.Font.Height = -12
-              Title.Font.Name = 'Courier New'
-              Title.Font.Style = []
-            end>
-          CompletionProposal.Trigger.Chars = '.'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -13
-          Font.Name = 'Courier New'
-          Font.Style = []
           LeftMargin.Bookmarks.Visible = False
-          LeftMargin.Colors.Foreground = clBlack
+          LeftMargin.LineNumbers.Visible = False
           OnChange = FStatementChange
+          Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
           PopupMenu = MSource
-          SyncEdit.Enabled = False
+          SyncEditOptions = [seoCaseSensitive]
           TabOrder = 7
         end
         object FCheckOptionCascade: TCheckBox
@@ -215,10 +191,6 @@ object DView: TDView
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -253,10 +225,6 @@ object DView: TDView
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -302,10 +270,6 @@ object DView: TDView
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
       OnShow = TSDependenciesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -333,10 +297,6 @@ object DView: TDView
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -345,34 +305,13 @@ object DView: TDView
         Top = 8
         Width = 297
         Height = 255
-        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
-        CompletionProposal.CloseChars = '()[]. '
-        CompletionProposal.Columns = <
-          item
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clWindowText
-            Font.Height = -12
-            Font.Name = 'Courier New'
-            Font.Style = []
-            Title.Font.Charset = DEFAULT_CHARSET
-            Title.Font.Color = clWindowText
-            Title.Font.Height = -12
-            Title.Font.Name = 'Courier New'
-            Title.Font.Style = []
-          end>
-        CompletionProposal.Trigger.Chars = '.'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Colors.Foreground = clBlack
         OnChange = FSourceChange
+        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True
-        SyncEdit.Enabled = False
+        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
         WantReturns = False
       end

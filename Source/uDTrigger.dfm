@@ -40,17 +40,13 @@ object DTrigger: TDTrigger
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSSource
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -180,7 +176,6 @@ object DTrigger: TDTrigger
           Top = 192
           Width = 281
           Height = 73
-          ActiveLine.Visible = False
           Anchors = [akLeft, akTop, akRight, akBottom]
           CompletionProposal.CloseChars = '()[]. '
           CompletionProposal.Columns = <
@@ -203,19 +198,15 @@ object DTrigger: TDTrigger
           Font.Name = 'Courier New'
           Font.Style = []
           LeftMargin.Bookmarks.Visible = False
-          LeftMargin.Colors.Foreground = clBlack
+          Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
           PopupMenu = MSource
-          SyncEdit.Enabled = False
+          SyncEditOptions = [seoCaseSensitive]
           TabOrder = 0
         end
       end
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -278,10 +269,6 @@ object DTrigger: TDTrigger
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -290,7 +277,6 @@ object DTrigger: TDTrigger
         Top = 8
         Width = 297
         Height = 273
-        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
@@ -313,10 +299,10 @@ object DTrigger: TDTrigger
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Colors.Foreground = clBlack
+        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True
-        SyncEdit.Enabled = False
+        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
         WantReturns = False
       end

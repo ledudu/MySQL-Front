@@ -46,10 +46,6 @@ object DServer: TDServer
     TabOrder = 0
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         293)
@@ -177,10 +173,6 @@ object DServer: TDServer
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         293)
@@ -189,7 +181,6 @@ object DServer: TDServer
         Top = 8
         Width = 297
         Height = 275
-        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
@@ -212,10 +203,10 @@ object DServer: TDServer
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Colors.Foreground = clBlack
+        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True
-        SyncEdit.Enabled = False
+        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
         WantReturns = False
       end
@@ -223,10 +214,6 @@ object DServer: TDServer
     object TSPlugins: TTabSheet
       Caption = 'TSPlugins'
       OnShow = TSPluginsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         293)

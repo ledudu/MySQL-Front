@@ -79,10 +79,6 @@ object DRoutine: TDRoutine
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -166,10 +162,6 @@ object DRoutine: TDRoutine
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -278,10 +270,6 @@ object DRoutine: TDRoutine
       Caption = 'TSDependencies'
       ImageIndex = 3
       OnShow = TSDependenciesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -309,10 +297,6 @@ object DRoutine: TDRoutine
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -321,7 +305,6 @@ object DRoutine: TDRoutine
         Top = 8
         Width = 297
         Height = 273
-        ActiveLine.Visible = False
         Anchors = [akLeft, akTop, akRight, akBottom]
         CompletionProposal.CloseChars = '()[]. '
         CompletionProposal.Columns = <
@@ -344,10 +327,10 @@ object DRoutine: TDRoutine
         Font.Name = 'Courier New'
         Font.Style = []
         LeftMargin.Bookmarks.Visible = False
-        LeftMargin.Colors.Foreground = clBlack
         OnChange = FSourceChange
+        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
-        SyncEdit.Enabled = False
+        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
       end
     end
