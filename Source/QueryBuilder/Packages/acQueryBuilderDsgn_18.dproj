@@ -2,7 +2,7 @@
     <PropertyGroup>
         <ProjectGuid>{23251FF1-A3D4-4402-968E-E658715339A8}</ProjectGuid>
         <MainSource>acQueryBuilderDsgn_18.dpk</MainSource>
-        <ProjectVersion>14.6</ProjectVersion>
+        <ProjectVersion>15.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <AppType>Package</AppType>
         <TargetedPlatforms>1</TargetedPlatforms>
@@ -26,6 +26,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>acQueryBuilderDsgn_18</SanitizedProjectName>
         <DCC_UsePackage>rtl;dbrtl;$(DCC_UsePackage)</DCC_UsePackage>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
@@ -42,7 +43,7 @@
         <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
         <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
         <DCC_Description>Active Query Builder Core</DCC_Description>
-        <DCC_DebugInformation>false</DCC_DebugInformation>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
         <DCC_IOChecking>false</DCC_IOChecking>
@@ -107,7 +108,6 @@
                 </Source>
             </Delphi.Personality>
             <Platforms>
-                <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">False</Platform>
             </Platforms>

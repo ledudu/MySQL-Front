@@ -4,6 +4,9 @@
 Embarcadero Delphi XE4:
 http://www.embarcadero.com/products/delphi/
 
+RibbonFramework 2.3a:
+https://github.com/TurboPack/RibbonFramework/
+
 
 Used packages:
 ==============

@@ -2,7 +2,7 @@
     <PropertyGroup>
         <ProjectGuid>{8CD4B70A-3A70-4F92-A6D0-249E1FE16894}</ProjectGuid>
         <MainSource>Win32_Ext_18.dpk</MainSource>
-        <ProjectVersion>14.6</ProjectVersion>
+        <ProjectVersion>15.4</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Config Condition="'$(Config)'==''">Base</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -16,6 +16,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>Win32_Ext_18</SanitizedProjectName>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
@@ -24,7 +25,7 @@
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
-        <DCC_DebugInformation>false</DCC_DebugInformation>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
         <DCC_DependencyCheckOutputName>c:\program files\embarcadero\rad studio\7.0\Projects\Bpl\Win32_Extensions.bpl</DCC_DependencyCheckOutputName>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <DCC_ImageBase>00400000</DCC_ImageBase>
@@ -90,9 +91,6 @@
                 </Source>
             </Delphi.Personality>
             <Platforms>
-                <Platform value="iOSDevice">False</Platform>
-                <Platform value="iOSSimulator">False</Platform>
-                <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">False</Platform>
             </Platforms>

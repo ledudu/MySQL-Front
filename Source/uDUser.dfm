@@ -62,17 +62,13 @@ object DUser: TDUser
     Top = 8
     Width = 321
     Height = 241
-    ActivePage = TSSource
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -148,10 +144,6 @@ object DUser: TDUser
     object TSRights: TTabSheet
       Caption = 'TSRights'
       OnShow = TSRightsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -207,10 +199,6 @@ object DUser: TDUser
     end
     object TSLimits: TTabSheet
       Caption = 'TSLimits'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -218,7 +206,7 @@ object DUser: TDUser
         Left = 8
         Top = 8
         Width = 297
-        Height = 145
+        Height = 149
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GLimits'
         TabOrder = 0
@@ -248,7 +236,7 @@ object DUser: TDUser
         end
         object FLUserConnections: TLabel
           Left = 8
-          Top = 115
+          Top = 119
           Width = 93
           Height = 13
           Caption = 'FLUserConnections'
@@ -306,7 +294,7 @@ object DUser: TDUser
         end
         object FUserConnections: TEdit
           Left = 232
-          Top = 112
+          Top = 116
           Width = 41
           Height = 21
           TabOrder = 6
@@ -314,7 +302,7 @@ object DUser: TDUser
         end
         object FUDUserConnections: TUpDown
           Left = 273
-          Top = 112
+          Top = 116
           Width = 15
           Height = 21
           Associate = FUserConnections
@@ -334,6 +322,8 @@ object DUser: TDUser
         Height = 187
         Anchors = [akLeft, akTop, akRight, akBottom]
         LeftMargin.Bookmarks.Visible = False
+        LeftMargin.LineNumbers.Visible = False
+        LeftMargin.LineState.Visible = False
         Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True

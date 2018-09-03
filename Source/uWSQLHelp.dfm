@@ -101,7 +101,7 @@ object WSQLHelp: TWSQLHelp
     end
     object FQuickSearch: TEdit
       Left = 339
-      Top = 0
+      Top = 2
       Width = 136
       Height = 21
       Anchors = [akTop, akRight]
@@ -113,7 +113,7 @@ object WSQLHelp: TWSQLHelp
     end
     object TBQuickSearchEnabled: TToolBar
       Left = 475
-      Top = 0
+      Top = 1
       Width = 23
       Height = 22
       Align = alNone

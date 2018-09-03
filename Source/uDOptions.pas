@@ -7,7 +7,7 @@ uses
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, ExtCtrls, ComCtrls, StdCtrls,
   ExtCtrls_Ext, StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
-  BCEditor,
+  BCEditor, BCEditor.Highlighter,
   uPreferences, uSession,
   uBase;
 
@@ -19,23 +19,32 @@ type
 
   TDOptions = class (TForm_Ext)
     ColorDialog: TColorDialog;
+    FBackground: TCheckBox;
+    FBBackground: TButton;
     FBCancel: TButton;
     FBEditorFont: TButton;
+    FBForeground: TButton;
     FBGridFont: TButton;
     FBHelp: TButton;
     FBLanguage: TButton;
+    FBLogFont: TButton;
     FBOk: TButton;
+    FBold: TCheckBox;
+    FEditorCaretBeyondEOL: TCheckBox;
     FEditorCompletionEnabled: TCheckBox;
     FEditorCompletionTime: TEdit;
     FEditorCurrRowBGColorEnabled: TCheckBox;
     FEditorFont: TEdit;
     FEditorWordWrap: TCheckBox;
+    FForeground: TCheckBox;
     FGridCurrRowBGColorEnabled: TCheckBox;
     FGridFont: TEdit;
     FGridNullText: TCheckBox;
     FGridShowMemoContent: TCheckBox;
+    FItalic: TCheckBox;
     FL2LogSize: TLabel;
     FLanguage: TComboBox_Ext;
+    FLEditorCaretBeyondEOL: TLabel;
     FLEditorCompletion: TLabel;
     FLEditorCompletionTime: TLabel;
     FLEditorCurrRowBGColor: TLabel;
@@ -54,17 +63,25 @@ type
     FLogResult: TCheckBox;
     FLogSize: TEdit;
     FLogTime: TCheckBox;
+    FLQuickAccessVisible: TLabel;
     FLTabsVisible: TLabel;
     FLViewDatas: TLabel;
     FMaxColumnWidth: TEdit;
     FontDialog: TFontDialog;
+    FPreview: TBCEditor;
+    FQuickAccessVisible: TCheckBox;
+    FSizer: TCheckBox;
+    FStyles: TListView;
     FTabsVisible: TCheckBox;
     FUDEditorCompletionTime: TUpDown;
     FUDLogSize: TUpDown;
     FUDMaxColumnWidth: TUpDown;
+    FUnderline: TCheckBox;
+    GColors: TGroupBox_Ext;
     GEditor: TGroupBox_Ext;
     GGrid: TGroupBox_Ext;
     GLog: TGroupBox_Ext;
+    GNavigator: TGroupBox;
     GProgram: TGroupBox_Ext;
     GTabs: TGroupBox_Ext;
     PageControl: TPageControl;
@@ -75,40 +92,56 @@ type
     PGridNullBGColor: TPanel_Ext;
     PGridNullBGColorEnabled: TCheckBox;
     PLogFont: TPanel_Ext;
+    PQuery: TPanel_Ext;
     TSBrowser: TTabSheet;
     TSEditor: TTabSheet;
+    TSHighlighter: TTabSheet;
     TSLog: TTabSheet;
     TSView: TTabSheet;
-    FBLogFont: TButton;
-    GNavigator: TGroupBox;
-    FQuickAccessVisible: TCheckBox;
-    FLQuickAccessVisible: TLabel;
-    FEditorCaretBeyondEOL: TCheckBox;
-    FLEditorCaretBeyondEOL: TLabel;
+    procedure FBackgroundClick(Sender: TObject);
+    procedure FBackgroundKeyPress(Sender: TObject; var Key: Char);
+    procedure FBBackgroundClick(Sender: TObject);
     procedure FBEditorCurrRowBGColorClick(Sender: TObject);
     procedure FBEditorFontClick(Sender: TObject);
+    procedure FBForegroundClick(Sender: TObject);
     procedure FBGridCurrRowBGColorClick(Sender: TObject);
     procedure FBGridFontClick(Sender: TObject);
+    procedure FBGridFontKeyPress(Sender: TObject; var Key: Char);
     procedure FBHelpClick(Sender: TObject);
     procedure FBLanguageClick(Sender: TObject);
     procedure FBLanguageKeyPress(Sender: TObject; var Key: Char);
     procedure FBLogFontClick(Sender: TObject);
+    procedure FBLogFontKeyPress(Sender: TObject; var Key: Char);
+    procedure FBoldClick(Sender: TObject);
+    procedure FBoldKeyPress(Sender: TObject; var Key: Char);
     procedure FEditorFontKeyPress(Sender: TObject; var Key: Char);
+    procedure FForegroundClick(Sender: TObject);
+    procedure FForegroundKeyPress(Sender: TObject; var Key: Char);
     procedure FGridFontKeyPress(Sender: TObject; var Key: Char);
+    procedure FItalicClick(Sender: TObject);
+    procedure FItalicKeyPress(Sender: TObject; var Key: Char);
+    procedure FLanguageChange(Sender: TObject);
     procedure FLogFontKeyPress(Sender: TObject; var Key: Char);
+    procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FStylesSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+    procedure FUnderlineClick(Sender: TObject);
+    procedure FUnderlineKeyPress(Sender: TObject; var Key: Char);
     procedure PEditorCurrRowBGColorClick(Sender: TObject);
     procedure PGridCurrRowBGColorClick(Sender: TObject);
     procedure PGridNullBGColorClick(Sender: TObject);
+    procedure TSHighlighterShow(Sender: TObject);
     procedure TSBrowserResize(Sender: TObject);
     procedure TSEditorResize(Sender: TObject);
-    procedure FBGridFontKeyPress(Sender: TObject; var Key: Char);
     procedure TSLogResize(Sender: TObject);
-    procedure FBLogFontKeyPress(Sender: TObject; var Key: Char);
     procedure TSViewResize(Sender: TObject);
-    procedure FLanguageChange(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
+    LineNumbersElement: TBCEditorHighlighter.TElement;
+    procedure FPreviewRefresh();
+    function StylesElement(const Caption: string): TBCEditorHighlighter.TElement;
     procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
   public
     Languages: array of TIniFileRecord;
@@ -123,6 +156,7 @@ implementation {***************************************************************}
 
 uses
   IniFiles, UITypes, DateUtils, StrUtils,
+  BCEditor.Properties,
   uDeveloper,
   uDLanguage;
 
@@ -140,9 +174,43 @@ begin
   Result := FDOptions;
 end;
 
+{ TDOptions *******************************************************************}
+
 function TDOptions.Execute(): Boolean;
 begin
   Result := ShowModal() = mrOk;
+end;
+
+procedure TDOptions.FBackgroundClick(Sender: TObject);
+begin
+  if (not FBackground.Checked) and Assigned(FStyles.Selected) then
+    StylesElement(FStyles.Selected.Caption).Background := clNone;
+  FPreviewRefresh();
+
+  FBBackground.Enabled := FBackground.Checked;
+end;
+
+procedure TDOptions.FBackgroundKeyPress(Sender: TObject; var Key: Char);
+begin
+  FBackgroundClick(Sender);
+end;
+
+procedure TDOptions.FBBackgroundClick(Sender: TObject);
+var
+  Element: TBCEditorHighlighter.TElement;
+begin
+  if (Assigned(FStyles.Selected)) then
+  begin
+    Element := StylesElement(FStyles.Selected.Caption);
+    if (Element.Background = clNone) then
+      ColorDialog.Color := FPreview.Color
+    else
+      ColorDialog.Color := Element.Background;
+
+    if (ColorDialog.Execute()) then
+      Element.Background := ColorDialog.Color;
+    FPreviewRefresh();
+  end;
 end;
 
 procedure TDOptions.FBEditorCurrRowBGColorClick(Sender: TObject);
@@ -164,6 +232,23 @@ begin
   begin
     FEditorFont.Text := FontDialog.Font.Name;
     PEditorFont.Font := FontDialog.Font;
+  end;
+end;
+
+procedure TDOptions.FBForegroundClick(Sender: TObject);
+var
+  Element: TBCEditorHighlighter.TElement;
+begin
+  if (Assigned(FStyles.Selected)) then
+  begin
+    Element := StylesElement(FStyles.Selected.Caption);
+    if (Element.Foreground = clNone) then
+      ColorDialog.Color := FPreview.Font.Color
+    else
+      ColorDialog.Color := Element.Foreground;
+    if (ColorDialog.Execute()) then
+      Element.Foreground := ColorDialog.Color;
+    FPreviewRefresh();
   end;
 end;
 
@@ -250,14 +335,68 @@ begin
   FBLogFontClick(Sender);
 end;
 
+procedure TDOptions.FBoldClick(Sender: TObject);
+var
+  Element: TBCEditorHighlighter.TElement;
+begin
+  if (Assigned(FStyles.Selected)) then
+  begin
+    Element := StylesElement(FStyles.Selected.Caption);
+    if (FBold.Checked) then
+      Element.Style := Element.Style + [fsBold]
+    else
+      Element.Style := Element.Style - [fsBold];
+    FPreviewRefresh();
+  end;
+end;
+
+procedure TDOptions.FBoldKeyPress(Sender: TObject; var Key: Char);
+begin
+  FBoldClick(Sender);
+end;
+
 procedure TDOptions.FEditorFontKeyPress(Sender: TObject; var Key: Char);
 begin
   FBEditorFontClick(Sender);
 end;
 
+procedure TDOptions.FForegroundClick(Sender: TObject);
+begin
+  if (not FForeground.Checked) and Assigned(FStyles.Selected) then
+    StylesElement(FStyles.Selected.Caption).Foreground := clNone;
+  FPreviewRefresh();
+
+  FBForeground.Enabled := FForeground.Checked;
+end;
+
+procedure TDOptions.FForegroundKeyPress(Sender: TObject; var Key: Char);
+begin
+  FForegroundClick(Sender);
+end;
+
 procedure TDOptions.FGridFontKeyPress(Sender: TObject; var Key: Char);
 begin
   FBGridFontClick(Sender);
+end;
+
+procedure TDOptions.FItalicClick(Sender: TObject);
+var
+  Element: TBCEditorHighlighter.TElement;
+begin
+  if (Assigned(FStyles.Selected)) then
+  begin
+    Element := StylesElement(FStyles.Selected.Caption);
+    if (FItalic.Checked) then
+      Element.Style := Element.Style + [fsItalic]
+    else
+      Element.Style := Element.Style - [fsItalic];
+    FPreviewRefresh();
+  end;
+end;
+
+procedure TDOptions.FItalicKeyPress(Sender: TObject; var Key: Char);
+begin
+  FItalicClick(Sender);
 end;
 
 procedure TDOptions.FLanguageChange(Sender: TObject);
@@ -289,7 +428,21 @@ begin
   FBLogFontClick(Sender);
 end;
 
-{ TDOptions *******************************************************************}
+
+procedure TDOptions.FormCreate(Sender: TObject);
+begin
+  FPreview.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
+  FPreview.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  Preferences.ApplyToBCEditor(FPreview);
+  LineNumbersElement := TBCEditorHighlighter.TElement.Create(FPreview.Highlighter.Colors, '');
+  LineNumbersElement.Foreground := Preferences.Editor.LineNumbersForeground;
+  LineNumbersElement.Background := Preferences.Editor.LineNumbersBackground;
+end;
+
+procedure TDOptions.FormDestroy(Sender: TObject);
+begin
+  LineNumbersElement.Free();
+end;
 
 procedure TDOptions.FormHide(Sender: TObject);
 var
@@ -339,6 +492,38 @@ begin
     Preferences.GridMaxColumnWidth := FUDMaxColumnWidth.Position;
 
     Preferences.GridMemoContent := FGridShowMemoContent.Checked;
+    Preferences.Editor.ConditionalCommentForeground := FPreview.Highlighter.Colors['Conditional'].Foreground;
+    Preferences.Editor.ConditionalCommentBackground := FPreview.Highlighter.Colors['Conditional'].Background;
+    Preferences.Editor.ConditionalCommentStyle := FPreview.Highlighter.Colors['Conditional'].Style;
+    Preferences.Editor.CommentForeground := FPreview.Highlighter.Colors['Comment'].Foreground;
+    Preferences.Editor.CommentBackground := FPreview.Highlighter.Colors['Comment'].Background;
+    Preferences.Editor.CommentStyle := FPreview.Highlighter.Colors['Comment'].Style;
+    Preferences.Editor.DataTypeForeground := FPreview.Highlighter.Colors['Type'].Foreground;
+    Preferences.Editor.DataTypeBackground := FPreview.Highlighter.Colors['Type'].Background;
+    Preferences.Editor.DataTypeStyle := FPreview.Highlighter.Colors['Type'].Style;
+    Preferences.Editor.FunctionForeground := FPreview.Highlighter.Colors['Method'].Foreground;
+    Preferences.Editor.FunctionBackground := FPreview.Highlighter.Colors['Method'].Background;
+    Preferences.Editor.FunctionStyle := FPreview.Highlighter.Colors['Method'].Style;
+    Preferences.Editor.IdentifierForeground := FPreview.Highlighter.Colors['Identifier'].Foreground;
+    Preferences.Editor.IdentifierBackground := FPreview.Highlighter.Colors['Identifier'].Background;
+    Preferences.Editor.IdentifierStyle := FPreview.Highlighter.Colors['Identifier'].Style;
+    Preferences.Editor.KeywordForeground := FPreview.Highlighter.Colors['Keyword'].Foreground;
+    Preferences.Editor.KeywordBackground := FPreview.Highlighter.Colors['Keyword'].Background;
+    Preferences.Editor.KeywordStyle := FPreview.Highlighter.Colors['Keyword'].Style;
+    Preferences.Editor.NumberForeground := FPreview.Highlighter.Colors['Number'].Foreground;
+    Preferences.Editor.NumberBackground := FPreview.Highlighter.Colors['Number'].Background;
+    Preferences.Editor.NumberStyle := FPreview.Highlighter.Colors['Number'].Style;
+    Preferences.Editor.StringForeground := FPreview.Highlighter.Colors['String'].Foreground;
+    Preferences.Editor.StringBackground := FPreview.Highlighter.Colors['String'].Background;
+    Preferences.Editor.StringStyle := FPreview.Highlighter.Colors['String'].Style;
+    Preferences.Editor.SymbolForeground := FPreview.Highlighter.Colors['Symbol'].Foreground;
+    Preferences.Editor.SymbolBackground := FPreview.Highlighter.Colors['Symbol'].Background;
+    Preferences.Editor.SymbolStyle := FPreview.Highlighter.Colors['Symbol'].Style;
+    Preferences.Editor.VariableForeground := FPreview.Highlighter.Colors['Variable'].Foreground;
+    Preferences.Editor.VariableBackground := FPreview.Highlighter.Colors['Variable'].Background;
+    Preferences.Editor.VariableStyle := FPreview.Highlighter.Colors['Variable'].Style;
+    Preferences.Editor.LineNumbersForeground := FPreview.Colors.LineNumbers.Foreground;
+    Preferences.Editor.LineNumbersBackground := FPreview.Colors.LineNumbers.Background;
   end;
 end;
 
@@ -416,8 +601,77 @@ begin
   FLogResult.Checked := Preferences.LogResult;
   FUDLogSize.Position := Preferences.LogSize div 1024;
 
+  FStyles.ItemIndex := 0; FStylesSelectItem(Self, FStyles.Selected, True);
   PageControl.ActivePage := TSView;
   ActiveControl := FLanguage;
+end;
+
+procedure TDOptions.FPreviewRefresh();
+begin
+  if (LineNumbersElement.Foreground = clNone) then
+    FPreview.Colors.LineNumbers.Foreground := clWindowText
+  else
+    FPreview.Colors.LineNumbers.Foreground := LineNumbersElement.Foreground;
+  if (LineNumbersElement.Background = clNone) then
+    FPreview.Colors.LineNumbers.Background := clBtnFace
+  else
+    FPreview.Colors.LineNumbers.Background := LineNumbersElement.Background;
+  FPreview.Invalidate();
+end;
+
+procedure TDOptions.FStylesSelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+var
+  Element: TBCEditorHighlighter.TElement;
+begin
+  if (not Assigned(Item)) then
+    Element := nil
+  else
+    Element := StylesElement(Item.Caption);
+
+  FForeground.Checked := False;
+  FBackground.Checked := False;
+  FBold.Checked := False;
+  FItalic.Checked := False;
+  FUnderline.Checked := False;
+
+  if (Selected and Assigned(Element)) then
+  begin
+    FForeground.Checked := Element.Foreground <> clNone;
+    FBackground.Checked := Element.Background <> clNone;
+    FBold.Checked := fsBold in Element.Style;
+    FItalic.Checked := fsItalic in Element.Style;
+    FUnderline.Checked := fsUnderline in Element.Style;
+  end;
+
+  FForeground.Enabled := Selected;
+  FBackground.Enabled := Selected;
+  FBold.Enabled := Selected and (Item.Caption <> Preferences.LoadStr(526));
+  FItalic.Enabled := Selected and (Item.Caption <> Preferences.LoadStr(526));
+  FUnderline.Enabled := Selected and (Item.Caption <> Preferences.LoadStr(526));
+
+  FBForeground.Enabled := FForeground.Checked;
+  FBBackground.Enabled := FBackground.Checked;
+end;
+
+procedure TDOptions.FUnderlineClick(Sender: TObject);
+var
+  Element: TBCEditorHighlighter.TElement;
+begin
+  if (Assigned(FStyles.Selected)) then
+  begin
+    Element := StylesElement(FStyles.Selected.Caption);
+    if (FUnderline.Checked) then
+      Element.Style := Element.Style + [fsUnderline]
+    else
+      Element.Style := Element.Style - [fsUnderline];
+    FPreviewRefresh();
+  end;
+end;
+
+procedure TDOptions.FUnderlineKeyPress(Sender: TObject; var Key: Char);
+begin
+  FUnderlineClick(Sender);
 end;
 
 procedure TDOptions.PEditorCurrRowBGColorClick(Sender: TObject);
@@ -441,6 +695,23 @@ begin
     PGridNullBGColor.Color := ColorDialog.Color;
 end;
 
+function TDOptions.StylesElement(const Caption: string): TBCEditorHighlighter.TElement;
+begin
+  Result := nil;
+
+  if (Caption = Preferences.LoadStr(461)) then Result := FPreview.Highlighter.Colors['Comment'];
+  if (Caption = Preferences.LoadStr(462)) then Result := FPreview.Highlighter.Colors['String'];
+  if (Caption = Preferences.LoadStr(463)) then Result := FPreview.Highlighter.Colors['Keyword'];
+  if (Caption = Preferences.LoadStr(464)) then Result := FPreview.Highlighter.Colors['Number'];
+  if (Caption = Preferences.LoadStr(465)) then Result := FPreview.Highlighter.Colors['Identifier'];
+  if (Caption = Preferences.LoadStr(466)) then Result := FPreview.Highlighter.Colors['Symbol'];
+  if (Caption = Preferences.LoadStr(467)) then Result := FPreview.Highlighter.Colors['Method'];
+  if (Caption = Preferences.LoadStr(468)) then Result := FPreview.Highlighter.Colors['Type'];
+  if (Caption = Preferences.LoadStr(469)) then Result := FPreview.Highlighter.Colors['Variable'];
+  if (Caption = Preferences.LoadStr(735)) then Result := FPreview.Highlighter.Colors['Conditional'];
+  if (Caption = Preferences.LoadStr(526)) then Result := LineNumbersElement;
+end;
+
 procedure TDOptions.TSBrowserResize(Sender: TObject);
 begin
   FBGridFont.Left := FGridFont.Left + FGridFont.Width;
@@ -453,6 +724,15 @@ begin
   FBEditorFont.Left := FEditorFont.Left + FEditorFont.Width;
   FBEditorFont.Height := FEditorFont.Height;
   FBEditorFont.Width := FBEditorFont.Height;
+end;
+
+procedure TDOptions.TSHighlighterShow(Sender: TObject);
+begin
+  FPreview.Font := PEditorFont.Font;
+
+  FStyles.Selected := FStyles.Items.Item[0];
+  FStyles.ItemFocused := FStyles.Selected;
+  ActiveControl := FStyles;
 end;
 
 procedure TDOptions.TSLogResize(Sender: TObject);
@@ -511,6 +791,30 @@ begin
   FEditorWordWrap.Caption := Preferences.LoadStr(892);
   FLEditorCaretBeyondEOL.Caption := Preferences.LoadStr(494) + ':';
   FEditorCaretBeyondEOL.Caption := Preferences.LoadStr(946);
+  TSHighlighter.Caption := Preferences.LoadStr(528);
+  GColors.Caption := Preferences.LoadStr(474);
+  FStyles.Items.Clear();
+  FStyles.Items.Add().Caption := Preferences.LoadStr(461);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(462);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(463);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(464);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(465);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(466);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(467);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(468);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(469);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(735);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(526);
+  FStyles.SortType := Comctrls.stText;
+  FBold.Caption := Preferences.LoadStr(477);
+  FItalic.Caption := Preferences.LoadStr(478);
+  FUnderline.Caption := Preferences.LoadStr(479);
+  FForeground.Caption := Preferences.LoadStr(475);
+  FForeground.Width := FSizer.Width + Canvas.TextWidth(FForeground.Caption);
+  FBForeground.Left := FForeground.Left + FForeground.Width + 8;
+  FBackground.Caption := Preferences.LoadStr(476);
+  FBackground.Width := FSizer.Width + Canvas.TextWidth(FBackground.Caption);
+  FBBackground.Left := FBackground.Left + FBackground.Width + 8;
 
   TSLog.Caption := Preferences.LoadStr(524);
   GLog.Caption := Preferences.LoadStr(524);

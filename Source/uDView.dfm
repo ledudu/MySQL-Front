@@ -116,6 +116,7 @@ object DView: TDView
           Anchors = [akLeft, akTop, akRight, akBottom]
           LeftMargin.Bookmarks.Visible = False
           LeftMargin.LineNumbers.Visible = False
+          LeftMargin.LineState.Visible = False
           OnChange = FStatementChange
           Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
           PopupMenu = MSource
@@ -307,6 +308,7 @@ object DView: TDView
         Height = 255
         Anchors = [akLeft, akTop, akRight, akBottom]
         LeftMargin.Bookmarks.Visible = False
+        LeftMargin.LineState.Visible = False
         OnChange = FSourceChange
         Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource

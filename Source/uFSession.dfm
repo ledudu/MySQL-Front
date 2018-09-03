@@ -998,7 +998,11 @@ object FSession: TFSession
         Top = 25
         Width = 463
         Height = 32
-        Cursor = crIBeam
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        Font.Style = []
         BackupExtension = '.bak'
         PrintOptions.MarginLeft = 20
         PrintOptions.MarginTop = 15
@@ -1012,35 +1016,13 @@ object FSession: TFSession
         PrintFont.Style = []
         Align = alClient
         BorderStyle = bsNone
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Courier New'
-        Font.Style = []
         OnEnter = FHexEditorEnter
         OnKeyPress = FHexEditorKeyPress
-        ParentFont = False
         PopupMenu = MText
         TabOrder = 2
-        BytesPerRow = 16
-        BytesPerColumn = 1
-        Translation = tkAsIs
         OffsetFormat = '-!10:|'
-        Colors.Background = clWindow
-        Colors.ChangedBackground = 11075583
-        Colors.ChangedText = clMaroon
-        Colors.CursorFrame = clNavy
-        Colors.Offset = clBlack
-        Colors.OddColumn = clWindowText
         Colors.EvenColumn = clWindowText
-        Colors.CurrentOffsetBackground = clBtnShadow
-        Colors.OffsetBackground = clBtnFace
-        Colors.CurrentOffset = clBtnHighlight
-        Colors.Grid = clBtnFace
-        Colors.NonFocusCursorFrame = clAqua
-        Colors.ActiveFieldBackground = clWindow
-        FocusFrame = True
-        DrawGridLines = False
+        Colors.OddColumn = clWindowText
         GraySelectionIfNotFocused = True
         OnChange = FHexEditorChange
         BytesPerBlock = 8
@@ -1203,7 +1185,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 32752
+      Left = 40682
       Top = 0
       Width = 140
       Height = 22
@@ -1215,9 +1197,10 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
+      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 32752
+      Left = 40667
       Top = 0
       Width = 23
       Height = 22
@@ -1226,6 +1209,7 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
+      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0

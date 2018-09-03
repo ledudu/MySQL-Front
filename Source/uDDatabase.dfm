@@ -81,10 +81,6 @@ object DDatabase: TDDatabase
     TabOrder = 3
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -159,10 +155,6 @@ object DDatabase: TDDatabase
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -258,10 +250,6 @@ object DDatabase: TDDatabase
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -377,7 +365,8 @@ object DDatabase: TDDatabase
         Height = 270
         Anchors = [akLeft, akTop, akRight, akBottom]
         LeftMargin.Bookmarks.Visible = False
-        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+        LeftMargin.LineNumbers.Visible = False
+        LeftMargin.LineState.Visible = False
         PopupMenu = MSource
         ReadOnly = True
         TabOrder = 0

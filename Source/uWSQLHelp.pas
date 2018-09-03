@@ -174,7 +174,7 @@ procedure TWSQLHelp.CreateParams(var Params: TCreateParams);
 begin
   inherited;
 
-  Params.ExStyle   := Params.ExStyle or WS_EX_APPWINDOW;
+  Params.ExStyle := Params.ExStyle or WS_EX_APPWINDOW;
 end;
 
 function TWSQLHelp.Execute(): Boolean;

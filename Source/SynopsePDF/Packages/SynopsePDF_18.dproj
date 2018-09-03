@@ -2,7 +2,7 @@
     <PropertyGroup>
         <ProjectGuid>{39126B1C-4A7C-41E2-8E2C-8B863333D738}</ProjectGuid>
         <MainSource>SynopsePDF_18.dpk</MainSource>
-        <ProjectVersion>14.6</ProjectVersion>
+        <ProjectVersion>15.4</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Config Condition="'$(Config)'==''">Base</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -16,6 +16,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>SynopsePDF_18</SanitizedProjectName>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
@@ -28,7 +29,7 @@
         <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
         <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
         <DCC_IOChecking>false</DCC_IOChecking>
-        <DCC_DebugInformation>false</DCC_DebugInformation>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
     </PropertyGroup>
@@ -99,9 +100,6 @@
                 </VersionInfoKeys>
             </Delphi.Personality>
             <Platforms>
-                <Platform value="iOSDevice">False</Platform>
-                <Platform value="iOSSimulator">False</Platform>
-                <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">False</Platform>
             </Platforms>

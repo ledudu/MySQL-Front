@@ -2,7 +2,7 @@
     <PropertyGroup>
         <ProjectGuid>{DFDE3C1C-EFE8-4220-AE9B-0106BEB4B3AE}</ProjectGuid>
         <MainSource>VCL_Ext_18.dpk</MainSource>
-        <ProjectVersion>14.6</ProjectVersion>
+        <ProjectVersion>15.4</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Config Condition="'$(Config)'==''">Base</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -26,6 +26,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>VCL_Ext_18</SanitizedProjectName>
         <DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
@@ -103,7 +104,6 @@
                 </Source>
             </Delphi.Personality>
             <Platforms>
-                <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">False</Platform>
             </Platforms>

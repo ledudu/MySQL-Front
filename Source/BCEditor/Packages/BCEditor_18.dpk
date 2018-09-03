@@ -1,7 +1,6 @@
 package BCEditor_18;
 
 {$R '..\Resource\BCEditor.Designtime.dcr'}
-{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -23,36 +22,28 @@ package BCEditor_18;
 {$WRITEABLECONST ON}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'BCEditor components'}
-{$IMPLICITBUILD ON}
 
 requires
   designide,
   rtl,
   vcl,
   dbrtl,
-  vcldb;
+  vcldb,
+  DbxCommonDriver;
 
 contains
+  BCEditor in '..\Source\BCEditor.pas',
   BCEditor.Consts in '..\Source\BCEditor.Consts.pas',
-  BCEditor.Editor in '..\Source\BCEditor.Editor.pas',
-  BCEditor.Editor.CodeFolding in '..\Source\BCEditor.Editor.CodeFolding.pas',
+  BCEditor.Commands in '..\Source\BCEditor.Commands.pas',
   BCEditor.CompletionProposal in '..\Source\BCEditor.CompletionProposal.pas',
-  BCEditor.Editor.KeyCommands in '..\Source\BCEditor.Editor.KeyCommands.pas',
-  BCEditor.Properties in '..\Source\BCEditor.Properties.pas',
-  BCEditor.Export.HTML in '..\Source\BCEditor.Export.HTML.pas',
+  BCEditor.ExportHTML in '..\Source\BCEditor.ExportHTML.pas',
   BCEditor.Highlighter in '..\Source\BCEditor.Highlighter.pas',
-  BCEditor.KeyboardHandler in '..\Source\BCEditor.KeyboardHandler.pas',
-  BCEditor.Language in '..\Source\BCEditor.Language.pas',
+  BCEditor.GotoLine in '..\Source\BCEditor.GotoLine.pas',
   BCEditor.Lines in '..\Source\BCEditor.Lines.pas',
-  BCEditor.MacroRecorder in '..\Source\BCEditor.MacroRecorder.pas',
-  BCEditor.Print in '..\Source\BCEditor.Print.pas',
-  BCEditor.Print.Preview in '..\Source\BCEditor.Print.Preview.pas',
-  BCEditor.PaintHelper in '..\Source\BCEditor.PaintHelper.pas',
-  BCEditor.Types in '..\Source\BCEditor.Types.pas',
-  BCEditor.Utils in '..\Source\BCEditor.Utils.pas',
-  JsonDataObjects in '..\Source\JsonDataObjects.pas';
+  BCEditor.Locale in '..\Source\BCEditor.Locale.pas',
+  BCEditor.Properties in '..\Source\BCEditor.Properties.pas',
+  BCEditor.Types in '..\Source\BCEditor.Types.pas';
 
 end.
 

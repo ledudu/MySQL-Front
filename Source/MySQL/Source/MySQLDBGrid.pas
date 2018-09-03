@@ -1809,7 +1809,6 @@ begin
           if (GetKeyState(VK_SHIFT) < 0) then Shift := Shift + [ssShift];
           if (GetKeyState(VK_CONTROL) < 0) then Shift := Shift + [ssCtrl];
           if (GetKeyState(VK_MENU) < 0) then Shift := Shift + [ssAlt];
-          FHeaderSplitButton(Self, Columns[LeftCol + HDNotify^.Item], Shift);
         end;
       HDN_OVERFLOWCLICK:
         if (Assigned(FOnOverflow)) then

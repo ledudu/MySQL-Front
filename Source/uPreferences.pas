@@ -98,8 +98,30 @@ type
       CaretBeyondEOL: Boolean;
       CodeCompletion: Boolean;
       CodeCompletionTime: Integer;
+      ConditionalCommentForeground, ConditionalCommentBackground: TColor;
+      ConditionalCommentStyle: TFontStyles;
+      CommentForeground, CommentBackground: TColor;
+      CommentStyle: TFontStyles;
       CurrRowBGColorEnabled: Boolean;
       CurrRowBGColor: TColor;
+      DataTypeForeground, DataTypeBackground: TColor;
+      DataTypeStyle: TFontStyles;
+      FunctionForeground, FunctionBackground: TColor;
+      FunctionStyle: TFontStyles;
+      IdentifierForeground, IdentifierBackground: TColor;
+      IdentifierStyle: TFontStyles;
+      KeywordForeground, KeywordBackground: TColor;
+      KeywordStyle: TFontStyles;
+      NumberForeground, NumberBackground: TColor;
+      NumberStyle: TFontStyles;
+      LineNumbersForeground, LineNumbersBackground: TColor;
+      LineNumbersStyle: TFontStyles;
+      StringForeground, StringBackground: TColor;
+      StringStyle: TFontStyles;
+      SymbolForeground, SymbolBackground: TColor;
+      SymbolStyle: TFontStyles;
+      VariableForeground, VariableBackground: TColor;
+      VariableStyle: TFontStyles;
       WordWrap: Boolean;
       constructor Create(); virtual;
     end;
@@ -685,7 +707,7 @@ uses
   {$IFDEF EurekaLog}
   EAppCrossModule,
   {$ENDIF}
-  BCEditor.Types,
+  BCEditor.Types, BCEditor.Properties,
   MySQLConsts, CSVUtils,
   uURI, uDeveloper;
 
@@ -1345,8 +1367,18 @@ begin
   CaretBeyondEOL := False;
   CodeCompletion := False;
   CodeCompletionTime := 1000;
+  ConditionalCommentForeground := clTeal; ConditionalCommentBackground := clNone; ConditionalCommentStyle := [];
+  CommentForeground := clGreen; CommentBackground := clNone; CommentStyle := [fsItalic];
   CurrRowBGColorEnabled := True; CurrRowBGColor := $C0FFFF;
-  WordWrap := False;
+  DataTypeForeground := clMaroon; DataTypeBackground := clNone; DataTypeStyle := [fsBold];
+  FunctionForeground := clNavy; FunctionBackground := clNone; FunctionStyle := [fsBold];
+  IdentifierForeground := clNone; IdentifierBackground := clNone; IdentifierStyle := [];
+  KeywordForeground := clNavy; KeywordBackground := clNone; KeywordStyle := [fsBold];
+  LineNumbersForeground := $9999CC; LineNumbersBackground := $F4F4F4; LineNumbersStyle := [];
+  NumberForeground := clBlue; NumberBackground := clNone; NumberStyle := [];
+  StringForeground := clBlue; StringBackground := clNone; StringStyle := [];
+  SymbolForeground := clNone; SymbolBackground := clNone; SymbolStyle := [];
+  VariableForeground := clGreen; VariableBackground := clNone; VariableStyle := [];
 end;
 
 procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
@@ -1888,10 +1920,11 @@ end;
 procedure TPPreferences.ApplyToBCEditor(const BCEditor: TBCEditor);
 begin
   if (Editor.CurrRowBGColorEnabled) then
-    BCEditor.Options := BCEditor.Options + [eoHighlightCurrentLine]
+    BCEditor.Options := BCEditor.Options + [eoHighlightActiveLine]
   else
-    BCEditor.Options := BCEditor.Options - [eoHighlightCurrentLine];
-  BCEditor.Colors.CurrentLine.Background := Editor.CurrRowBGColor;
+    BCEditor.Options := BCEditor.Options - [eoHighlightActiveLine];
+  BCEditor.SyncEditOptions := BCEditor.SyncEditOptions - [seoShowButton];
+  BCEditor.Colors.ActiveLine.Background := Editor.CurrRowBGColor;
   BCEditor.Font.Name := SQLFontName;
   BCEditor.Font.Charset := SQLFontCharset;
   BCEditor.Font.Color := SQLFontColor;
@@ -1900,6 +1933,38 @@ begin
     BCEditor.Options := BCEditor.Options + [eoBeyondEndOfFile, eoBeyondEndOfLine]
   else
     BCEditor.Options := BCEditor.Options - [eoBeyondEndOfFile, eoBeyondEndOfLine];
+  BCEditor.Highlighter.Colors['Conditional'].Foreground := Preferences.Editor.ConditionalCommentForeground;
+  BCEditor.Highlighter.Colors['Conditional'].Background := Preferences.Editor.ConditionalCommentBackground;
+  BCEditor.Highlighter.Colors['Conditional'].Style := Preferences.Editor.ConditionalCommentStyle;
+  BCEditor.Highlighter.Colors['Comment'].Foreground := Preferences.Editor.CommentForeground;
+  BCEditor.Highlighter.Colors['Comment'].Background := Preferences.Editor.CommentBackground;
+  BCEditor.Highlighter.Colors['Comment'].Style := Preferences.Editor.CommentStyle;
+  BCEditor.Highlighter.Colors['Type'].Foreground := Preferences.Editor.DataTypeForeground;
+  BCEditor.Highlighter.Colors['Type'].Background := Preferences.Editor.DataTypeBackground;
+  BCEditor.Highlighter.Colors['Type'].Style := Preferences.Editor.DataTypeStyle;
+  BCEditor.Highlighter.Colors['Method'].Foreground := Preferences.Editor.FunctionForeground;
+  BCEditor.Highlighter.Colors['Method'].Background := Preferences.Editor.FunctionBackground;
+  BCEditor.Highlighter.Colors['Method'].Style := Preferences.Editor.FunctionStyle;
+  BCEditor.Highlighter.Colors['Identifier'].Foreground := Preferences.Editor.IdentifierForeground;
+  BCEditor.Highlighter.Colors['Identifier'].Background := Preferences.Editor.IdentifierBackground;
+  BCEditor.Highlighter.Colors['Identifier'].Style := Preferences.Editor.IdentifierStyle;
+  BCEditor.Highlighter.Colors['Keyword'].Foreground := Preferences.Editor.KeywordForeground;
+  BCEditor.Highlighter.Colors['Keyword'].Background := Preferences.Editor.KeywordBackground;
+  BCEditor.Highlighter.Colors['Keyword'].Style := Preferences.Editor.KeywordStyle;
+  BCEditor.Highlighter.Colors['Number'].Foreground := Preferences.Editor.NumberForeground;
+  BCEditor.Highlighter.Colors['Number'].Background := Preferences.Editor.NumberBackground;
+  BCEditor.Highlighter.Colors['Number'].Style := Preferences.Editor.NumberStyle;
+  BCEditor.Highlighter.Colors['String'].Foreground := Preferences.Editor.StringForeground;
+  BCEditor.Highlighter.Colors['String'].Background := Preferences.Editor.StringBackground;
+  BCEditor.Highlighter.Colors['String'].Style := Preferences.Editor.StringStyle;
+  BCEditor.Highlighter.Colors['Symbol'].Foreground := Preferences.Editor.SymbolForeground;
+  BCEditor.Highlighter.Colors['Symbol'].Background := Preferences.Editor.SymbolBackground;
+  BCEditor.Highlighter.Colors['Symbol'].Style := Preferences.Editor.SymbolStyle;
+  BCEditor.Highlighter.Colors['Variable'].Foreground := Preferences.Editor.VariableForeground;
+  BCEditor.Highlighter.Colors['Variable'].Background := Preferences.Editor.VariableBackground;
+  BCEditor.Highlighter.Colors['Variable'].Style := Preferences.Editor.VariableStyle;
+  BCEditor.Colors.LineNumbers.Foreground := Preferences.Editor.LineNumbersForeground;
+  BCEditor.Colors.LineNumbers.Background := Preferences.Editor.LineNumbersBackground;
 end;
 
 constructor TPPreferences.Create();
@@ -2186,7 +2251,7 @@ end;
 
 function TPPreferences.GetFilename(): TFileName;
 begin
-  Result := UserPath + TPath.DirectorySeparatorChar + 'Desktop.xml';
+  Result := UserPath + 'Desktop.xml';
 end;
 
 function TPPreferences.GetLanguage(): TLanguage;
@@ -2393,6 +2458,39 @@ begin
   if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
   if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
   if (Assigned(XMLNode(XML, 'sql/font/size'))) then TryStrToInt(XMLNode(XML, 'sql/font/size').Text, SQLFontSize);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/comment/color'))) then Editor.CommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/comment/background/color'))) then Editor.CommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/comment/style'))) then Editor.CommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/comment/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/color'))) then Editor.ConditionalCommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/conditional/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/background/color'))) then Editor.ConditionalCommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/conditional/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/style'))) then Editor.ConditionalCommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/conditional/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/color'))) then Editor.DataTypeForeground := StringToColor(XMLNode(XML, 'sql/highlighting/datatype/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/background/color'))) then Editor.DataTypeBackground := StringToColor(XMLNode(XML, 'sql/highlighting/datatype/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/style'))) then Editor.DataTypeStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/datatype/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/function/color'))) then Editor.FunctionForeground := StringToColor(XMLNode(XML, 'sql/highlighting/function/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/function/background/color'))) then Editor.FunctionBackground := StringToColor(XMLNode(XML, 'sql/highlighting/function/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/function/style'))) then Editor.FunctionStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/function/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/color'))) then Editor.IdentifierForeground := StringToColor(XMLNode(XML, 'sql/highlighting/identifier/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/background/color'))) then Editor.IdentifierBackground := StringToColor(XMLNode(XML, 'sql/highlighting/identifier/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/style'))) then Editor.IdentifierStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/identifier/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/color'))) then Editor.KeywordForeground := StringToColor(XMLNode(XML, 'sql/highlighting/keyword/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/background/color'))) then Editor.KeywordBackground := StringToColor(XMLNode(XML, 'sql/highlighting/keyword/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/style'))) then Editor.KeywordStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/keyword/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/color'))) then Editor.LineNumbersForeground := StringToColor(XMLNode(XML, 'sql/highlighting/linenumbers/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/background/color'))) then Editor.LineNumbersBackground := StringToColor(XMLNode(XML, 'sql/highlighting/linenumbers/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/style'))) then Editor.LineNumbersStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/linenumbers/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/number/color'))) then Editor.NumberForeground := StringToColor(XMLNode(XML, 'sql/highlighting/number/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/number/background/color'))) then Editor.NumberBackground := StringToColor(XMLNode(XML, 'sql/highlighting/number/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/number/style'))) then Editor.NumberStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/number/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/string/color'))) then Editor.StringForeground := StringToColor(XMLNode(XML, 'sql/highlighting/string/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/string/background/color'))) then Editor.StringBackground := StringToColor(XMLNode(XML, 'sql/highlighting/string/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/string/style'))) then Editor.StringStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/string/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/color'))) then Editor.SymbolForeground := StringToColor(XMLNode(XML, 'sql/highlighting/symbol/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/background/color'))) then Editor.SymbolBackground := StringToColor(XMLNode(XML, 'sql/highlighting/symbol/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/style'))) then Editor.SymbolStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/symbol/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/variable/color'))) then Editor.VariableForeground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/variable/background/color'))) then Editor.VariableBackground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/variable/style'))) then Editor.VariableStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/variable/style').Text);
   if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['visible'], TabsVisible);
   if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjects] else ToolbarTabs := ToolbarTabs - [ttObjects];
@@ -2573,6 +2671,39 @@ begin
   XMLNode(XML, 'sql/font/color').Text := ColorToString(SQLFontColor);
   XMLNode(XML, 'sql/font/name').Text := SQLFontName;
   XMLNode(XML, 'sql/font/size').Text := IntToStr(SQLFontSize);
+  XMLNode(XML, 'sql/highlighting/comment/color').Text := ColorToString(Editor.CommentForeground);
+  XMLNode(XML, 'sql/highlighting/comment/background/color').Text := ColorToString(Editor.CommentBackground);
+  XMLNode(XML, 'sql/highlighting/comment/style').Text := StyleToStr(Editor.CommentStyle);
+  XMLNode(XML, 'sql/highlighting/conditional/color').Text := ColorToString(Editor.ConditionalCommentForeground);
+  XMLNode(XML, 'sql/highlighting/conditional/background/color').Text := ColorToString(Editor.ConditionalCommentBackground);
+  XMLNode(XML, 'sql/highlighting/conditional/style').Text := StyleToStr(Editor.ConditionalCommentStyle);
+  XMLNode(XML, 'sql/highlighting/datatype/color').Text := ColorToString(Editor.DataTypeForeground);
+  XMLNode(XML, 'sql/highlighting/datatype/background/color').Text := ColorToString(Editor.DataTypeBackground);
+  XMLNode(XML, 'sql/highlighting/datatype/style').Text := StyleToStr(Editor.DataTypeStyle);
+  XMLNode(XML, 'sql/highlighting/function/color').Text := ColorToString(Editor.FunctionForeground);
+  XMLNode(XML, 'sql/highlighting/function/background/color').Text := ColorToString(Editor.FunctionBackground);
+  XMLNode(XML, 'sql/highlighting/function/style').Text := StyleToStr(Editor.FunctionStyle);
+  XMLNode(XML, 'sql/highlighting/identifier/color').Text := ColorToString(Editor.IdentifierForeground);
+  XMLNode(XML, 'sql/highlighting/identifier/background/color').Text := ColorToString(Editor.IdentifierBackground);
+  XMLNode(XML, 'sql/highlighting/identifier/style').Text := StyleToStr(Editor.IdentifierStyle);
+  XMLNode(XML, 'sql/highlighting/keyword/color').Text := ColorToString(Editor.KeywordForeground);
+  XMLNode(XML, 'sql/highlighting/keyword/background/color').Text := ColorToString(Editor.KeywordBackground);
+  XMLNode(XML, 'sql/highlighting/keyword/style').Text := StyleToStr(Editor.KeywordStyle);
+  XMLNode(XML, 'sql/highlighting/linenumbers/color').Text := ColorToString(Editor.LineNumbersForeground);
+  XMLNode(XML, 'sql/highlighting/linenumbers/background/color').Text := ColorToString(Editor.LineNumbersBackground);
+  XMLNode(XML, 'sql/highlighting/linenumbers/style').Text := StyleToStr(Editor.LineNumbersStyle);
+  XMLNode(XML, 'sql/highlighting/number/color').Text := ColorToString(Editor.NumberForeground);
+  XMLNode(XML, 'sql/highlighting/number/background/color').Text := ColorToString(Editor.NumberBackground);
+  XMLNode(XML, 'sql/highlighting/number/style').Text := StyleToStr(Editor.NumberStyle);
+  XMLNode(XML, 'sql/highlighting/string/color').Text := ColorToString(Editor.StringForeground);
+  XMLNode(XML, 'sql/highlighting/string/background/color').Text := ColorToString(Editor.StringBackground);
+  XMLNode(XML, 'sql/highlighting/string/style').Text := StyleToStr(Editor.StringStyle);
+  XMLNode(XML, 'sql/highlighting/symbol/color').Text := ColorToString(Editor.SymbolForeground);
+  XMLNode(XML, 'sql/highlighting/symbol/background/color').Text := ColorToString(Editor.SymbolBackground);
+  XMLNode(XML, 'sql/highlighting/symbol/style').Text := StyleToStr(Editor.SymbolStyle);
+  XMLNode(XML, 'sql/highlighting/variable/color').Text := ColorToString(Editor.VariableForeground);
+  XMLNode(XML, 'sql/highlighting/variable/background/color').Text := ColorToString(Editor.VariableBackground);
+  XMLNode(XML, 'sql/highlighting/variable/style').Text := StyleToStr(Editor.VariableStyle);
   XMLNode(XML, 'tabs').Attributes['visible'] := TabsVisible;
   XMLNode(XML, 'toolbar/objects').Attributes['visible'] := ttObjects in ToolbarTabs;
   XMLNode(XML, 'toolbar/browser').Attributes['visible'] := ttBrowser in ToolbarTabs;

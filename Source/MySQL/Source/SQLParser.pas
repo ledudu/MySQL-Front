@@ -1552,13 +1552,16 @@ type
     type
       TCompletionList = class
       public type
+        TItemType = (itTag, itKeyword, itConst, itFunction, itList);
         PItem = ^TItem;
         TItem = record
-          case ItemType: (itTag, itText, itList) of
+          case ItemType: TItemType of
             itTag: ( // for protected use only
               KeywordIndices: TWordList.TIndices;
             );
-            itText: (
+            itKeyword,
+            itConst,
+            itFunction: (
               Text: array [0 .. 256] of Char;
             );
             itList: (
@@ -1584,7 +1587,7 @@ type
           const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
           const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
           const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1);
-        procedure AddText(const Text: string);
+        procedure AddText(const Text: string; const ItemType: TItemType);
         procedure Clear();
       public
         procedure Cleanup();
@@ -6514,6 +6517,7 @@ type
     kiPARTITIONING,
     kiPARTITIONS,
     kiPASSWORD,
+    kiPERSIST,
     kiPERSISTENT,
     kiPHASE,
     kiPLUGIN,
@@ -7366,7 +7370,7 @@ const
     'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,ONLINE,ERROR,' +
     'SLOW,RELAY,GENERAL,SQL_TSI_MICROSECOND,SQL_TSI_SECOND,SQL_TSI_MINUTE,' +
     'SQL_TSI_HOUR,SQL_TSI_DAY,SQL_TSI_WEEK,SQL_TSI_MONTH,SQL_TSI_QUARTER,' +
-    'SQL_TSI_YEAR,INSTALL,UNINSTALL,PLUGIN,' +
+    'SQL_TSI_YEAR,INSTALL,UNINSTALL,PLUGIN,PERSIST,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -8075,7 +8079,7 @@ end;
 
 procedure TSQLParser.TCompletionList.AddConst(const Text: string);
 begin
-  AddText(Text);
+  AddText(Text, itConst);
 end;
 
 procedure TSQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
@@ -8126,7 +8130,7 @@ begin
   Item^.KeywordIndices[6] := KeywordIndex7;
 end;
 
-procedure TSQLParser.TCompletionList.AddText(const Text: string);
+procedure TSQLParser.TCompletionList.AddText(const Text: string; const ItemType: TItemType);
 var
   Item: PItem;
 begin
@@ -8138,7 +8142,7 @@ begin
     Inc(FCount);
 
     FillChar(Item^, SizeOf(Item^), 0);
-    Item^.ItemType := itText;
+    Item^.ItemType := ItemType;
     StrPLCopy(@Item^.Text[0], Text, Length(Item^.Text) - 1);
   end;
 end;
@@ -8174,7 +8178,7 @@ begin
           end;
 
         FillChar(Item^, SizeOf(Item^), 0);
-        Item^.ItemType := itText;
+        Item^.ItemType := itKeyword;
         StrCopy(PChar(@Item^.Text[0]), PChar(@Tag[0]));
       end;
 end;
@@ -14751,28 +14755,34 @@ function TSQLParser.IsNextTag(const Index: Integer; const KeywordIndex1: TWordLi
   const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
   const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): Boolean;
 begin
-  Result := False;
-  if (EndOfStmt(NextToken[Index]) or (TokenPtr(NextToken[Index])^.KeywordIndex <> KeywordIndex1)) then
-  else if (KeywordIndex2 < 0) then
-    Result := True
-  else if (EndOfStmt(NextToken[Index + 1]) or (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> KeywordIndex2)) then
-  else if (KeywordIndex3 < 0) then
-    Result := True
-  else if (EndOfStmt(NextToken[Index + 2]) or (TokenPtr(NextToken[Index + 2])^.KeywordIndex <> KeywordIndex3)) then
-  else if (KeywordIndex4 < 0) then
-    Result := True
-  else if (EndOfStmt(NextToken[Index + 3]) or (TokenPtr(NextToken[Index + 3])^.KeywordIndex <> KeywordIndex4)) then
-  else if (KeywordIndex5 < 0) then
-    Result := True
-  else if (EndOfStmt(NextToken[Index + 4]) or (TokenPtr(NextToken[Index + 4])^.KeywordIndex <> KeywordIndex5)) then
-  else if (KeywordIndex6 < 0) then
-    Result := True
-  else if (EndOfStmt(NextToken[Index + 5]) or (TokenPtr(NextToken[Index + 5])^.KeywordIndex <> KeywordIndex6)) then
-  else if (KeywordIndex7 < 0) then
-    Result := True
-  else if (EndOfStmt(NextToken[Index + 6]) or (TokenPtr(NextToken[Index + 6])^.KeywordIndex <> KeywordIndex7)) then
+  if (Index = 0) then
+    Result := IsTag(KeywordIndex1, KeywordIndex2, KeywordIndex3, KeywordIndex4,
+      KeywordIndex5, KeywordIndex6, KeywordIndex7)
   else
-    Result := True;
+  begin
+    Result := False;
+    if (EndOfStmt(NextToken[Index]) or (TokenPtr(NextToken[Index])^.KeywordIndex <> KeywordIndex1)) then
+    else if (KeywordIndex2 < 0) then
+      Result := True
+    else if (EndOfStmt(NextToken[Index + 1]) or (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> KeywordIndex2)) then
+    else if (KeywordIndex3 < 0) then
+      Result := True
+    else if (EndOfStmt(NextToken[Index + 2]) or (TokenPtr(NextToken[Index + 2])^.KeywordIndex <> KeywordIndex3)) then
+    else if (KeywordIndex4 < 0) then
+      Result := True
+    else if (EndOfStmt(NextToken[Index + 3]) or (TokenPtr(NextToken[Index + 3])^.KeywordIndex <> KeywordIndex4)) then
+    else if (KeywordIndex5 < 0) then
+      Result := True
+    else if (EndOfStmt(NextToken[Index + 4]) or (TokenPtr(NextToken[Index + 4])^.KeywordIndex <> KeywordIndex5)) then
+    else if (KeywordIndex6 < 0) then
+      Result := True
+    else if (EndOfStmt(NextToken[Index + 5]) or (TokenPtr(NextToken[Index + 5])^.KeywordIndex <> KeywordIndex6)) then
+    else if (KeywordIndex7 < 0) then
+      Result := True
+    else if (EndOfStmt(NextToken[Index + 6]) or (TokenPtr(NextToken[Index + 6])^.KeywordIndex <> KeywordIndex7)) then
+    else
+      Result := True;
+  end;
 end;
 
 function TSQLParser.IsStmt(const Node: PNode): Boolean;
@@ -17560,7 +17570,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.Ident := ParseFieldIdent();
+  Nodes.Ident := ParseDbIdent(ditField, False);
 
   if (not ErrorFound) then
     Nodes.Datatype := ParseDatatype(DatatypeIndex);
@@ -17768,7 +17778,7 @@ begin
 
   if (not ErrorFound) then
     if (not IsSymbol(ttOpenBracket)) then
-      Nodes.NameIdent := ParseForeignKeyIdent();
+      Nodes.NameIdent := ParseDbIdent(ditForeignKey, False);
 
   if (not ErrorFound) then
     Nodes.ColumnNameList := ParseList(True, ParseFieldIdent);
@@ -17827,7 +17837,7 @@ begin
 
   if (not ErrorFound and KeyName) then
     if (not IsTag(kiUSING) and not IsSymbol(ttOpenBracket)) then
-      Nodes.KeyIdent := ParseKeyIdent();
+      Nodes.KeyIdent := ParseDbIdent(ditKey, False);
 
   if (not ErrorFound and KeyType) then
     if (IsTag(kiUSING, kiBTREE)) then
@@ -18654,31 +18664,32 @@ begin
   else
     Nodes.Ident := ParseDbIdentToken(False);
 
-  case (ADbIdentType) of
-    ditDatabase:
-      CompletionList.AddList(ditDatabase);
-    ditTable,
-    ditProcedure,
-    ditFunction,
-    ditTrigger,
-    ditEvent:
-      begin
-        CompletionList.AddList(ditDatabase);
-        CompletionList.AddList(ADbIdentType);
+    if (FullQualified) then
+      case (ADbIdentType) of
+        ditDatabase:
+          CompletionList.AddList(ditDatabase);
+        ditTable,
+        ditProcedure,
+        ditFunction,
+        ditTrigger,
+        ditEvent:
+          begin
+            CompletionList.AddList(ditDatabase);
+            CompletionList.AddList(ADbIdentType);
+          end;
+        ditKey,
+        ditField,
+        ditForeignKey:
+          begin
+            CompletionList.AddList(ditDatabase);
+            CompletionList.AddList(ditTable);
+            CompletionList.AddList(ADbIdentType);
+          end;
+        ditEngine,
+        ditCharset,
+        ditCollation:
+          CompletionList.AddList(ADbIdentType);
       end;
-    ditKey,
-    ditField,
-    ditForeignKey:
-      begin
-        CompletionList.AddList(ditDatabase);
-        CompletionList.AddList(ditTable);
-        CompletionList.AddList(ADbIdentType);
-      end;
-    ditEngine,
-    ditCharset,
-    ditCollation:
-      CompletionList.AddList(ADbIdentType);
-  end;
 
   if (not ErrorFound
     and FullQualified
@@ -18765,6 +18776,9 @@ begin
 
   if (Parse.InCreateTriggerStmt and (Nodes.DatabaseIdent = 0) and IsToken(Nodes.TableIdent) and ((TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiNEW) or (TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiOLD))) then
     PDbIdent(NodePtr(Result))^.FDbTableType := ditTriggerRec;
+
+  if (not ErrorFound) then
+    CompletionList.Clear();
 end;
 
 function TSQLParser.ParseDefinerValue(): TOffset;
@@ -19507,7 +19521,7 @@ var
       for I := 0 to ConstantList.Count - 1 do
         CompletionList.AddConst(ConstantList[I]);
       for I := 0 to FunctionList.Count - 1 do
-        CompletionList.AddText(FunctionList[I]);
+        CompletionList.AddText(FunctionList[I], itFunction);
       CompletionList.AddList(ditDatabase);
       CompletionList.AddList(ditFunction);
       CompletionList.AddList(ditTable);
@@ -21090,12 +21104,12 @@ begin
         if (DelimiterFound) then
           Children.Add(ParseSymbol(DelimiterType));
       end;
-    until ((CurrentToken = 0)
-      or ErrorFound and not RootStmtList
+    until (ErrorFound and not RootStmtList
       or (DelimiterType <> ttUnknown) and not DelimiterFound
       or (DelimiterType <> ttSemicolon) and (ErrorFound or (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttSemicolon))
       or (DelimiterType = ttSemicolon)
         and InPL_SQL
+        and (CurrentToken <> 0)
         and ((TokenPtr(CurrentToken)^.KeywordIndex = kiELSE)
           or (TokenPtr(CurrentToken)^.KeywordIndex = kiELSEIF)
           or (TokenPtr(CurrentToken)^.KeywordIndex = kiEND)
@@ -22981,10 +22995,24 @@ begin
     if (IsTag(kiGLOBAL)) then
       Nodes.ScopeTag := ParseTag(kiGLOBAL)
     else if (IsTag(kiSESSION)) then
-      Nodes.ScopeTag := ParseTag(kiSESSION);
+      Nodes.ScopeTag := ParseTag(kiSESSION)
+    else if (IsTag(kiPERSIST)) then
+      Nodes.ScopeTag := ParseTag(kiPERSIST);
 
   if (not ErrorFound) then
-    Nodes.AssignmentList := ParseList(False, ParseSetStmtAssignment);
+  begin
+    Nodes.AssignmentList := ParseList(False, ParseSetStmtAssignment, ttComma, False);
+
+    if (ErrorFound) then
+    begin
+      // Refill CompletionList
+      IsTag(kiCHARACTER);
+      IsTag(kiCHARSET);
+      IsTag(kiNAMES);
+      IsTag(kiPASSWORD);
+      IsTag(kiTRANSACTION);
+    end;
+  end;
 
   Result := TSetStmt.Create(Self, Nodes);
 end;
@@ -24296,10 +24324,10 @@ begin
     Result := ParseSavepointStmt()
   else if (IsSelectStmt()) then
     Result := ParseSelectStmt([])
-  else if (IsTag(kiSET, kiNAMES)) then
-    Result := ParseSetNamesStmt()
   else if (IsTag(kiSET, kiCHARACTER)
     or IsTag(kiSET, kiCHARSET)) then
+    Result := ParseSetNamesStmt()
+  else if (IsTag(kiSET, kiNAMES)) then
     Result := ParseSetNamesStmt()
   else if (IsTag(kiSET, kiPASSWORD)) then
     Result := ParseSetPasswordStmt()
@@ -27544,6 +27572,7 @@ begin
     kiPARTITIONING                  := IndexOf('PARTITIONING');
     kiPARTITIONS                    := IndexOf('PARTITIONS');
     kiPASSWORD                      := IndexOf('PASSWORD');
+    kiPERSIST                       := IndexOf('PERSIST');
     kiPERSISTENT                    := IndexOf('PERSISTENT');
     kiPHASE                         := IndexOf('PHASE');
     kiPLUGIN                        := IndexOf('PLUGIN');

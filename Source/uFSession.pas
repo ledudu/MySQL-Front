@@ -957,10 +957,9 @@ Progress: string;
     procedure aVSQLLogExecute(Sender: TObject);
     procedure BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
     procedure BCEditorChange(Sender: TObject);
-    procedure BCEditorCompletionProposalClose(Sender: TObject;
-      var SelectedItem: string);
+    procedure BCEditorCompletionProposalHide(Sender: TObject);
     procedure BCEditorCompletionProposalShow(Sender: TObject;
-      const Columns: TBCEditorCompletionProposalColumns; const Input: string;
+      const Columns: TBCEditorCompletionProposal.TColumns; const Input: string;
       var CanExecute: Boolean);
     procedure BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure BCEditorDragOver(Sender, Source: TObject; X, Y: Integer;
@@ -1162,7 +1161,7 @@ DateUtils,
   DBConsts, DBCommon,
   XMLDoc,
   Clipbrd, Themes, FileCtrl, Consts,
-  BCEditor.Types, BCEditor.Lines,
+  BCEditor.Types, BCEditor.Lines, BCEditor.Consts,
   acQBLocalizer, acQBStrings,
   StdActns_Ext,
   MySQLConsts, SQLUtils,
@@ -3511,7 +3510,9 @@ begin
     begin
       Sleep(50);
       Inc(Retry);
-    end;
+    end
+    else
+      CloseClipboard();
   until (Opened or (Retry = 10));
 
 
@@ -3698,7 +3699,9 @@ begin
     begin
       Sleep(50);
       Inc(Retry);
-    end;
+    end
+    else
+      CloseClipboard();
   until (Opened or (Retry = 10));
 
 
@@ -4422,13 +4425,15 @@ end;
 
 procedure TFSession.aHSQLExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveBCEditor) and (Window.ActiveControl = ActiveBCEditor)) then
-    if (ActiveBCEditor.SelText <> '') then
-      WSQLHelp.Keyword := ActiveBCEditor.SelText
-    else if (ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos] <> '') then
-      WSQLHelp.Keyword := ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos]
-    else
-      WSQLHelp.Keyword := ''
+  if (not Assigned(ActiveBCEditor) or (Window.ActiveControl <> ActiveBCEditor)) then
+    WSQLHelp.Keyword := ''
+  else if (ActiveBCEditor.SelText <> '') then
+    WSQLHelp.Keyword := ActiveBCEditor.SelText
+  else if (ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos] <> '') then
+    WSQLHelp.Keyword := ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos]
+  else if ((ActiveBCEditor.CaretPos.X > 0)
+    and (ActiveBCEditor.WordAt[Point(ActiveBCEditor.CaretPos.X - 1, ActiveBCEditor.CaretPos.Y)] <> '')) then
+    WSQLHelp.Keyword := ActiveBCEditor.WordAt[Point(ActiveBCEditor.CaretPos.X - 1, ActiveBCEditor.CaretPos.Y)]
   else
     WSQLHelp.Keyword := '';
 
@@ -5641,20 +5646,27 @@ begin
   Result.Tag := NativeInt(SObject);
 
   Result.BorderStyle := bsNone;
-  Result.CompletionProposal.Columns.Add().Visible := False;
-  Result.CompletionProposal.CompletionColumnIndex := 0;
+  Result.CompletionProposal.Columns.Add();
+  Result.CompletionProposal.Columns[0].Font.Color := clGrayText;
+  Result.CompletionProposal.Columns[0].Font.Name := Font.Name;
+  Result.CompletionProposal.Columns.Add();
+  Result.CompletionProposal.Columns[1].Font.Name := Font.Name;
+  Result.CompletionProposal.Columns[1].Font.Color := clWindowText;
+  Result.CompletionProposal.Columns[2].Visible := False;
+  Result.CompletionProposal.InputColumnIndex := 1;
+  Result.CompletionProposal.CompletionColumnIndex := 2;
   Result.CompletionProposal.Options := Result.CompletionProposal.Options
-    - [cpoParseItemsFromText, cpoAddHighlighterKeywords] + [cpoResizeable];
+    - [cpoAddHighlighterKeywords] + [cpoResizeable];
   Result.HideSelection := False;
   Result.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
   Result.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
   Result.LeftMargin.Bookmarks.Visible := False;
   Result.LeftMargin.LineState.Visible := Assigned(SObject);
   Result.LeftMargin.Marks.Visible := False;
-  Result.Options := Result.Options + [eoTrimTrailingLines];
+  Result.Options := Result.Options + [eoTrimEndOfLine];
   Result.OnChange := BCEditorChange;
-  Result.OnCaretChanged := BCEditorCaretChanged;
-  Result.OnCompletionProposalClose := BCEditorCompletionProposalClose;
+  Result.OnCaretChange := BCEditorCaretChanged;
+  Result.OnCompletionProposalHide := BCEditorCompletionProposalHide;
   Result.OnCompletionProposalShow := BCEditorCompletionProposalShow;
   Result.OnDragDrop := BCEditorDragDrop;
   Result.OnDragOver := BCEditorDragOver;
@@ -14096,7 +14108,7 @@ procedure TFSession.PContentChange(Sender: TObject);
     Top: Integer;
   begin
     if (Control.Top >= 0) then Top := Control.Top else Top := 0;
-    SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Top));
+    SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Max(0, Control.Left), Top));
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
       if (Control.Controls[I] is TWinControl) then
@@ -15662,17 +15674,19 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFSession.BCEditorCompletionProposalClose(Sender: TObject;
-  var SelectedItem: string);
+procedure TFSession.BCEditorCompletionProposalHide(Sender: TObject);
+var
+  Column: Integer;
 begin
-  TBCEditorCompletionProposal(Sender).Columns[0].Items.Clear();
-  TBCEditorCompletionProposal(Sender).Columns[1].Items.Clear();
+  Assert(Sender is TBCEditor);
+  for Column := 0 to TBCEditor(Sender).CompletionProposal.Columns.Count - 1 do
+    TBCEditor(Sender).CompletionProposal.Columns[Column].Items.Clear();
 end;
 
 procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
-  const Columns: TBCEditorCompletionProposalColumns; const Input: string; var CanExecute: Boolean);
+  const Columns: TBCEditorCompletionProposal.TColumns; const Input: string; var CanExecute: Boolean);
 
-  procedure AddItem(const Display: string; const Insert: string);
+  procedure AddItem(const Category, Display, Insert: string);
   type
     Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
   var
@@ -15687,18 +15701,18 @@ procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
     else
       strcmp := lstrcmpi;
 
-    if ((Columns[0].Items.Count = 0)
-      or (strcmp(PChar(Columns[0].Items[Columns[0].Items.Count - 1].Value), PChar(Display)) < 0)) then
-      Index := Columns[0].Items.Count
+    if ((Columns[1].Items.Count = 0)
+      or (strcmp(PChar(Columns[1].Items[Columns[1].Items.Count - 1].Value), PChar(Display)) < 0)) then
+      Index := Columns[1].Items.Count
     else
     begin
       Index := -1;
       Left := 0;
-      Right := Columns[0].Items.Count - 1;
+      Right := Columns[1].Items.Count - 1;
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
-        case (strcmp(PChar(Columns[0].Items[Mid].Value), PChar(Display))) of
+        case (strcmp(PChar(Columns[1].Items[Mid].Value), PChar(Display))) of
           -1: begin Left := Mid + 1;  Index := Mid + 1; end;
           0: begin Index := -1; break; end;
           1: begin Right := Mid - 1; Index := Mid; end;
@@ -15708,15 +15722,17 @@ procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
 
     if (Index < 0) then
       // Skip, since it's already in list
-    else if (Index < Columns[0].Items.Count) then
+    else if (Index < Columns[1].Items.Count) then
     begin
-      Columns[0].Items.Insert(Index).Value := Display;
-      Columns[1].Items.Insert(Index).Value := Insert;
+      Columns[0].Items.Insert(Index).Value := Category;
+      Columns[1].Items.Insert(Index).Value := Display;
+      Columns[2].Items.Insert(Index).Value := Insert;
     end
     else
     begin
-      Columns[0].Items.Add().Value := Display;
-      Columns[1].Items.Add().Value := Insert;
+      Columns[0].Items.Add().Value := Category;
+      Columns[1].Items.Add().Value := Display;
+      Columns[2].Items.Add().Value := Insert;
     end;
   end;
 
@@ -15836,8 +15852,19 @@ begin
         begin
           Item := Session.SQLParser.CompletionList[I];
           case (Item^.ItemType) of
-            itText:
+            itKeyword:
               AddItem(
+                Preferences.LoadStr(948),
+                StrPas(PChar(@Item^.Text)),
+                StrPas(PChar(@Item^.Text)));
+            itConst:
+              AddItem(
+                Preferences.LoadStr(949),
+                StrPas(PChar(@Item^.Text)),
+                StrPas(PChar(@Item^.Text)));
+            itFunction:
+              AddItem(
+                Preferences.LoadStr(769),
                 StrPas(PChar(@Item^.Text)),
                 StrPas(PChar(@Item^.Text)));
             itList:
@@ -15854,12 +15881,14 @@ begin
                   ditDatabase:
                     for J := 0 to Session.Databases.Count - 1 do
                       AddItem(
+                        Preferences.LoadStr(301),
                         Session.Databases[J].Name,
                         Session.Connection.EscapeIdentifier(Session.Databases[J].Name));
                   ditTable:
                     if (Assigned(Database)) then
                       for J := 0 to Database.Tables.Count - 1 do
                         AddItem(
+                          Preferences.LoadStr(302),
                           Database.Tables[J].Name,
                           Session.Connection.EscapeIdentifier(Database.Tables[J].Name));
                   ditProcedure:
@@ -15867,6 +15896,7 @@ begin
                       for J := 0 to Database.Routines.Count - 1 do
                         if (Database.Routines[J] is TSProcedure) then
                           AddItem(
+                            Preferences.LoadStr(768),
                             Database.Routines[J].Name,
                             Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
                   ditFunction:
@@ -15874,30 +15904,35 @@ begin
                       for J := 0 to Database.Routines.Count - 1 do
                         if (Database.Routines[J] is TSFunction) then
                           AddItem(
+                            Preferences.LoadStr(769),
                             Database.Routines[J].Name,
                             Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
                   ditTrigger:
                     if (Assigned(Database) and Assigned(Database.Triggers)) then
                       for J := 0 to Database.Triggers.Count - 1 do
                         AddItem(
+                          Preferences.LoadStr(788),
                           Database.Triggers[J].Name,
                           Session.Connection.EscapeIdentifier(Database.Triggers[J].Name));
                   ditEvent:
                     if (Assigned(Database) and Assigned(Database.Events)) then
                       for J := 0 to Database.Events.Count - 1 do
                         AddItem(
+                          Preferences.LoadStr(793),
                           Database.Events[J].Name,
                           Session.Connection.EscapeIdentifier(Database.Events[J].Name));
                   ditKey:
                     if (Table is TSBaseTable) then
                       for J := 0 to TSBaseTable(Table).Keys.Count - 1 do
                         AddItem(
+                          Preferences.LoadStr(163),
                           TSBaseTable(Table).Keys[J].Name,
                           Session.Connection.EscapeIdentifier(TSBaseTable(Table).Keys[J].Name));
                   ditField:
                     if (Assigned(Table)) then
                       for J := 0 to Table.Fields.Count - 1 do
                         AddItem(
+                          Preferences.LoadStr(164),
                           Table.Fields[J].Name,
                           Session.Connection.EscapeIdentifier(Table.Fields[J].Name))
                     else if (Assigned(Database) and Assigned(Database.Columns) and (PChar(@Item^.TableName) = '')) then
@@ -15905,6 +15940,7 @@ begin
                       begin
                         ColumnName := Database.Columns[J]; // Buffer for speeding
                         AddItem(
+                          Preferences.LoadStr(164),
                           ColumnName,
                           Session.Connection.EscapeIdentifier(ColumnName));
                       end;
@@ -15912,32 +15948,38 @@ begin
                     if (Table is TSBaseTable) then
                       for J := 0 to TSBaseTable(Table).ForeignKeys.Count - 1 do
                         AddItem(
+                          Preferences.LoadStr(199),
                           TSBaseTable(Table).ForeignKeys[J].Name,
                           Session.Connection.EscapeIdentifier(TSBaseTable(Table).ForeignKeys[J].Name));
                   ditUser:
                     for J := 0 to Session.Users.Count - 1 do
                       AddItem(
+                        Preferences.LoadStr(561),
                         Session.Users[J].Name,
                         Session.EscapeUser(Session.Users[J].Name));
 //                  ditConst:
                   ditEngine:
                     for J := 0 to Session.Engines.Count - 1 do
                       AddItem(
+                        Preferences.LoadStr(110),
                         Session.Engines[J].Name,
                         Session.Engines[J].Name);
                   ditCharset:
                     for J := 0 to Session.Charsets.Count - 1 do
                       AddItem(
+                        Preferences.LoadStr(682),
                         Session.Charsets[J].Name,
                         Session.Charsets[J].Name);
                   ditCollation:
                     for J := 0 to Session.Collations.Count - 1 do
                       AddItem(
+                        Preferences.LoadStr(702),
                         Session.Collations[J].Name,
                         Session.Collations[J].Name);
                   ditDatatype:
                     for J := 0 to Session.FieldTypes.Count - 1 do
                       AddItem(
+                        Preferences.LoadStr(91),
                         Session.FieldTypes[J].Name,
                         Session.FieldTypes[J].Name);
                   else

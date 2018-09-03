@@ -237,31 +237,12 @@ object DStatement: TDStatement
         Width = 297
         Height = 203
         Anchors = [akLeft, akTop, akRight, akBottom]
-        CompletionProposal.CloseChars = '()[]. '
-        CompletionProposal.Columns = <
-          item
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clWindowText
-            Font.Height = -12
-            Font.Name = 'Courier New'
-            Font.Style = []
-            Title.Font.Charset = DEFAULT_CHARSET
-            Title.Font.Color = clWindowText
-            Title.Font.Height = -12
-            Title.Font.Name = 'Courier New'
-            Title.Font.Style = []
-          end>
-        CompletionProposal.Trigger.Chars = '.'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
         LeftMargin.Bookmarks.Visible = False
+        LeftMargin.LineNumbers.Visible = False
+        LeftMargin.LineState.Visible = False
         Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
         PopupMenu = MSource
         ReadOnly = True
-        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
         WantReturns = False
       end
