@@ -7242,9 +7242,6 @@ const
   PE_UnexpectedToken = 7; // Unexpected character
   PE_ExtraToken = 8; // Unexpected character
 
-  // Bugs in the order of Stmts
-  PE_UnexpectedStmt = 9; // Stmt not allowed here
-
 implementation {***************************************************************}
 
 uses
@@ -12143,8 +12140,6 @@ begin
         Result := 'Unexpected character'
       else
         Result := 'Unexpected string';
-    PE_UnexpectedStmt:
-      Result := 'Statement not allowed here';
     else
       raise ERangeError.Create(SRangeError);
   end;
@@ -12166,7 +12161,7 @@ begin
     Result := Result + ' near "' + Copy(S, 1, 20) + '"';
   end;
 
-  if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_InvalidMySQLCond, PE_NestedMySQLCond, PE_IncompleteStmt, PE_UnexpectedToken, PE_ExtraToken, PE_UnexpectedStmt])
+  if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_InvalidMySQLCond, PE_NestedMySQLCond, PE_IncompleteStmt, PE_UnexpectedToken, PE_ExtraToken])
     and (Error.Line > 0)) then
     Result := Result + ' in line ' + IntToStr(Error.Line);
 end;
@@ -17187,26 +17182,20 @@ begin
     and IsTag(kiDATABASE)) then
     Result := ParseCreateDatabaseStmt(CreateTag, OrReplaceTag)
   else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
+    and not Parse.InCreateEventStmt and not Parse.InCreateFunctionStmt and not Parse.InCreateProcedureStmt and not Parse.InCreateTriggerStmt
     and IsTag(kiEVENT)) then
-    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseCreateEventStmt(CreateTag, OrReplaceTag, DefinerValue)
+    Result := ParseCreateEventStmt(CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
+    and not Parse.InCreateEventStmt and not Parse.InCreateFunctionStmt and not Parse.InCreateProcedureStmt and not Parse.InCreateTriggerStmt
     and IsTag(kiFUNCTION)) then
-    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseCreateRoutineStmt(rtFunction, CreateTag, OrReplaceTag, DefinerValue)
+    Result := ParseCreateRoutineStmt(rtFunction, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0)
     and IsTag(kiINDEX)) then
     Result := ParseCreateIndexStmt(CreateTag, OrReplaceTag, KindTag)
   else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
+    and not Parse.InCreateEventStmt and not Parse.InCreateFunctionStmt and not Parse.InCreateProcedureStmt and not Parse.InCreateTriggerStmt
     and IsTag(kiPROCEDURE)) then
-    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseCreateRoutineStmt(rtProcedure, CreateTag, OrReplaceTag, DefinerValue)
+    Result := ParseCreateRoutineStmt(rtProcedure, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiSCHEMA)) then
     Result := ParseCreateDatabaseStmt(CreateTag, OrReplaceTag)
@@ -17220,11 +17209,9 @@ begin
     and IsTag(kiTABLESPACE)) then
     Result := ParseCreateTablespaceStmt(CreateTag)
   else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
+    and not Parse.InCreateEventStmt and not Parse.InCreateFunctionStmt and not Parse.InCreateProcedureStmt and not Parse.InCreateTriggerStmt
     and IsTag(kiTRIGGER)) then
-    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseCreateTriggerStmt(CreateTag, OrReplaceTag, DefinerValue)
+    Result := ParseCreateTriggerStmt(CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiUSER)) then
     Result := ParseCreateUserStmt(CreateTag, OrReplaceTag)
@@ -24163,38 +24150,29 @@ begin
     Result := ParseAnalyzeTableStmt()
   else if (IsTag(kiBEGIN)) then
     if (not InPL_SQL) then
-      Result := ParseBeginStmt()
-    else
-      Result := ParseCompoundStmt()
+			Result := ParseBeginStmt()
+  	else 
+    	Result := ParseCompoundStmt()
   else if (IsTag(kiCALL)) then
     Result := ParseCallStmt()
-  else if (IsTag(kiCASE)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseCaseStmt()
+  else if (InPL_SQL and IsTag(kiCASE)) then
+    Result := ParseCaseStmt()
   else if (IsTag(kiCHANGE)) then
     Result := ParseChangeMasterStmt()
   else if (IsTag(kiCHECK, kiTABLE)) then
     Result := ParseCheckTableStmt()
   else if (IsTag(kiCHECKSUM, kiTABLE)) then
     Result := ParseChecksumTableStmt()
-  else if (IsTag(kiCLOSE)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseCloseStmt()
+  else if (InPL_SQL and IsTag(kiCLOSE)) then
+    Result := ParseCloseStmt()
   else if (IsTag(kiCOMMIT)) then
     Result := ParseCommitStmt()
   else if (IsTag(kiCREATE)) then
     Result := ParseCreateStmt()
   else if (IsTag(kiDEALLOCATE)) then
     Result := ParseDeallocatePrepareStmt()
-  else if (IsTag(kiDECLARE)) then
-    if (not InCompound) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseDeclareStmt()
+  else if (InCompound and IsTag(kiDECLARE)) then
+    Result := ParseDeclareStmt()
   else if (IsTag(kiDELETE)) then
     Result := ParseDeleteStmt()
   else if (IsTag(kiDESC)) then
@@ -24234,11 +24212,8 @@ begin
     Result := ParseExecuteStmt()
   else if (IsTag(kiEXPLAIN)) then
     Result := ParseExplainStmt()
-  else if (IsTag(kiFETCH)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseFetchStmt()
+  else if (InPL_SQL and IsTag(kiFETCH)) then
+    Result := ParseFetchStmt()
   else if (IsTag(kiFLUSH)) then
     Result := ParseFlushStmt()
   else if (IsTag(kiGET, kiCURRENT, kiDIAGNOSTICS)
@@ -24249,46 +24224,31 @@ begin
     Result := ParseGrantStmt()
   else if (IsTag(kiHELP)) then
     Result := ParseHelpStmt()
-  else if (IsTag(kiIF)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseIfStmt()
+  else if (InPL_SQL and IsTag(kiIF)) then
+    Result := ParseIfStmt()
   else if (IsTag(kiINSERT)) then
     Result := ParseInsertStmt()
   else if (IsTag(kiINSTALL, kiPLUGIN)) then
     Result := ParseInstallPluginStmt()
-  else if (IsTag(kiITERATE)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseIterateStmt()
+  else if (InPL_SQL and IsTag(kiITERATE)) then
+    Result := ParseIterateStmt()
   else if (IsTag(kiKILL)) then
     Result := ParseKillStmt()
-  else if (IsTag(kiLEAVE)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseLeaveStmt()
+  else if (InPL_SQL and IsTag(kiLEAVE)) then
+    Result := ParseLeaveStmt()
   else if (IsTag(kiLOAD)) then
     Result := ParseLoadStmt()
   else if (IsTag(kiLOCK, kiTABLE)
     or IsTag(kiLOCK, kiTABLES)) then
     Result := ParseLockTablesStmt()
-  else if (IsTag(kiLOOP)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseLoopStmt()
+  else if (InPL_SQL and IsTag(kiLOOP)) then
+    Result := ParseLoopStmt()
   else if (IsTag(kiPREPARE)) then
     Result := ParsePrepareStmt()
   else if (IsTag(kiPURGE)) then
     Result := ParsePurgeStmt()
-  else if (IsTag(kiOPEN)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseOpenStmt()
+  else if (InPL_SQL and IsTag(kiOPEN)) then
+    Result := ParseOpenStmt()
   else if (IsTag(kiOPTIMIZE, kiNO_WRITE_TO_BINLOG, kiTABLE)
     or IsTag(kiOPTIMIZE, kiLOCAL, kiTABLE)
     or IsTag(kiOPTIMIZE, kiTABLE)) then
@@ -24299,23 +24259,16 @@ begin
     Result := ParseRepairTableStmt()
   else if (IsTag(kiRELEASE)) then
     Result := ParseReleaseStmt()
-  else if (IsTag(kiREPEAT)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseRepeatStmt()
+  else if (InPL_SQL and IsTag(kiREPEAT)) then
+    Result := ParseRepeatStmt()
   else if (IsTag(kiREPLACE)) then
     Result := ParseInsertStmt()
   else if (IsTag(kiRESET)) then
     Result := ParseResetStmt()
   else if (IsTag(kiRESIGNAL)) then
     Result := ParseSignalStmt()
-  else if (IsTag(kiRETURN)) then
-    if (not InPL_SQL
-      or not Parse.InCreateFunctionStmt) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseReturnStmt()
+  else if (InPL_SQL and Parse.InCreateFunctionStmt and IsTag(kiRETURN)) then
+    Result := ParseReturnStmt()
   else if (IsTag(kiREVOKE)) then
     Result := ParseRevokeStmt()
   else if (IsTag(kiROLLBACK)) then
@@ -24473,11 +24426,8 @@ begin
     Result := ParseUpdateStmt()
   else if (IsTag(kiUSE)) then
     Result := ParseUseStmt()
-  else if (IsTag(kiWHILE)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
-      Result := ParseWhileStmt()
+  else if (InPL_SQL and IsTag(kiWHILE)) then
+    Result := ParseWhileStmt()
   else if (IsTag(kiXA)) then
     Result := ParseXAStmt()
   else if (EndOfStmt(CurrentToken)) then
