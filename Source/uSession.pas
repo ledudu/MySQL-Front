@@ -11359,6 +11359,10 @@ begin
 
   if (ErrorCode = 0) then
   begin
+    // Debug 2018-09-04
+    Assert(Assigned(Session));
+    Assert(Assigned(Session.Connection));
+
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
 

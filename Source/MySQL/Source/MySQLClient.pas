@@ -2956,7 +2956,7 @@ begin
     until ((mysql.errno() <> 0) or not Assigned(Field) or (FieldCount = AFieldCount));
 
     if (Assigned(Row)) then
-      FreeMem(Row);
+      begin FreeMem(Row); Row := nil; end;
 
     if ((mysql.errno() = 0) and (mysql.ReadRow(Row) > 0) or (FieldCount <> AFieldCount)) then
       mysql.Seterror(CR_SERVER_HANDSHAKE_ERR);

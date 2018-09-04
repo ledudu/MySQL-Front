@@ -998,21 +998,25 @@ begin
     begin
       PageControl.ActivePage := TSWhat;
 
-      // Debug 2017-05-14
-      Assert(PageControl.ActivePage = TSWhat);
-      Assert(FStructure.Visible);
-      Assert(GetParentForm(FStructure) = Self,
-        'Parent: ' + BoolToStr(Assigned(FStructure.Parent), True));
-      Assert(GWhat.Visible and GWhat.Enabled,
-        'Visible: ' + BoolToStr(GWhat.Visible, True) + #13#10
-        + 'Enabled: ' + BoolToStr(GWhat.Enabled, True));
-      Assert(TSWhat.Visible and GWhat.Enabled,
-        'Visible: ' + BoolToStr(TSWhat.Visible, True) + #13#10
-        + 'Enabled: ' + BoolToStr(TSWhat.Enabled, True));
-      Assert(FStructure.CanFocus());
-
       if (not FBForward.Enabled and FStructure.Enabled) then
-        ActiveControl := FStructure
+      begin
+        // Debug 2018-09-04
+        Assert(PageControl.ActivePage = TSWhat);
+        Assert(FStructure.Visible);
+        Assert(GetParentForm(FStructure) = Self,
+          'Parent: ' + BoolToStr(Assigned(FStructure.Parent), True));
+        Assert(GWhat.Visible and GWhat.Enabled,
+          'Visible: ' + BoolToStr(GWhat.Visible, True) + #13#10
+          + 'Enabled: ' + BoolToStr(GWhat.Enabled, True));
+        Assert(TSWhat.Visible and GWhat.Enabled,
+          'Visible: ' + BoolToStr(TSWhat.Visible, True) + #13#10
+          + 'Enabled: ' + BoolToStr(TSWhat.Enabled, True));
+        Assert(FStructure.Enabled,
+          'Enabled: ' + BoolToStr(FStructure.Enabled, True));
+        Assert(FStructure.CanFocus());
+
+        ActiveControl := FStructure;
+      end
       else if (not FBForward.Enabled and FData.Enabled) then
         ActiveControl := FData
       else

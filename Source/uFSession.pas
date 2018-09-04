@@ -3188,7 +3188,11 @@ begin
     Result := Preferences.LoadStr(22);
 
   if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['file'] <> Null)) then
-    Result := Result + ' - ' + EscapeURL(URI.Param['file']);
+  begin
+    if (URI.Database <> '') then
+      Result := Result + ' - ';
+    Result := Result + EscapeURL(URI.Param['file']);
+  end;
 
   Result := UnescapeURL(Result);
 
@@ -7739,6 +7743,15 @@ begin
     + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
     + 'Text: ' + Node.Text + #13#10
     + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True));
+
+  if (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) then
+  begin
+    URI.Param['file'] := EscapeURL(SQLEditors[ParamToView(URI.Param['view'])].Filename);
+    if (SQLEditors[ParamToView(URI.Param['view'])].FileCodePage = 0) then
+      URI.Param['cp'] := Null
+    else
+      URI.Param['cp'] := IntToStr(SQLEditors[ParamToView(URI.Param['view'])].FileCodePage);
+  end;
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);

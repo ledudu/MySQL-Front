@@ -4,9 +4,6 @@
 Embarcadero Delphi XE4:
 http://www.embarcadero.com/products/delphi/
 
-RibbonFramework 2.3a:
-https://github.com/TurboPack/RibbonFramework/
-
 
 Used packages:
 ==============
@@ -26,8 +23,8 @@ http://www.jam-software.de/shellbrowser_delphi/
 Synopse PDF:
 http://synopse.info/fossil/wiki?name=PDF+Engine
 
-BCEditor:
-https://github.com/bonecode/BCEditor/
+SynEdit:
+https://github.com/SynEdit/SynEdit/
 
 BCHexEditor:
 https://github.com/bonecode/BCHexEditor/

@@ -142,7 +142,7 @@ begin
       else if (Thread.ErrorCode <> 0) then
         RaiseLastOSError(Thread.ErrorCode)
       else if (Thread.HTTPStatus <> HTTP_STATUS_OK) then
-        MsgBox(Thread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+        MsgBox('Response from the Web-Server:' + #13#10 + IntToStr(Thread.HTTPStatus) + ' ' + Thread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
       else
         MsgBox('Your translation was sent to the developer.', Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       Thread.Free();

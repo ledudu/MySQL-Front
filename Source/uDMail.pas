@@ -110,7 +110,7 @@ begin
         RaiseLastOSError(Thread.ErrorCode)
       else if (Thread.HTTPStatus <> HTTP_STATUS_OK) then
       begin
-        MsgBox(Thread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+        MsgBox('Response from the Web-Server:' + #13#10 + IntToStr(Thread.HTTPStatus) + ' ' + Thread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
         CanClose := False;
       end
       else

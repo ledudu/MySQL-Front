@@ -6735,8 +6735,11 @@ function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
   Assert(not (csDestroying in ComponentState));
-  Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432));
+  Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432),
+    'Identifier432: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Identifier432));
   // AV: 2017-06-01 - CallStack WMTimer, ActivateHint
+  // AV: 2018-09-04 - CallStack WMTimer
+  // 2018-09-04 - CallStack Grid.UpdateAction, GetIsNull
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -7536,9 +7539,9 @@ begin
       begin
         // Position in InternRecordBuffers changed -> move it!
 
-        // Debug 2017-03-02
-        Assert((PExternRecordBuffer(ActiveBuffer())^.Index >= 0)
-          and (InternalPostResult.NewIndex >= 0),
+        // Debug 2018-09-04
+        Assert((0 <= PExternRecordBuffer(ActiveBuffer())^.Index) and (PExternRecordBuffer(ActiveBuffer())^.Index < RecordCount)
+          and (0 <= InternalPostResult.NewIndex) and (InternalPostResult.NewIndex <= RecordCount),
           'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
           + 'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
           + 'NewIndex: ' + IntToStr(InternalPostResult.NewIndex));
@@ -7829,6 +7832,8 @@ begin
   begin
     Assert(PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432,
       'Identifier432: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Identifier432));
+      // Occurred 2018-09-04: Identifier432 = 21446812
+
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
   end;
 

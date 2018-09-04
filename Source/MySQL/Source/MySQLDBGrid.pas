@@ -1829,7 +1829,7 @@ begin
     tiShowHint:
       begin
         KillTimer(Handle, Msg.TimerID);
-        if (Visible) then
+        if (Visible and not (csDestroying in ComponentState)) then
           ActivateHint();
       end;
     tiHideHint:

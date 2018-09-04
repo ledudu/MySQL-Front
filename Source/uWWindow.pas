@@ -933,10 +933,12 @@ end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 begin
-  if (StyleServices.Enabled or not CheckWin32Version(6)) then
-    ToolBar.BorderWidth := 0
-  else
-    ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
+  if (not (csDestroying in ComponentState)) then
+    // Is csDestroying needed??? Without this, there was a AV for ToolBar on 2018-09-04
+    if (StyleServices.Enabled or not CheckWin32Version(6)) then
+      ToolBar.BorderWidth := 0
+    else
+      ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
 
   if (Assigned(ToolBar.Images)) then
   begin
@@ -1663,6 +1665,10 @@ begin
         DAccounts.Session := DConnecting.Session;
     end;
   end;
+
+  // Debug 2018-09-04
+  Assert(not DAccounts.Visible);
+
   if ((not Assigned(DAccounts.Session) and not DAccounts.Execute()) or UpdateStarted) then
     FSession := nil
   else

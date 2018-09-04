@@ -140,6 +140,7 @@ type
     procedure FormDestroy(Sender: TObject);
   private
     LineNumbersElement: TBCEditorHighlighter.TElement;
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure FPreviewRefresh();
     function StylesElement(const Caption: string): TBCEditorHighlighter.TElement;
     procedure UMPreferencesChanged(var Message: TMessage); message UM_PREFERENCES_CHANGED;
@@ -175,6 +176,13 @@ begin
 end;
 
 { TDOptions *******************************************************************}
+
+procedure TDOptions.CMSysFontChanged(var Message: TMessage);
+begin
+  inherited;
+
+  Perform(UM_PREFERENCES_CHANGED, 0, 0);
+end;
 
 function TDOptions.Execute(): Boolean;
 begin
@@ -811,10 +819,10 @@ begin
   FUnderline.Caption := Preferences.LoadStr(479);
   FForeground.Caption := Preferences.LoadStr(475);
   FForeground.Width := FSizer.Width + Canvas.TextWidth(FForeground.Caption);
-  FBForeground.Left := FForeground.Left + FForeground.Width + 8;
+  FBForeground.Left := FForeground.Left + FForeground.Width + FStyles.Left;
   FBackground.Caption := Preferences.LoadStr(476);
   FBackground.Width := FSizer.Width + Canvas.TextWidth(FBackground.Caption);
-  FBBackground.Left := FBackground.Left + FBackground.Width + 8;
+  FBBackground.Left := FBackground.Left + FBackground.Width + FStyles.Left;
 
   TSLog.Caption := Preferences.LoadStr(524);
   GLog.Caption := Preferences.LoadStr(524);
