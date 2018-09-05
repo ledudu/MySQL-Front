@@ -6,11 +6,11 @@ uses
   Windows, Messages,
   SysUtils, Classes, Actions,
   Graphics, Controls, Forms, Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDTable = class (TForm_Ext)
@@ -79,7 +79,7 @@ type
     FPartitionType: TComboBox_Ext;
     FRecordCount: TLabel;
     FRowType: TComboBox_Ext;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FTriggers: TListView;
     FUDPartitionsNumber: TUpDown;
     FUnusedSize: TLabel;
@@ -1050,8 +1050,7 @@ begin
   TBForeignKeys.Images := Preferences.Images;
 //  TBPartitions.Images := Preferences.Images;
 
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -1191,7 +1190,6 @@ begin
   end;
 
   FSource.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Table) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
@@ -1832,7 +1830,7 @@ begin
   FBFlush.Caption := Preferences.LoadStr(329);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   aPCreateKey.Caption := Preferences.LoadStr(26) + '...';
   aPDeleteKey.Caption := Preferences.LoadStr(28);

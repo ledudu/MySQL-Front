@@ -6,10 +6,10 @@ uses
   Windows, Messages,
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDTrigger = class(TForm_Ext)
@@ -29,8 +29,8 @@ type
     FLTiming: TLabel;
     FName: TEdit;
     FSize: TLabel;
-    FSource: TBCEditor;
-    FStatement: TBCEditor;
+    FSource: TSynMemo;
+    FStatement: TSynMemo;
     FUpdate: TRadioButton;
     GBasics: TGroupBox_Ext;
     GDefiner: TGroupBox_Ext;
@@ -235,10 +235,8 @@ end;
 
 procedure TDTrigger.FormCreate(Sender: TObject);
 begin
-  FStatement.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FStatement.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FStatement.Highlighter := Preferences.Editor.Highlighter;
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -290,9 +288,7 @@ begin
   end;
 
   FStatement.Lines.Clear();
-  Table.Session.ApplyToBCEditor(FStatement);
   FSource.Lines.Clear();
-  Table.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Trigger)) then
     SessionState := ssCreate
@@ -387,7 +383,7 @@ begin
   FUpdate.Font.Name := Preferences.SQLFontName;
   FDelete.Font.Name := Preferences.SQLFontName;
 
-  Preferences.ApplyToBCEditor(FStatement);
+  Preferences.ApplyToSynMemo(FStatement);
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
@@ -396,7 +392,7 @@ begin
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

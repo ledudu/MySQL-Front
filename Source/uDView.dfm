@@ -77,13 +77,12 @@ object DView: TDView
           Height = 13
           Caption = 'FLCheckOption'
         end
-        object FLStmt: TLabel
+        object FLStatement: TLabel
           Left = 8
           Top = 208
-          Width = 33
+          Width = 60
           Height = 13
-          Caption = 'FLStmt'
-          FocusControl = FStatement
+          Caption = 'FLStatement'
         end
         object FLName: TLabel
           Left = 8
@@ -108,20 +107,38 @@ object DView: TDView
           TabOrder = 1
           OnSelect = FAlgorithmSelect
         end
-        object FStatement: TBCEditor
+        object FStatement: TSynMemo
           Left = 8
           Top = 224
           Width = 281
           Height = 27
           Anchors = [akLeft, akTop, akRight, akBottom]
-          LeftMargin.Bookmarks.Visible = False
-          LeftMargin.LineNumbers.Visible = False
-          LeftMargin.LineState.Visible = False
-          OnChange = FStatementChange
-          Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Courier New'
+          Font.Style = []
           PopupMenu = MSource
-          SyncEditOptions = [seoCaseSensitive]
           TabOrder = 7
+          CodeFolding.GutterShapeSize = 11
+          CodeFolding.CollapsedLineColor = clGrayText
+          CodeFolding.FolderBarLinesColor = clGrayText
+          CodeFolding.IndentGuidesColor = clGray
+          CodeFolding.IndentGuides = True
+          CodeFolding.ShowCollapsedLine = False
+          CodeFolding.ShowHintMark = True
+          UseCodeFolding = False
+          Gutter.Font.Charset = DEFAULT_CHARSET
+          Gutter.Font.Color = clWindowText
+          Gutter.Font.Height = -11
+          Gutter.Font.Name = 'Courier New'
+          Gutter.Font.Style = []
+          Gutter.Width = 0
+          Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
+          RightEdge = 0
+          ScrollHintFormat = shfTopToBottom
+          OnChange = FStatementChange
+          FontSmoothing = fsmNone
         end
         object FCheckOptionCascade: TCheckBox
           Left = 136
@@ -301,21 +318,42 @@ object DView: TDView
       DesignSize = (
         313
         279)
-      object FSource: TBCEditor
+      object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
         Height = 255
         Anchors = [akLeft, akTop, akRight, akBottom]
-        LeftMargin.Bookmarks.Visible = False
-        LeftMargin.LineState.Visible = False
-        OnChange = FSourceChange
-        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Courier New'
+        Font.Style = []
         PopupMenu = MSource
-        ReadOnly = True
-        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
+        CodeFolding.GutterShapeSize = 11
+        CodeFolding.CollapsedLineColor = clGrayText
+        CodeFolding.FolderBarLinesColor = clGrayText
+        CodeFolding.IndentGuidesColor = clGray
+        CodeFolding.IndentGuides = True
+        CodeFolding.ShowCollapsedLine = False
+        CodeFolding.ShowHintMark = True
+        UseCodeFolding = False
+        Gutter.Font.Charset = DEFAULT_CHARSET
+        Gutter.Font.Color = clWindowText
+        Gutter.Font.Height = -11
+        Gutter.Font.Name = 'Courier New'
+        Gutter.Font.Style = []
+        Gutter.Width = 0
+        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
+        ReadOnly = True
+        RightEdge = 0
+        RightEdgeColor = clWindow
+        ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        OnChange = FSourceChange
+        OnStatusChange = FSourceStatusChange
+        FontSmoothing = fsmNone
       end
     end
   end

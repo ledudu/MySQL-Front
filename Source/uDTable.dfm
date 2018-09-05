@@ -82,6 +82,10 @@ object DTable: TDTable
     TabOrder = 4
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -239,6 +243,10 @@ object DTable: TDTable
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -362,6 +370,10 @@ object DTable: TDTable
     object TSKeys: TTabSheet
       Caption = 'TSKeys'
       OnShow = TSKeysShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -427,6 +439,10 @@ object DTable: TDTable
     object TSFields: TTabSheet
       Caption = 'TSFields'
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -519,6 +535,10 @@ object DTable: TDTable
     object TSForeignKeys: TTabSheet
       Caption = 'TSForeignKeys'
       OnShow = TSForeignKeysShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -581,6 +601,10 @@ object DTable: TDTable
     object TSTriggers: TTabSheet
       Caption = 'TSTriggers'
       OnShow = TSTriggersShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -614,6 +638,10 @@ object DTable: TDTable
     object TSPartitions: TTabSheet
       Caption = 'TSPartitions'
       OnShow = TSPartitionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -758,6 +786,10 @@ object DTable: TDTable
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
       OnShow = TSDependenciesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -786,6 +818,10 @@ object DTable: TDTable
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -891,24 +927,48 @@ object DTable: TDTable
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
-      object FSource: TBCEditor
+      object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
         Height = 235
         Anchors = [akLeft, akTop, akRight, akBottom]
-        LeftMargin.Bookmarks.Visible = False
-        LeftMargin.LineNumbers.Visible = False
-        LeftMargin.LineState.Visible = False
-        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        Font.Style = []
         PopupMenu = MSource
-        ReadOnly = True
-        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
+        CodeFolding.GutterShapeSize = 11
+        CodeFolding.CollapsedLineColor = clGrayText
+        CodeFolding.FolderBarLinesColor = clGrayText
+        CodeFolding.IndentGuidesColor = clGray
+        CodeFolding.IndentGuides = True
+        CodeFolding.ShowCollapsedLine = False
+        CodeFolding.ShowHintMark = True
+        UseCodeFolding = False
+        Gutter.Font.Charset = DEFAULT_CHARSET
+        Gutter.Font.Color = clWindowText
+        Gutter.Font.Height = -11
+        Gutter.Font.Name = 'Courier New'
+        Gutter.Font.Style = []
+        Gutter.Width = 0
+        MaxScrollWidth = 65535
+        Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
+        ReadOnly = True
+        RightEdge = 0
+        RightEdgeColor = clWindow
+        ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
   end

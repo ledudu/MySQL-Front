@@ -44,6 +44,10 @@ object DStatement: TDStatement
     TabOrder = 0
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         227)
@@ -228,23 +232,45 @@ object DStatement: TDStatement
       Caption = 'TSSource'
       ParentShowHint = False
       ShowHint = True
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         227)
-      object FSource: TBCEditor
+      object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
         Height = 203
         Anchors = [akLeft, akTop, akRight, akBottom]
-        LeftMargin.Bookmarks.Visible = False
-        LeftMargin.LineNumbers.Visible = False
-        LeftMargin.LineState.Visible = False
-        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Courier New'
+        Font.Style = []
         PopupMenu = MSource
-        ReadOnly = True
         TabOrder = 0
-        WantReturns = False
+        CodeFolding.GutterShapeSize = 11
+        CodeFolding.CollapsedLineColor = clGrayText
+        CodeFolding.FolderBarLinesColor = clGrayText
+        CodeFolding.IndentGuidesColor = clGray
+        CodeFolding.IndentGuides = True
+        CodeFolding.ShowCollapsedLine = False
+        CodeFolding.ShowHintMark = True
+        UseCodeFolding = False
+        Gutter.Font.Charset = DEFAULT_CHARSET
+        Gutter.Font.Color = clWindowText
+        Gutter.Font.Height = -11
+        Gutter.Font.Name = 'Courier New'
+        Gutter.Font.Style = []
+        Gutter.Width = 0
+        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces]
+        ReadOnly = True
+        RightEdgeColor = clWindow
+        ScrollHintFormat = shfTopToBottom
+        FontSmoothing = fsmNone
       end
     end
   end

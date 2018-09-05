@@ -373,7 +373,7 @@ object FSession: TFSession
         OnSelectItem = ListViewSelectItem
       end
     end
-    object PBCEditor: TPanel_Ext
+    object PSynMemo: TPanel_Ext
       Left = 0
       Top = 310
       Width = 467
@@ -386,6 +386,65 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 2
       Visible = False
+      object FSQLEditorSynMemo: TSynMemo
+        Left = 2
+        Top = 2
+        Width = 463
+        Height = 46
+        HelpContext = 1037
+        OnSearchNotFound = SearchNotFound
+        Align = alClient
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Courier New'
+        Font.Style = []
+        PopupMenu = MSQLEditor
+        TabOrder = 0
+        Visible = False
+        OnDragDrop = SynMemoDragDrop
+        OnDragOver = SynMemoDragOver
+        OnEnter = SynMemoEnter
+        OnExit = SynMemoExit
+        OnKeyPress = FSQLEditorSynMemoKeyPress
+        CodeFolding.GutterShapeSize = 11
+        CodeFolding.CollapsedLineColor = clGrayText
+        CodeFolding.FolderBarLinesColor = clGrayText
+        CodeFolding.IndentGuidesColor = clGray
+        CodeFolding.IndentGuides = True
+        CodeFolding.ShowCollapsedLine = False
+        CodeFolding.ShowHintMark = True
+        UseCodeFolding = False
+        BorderStyle = bsNone
+        Gutter.AutoSize = True
+        Gutter.DigitCount = 2
+        Gutter.Font.Charset = DEFAULT_CHARSET
+        Gutter.Font.Color = clWindowText
+        Gutter.Font.Height = -11
+        Gutter.Font.Name = 'Courier New'
+        Gutter.Font.Style = []
+        Gutter.LeftOffset = 2
+        Gutter.ShowLineNumbers = True
+        MaxScrollWidth = 1048576
+        Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
+        RightEdge = 0
+        ScrollHintFormat = shfTopToBottom
+        SearchEngine = FSQLEditorSearch
+        TabWidth = 2
+        WantTabs = True
+        OnStatusChange = SynMemoStatusChange
+        FontSmoothing = fsmNone
+        RemovedKeystrokes = <
+          item
+            Command = ecContextHelp
+            ShortCut = 112
+          end>
+        AddedKeystrokes = <
+          item
+            Command = ecContextHelp
+            ShortCut = 16496
+          end>
+      end
     end
     object PResult: TPanel_Ext
       Left = 0
@@ -438,7 +497,7 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 1
       Visible = False
-      object SQueryBuilderBCEditor: TSplitter_Ext
+      object SQueryBuilderSynMemo: TSplitter_Ext
         Left = 0
         Top = 96
         Width = 467
@@ -451,7 +510,7 @@ object FSession: TFSession
         ActiveBorderColor = clWindow
         ExplicitWidth = 319
       end
-      object PQueryBuilderBCEditor: TPanel_Ext
+      object PQueryBuilderSynMemo: TPanel_Ext
         Left = 0
         Top = 100
         Width = 467
@@ -463,6 +522,52 @@ object FSession: TFSession
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
+        object FQueryBuilderSynMemo: TSynMemo
+          Left = 2
+          Top = 2
+          Width = 463
+          Height = 46
+          HelpContext = 1120
+          OnSearchNotFound = SearchNotFound
+          Align = alClient
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Courier New'
+          Font.Style = []
+          PopupMenu = MSQLEditor
+          TabOrder = 0
+          OnDragDrop = SynMemoDragDrop
+          OnDragOver = SynMemoDragOver
+          OnEnter = FQueryBuilderSynMemoEnter
+          OnExit = FQueryBuilderSynMemoExit
+          CodeFolding.GutterShapeSize = 11
+          CodeFolding.CollapsedLineColor = clGrayText
+          CodeFolding.FolderBarLinesColor = clGrayText
+          CodeFolding.IndentGuidesColor = clGray
+          CodeFolding.IndentGuides = True
+          CodeFolding.ShowCollapsedLine = False
+          CodeFolding.ShowHintMark = True
+          UseCodeFolding = False
+          BorderStyle = bsNone
+          Gutter.AutoSize = True
+          Gutter.DigitCount = 2
+          Gutter.Font.Charset = DEFAULT_CHARSET
+          Gutter.Font.Color = clWindowText
+          Gutter.Font.Height = -11
+          Gutter.Font.Name = 'Courier New'
+          Gutter.Font.Style = []
+          Gutter.LeftOffset = 2
+          Gutter.ShowLineNumbers = True
+          MaxScrollWidth = 65535
+          Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
+          ScrollHintFormat = shfTopToBottom
+          SearchEngine = FSQLEditorSearch
+          WantTabs = True
+          OnChange = FQueryBuilderSynMemoChange
+          OnStatusChange = SynMemoStatusChange
+          FontSmoothing = fsmNone
+        end
       end
       object FQueryBuilder: TacQueryBuilder
         Left = 0
@@ -2146,5 +2251,36 @@ object FSession: TFSession
     EncodingLabel = '&Encoding:'
     Left = 64
     Top = 72
+  end
+  object FSQLEditorSearch: TSynEditSearch
+    Left = 192
+    Top = 208
+  end
+  object SynCompletion: TSynCompletionProposal
+    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoConsiderWordBreakChars, scoCompleteWithEnter]
+    EndOfTokenChr = '()[]. '
+    TriggerChars = 
+      '._$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678' +
+      '9'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clBtnText
+    TitleFont.Height = -12
+    TitleFont.Name = 'MS Sans Serif'
+    TitleFont.Style = [fsBold]
+    Columns = <>
+    OnChange = SynCompletionChange
+    OnClose = SynCompletionClose
+    OnExecute = SynCompletionExecute
+    ShortCut = 16416
+    Editor = FSQLEditorSynMemo
+    OnAfterCodeCompletion = SynCompletionAfterCodeCompletion
+    OnCancelled = SynCompletionCancelled
+    Left = 280
+    Top = 208
   end
 end

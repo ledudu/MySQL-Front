@@ -6,10 +6,10 @@ uses
   Windows, Messages,
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDServer = class (TForm_Ext)
@@ -25,7 +25,7 @@ type
     FLUser: TLabel;
     FLVersion: TLabel;
     FPlugins: TListView;
-    FStartup: TBCEditor;
+    FStartup: TSynMemo;
     FThreadId: TLabel;
     FUser: TLabel;
     FVersion: TLabel;
@@ -133,8 +133,7 @@ procedure TDServer.FormCreate(Sender: TObject);
 begin
   Preferences.Images.GetIcon(iiServer, Icon);
 
-  FStartup.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FStartup.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FStartup.Highlighter := Preferences.Editor.Highlighter;
   FPlugins.SmallImages := Preferences.Images;
 
   Constraints.MinWidth := Width;
@@ -177,7 +176,6 @@ begin
   end;
 
   FStartup.Lines.Clear();
-  Session.ApplyToBCEditor(FStartup);
 
   Caption := Preferences.LoadStr(842, Session.Caption);
 
@@ -368,7 +366,7 @@ begin
   FLThreadId.Caption := Preferences.LoadStr(269) + ':';
 
   TSStartup.Caption := Preferences.LoadStr(805);
-  Preferences.ApplyToBCEditor(FStartup);
+  Preferences.ApplyToSynMemo(FStartup);
 
   TSPlugins.Caption := Preferences.LoadStr(811);
   FPlugins.Columns[0].Caption := Preferences.LoadStr(35);

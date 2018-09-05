@@ -6,10 +6,10 @@ uses
   Windows, Messages,
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDView = class(TForm_Ext)
@@ -28,12 +28,12 @@ type
     FLDefiner: TLabel;
     FLName: TLabel;
     FLSecurity: TLabel;
-    FLStmt: TLabel;
+    FLStatement: TLabel;
     FName: TEdit;
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
-    FSource: TBCEditor;
-    FStatement: TBCEditor;
+    FSource: TSynMemo;
+    FStatement: TSynMemo;
     GBasics: TGroupBox_Ext;
     GDefiner: TGroupBox_Ext;
     msCopy: TMenuItem;
@@ -67,10 +67,11 @@ type
     procedure FormShow(Sender: TObject);
     procedure FSecurityClick(Sender: TObject);
     procedure FSecurityKeyPress(Sender: TObject; var Key: Char);
-    procedure FSourceSelectionChanged(Sender: TObject);
-    procedure TSDependenciesShow(Sender: TObject);
+    procedure FSourceStatusChange(Sender: TObject;
+      Changes: TSynStatusChanges);
     procedure FStatementChange(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
+    procedure TSDependenciesShow(Sender: TObject);
   private
     RecordCount: Integer;
     SessionState: (ssCreate, ssInit, ssDependencies, ssValid, ssAlter);
@@ -357,7 +358,7 @@ begin
       NewView.CheckOption := voLocal
     else
       NewView.CheckOption := voDefault;
-    NewView.Stmt := Trim(FStatement.Text);
+    NewView.Stmt := Trim(FStatement.Lines.Text);
 
     SessionState := ssAlter;
 
@@ -378,11 +379,9 @@ procedure TDView.FormCreate(Sender: TObject);
 begin
   FFields.SmallImages := Preferences.Images;
 
-  FStatement.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FStatement.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FStatement.Highlighter := Preferences.Editor.Highlighter;
   FDependencies.SmallImages := Preferences.Images;
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -488,9 +487,7 @@ begin
   end;
 
   FStatement.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FStatement);
   FSource.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(View) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
@@ -569,7 +566,7 @@ begin
     TSFields.TabVisible := False;
 end;
 
-procedure TDView.FSourceSelectionChanged(Sender: TObject);
+procedure TDView.FSourceStatusChange(Sender: TObject; Changes: TSynStatusChanges);
 begin
   aECopyToFile.Enabled := FSource.SelText <> '';
 end;
@@ -621,9 +618,9 @@ begin
   FCheckOption.Caption := Preferences.LoadStr(529);
   FCheckOptionCascade.Caption := Preferences.LoadStr(256);
   FCheckOptionLocal.Caption := Preferences.LoadStr(746);
-  FLStmt.Caption := Preferences.LoadStr(307) + ':';
+  FLStatement.Caption := Preferences.LoadStr(307) + ':';
 
-  Preferences.ApplyToBCEditor(FStatement);
+  Preferences.ApplyToSynMemo(FStatement);
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
@@ -642,7 +639,7 @@ begin
   FDependencies.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

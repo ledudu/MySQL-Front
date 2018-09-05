@@ -7,8 +7,8 @@ uses
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, StdCtrls, Menus, ComCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
-  BCEditor,
-  uSession, uBase, BCEditor.Highlighter;
+  SynEdit, SynMemo,
+  uSession, uBase;
 
 type
   TDDatabase = class (TForm_Ext)
@@ -34,7 +34,7 @@ type
     FLUnusedSize: TLabel;
     FLUpdated: TLabel;
     FName: TEdit;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FUnusedSize: TLabel;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
@@ -299,8 +299,7 @@ begin
   msCopy.Action := aECopy;
   msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -400,7 +399,6 @@ begin
     HelpContext := 1095;
 
   FSource.Lines.Clear();
-  Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Database) and (Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
@@ -554,7 +552,7 @@ begin
   FBFlush.Caption := Preferences.LoadStr(329);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

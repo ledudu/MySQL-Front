@@ -460,18 +460,41 @@ object DTables: TDTables
       DesignSize = (
         313
         297)
-      object FSource: TBCEditor
-        Left = 13
-        Top = 3
+      object FSource: TSynMemo
+        Left = 8
+        Top = 8
         Width = 297
         Height = 271
         Anchors = [akLeft, akTop, akRight, akBottom]
-        LeftMargin.Bookmarks.Visible = False
-        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        Font.Style = []
         PopupMenu = MSource
-        ReadOnly = True
-        SyncEditOptions = [seoCaseSensitive]
         TabOrder = 0
+        CodeFolding.GutterShapeSize = 11
+        CodeFolding.CollapsedLineColor = clGrayText
+        CodeFolding.FolderBarLinesColor = clGrayText
+        CodeFolding.IndentGuidesColor = clGray
+        CodeFolding.IndentGuides = True
+        CodeFolding.ShowCollapsedLine = False
+        CodeFolding.ShowHintMark = True
+        UseCodeFolding = False
+        Gutter.Font.Charset = DEFAULT_CHARSET
+        Gutter.Font.Color = clWindowText
+        Gutter.Font.Height = -11
+        Gutter.Font.Name = 'Courier New'
+        Gutter.Font.Style = []
+        Gutter.Width = 0
+        MaxScrollWidth = 65535
+        Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
+        ReadOnly = True
+        RightEdge = 0
+        RightEdgeColor = clWindow
+        ScrollHintFormat = shfTopToBottom
+        WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
   end

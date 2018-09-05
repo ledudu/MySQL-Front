@@ -46,6 +46,10 @@ object DServer: TDServer
     TabOrder = 0
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         293)
@@ -173,28 +177,60 @@ object DServer: TDServer
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         293)
-      object FStartup: TBCEditor
+      object FStartup: TSynMemo
         Left = 8
         Top = 8
         Width = 297
         Height = 275
         Anchors = [akLeft, akTop, akRight, akBottom]
-        LeftMargin.Bookmarks.Visible = False
-        LeftMargin.LineNumbers.Visible = False
-        LeftMargin.LineState.Visible = False
-        Options = [eoAutoIndent, eoDropFiles, eoHighlightAllFoundTexts, eoHighlightMatchingPairs, eoMiddleClickScrolling]
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Courier New'
+        Font.Style = []
         PopupMenu = MSource
-        ReadOnly = True
         TabOrder = 0
-        WantReturns = False
+        CodeFolding.GutterShapeSize = 11
+        CodeFolding.CollapsedLineColor = clGrayText
+        CodeFolding.FolderBarLinesColor = clGrayText
+        CodeFolding.IndentGuidesColor = clGray
+        CodeFolding.IndentGuides = True
+        CodeFolding.ShowCollapsedLine = False
+        CodeFolding.ShowHintMark = True
+        UseCodeFolding = False
+        Gutter.AutoSize = True
+        Gutter.DigitCount = 2
+        Gutter.Font.Charset = DEFAULT_CHARSET
+        Gutter.Font.Color = clWindowText
+        Gutter.Font.Height = -11
+        Gutter.Font.Name = 'Courier New'
+        Gutter.Font.Style = []
+        Gutter.LeftOffset = 2
+        Gutter.ShowLineNumbers = True
+        Gutter.Visible = False
+        Gutter.Width = 0
+        MaxScrollWidth = 65535
+        Options = [eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
+        ReadOnly = True
+        RightEdge = 0
+        ScrollHintFormat = shfTopToBottom
+        FontSmoothing = fsmNone
       end
     end
     object TSPlugins: TTabSheet
       Caption = 'TSPlugins'
       OnShow = TSPluginsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         293)

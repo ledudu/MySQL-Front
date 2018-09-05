@@ -7,7 +7,6 @@ uses
   SysUtils, Classes, SyncObjs, Generics.Collections,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
-  BCEditor, BCEditor.Highlighter,
   SQLUtils, MySQLDB, MySQLConsts, SQLParser,
 uProfiling,
   uPreferences;
@@ -1609,7 +1608,6 @@ InImport: Boolean;
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
     function ApplyIdentifierName(const AIdentifierName: string): string;
-    procedure ApplyToBCEditor(const ABCEditor: TBCEditor);
     procedure GridCanEditShow(Sender: TObject);
     function CharsetByName(const CharsetName: string): TSCharset;
     function CharsetByCollation(const Collation: string): TSCharset;
@@ -1711,7 +1709,6 @@ uses
   Variants, SysConst, RTLConsts, Math, DateUtils, StrUtils,
   DBConsts, DBCommon,
   Consts, DBGrids,
-  BCEditor.Types,
   CSVUtils, HTTPTunnel, MySQLDBGrid,
   uURI, uDeveloper;
 
@@ -11868,21 +11865,6 @@ begin
     Result := ReplaceStr(Result, '\', '_');
     Result := ReplaceStr(Result, '.', '_');
   end;
-end;
-
-procedure TSSession.ApplyToBCEditor(const ABCEditor: TBCEditor);
-var
-  I: Integer;
-begin
-  for I := 0 to ABCEditor.Highlighter.MainRules.RangeCount - 1 do
-    if ((ABCEditor.Highlighter.MainRules.Ranges[I].TokenType = BCEditor.Types.ttString)
-      and (ABCEditor.Highlighter.MainRules.Ranges[I].OpenToken.Symbols[0] = '"')
-      and (ABCEditor.Highlighter.MainRules.Ranges[I].CloseToken.Symbols[0] = '"')) then
-      if (Connection.AnsiQuotes) then
-        ABCEditor.Highlighter.MainRules.Ranges[I].Attribute.Element := 'Identifier'
-      else
-        ABCEditor.Highlighter.MainRules.Ranges[I].Attribute.Element := 'String';
-  ABCEditor.Invalidate();
 end;
 
 function TSSession.BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;

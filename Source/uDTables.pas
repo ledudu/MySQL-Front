@@ -6,11 +6,11 @@ uses
   Windows, Messages,
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
   MySQLDB,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDTables = class (TForm_Ext)
@@ -43,7 +43,7 @@ type
     FLUpdated: TLabel;
     FRecordCount: TLabel;
     FRowType: TComboBox_Ext;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FTablesCount: TLabel;
     FUnusedSize: TLabel;
     FUpdated: TLabel;
@@ -244,8 +244,7 @@ procedure TDTables.FormCreate(Sender: TObject);
 begin
   Tables := nil;
 
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -325,7 +324,6 @@ begin
   WaitingForClose := False;
 
   FSource.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FSource);
 
   FTablesCount.Caption := IntToStr(Tables.Count);
 
@@ -510,7 +508,7 @@ begin
   FBFlush.Caption := Preferences.LoadStr(329);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

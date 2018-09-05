@@ -8091,7 +8091,7 @@ begin
     if (DbIdentType = ditField) then
     begin
       // ditField must be the first in the list, because of the large number
-      // of column names, which will be added to the BCEditor.CompletionList.
+      // of column names, which will be added to the SynMemo.CompletionList.
       Move(FItems[0], FItems[1], FCount * SizeOf(FItems[0]));
       Item := @FItems[0];
     end

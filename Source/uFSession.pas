@@ -12,7 +12,8 @@ uses
   DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
   PNGImage, GIFImg, Jpeg, ToolWin,
   BCHexEditor, BCHexEditorEx,
-  BCEditor, BCEditor.Properties, BCEditor.Commands,
+  SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
+  SynEditSearch, SynCompletionProposal,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -77,10 +78,13 @@ type
     FObjectSearchStart: TToolButton;
     FOffset: TEdit;
     FQueryBuilder: TacQueryBuilder;
+    FQueryBuilderSynMemo: TSynMemo;
     FQuickSearch: TEdit;
     FQuickSearchEnabled: TToolButton;
     FRTF: TRichEdit;
     FListView: TListView_Ext;
+    FSQLEditorSearch: TSynEditSearch;
+    FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
     FText: TRichEdit;
     FUDLimit: TUpDown;
@@ -293,7 +297,7 @@ type
     OpenDialog: TOpenDialog_Ext;
     PBlob: TPanel_Ext;
     PQueryBuilder: TPanel_Ext;
-    PQueryBuilderBCEditor: TPanel_Ext;
+    PQueryBuilderSynMemo: TPanel_Ext;
     PContent: TPanel_Ext;
     PBrowser: TPanel_Ext;
     PBrowserSpacer: TPanel_Ext;
@@ -313,7 +317,7 @@ type
     PResultHeader: TPanel_Ext;
     PSideBar: TPanel_Ext;
     PSQLHistory: TPanel_Ext;
-    PBCEditor: TPanel_Ext;
+    PSynMemo: TPanel_Ext;
     PToolBarBlob: TPanel_Ext;
     PHeader: TPanel_Ext;
     PWorkbench: TPanel_Ext;
@@ -321,7 +325,7 @@ type
     SBlob0: TSplitter_Ext;
     SBlob: TSplitter_Ext;
     SBlob2: TSplitter_Ext;
-    SQueryBuilderBCEditor: TSplitter_Ext;
+    SQueryBuilderSynMemo: TSplitter_Ext;
     SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
     smECopy: TMenuItem;
@@ -330,6 +334,7 @@ type
     SQLBuilder: TacSQLBuilderPlainText;
     SResult: TSplitter_Ext;
     SSideBar: TSplitter_Ext;
+    SynCompletion: TSynCompletionProposal;
     TBBlob: TToolBar;
     tbBlobHexEditor: TToolButton;
     tbBlobHTML: TToolButton;
@@ -487,9 +492,9 @@ type
     procedure FObjectSearchStartClick(Sender: TObject);
     procedure FOffsetChange(Sender: TObject);
     procedure FOffsetKeyPress(Sender: TObject; var Key: Char);
-    procedure FQueryBuilderBCEditorChange(Sender: TObject);
-    procedure FQueryBuilderBCEditorEnter(Sender: TObject);
-    procedure FQueryBuilderBCEditorExit(Sender: TObject);
+    procedure FQueryBuilderSynMemoChange(Sender: TObject);
+    procedure FQueryBuilderSynMemoEnter(Sender: TObject);
+    procedure FQueryBuilderSynMemoExit(Sender: TObject);
     procedure FQueryBuilderDragDrop(Sender, Source: TObject; X,
       Y: Integer);
     procedure FQueryBuilderDragOver(Sender, Source: TObject; X, Y: Integer;
@@ -508,6 +513,7 @@ type
     procedure FRTFChange(Sender: TObject);
     procedure FRTFEnter(Sender: TObject);
     procedure FRTFExit(Sender: TObject);
+    procedure FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
     procedure FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
     procedure FSQLHistoryChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
@@ -614,6 +620,19 @@ type
     procedure SSideBarCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
     procedure SSideBarMoved(Sender: TObject);
+    procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
+    procedure SynCompletionClose(Sender: TObject);
+    procedure SynCompletionExecute(Kind: SynCompletionType; Sender: TObject;
+      var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
+    procedure SynCompletionCancelled(Sender: TObject);
+    procedure SynCompletionAfterCodeCompletion(Sender: TObject;
+      const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
+    procedure SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);
+    procedure SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
+    procedure SynMemoEnter(Sender: TObject);
+    procedure SynMemoExit(Sender: TObject);
+    procedure SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
     procedure ToolBarResize(Sender: TObject);
     procedure ToolBarTabsClick(Sender: TObject);
     procedure ToolButtonStyleClick(Sender: TObject);
@@ -651,7 +670,7 @@ type
       end;
     private
       FSession: TFSession;
-      FBCEditor: TBCEditor;
+      FSynMemo: TSynMemo;
       PDBGrid: TPanel_Ext;
       Results: TList;
       TCResult: TTabControl;
@@ -663,12 +682,12 @@ type
       Filename: TFileName;
       FileCodePage: Cardinal;
       procedure CloseResult();
-      constructor Create(const AFSession: TFSession; const ABCEditor: TBCEditor; const APDBGrid: TPanel_Ext);
+      constructor Create(const AFSession: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
       destructor Destroy(); override;
       function ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
-      property BCEditor: TBCEditor read FBCEditor;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TSObjectDesktop = class(TSObject.TDesktop)
@@ -744,13 +763,13 @@ type
 
     TViewDesktop = class(TTableDesktop)
     private
-      FBCEditor: TBCEditor;
+      FSynMemo: TSynMemo;
     public
       constructor Create(const AFSession: TFSession; const AView: TSView);
-      function CreateBCEditor(): TBCEditor;
+      function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
       procedure DataSetBeforeOpen(DataSet: TDataSet);
-      property BCEditor: TBCEditor read FBCEditor;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TRoutineDesktop = class(TSObjectDesktop)
@@ -761,7 +780,7 @@ type
         DBGrid: TMySQLDBGrid;
       end;
     private
-      FBCEditor: TBCEditor;
+      FSynMemo: TSynMemo;
       PDBGrid: TPanel_Ext;
       Results: TList;
       TCResult: TTabControl;
@@ -772,32 +791,32 @@ type
     public
       procedure CloseIDEResult();
       constructor Create(const AFSession: TFSession; const ARoutine: TSRoutine);
-      function CreateBCEditor(): TBCEditor; virtual;
+      function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
-      property BCEditor: TBCEditor read FBCEditor;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TTriggerDesktop = class(TSObjectDesktop)
     private
-      FBCEditor: TBCEditor;
+      FSynMemo: TSynMemo;
     public
       constructor Create(const AFSession: TFSession; const ATrigger: TSTrigger);
-      function CreateBCEditor(): TBCEditor;
+      function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
-      property BCEditor: TBCEditor read FBCEditor;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TEventDesktop = class(TSObjectDesktop)
     private
-      FBCEditor: TBCEditor;
+      FSynMemo: TSynMemo;
     public
       constructor Create(const AFSession: TFSession; const AEvent: TSEvent);
-      function CreateBCEditor(): TBCEditor;
+      function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
-      property BCEditor: TBCEditor read FBCEditor;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TDBGridDropData = class(TInterfacedObject, IDataObject, IEnumFORMATETC)
@@ -854,20 +873,17 @@ type
     end;
 
   private
-    ActiveBCEditor: TBCEditor;
     ActiveControlOnDeactivate: TWinControl;
     ActiveDBGrid: TMySQLDBGrid;
     ActiveIDEInputDataSet: TDataSet;
     ActiveListView: TListView;
+    ActiveSynMemo: TSynMemo;
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
     BMPImage: TBitmap;
     CloseButtonHot: TPicture;
     CloseButtonNormal: TPicture;
     CloseButtonPushed: TPicture;
-    SynCompletionPending: record
-      Active: Boolean;
-    end;
     FCurrentAddress: string;
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
@@ -883,9 +899,8 @@ type
     FNavigatorNodeAfterActivate: TTreeNode;
     FNavigatorNodeToExpand: TTreeNode;
     FrameState: TTabState;
-    FQueryBuilderBCEditor: TBCEditor;
-    FSQLEditorBCEditor2: TBCEditor;
-    FSQLEditorBCEditor3: TBCEditor;
+    FSQLEditorSynMemo2: TSynMemo;
+    FSQLEditorSynMemo3: TSynMemo;
     FSQLHistoryMenuNode: TTreeNode;
     GIFImage: TGIFImage;
     JPEGImage: TJPEGImage;
@@ -922,7 +937,16 @@ type
     SQLEditor: TSQLEditor;
     SQLEditor2: TSQLEditor;
     SQLEditor3: TSQLEditor;
-    NavigatorElapse: Integer;
+    SynMemoBeforeDrag: record
+      SelLength: Integer;
+      SelStart: Integer;
+    end;
+    SynCompletionPending: record
+      Active: Boolean;
+      CurrentInput: string;
+      X: Integer;
+      Y: Integer;
+    end;    NavigatorElapse: Integer;
     UsersListView: TListView;
     VariablesListView: TListView;
     Wanted: TWanted;
@@ -955,21 +979,6 @@ Progress: string;
     procedure aVRefreshExecute(Sender: TObject);
     procedure aVSideBarExecute(Sender: TObject);
     procedure aVSQLLogExecute(Sender: TObject);
-    procedure BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
-    procedure BCEditorChange(Sender: TObject);
-    procedure BCEditorCompletionProposalHide(Sender: TObject);
-    procedure BCEditorCompletionProposalShow(Sender: TObject;
-      const Columns: TBCEditorCompletionProposal.TColumns; const Input: string;
-      var CanExecute: Boolean);
-    procedure BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);
-    procedure BCEditorDragOver(Sender, Source: TObject; X, Y: Integer;
-      State: TDragState; var Accept: Boolean);
-    function BCEditorDrop(const BCEditor: TBCEditor; const dataObj: IDataObject;
-      grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
-    procedure BCEditorEnter(Sender: TObject);
-    procedure BCEditorExit(Sender: TObject);
-    procedure BCEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure BCEditorKeyPress(Sender: TObject; var Key: Char);
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const Event: TSSession.TEvent);
@@ -978,12 +987,12 @@ Progress: string;
     function ChangeCurrentAddress(const AAddress: string): Boolean;
     function ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    function CreateBCEditor(SObject: TSObject): TBCEditor;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
     function CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
     function CreateListView(const Data: TCustomData): TListView;
     function CreatePDBGrid(): TPanel_Ext;
+    function CreateSynMemo(SObject: TSObject): TSynMemo;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
     function CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
     function DataByAddress(const Address: string; const Update: Boolean = False): TCustomData;
@@ -1038,10 +1047,10 @@ Progress: string;
     procedure FRTFShow(Sender: TObject);
     procedure FSQLHistoryRefresh(Sender: TObject);
     procedure FTextShow(Sender: TObject);
-    function GetActiveBCEditor(): TBCEditor;
     function GetActiveDBGrid(): TMySQLDBGrid;
     function GetActiveIDEInputDataSet(): TDataSet;
     function GetActiveListView(): TListView;
+    function GetActiveSynMemo(): TSynMemo;
     function GetActiveWorkbench(): TWWorkbench;
     function GetCurrentClassIndex(): TClassIndex; inline;
     function GetCurrentData(): TCustomData; inline;
@@ -1081,6 +1090,8 @@ Progress: string;
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
+    function SynMemoDrop(const SynMemo: TSynMemo; const dataObj: IDataObject;
+      grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
@@ -1161,7 +1172,6 @@ DateUtils,
   DBConsts, DBCommon,
   XMLDoc,
   Clipbrd, Themes, FileCtrl, Consts,
-  BCEditor.Types, BCEditor.Lines, BCEditor.Consts,
   acQBLocalizer, acQBStrings,
   StdActns_Ext,
   MySQLConsts, SQLUtils,
@@ -1183,6 +1193,7 @@ const
 
 const
   tiNavigator = 1;
+  tiHideSynCompletion = 2;
   tiShowSynCompletion = 3;
   tiStatusBar = 4;
 
@@ -1402,7 +1413,7 @@ begin
   end;
 end;
 
-constructor TFSession.TSQLEditor.Create(const AFSession: TFSession; const ABCEditor: TBCEditor; const APDBGrid: TPanel_Ext);
+constructor TFSession.TSQLEditor.Create(const AFSession: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
 begin
   inherited Create();
 
@@ -1410,7 +1421,7 @@ begin
 
   Filename := '';
   FileCodePage := GetACP();
-  FBCEditor := ABCEditor;
+  FSynMemo := ASynMemo;
   PDBGrid := APDBGrid;
   Results := nil;
   TCResult := nil;
@@ -1500,8 +1511,8 @@ begin
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      FBCEditor.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      FBCEditor.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end;
   end
   else
@@ -1952,18 +1963,18 @@ constructor TFSession.TViewDesktop.Create(const AFSession: TFSession; const AVie
 begin
   inherited Create(AFSession, AView);
 
-  FBCEditor := nil;
+  FSynMemo := nil;
 end;
 
-function TFSession.TViewDesktop.CreateBCEditor(): TBCEditor;
+function TFSession.TViewDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(FBCEditor) and TSView(SObject).Valid) then
+  if (not Assigned(FSynMemo) and TSView(SObject).Valid) then
   begin
-    FBCEditor := FSession.CreateBCEditor(SObject);
-    FBCEditor.Text := TSView(SObject).Stmt + #13#10;
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSView(SObject).Stmt + #13#10;
   end;
 
-  Result := FBCEditor;
+  Result := FSynMemo;
 end;
 
 procedure TFSession.TViewDesktop.DataSetBeforeOpen(DataSet: TDataSet);
@@ -1986,8 +1997,8 @@ end;
 
 destructor TFSession.TViewDesktop.Destroy();
 begin
-  if (Assigned(BCEditor)) then
-    BCEditor.Free;
+  if (Assigned(FSynMemo)) then
+    FSynMemo.Free();
 
   inherited;
 end;
@@ -2018,19 +2029,19 @@ constructor TFSession.TRoutineDesktop.Create(const AFSession: TFSession; const A
 begin
   inherited Create(AFSession, ARoutine);
 
-  FBCEditor := nil;
+  FSynMemo := nil;
   Results := nil;
 end;
 
-function TFSession.TRoutineDesktop.CreateBCEditor(): TBCEditor;
+function TFSession.TRoutineDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(FBCEditor) and TSRoutine(SObject).Valid) then
+  if (not Assigned(FSynMemo) and TSRoutine(SObject).Valid) then
   begin
-    FBCEditor := FSession.CreateBCEditor(SObject);
-    FBCEditor.Text := TSRoutine(SObject).Source;
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSRoutine(SObject).Source;
   end;
 
-  Result := FBCEditor;
+  Result := FSynMemo;
 end;
 
 procedure TFSession.TRoutineDesktop.DataSetAfterOpen(DataSet: TDataSet);
@@ -2043,8 +2054,8 @@ begin
   CloseIDEResult();
   if (Assigned(PDBGrid)) then
     PDBGrid.Free();
-  if (Assigned(BCEditor)) then
-    BCEditor.Free();
+  if (Assigned(FSynMemo)) then
+    FSynMemo.Free();
   if (Assigned(Results)) then
     Results.Free();
 
@@ -2122,24 +2133,24 @@ constructor TFSession.TTriggerDesktop.Create(const AFSession: TFSession; const A
 begin
   inherited Create(AFSession, ATrigger);
 
-  FBCEditor := nil;
+  FSynMemo := nil;
 end;
 
-function TFSession.TTriggerDesktop.CreateBCEditor(): TBCEditor;
+function TFSession.TTriggerDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(FBCEditor) and TSTrigger(SObject).Valid) then
+  if (not Assigned(FSynMemo) and TSTrigger(SObject).Valid) then
   begin
-    FBCEditor := FSession.CreateBCEditor(SObject);
-    FBCEditor.Text := TSTrigger(SObject).Stmt;
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSTrigger(SObject).Stmt;
   end;
 
-  Result := FBCEditor;
+  Result := FSynMemo;
 end;
 
 destructor TFSession.TTriggerDesktop.Destroy();
 begin
-  if (Assigned(BCEditor)) then
-    BCEditor.Free();
+  if (Assigned(FSynMemo)) then
+    FSynMemo.Free();
 
   inherited;
 end;
@@ -2150,24 +2161,24 @@ constructor TFSession.TEventDesktop.Create(const AFSession: TFSession; const AEv
 begin
   inherited Create(AFSession, AEvent);
 
-  FBCEditor := nil;
+  FSynMemo := nil;
 end;
 
-function TFSession.TEventDesktop.CreateBCEditor(): TBCEditor;
+function TFSession.TEventDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(FBCEditor) and TSEvent(SObject).Valid) then
+  if (not Assigned(FSynMemo) and TSEvent(SObject).Valid) then
   begin
-    FBCEditor := FSession.CreateBCEditor(SObject);
-    FBCEditor.Text := TSEvent(SObject).Stmt;
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSEvent(SObject).Stmt;
   end;
 
-  Result := FBCEditor;
+  Result := FSynMemo;
 end;
 
 destructor TFSession.TEventDesktop.Destroy();
 begin
-  if (Assigned(BCEditor)) then
-    BCEditor.Free();
+  if (Assigned(FSynMemo)) then
+    FSynMemo.Free();
 
   inherited;
 end;
@@ -2502,8 +2513,8 @@ begin
     else if (aDCreateField.Enabled) then aDCreateField.Execute()
     else if (aDCreateUser.Enabled) then aDCreateUser.Execute();
   end
-  else if (Window.ActiveControl = ActiveBCEditor) then
-    ActiveBCEditor.ProcessCommand(ecToggleTextMode, nil)
+  else if (Window.ActiveControl = ActiveSynMemo) then
+    ActiveSynMemo.InsertMode := not ActiveSynMemo.InsertMode
   else if (Window.ActiveControl = ActiveDBGrid) and (not ActiveDBGrid.EditorMode) then
     aDInsertRecord.Execute();
 end;
@@ -2851,12 +2862,12 @@ begin
     case (View) of
       vObjects: NewActiveControl := ActiveListView;
       vBrowser: NewActiveControl := ActiveDBGrid;
-      vIDE: NewActiveControl := ActiveBCEditor;
+      vIDE: NewActiveControl := ActiveSynMemo;
       vBuilder: NewActiveControl := FQueryBuilderActiveWorkArea();
       vDiagram: NewActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
-      vEditor3: NewActiveControl := ActiveBCEditor;
+      vEditor3: NewActiveControl := ActiveSynMemo;
       vObjectSearch: NewActiveControl := ObjectSearchListView;
       else NewActiveControl := nil;
     end;
@@ -2987,11 +2998,11 @@ begin
     URI.Free();
 
 
-    Empty := not Assigned(ActiveBCEditor) or (ActiveBCEditor.Lines.Count <= 1) and (ActiveBCEditor.Text = ''); // Takes a lot of time
-    if (not Empty and (View = vIDE)) then SQL := ActiveBCEditor.Text else SQL := '';
+    Empty := not Assigned(ActiveSynMemo) or (ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = ''); // Takes a lot of time
+    if (not Empty and (View = vIDE)) then SQL := ActiveSynMemo.Text else SQL := '';
 
     aFOpen.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]);
-    aFSave.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveBCEditor.Modified);
+    aFSave.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
     aFSaveAs.Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
     aVObjects.Enabled := True;
     aVBrowser.Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
@@ -3005,8 +3016,8 @@ begin
       ((View in [vEditor, vEditor2, vEditor3])
       or ((View in [vBuilder]) and FQueryBuilder.Visible)
       or ((View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
-    aDRunSelection.Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveBCEditor) and (Trim(ActiveBCEditor.SelText) <> ''));
-    aDPostObject.Enabled := (View = vIDE) and Assigned(ActiveBCEditor) and ActiveBCEditor.Modified and SQLSingleStmt(SQL)
+    aDRunSelection.Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
+    aDPostObject.Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
       and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
         or (CurrentClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
         or (CurrentClassIndex in [ciEvent, ciTrigger]));
@@ -3034,7 +3045,7 @@ begin
       begin
         if (PListView.Visible) then Window.ActiveControl := ActiveListView
         else if (PQueryBuilder.Visible) then Window.ActiveControl := FQueryBuilder
-        else if (PBCEditor.Visible) then Window.ActiveControl := ActiveBCEditor
+        else if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo
         else if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid
         else if (PNavigator.Visible) then Window.ActiveControl := FNavigator;
       end
@@ -3042,12 +3053,12 @@ begin
         case (View) of
           vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
           vBrowser: if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
-          vIDE: if (PBCEditor.Visible and Assigned(ActiveBCEditor)) then Window.ActiveControl := ActiveBCEditor;
+          vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
           vBuilder: if (PQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
           vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
           vEditor,
           vEditor2,
-          vEditor3: if (PBCEditor.Visible) then Window.ActiveControl := ActiveBCEditor;
+          vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
           vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
         end;
       Exclude(FrameState, fsLoading);
@@ -3389,31 +3400,31 @@ begin
   aDRunExecuteSelStart := 0;
   SQL := '';
   if (View in [vBuilder]) then
-    SQL := ActiveBCEditor.Text
+    SQL := ActiveSynMemo.Text
   else if (View in [vEditor, vEditor2, vEditor3]) then
-    SQL := ActiveBCEditor.Text
+    SQL := ActiveSynMemo.Text
   else if ((View = vIDE) and (CurrentClassIndex = ciView)) then
   begin
-    if (not ActiveBCEditor.Modified or PostObject(Sender)) then
+    if (not ActiveSynMemo.Modified or PostObject(Sender)) then
       View := vBrowser;
   end
   else if ((View = vIDE) and (CurrentClassIndex = ciProcedure)) then
   begin
     if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
       FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
-    if (not ActiveBCEditor.Modified or PostObject(Sender)) then
+    if (not ActiveSynMemo.Modified or PostObject(Sender)) then
       SQL := TSProcedure(CurrentData).SQLRun();
   end
   else if ((View = vIDE) and (CurrentClassIndex = ciFunction)) then
   begin
     if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
       FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
-    if (not ActiveBCEditor.Modified or PostObject(Sender)) then
+    if (not ActiveSynMemo.Modified or PostObject(Sender)) then
       SQL := TSFunction(CurrentData).SQLRun();
   end
   else if ((View = vIDE) and (CurrentClassIndex = ciEvent)) then
   begin
-    if (not ActiveBCEditor.Modified or PostObject(Sender)) then
+    if (not ActiveSynMemo.Modified or PostObject(Sender)) then
       SQL := TSEvent(CurrentData).SQLRun();
   end;
 
@@ -3453,10 +3464,10 @@ var
 begin
   Wanted.Clear();
 
-  aDRunExecuteSelStart := ActiveBCEditor.SelStart;
-  if (ActiveBCEditor.SelText = '') then
+  aDRunExecuteSelStart := ActiveSynMemo.SelStart;
+  if (ActiveSynMemo.SelText = '') then
   begin
-    SQL := ActiveBCEditor.Text;
+    SQL := ActiveSynMemo.Text;
     Index := 1; I := Index; Len := 1;
     while ((I <= aDRunExecuteSelStart + 1) and (Index < Length(SQL)) and (Len > 0)) do
     begin
@@ -3469,7 +3480,7 @@ begin
     aDRunExecuteSelStart := Index - 1;
   end
   else
-    SQL := ActiveBCEditor.SelText;
+    SQL := ActiveSynMemo.SelText;
 
   if (SQL <> '') then
   begin
@@ -3489,9 +3500,9 @@ begin
 
   if (Window.ActiveControl = FText) then
     FText.Text := ''
-  else if (Window.ActiveControl = ActiveBCEditor) then
+  else if (Window.ActiveControl = ActiveSynMemo) then
   begin
-    ActiveBCEditor.Text := '';
+    ActiveSynMemo.Text := '';
     aEDelete.Execute();
   end;
 end;
@@ -3611,9 +3622,9 @@ begin
     FHexEditor.ExecuteAction(aECopy);
     exit;
   end
-  else if (Window.ActiveControl = ActiveBCEditor) then
+  else if (Window.ActiveControl = ActiveSynMemo) then
   begin
-    ActiveBCEditor.CopyToClipboard();
+    ActiveSynMemo.CopyToClipboard();
     exit;
   end
   else
@@ -3773,7 +3784,7 @@ begin
         PasteExecute(Node, S);
     end;
   end
-  else if (Window.ActiveControl = ActiveBCEditor) then
+  else if (Window.ActiveControl = ActiveSynMemo) then
     if (IsClipboardFormatAvailable(CF_MYSQLSQLDATA)) then
     begin
       if (OpenClipboard(Handle)) then
@@ -3783,14 +3794,14 @@ begin
           begin
             SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
             GlobalUnlock(ClipboardData);
-            ActiveBCEditor.SelText := S;
+            ActiveSynMemo.SelText := S;
           end;
         finally
           CloseClipboard();
         end;
     end
     else
-      ActiveBCEditor.PasteFromClipboard()
+      ActiveSynMemo.PasteFromClipboard()
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
     WorkbenchPasteExecute(Sender)
   else if ((Window.ActiveControl = FFilter) and (Clipboard.HasFormat(CF_UNICODETEXT) or Clipboard.HasFormat(CF_MYSQLSQLDATA))) then
@@ -3951,7 +3962,8 @@ end;
 
 procedure TFSession.aERedoExecute(Sender: TObject);
 begin
-  ActiveBCEditor.Redo();
+  ActiveSynMemo.Redo();
+  SynMemoStatusChange(Sender, [scAll]);
 end;
 
 procedure TFSession.aERenameExecute(Sender: TObject);
@@ -4315,16 +4327,16 @@ var
   ErrorPosOffset: Integer;
   SQL: string;
 begin
-  Window.ActiveControl := ActiveBCEditor;
+  Window.ActiveControl := ActiveSynMemo;
 
-  if (ActiveBCEditor.SelLength <> 0) then
+  if (ActiveSynMemo.SelAvail) then
   begin
-    ErrorPosOffset := ActiveBCEditor.SelStart;
-    SQL := ActiveBCEditor.SelText;
+    ErrorPosOffset := ActiveSynMemo.SelStart;
+    SQL := ActiveSynMemo.SelText;
   end
   else
   begin
-    SQL := ActiveBCEditor.Text;
+    SQL := ActiveSynMemo.Text;
     case (CurrentClassIndex) of
       ciTrigger:
         begin
@@ -4345,8 +4357,8 @@ begin
   begin
     if ((Session.SQLParser.ErrorPos > 0) and Assigned(Session.SQLParser.ErrorToken)) then
     begin
-      ActiveBCEditor.SelStart := ErrorPosOffset + Session.SQLParser.ErrorPos;
-      ActiveBCEditor.SelLength := Length(Session.SQLParser.ErrorToken.Text);
+      ActiveSynMemo.SelStart := ErrorPosOffset + Session.SQLParser.ErrorPos;
+      ActiveSynMemo.SelLength := Length(Session.SQLParser.ErrorToken.Text);
     end;
     MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
   end
@@ -4354,8 +4366,8 @@ begin
   begin
     SQL := Session.SQLParser.FormatSQL();
 
-    if (ActiveBCEditor.SelLength <> 0) then
-      ActiveBCEditor.SelText := SQL
+    if (ActiveSynMemo.SelAvail) then
+      ActiveSynMemo.SelText := SQL
     else
     begin
       case (CurrentClassIndex) of
@@ -4370,9 +4382,9 @@ begin
             SQL := Trim(SQL);
           end;
       end;
-      ActiveBCEditor.UndoOptions := ActiveBCEditor.UndoOptions + [uoUndoAfterLoad];
-      ActiveBCEditor.Text := SQL;
-      ActiveBCEditor.UndoOptions := ActiveBCEditor.UndoOptions - [uoUndoAfterLoad];
+      // Using SelectAll / SelText to have the option using the Undo feature of SynMemo
+      ActiveSynMemo.SelectAll();
+      ActiveSynMemo.SelText := SQL;
     end;
   end;
 
@@ -4429,15 +4441,12 @@ end;
 
 procedure TFSession.aHSQLExecute(Sender: TObject);
 begin
-  if (not Assigned(ActiveBCEditor) or (Window.ActiveControl <> ActiveBCEditor)) then
+  if (not Assigned(ActiveSynMemo) or (Window.ActiveControl <> ActiveSynMemo)) then
     WSQLHelp.Keyword := ''
-  else if (ActiveBCEditor.SelText <> '') then
-    WSQLHelp.Keyword := ActiveBCEditor.SelText
-  else if (ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos] <> '') then
-    WSQLHelp.Keyword := ActiveBCEditor.WordAt[ActiveBCEditor.CaretPos]
-  else if ((ActiveBCEditor.CaretPos.X > 0)
-    and (ActiveBCEditor.WordAt[Point(ActiveBCEditor.CaretPos.X - 1, ActiveBCEditor.CaretPos.Y)] <> '')) then
-    WSQLHelp.Keyword := ActiveBCEditor.WordAt[Point(ActiveBCEditor.CaretPos.X - 1, ActiveBCEditor.CaretPos.Y)]
+  else if (ActiveSynMemo.SelText <> '') then
+    WSQLHelp.Keyword := ActiveSynMemo.SelText
+  else if (ActiveSynMemo.WordAtCursor <> '') then
+    WSQLHelp.Keyword := ActiveSynMemo.WordAtCursor
   else
     WSQLHelp.Keyword := '';
 
@@ -4477,7 +4486,7 @@ end;
 procedure TFSession.aSynCompletionExecuteExecute(Sender: TObject);
 begin
   with SynCompletionPending do
-    ActiveBCEditor.ProcessCommand(ecShowCompletionProposal, nil);
+    SynCompletion.Execute(CurrentInput, X, Y);
   SynCompletionPending.Active := False;
 end;
 
@@ -4573,7 +4582,7 @@ begin
     case (View) of
       vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
-      vIDE: if (PBCEditor.Visible and Assigned(ActiveBCEditor)) then Window.ActiveControl := ActiveBCEditor;
+      vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
       vBuilder: if (PQueryBuilder.Visible) then
         if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
         begin
@@ -4591,11 +4600,11 @@ begin
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
         end
         else
-          Window.ActiveControl := FQueryBuilderBCEditor;
+          Window.ActiveControl := FQueryBuilderSynMemo;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
-      vEditor3: if (PBCEditor.Visible) then Window.ActiveControl := ActiveBCEditor;
+      vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
       vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
     end;
   end;
@@ -4862,7 +4871,7 @@ begin
   if (TObject(CurrentData) is TSTrigger) then
     Trigger := TSTrigger(CurrentData);
 
-  if (Assigned(Trigger) and (not ActiveBCEditor.Modified or PostObject(Sender))) then
+  if (Assigned(Trigger) and (not ActiveSynMemo.Modified or PostObject(Sender))) then
   begin
     FObjectIDEGrid.EditorMode := False;
     if (Sender = BINSERT) then
@@ -5155,10 +5164,10 @@ var
   View: TView;
 begin
   for View in [vEditor, vEditor2, vEditor3] do
-    if (not Assigned(SQLEditors[View]) or (SQLEditors[View].Filename <> '') and not SQLEditors[View].BCEditor.Modified) then
+    if (not Assigned(SQLEditors[View]) or (SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
       Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
       else
-      Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].BCEditor.Text;
+      Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
 
   if (Assigned(ActiveWorkbench)) then
     ActiveWorkbench.SaveToFile(Session.Account.DataPath + ActiveWorkbench.Name + PathDelim + 'Diagram.xml');
@@ -5170,7 +5179,7 @@ var
 begin
   Progress := 'a';
 
-  FQueryBuilderBCEditor := nil; // TacBaseSQLBuilder.SQLUpdate calls FQueryBuilderSQLUpdated
+  FQueryBuilderSynMemo := nil; // TacBaseSQLBuilder.SQLUpdate calls FQueryBuilderSQLUpdated
 
   inherited Create(AOwner);
 
@@ -5188,7 +5197,7 @@ begin
 
   NMListView := nil;
   Session := ASession;
-  SQLEditor := TSQLEditor.Create(Self, CreateBCEditor(nil), PSQLEditorDBGrid);
+  SQLEditor := TSQLEditor.Create(Self, CreateSynMemo(nil), PSQLEditorDBGrid);
   Param := AParam;
   ActiveControlOnDeactivate := nil;
   ActiveDBGrid := nil;
@@ -5384,8 +5393,8 @@ begin
     PFolders.BevelInner := bvRaised; PFolders.BevelOuter := bvLowered;
     PFiles.BevelInner := bvRaised; PFiles.BevelOuter := bvLowered;
     PListView.BevelInner := bvRaised; PListView.BevelOuter := bvLowered;
-    PQueryBuilderBCEditor.BevelInner := bvRaised; PQueryBuilderBCEditor.BevelOuter := bvLowered;
-    PBCEditor.BevelInner := bvRaised; PBCEditor.BevelOuter := bvLowered;
+    PQueryBuilderSynMemo.BevelInner := bvRaised; PQueryBuilderSynMemo.BevelOuter := bvLowered;
+    PSynMemo.BevelInner := bvRaised; PSynMemo.BevelOuter := bvLowered;
     PWorkbench.BevelInner := bvRaised; PWorkbench.BevelOuter := bvLowered;
     PSQLEditorDBGrid.BevelInner := bvRaised; PSQLEditorDBGrid.BevelOuter := bvLowered;
     PBlob.BevelInner := bvRaised; PBlob.BevelOuter := bvLowered;
@@ -5399,8 +5408,8 @@ begin
     PFiles.BevelInner := bvNone; PFiles.BevelOuter := bvNone;
     PSQLHistory.BevelInner := bvNone; PSQLHistory.BevelOuter := bvNone;
     PListView.BevelInner := bvNone; PListView.BevelOuter := bvNone;
-    PQueryBuilderBCEditor.BevelInner := bvNone; PQueryBuilderBCEditor.BevelOuter := bvNone;
-    PBCEditor.BevelInner := bvNone; PBCEditor.BevelOuter := bvNone;
+    PQueryBuilderSynMemo.BevelInner := bvNone; PQueryBuilderSynMemo.BevelOuter := bvNone;
+    PSynMemo.BevelInner := bvNone; PSynMemo.BevelOuter := bvNone;
     PWorkbench.BevelInner := bvNone; PWorkbench.BevelOuter := bvNone;
     PSQLEditorDBGrid.BevelInner := bvNone; PSQLEditorDBGrid.BevelOuter := bvNone;
     PBlob.BevelInner := bvNone; PBlob.BevelOuter := bvNone;
@@ -5411,16 +5420,21 @@ begin
   FSQLHistory.RowSelect := CheckWin32Version(6, 1);
 
   PListView.Align := alClient;
-  PBCEditor.Align := alClient;
+  PSynMemo.Align := alClient;
   PQueryBuilder.Align := alClient;
 
   FListView.RowSelect := CheckWin32Version(6);
   SetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
 
-  FQueryBuilderBCEditor := CreateBCEditor(nil);
-  FQueryBuilderBCEditor.OnEnter := FQueryBuilderBCEditorEnter;
-  FQueryBuilderBCEditor.OnExit := FQueryBuilderBCEditorExit;
-  FQueryBuilderBCEditor.Parent := PQueryBuilderBCEditor;
+  FSQLEditorSynMemo.Highlighter := Preferences.Editor.Highlighter;
+
+  FQueryBuilder.MetadataProvider := Session.MetadataProvider;
+  FQueryBuilder.SyntaxProvider := Session.SyntaxProvider;
+
+  FQueryBuilderSynMemo := CreateSynMemo(nil);
+  FQueryBuilderSynMemo.OnEnter := FQueryBuilderSynMemoEnter;
+  FQueryBuilderSynMemo.OnExit := FQueryBuilderSynMemoExit;
+  FQueryBuilderSynMemo.Parent := PQueryBuilderSynMemo;
 
 
   Session.SyntaxProvider.AnsiQuotes := Session.Connection.AnsiQuotes;
@@ -5430,9 +5444,6 @@ begin
     Session.SyntaxProvider.IdentCaseSens := icsNonSensitive;
   Session.SyntaxProvider.ServerVersionInt := Session.Connection.MySQLVersion;
   Session.MetadataProvider.OnGetSQLFieldNames := MetadataProviderGetSQLFieldNames;
-
-  FQueryBuilder.MetadataProvider := Session.MetadataProvider;
-  FQueryBuilder.SyntaxProvider := Session.SyntaxProvider;
 
 
   FText.Modified := False;
@@ -5584,13 +5595,13 @@ begin
     SExplorer.ActiveBorderColor := Color;
     SResult.ActiveBorderColor := Color;
     SBlob.ActiveBorderColor := Color;
-    SQueryBuilderBCEditor.ActiveBorderColor := Color;
+    SQueryBuilderSynMemo.ActiveBorderColor := Color;
   end;
 
   SSideBar.Width := GetSystemMetrics(SM_CXFIXEDFRAME);
   PBrowserSpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PObjectIDESpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  SQueryBuilderBCEditor.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
+  SQueryBuilderSynMemo.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PResultHeader.Width := CloseButtonNormal.Width + 2 * GetSystemMetrics(SM_CXEDGE);
@@ -5607,6 +5618,15 @@ begin
   TBFilterEnabled.Height := TBFilterEnabled.ButtonHeight;
   TBQuickSearchEnabled.ButtonHeight := FQuickSearch.Height;
   TBQuickSearchEnabled.Height := TBQuickSearchEnabled.ButtonHeight;
+
+  FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
+  FSQLEditorSynMemo.Font.Color := Preferences.SQLFontColor;
+  FSQLEditorSynMemo.Font.Size := Preferences.SQLFontSize;
+  FSQLEditorSynMemo.Font.Charset := Preferences.SQLFontCharset;
+  FSQLEditorSynMemo.Gutter.Font := FSQLEditorSynMemo.Font;
+
+  SynCompletion.Font := FSQLEditorSynMemo.Font;
+  SynCompletion.Width := Round(260 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
 
   FText.Font.Name := Preferences.GridFontName;
   FText.Font.Style := Preferences.GridFontStyle;
@@ -5627,71 +5647,12 @@ begin
   FHexEditor.Font.Color := Preferences.SQLFontColor;
   FHexEditor.Font.Size := Preferences.SQLFontSize;
 
-  PQueryBuilderBCEditor.Constraints.MinHeight :=
-    (FQueryBuilderBCEditor.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderBCEditor.Top + 2 * BevelWidth
+  PQueryBuilderSynMemo.Constraints.MinHeight :=
+    (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth
     + GetSystemMetrics(SM_CYHSCROLL);
 
   SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
-end;
-
-function TFSession.CreateBCEditor(SObject: TSObject): TBCEditor;
-begin
-  Result := TBCEditor.Create(Self);
-
-  Result.Left := 0;
-  Result.Top := 0;
-  Result.Width := PBCEditor.ClientWidth;
-  Result.Height := PBCEditor.ClientHeight;
-  Result.Align := alClient;
-  Result.HelpType := htContext;
-  Result.HelpContext := 1156;
-  Result.PopupMenu := MSQLEditor;
-  Result.Tag := NativeInt(SObject);
-
-  Result.BorderStyle := bsNone;
-  Result.CompletionProposal.Columns.Add();
-  Result.CompletionProposal.Columns[0].Font.Color := clGrayText;
-  Result.CompletionProposal.Columns[0].Font.Name := Font.Name;
-  Result.CompletionProposal.Columns.Add();
-  Result.CompletionProposal.Columns[1].Font.Name := Font.Name;
-  Result.CompletionProposal.Columns[1].Font.Color := clWindowText;
-  Result.CompletionProposal.Columns[2].Visible := False;
-  Result.CompletionProposal.InputColumnIndex := 1;
-  Result.CompletionProposal.CompletionColumnIndex := 2;
-  Result.CompletionProposal.Options := Result.CompletionProposal.Options
-    - [cpoAddHighlighterKeywords] + [cpoResizeable];
-  Result.HideSelection := False;
-  Result.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  Result.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
-  Result.LeftMargin.Bookmarks.Visible := False;
-  Result.LeftMargin.LineState.Visible := Assigned(SObject);
-  Result.LeftMargin.Marks.Visible := False;
-  Result.Options := Result.Options + [eoTrimEndOfLine];
-  Result.OnChange := BCEditorChange;
-  Result.OnCaretChange := BCEditorCaretChanged;
-  Result.OnCompletionProposalHide := BCEditorCompletionProposalHide;
-  Result.OnCompletionProposalShow := BCEditorCompletionProposalShow;
-  Result.OnDragDrop := BCEditorDragDrop;
-  Result.OnDragOver := BCEditorDragOver;
-  Result.OnEnter := BCEditorEnter;
-  Result.OnExit := BCEditorExit;
-  Result.OnKeyDown := BCEditorKeyDown;
-  Result.OnKeyPress := BCEditorKeyPress;
-
-  Result.Parent := PBCEditor;
-
-  Preferences.ApplyToBCEditor(Result);
-  Session.ApplyToBCEditor(Result);
-  Result.WordWrap := Preferences.Editor.WordWrap;
-
-  Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
-  Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
-  Result.Perform(CM_PARENTSHOWHINTCHANGED, 0, 0);
-  Result.Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
-  Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
-
-  Window.ApplyWinAPIUpdates(Result);
 end;
 
 function TFSession.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -5958,6 +5919,62 @@ begin
   Window.ApplyWinAPIUpdates(Result);
 end;
 
+function TFSession.CreateSynMemo(SObject: TSObject): TSynMemo;
+var
+  NonClientMetrics: TNonClientMetrics;
+begin
+  Result := TSynMemo.Create(FSQLEditorSynMemo.Owner);
+
+  Result.Left := 0;
+  Result.Top := 0;
+  Result.Width := PSynMemo.ClientWidth;
+  Result.Height := PSynMemo.ClientHeight;
+  Result.Align := alClient;
+  Result.BorderStyle := FSQLEditorSynMemo.BorderStyle;
+  Result.HelpType := htContext;
+  Result.HelpContext := FSQLEditorSynMemo.HelpContext;
+  Result.Highlighter := Preferences.Editor.Highlighter;
+  Result.Gutter.AutoSize := FSQLEditorSynMemo.Gutter.AutoSize;
+  Result.Gutter.Color := FSQLEditorSynMemo.Gutter.Color;
+  Result.Gutter.DigitCount := FSQLEditorSynMemo.Gutter.DigitCount;
+  Result.Gutter.LeftOffset := FSQLEditorSynMemo.Gutter.LeftOffset;
+  Result.Gutter.ShowLineNumbers := FSQLEditorSynMemo.Gutter.ShowLineNumbers;
+  Result.Gutter.Visible := FSQLEditorSynMemo.Gutter.Visible;
+  Result.Keystrokes := FSQLEditorSynMemo.Keystrokes;
+  Result.MaxScrollWidth := FSQLEditorSynMemo.MaxScrollWidth;
+  Result.OnChange := FSQLEditorSynMemo.OnChange;
+  Result.OnDragDrop := FSQLEditorSynMemo.OnDragDrop;
+  Result.OnDragOver := FSQLEditorSynMemo.OnDragOver;
+  Result.OnEnter := FSQLEditorSynMemo.OnEnter;
+  Result.OnExit := FSQLEditorSynMemo.OnExit;
+  Result.OnSearchNotFound := FSQLEditorSynMemo.OnSearchNotFound;
+  Result.OnStatusChange := FSQLEditorSynMemo.OnStatusChange;
+  Result.Options := FSQLEditorSynMemo.Options;
+  Result.PopupMenu := FSQLEditorSynMemo.PopupMenu;
+  Result.RightEdge := FSQLEditorSynMemo.RightEdge;
+  Result.ScrollHintFormat := FSQLEditorSynMemo.ScrollHintFormat;
+  Result.SearchEngine := FSQLEditorSynMemo.SearchEngine;
+  Result.Tag := NativeInt(SObject);
+  Result.TabWidth := FSQLEditorSynMemo.TabWidth;
+  Result.WantTabs := FSQLEditorSynMemo.WantTabs;
+
+  Result.Parent := PSynMemo;
+
+  SynCompletion.AddEditor(Result);
+
+  Preferences.ApplyToSynMemo(Result);
+
+  Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
+  Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
+  Result.Perform(CM_PARENTSHOWHINTCHANGED, 0, 0);
+  Result.Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
+  Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
+
+  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
+  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
+    Window.ApplyWinAPIUpdates(Result);
+end;
+
 function TFSession.CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
 begin
   Result := TTabControl.Create(Owner);
@@ -6069,12 +6086,12 @@ begin
       PResult.Align := alBottom;
       PResult.Height := PResultHeight;
       if (PQueryBuilder.Visible) then PQueryBuilder.Align := alClient;
-      if (PBCEditor.Visible) then PBCEditor.Align := alClient;
+      if (PSynMemo.Visible) then PSynMemo.Align := alClient;
     end;
 
     PResult.Visible := False; SResult.Visible := False;
-    PQueryBuilder.Update(); // TBCEditor does not update immediately after a change of TBCEditor.Align
-    PBCEditor.Update(); // TBCEditor does not update immediately after a change of TBCEditor.Align
+    PQueryBuilder.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
+    PSynMemo.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
   end;
 
   aDPrev.Enabled := False;
@@ -6734,7 +6751,7 @@ begin
     end;
   DBGrid.Columns.EndUpdate();
 
-  SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PBCEditor.Visible);
+  SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PSynMemo.Visible);
 end;
 
 procedure TFSession.DBGridKeyDown(Sender: TObject; var Key: Word;
@@ -6972,10 +6989,10 @@ begin
   for View in [vEditor, vEditor2, vEditor3] do
     if (Assigned(SQLEditors[View])) then
     begin
-      if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].BCEditor.Modified) then
+      if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
         Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
       else
-        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].BCEditor.Text;
+        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
     end;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
@@ -7033,8 +7050,8 @@ begin
   if (Assigned(SQLEditor)) then SQLEditor.Free();
   if (Assigned(SQLEditor2)) then SQLEditor2.Free();
   if (Assigned(SQLEditor3)) then SQLEditor3.Free();
-  if (Assigned(FSQLEditorBCEditor2)) then FSQLEditorBCEditor2.Free();
-  if (Assigned(FSQLEditorBCEditor3)) then FSQLEditorBCEditor3.Free();
+  if (Assigned(FSQLEditorSynMemo2)) then FSQLEditorSynMemo2.Free();
+  if (Assigned(FSQLEditorSynMemo3)) then FSQLEditorSynMemo3.Free();
 
 
   try
@@ -7092,8 +7109,12 @@ end;
 
 function TFSession.DragLeave(): HResult;
 begin
-  if (Assigned(ActiveBCEditor)) then
-    ActiveBCEditor.InsertPos := Point(-1, -1);
+  if (Assigned(ActiveSynMemo) and ActiveSynMemo.AlwaysShowCaret) then
+  begin
+    ActiveSynMemo.SelStart := SynMemoBeforeDrag.SelStart;
+    ActiveSynMemo.SelLength := SynMemoBeforeDrag.SelLength;
+    ActiveSynMemo.AlwaysShowCaret := False;
+  end;
 
   Result := S_OK;
 end;
@@ -7105,16 +7126,27 @@ var
   Control: TControl;
   DBGrid: TMySQLDBGrid;
   GridCoord: TGridCoord;
-  BCEditor: TBCEditor;
+  SynMemo: TSynMemo;
 begin
   Control := FindDragTarget(pt, False);
   ClientCoord := Control.ScreenToClient(Point(pt.X, pt.Y));
 
-  if (Control is TBCEditor) then
+  if (Control is TSynMemo) then
   begin
-    BCEditor := TBCEditor(Control);
+    SynMemo := TSynMemo(Control);
 
-    BCEditor.InsertPos := BCEditor.ClientToPos(ClientCoord.X, ClientCoord.X);
+    if (not SynMemo.AlwaysShowCaret) then
+    begin
+      SynMemoBeforeDrag.SelStart := ActiveSynMemo.SelStart;
+      SynMemoBeforeDrag.SelLength := ActiveSynMemo.SelLength;
+      SynMemo.AlwaysShowCaret := True;
+    end;
+
+    if (not SynMemo.Gutter.Visible) then
+      SynMemo.CaretX := (ClientCoord.X) div SynMemo.CharWidth + 1
+    else
+      SynMemo.CaretX := (ClientCoord.X - SynMemo.Gutter.RealGutterWidth(SynMemo.CharWidth)) div SynMemo.CharWidth + 1;
+    SynMemo.CaretY := (ClientCoord.Y div SynMemo.LineHeight) + 1;
     Result := S_OK;
   end
   else if (Control is TMySQLDBGrid) then
@@ -7152,8 +7184,8 @@ var
 begin
   Control := FindDragTarget(pt, False);
 
-  if (Control is TBCEditor) then
-    BCEditorDrop(TBCEditor(Control), dataObj, grfKeyState, pt, dwEffect)
+  if (Control is TSynMemo) then
+    SynMemoDrop(TSynMemo(Control), dataObj, grfKeyState, pt, dwEffect)
   else if (Control is TMySQLDBGrid) then
     DBGridDrop(TMySQLDBGrid(Control), dataObj, grfKeyState, pt, dwEffect)
   else if (Control = FFilter) then
@@ -9241,25 +9273,25 @@ begin
   end;
 end;
 
-procedure TFSession.FQueryBuilderBCEditorChange(Sender: TObject);
+procedure TFSession.FQueryBuilderSynMemoChange(Sender: TObject);
 begin
   try
-    FQueryBuilder.SQL := FQueryBuilderBCEditor.Text;
+    FQueryBuilder.SQL := FQueryBuilderSynMemo.Text;
     PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
   except
   end;
 end;
 
-procedure TFSession.FQueryBuilderBCEditorEnter(Sender: TObject);
+procedure TFSession.FQueryBuilderSynMemoEnter(Sender: TObject);
 begin
-  FQueryBuilderBCEditor.OnChange := FQueryBuilderBCEditorChange;
-  BCEditorEnter(Sender);
+  FQueryBuilderSynMemo.OnChange := FQueryBuilderSynMemoChange;
+  SynMemoEnter(Sender);
 end;
 
-procedure TFSession.FQueryBuilderBCEditorExit(Sender: TObject);
+procedure TFSession.FQueryBuilderSynMemoExit(Sender: TObject);
 begin
-  BCEditorExit(Sender);
-  FQueryBuilderBCEditor.OnChange := nil;
+  SynMemoExit(Sender);
+  FQueryBuilderSynMemo.OnChange := nil;
 end;
 
 procedure TFSession.FQueryBuilderDragDrop(Sender, Source: TObject; X, Y: Integer);
@@ -9376,22 +9408,17 @@ end;
 
 procedure TFSession.FQueryBuilderSQLUpdated(Sender: TObject);
 begin
-  if (Assigned(FQueryBuilderBCEditor)) then
+  FQueryBuilderEditorPageControlCheckStyle();
+
+  if ((SQLBuilder.SQL = '')
+    or not Assigned(Session)
+    or Session.SQLParser.ParseSQL(SQLBuilder.SQL)) then
+    FQueryBuilderSynMemo.Lines.Text := SQLBuilder.SQL
+  else
   begin
-    FQueryBuilderEditorPageControlCheckStyle();
+    FQueryBuilderSynMemo.Lines.Text := Session.SQLParser.FormatSQL();
 
-    if ((SQLBuilder.SQL = '')
-      or not Assigned(Session)
-      or Session.SQLParser.ParseSQL(SQLBuilder.SQL)) then
-      FQueryBuilderBCEditor.Text := SQLBuilder.SQL
-    else
-    begin
-      FQueryBuilderBCEditor.UndoOptions := FQueryBuilderBCEditor.UndoOptions + [uoUndoAfterLoad];
-      FQueryBuilderBCEditor.Text := Session.SQLParser.FormatSQL();
-      FQueryBuilderBCEditor.UndoOptions := FQueryBuilderBCEditor.UndoOptions - [uoUndoAfterLoad];
-
-      Session.SQLParser.Clear();
-    end;
+    Session.SQLParser.Clear();
   end;
 end;
 
@@ -9589,7 +9616,7 @@ begin
       if (Window.ActiveControl = FNavigator) then FNavigatorEnter(FNavigator)
       else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
       else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
-      else if (Window.ActiveControl is TBCEditor) then BCEditorEnter(Window.ActiveControl)
+      else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(Window.ActiveControl)
       else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid);
 
     if (Assigned(FNavigatorNodeAfterActivate)) then
@@ -9608,7 +9635,7 @@ var
   I: Integer;
   J: Integer;
   SObject: TSObject;
-  BCEditor: TBCEditor;
+  SynMemo: TSynMemo;
   View: TView;
   OldView: TView;
   OldAddress: string;
@@ -9618,24 +9645,24 @@ begin
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
 
-  for I := 0 to PBCEditor.ControlCount - 1 do
+  for I := 0 to PSynMemo.ControlCount - 1 do
     if (CanClose) then
-      if (PBCEditor.Controls[I] is TBCEditor) then
+      if (PSynMemo.Controls[I] is TSynMemo) then
       begin
-        BCEditor := TBCEditor(PBCEditor.Controls[I]);
-        if (BCEditor.Modified) then
+        SynMemo := TSynMemo(PSynMemo.Controls[I]);
+        if (SynMemo.Modified) then
         begin
-          SObject := TSObject(BCEditor.Tag);
+          SObject := TSObject(SynMemo.Tag);
           if (Assigned(SObject)) then
             for J := 0 to FNavigator.Items.Count - 1 do
               if (FNavigator.Items[J].Data = SObject) then
               begin
                 CurrentAddress := AddressByData(FNavigator.Items[J].Data);
-                if (BCEditor = SQLEditors[vEditor].BCEditor) then Self.View := vEditor
-                else if (Assigned(SQLEditor2) and (BCEditor = SQLEditor2.BCEditor)) then Self.View := vEditor2
-                else if (Assigned(SQLEditor3) and (BCEditor = SQLEditor3.BCEditor)) then Self.View := vEditor3
+                if (SynMemo = SQLEditors[vEditor].SynMemo) then Self.View := vEditor
+                else if (Assigned(SQLEditor2) and (SynMemo = SQLEditor2.SynMemo)) then Self.View := vEditor2
+                else if (Assigned(SQLEditor3) and (SynMemo = SQLEditor3.SynMemo)) then Self.View := vEditor3
                 else Self.View := vIDE;
-                Window.ActiveControl := ActiveBCEditor;
+                Window.ActiveControl := ActiveSynMemo;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
                   IDYES: aDPostObject.Execute();
                   IDCANCEL: CanClose := False;
@@ -9646,7 +9673,7 @@ begin
 
   if (CanClose) then
     for View in [vEditor, vEditor2, vEditor3] do
-      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].BCEditor) and SQLEditors[View].BCEditor.Modified and (SQLEditors[View].Filename <> '')) then
+      if (Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].SynMemo) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
       begin
         OldAddress := CurrentAddress;
         OldView := Self.View;
@@ -9660,7 +9687,7 @@ begin
           + 'CurrentAddress: ' + CurrentAddress + #13#10
           + 'LastSelectedDatabase: ' + LastSelectedDatabase);
 
-        Window.ActiveControl := ActiveBCEditor;
+        Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
           IDYES: SaveSQLFile(aFSave);
           IDCANCEL: CanClose := False;
@@ -9705,7 +9732,7 @@ begin
   if (Window.ActiveControl = FNavigator) then FNavigatorExit(Window.ActiveControl)
   else if (Window.ActiveControl = ActiveListView) then ListViewExit(Window.ActiveControl)
   else if (Window.ActiveControl = FLog) then FLogExit(Window.ActiveControl)
-  else if (Window.ActiveControl is TBCEditor) then BCEditorExit(Window.ActiveControl)
+  else if (Window.ActiveControl is TSynMemo) then SynMemoExit(Window.ActiveControl)
   else if (Window.ActiveControl = ActiveDBGrid) then DBGridExit(Window.ActiveControl);
 
   Exclude(FrameState, fsActive);
@@ -9812,6 +9839,26 @@ begin
   FRTF.SelectAll();
 
   FRTF.OnChange := TempFRTFOnChange;
+end;
+
+procedure TFSession.FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
+var
+  AnsiKey: AnsiChar;
+begin
+  if (Preferences.Editor.CodeCompletion
+    and not SynCompletion.Form.Active) then
+    if (Key = '.') then
+      PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiShowSynCompletion, 10)
+    else
+    begin
+      Byte(AnsiKey) := Ord(Key) and $FF;
+      if ((AnsiKey in ['0' .. '9'])
+        or (AnsiKey in ['A' .. 'Z'])
+        or (AnsiKey in ['a' .. 'z'])
+        or (AnsiKey in ['$', '_'])
+        or (Key > Chr(127))) then
+        PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiShowSynCompletion, Preferences.Editor.CodeCompletionTime)
+    end;
 end;
 
 procedure TFSession.FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
@@ -10080,69 +10127,6 @@ begin
   aVBlobRTF.Visible := (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
 end;
 
-function TFSession.GetActiveBCEditor(): TBCEditor;
-var
-  I: Integer;
-begin
-  case (View) of
-    vIDE:
-      begin
-        case (CurrentClassIndex) of
-          ciView: Result := Desktop(TSView(CurrentData)).CreateBCEditor();
-          ciProcedure,
-          ciFunction: Result := Desktop(TSRoutine(CurrentData)).CreateBCEditor();
-          ciTrigger:
-            begin
-              // Debug 2017-03-02
-              Assert(Assigned(CurrentData),
-                'CurrentAddress: ' + CurrentAddress);
-
-              Result := Desktop(TSTrigger(CurrentData)).CreateBCEditor();
-            end;
-          ciEvent: Result := Desktop(TSEvent(CurrentData)).CreateBCEditor();
-          else Result := nil;
-        end;
-      end;
-    vBuilder:
-      Result := FQueryBuilderBCEditor;
-    vEditor:
-      Result := SQLEditor.BCEditor;
-    vEditor2:
-      begin
-        if (not Assigned(FSQLEditorBCEditor2)) then
-        begin
-          FSQLEditorBCEditor2 := CreateBCEditor(nil);
-          SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorBCEditor2, CreatePDBGrid());
-          FSQLEditorBCEditor2.Text := Session.Account.Desktop.EditorContent[ttEditor2];
-          FSQLEditorBCEditor2.Lines.LineBreak := #13#10;
-        end;
-        Result := FSQLEditorBCEditor2;
-      end;
-    vEditor3:
-      begin
-        if (not Assigned(FSQLEditorBCEditor3)) then
-        begin
-          FSQLEditorBCEditor3 := CreateBCEditor(nil);
-          SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorBCEditor3, CreatePDBGrid());
-          FSQLEditorBCEditor3.Text := Session.Account.Desktop.EditorContent[ttEditor3];
-          FSQLEditorBCEditor3.Lines.LineBreak := #13#10;
-        end;
-        Result := FSQLEditorBCEditor3;
-      end;
-    else
-      Result := nil;
-  end;
-
-  if (Assigned(Result)) then
-  begin
-    Result.Visible := True;
-    Result.BringToFront();
-  end;
-  for I := 0 to PBCEditor.ControlCount - 1 do
-    if (PBCEditor.Controls[I] <> Result) then
-      PBCEditor.Controls[I].Visible := False;
-end;
-
 function TFSession.GetActiveDBGrid(): TMySQLDBGrid;
 var
   I: Integer;
@@ -10324,6 +10308,69 @@ begin
 
   for I := 0 to PListView.ControlCount - 1 do
     PListView.Controls[I].Visible := PListView.Controls[I] = Result;
+end;
+
+function TFSession.GetActiveSynMemo(): TSynMemo;
+var
+  I: Integer;
+begin
+  case (View) of
+    vIDE:
+      begin
+        case (CurrentClassIndex) of
+          ciView: Result := Desktop(TSView(CurrentData)).CreateSynMemo();
+          ciProcedure,
+          ciFunction: Result := Desktop(TSRoutine(CurrentData)).CreateSynMemo();
+          ciTrigger:
+            begin
+              // Debug 2017-03-02
+              Assert(Assigned(CurrentData),
+                'CurrentAddress: ' + CurrentAddress);
+
+              Result := Desktop(TSTrigger(CurrentData)).CreateSynMemo();
+            end;
+          ciEvent: Result := Desktop(TSEvent(CurrentData)).CreateSynMemo();
+          else Result := nil;
+        end;
+      end;
+    vBuilder:
+      Result := FQueryBuilderSynMemo;
+    vEditor:
+      Result := SQLEditor.SynMemo;
+    vEditor2:
+      begin
+        if (not Assigned(FSQLEditorSynMemo2)) then
+        begin
+          FSQLEditorSynMemo2 := CreateSynMemo(nil);
+          SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorSynMemo2, CreatePDBGrid());
+          FSQLEditorSynMemo2.Text := Session.Account.Desktop.EditorContent[ttEditor2];
+          FSQLEditorSynMemo2.Lines.LineBreak := #13#10;
+        end;
+        Result := FSQLEditorSynMemo2;
+      end;
+    vEditor3:
+      begin
+        if (not Assigned(FSQLEditorSynMemo3)) then
+        begin
+          FSQLEditorSynMemo3 := CreateSynMemo(nil);
+          SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorSynMemo3, CreatePDBGrid());
+          FSQLEditorSynMemo3.Text := Session.Account.Desktop.EditorContent[ttEditor3];
+          FSQLEditorSynMemo3.Lines.LineBreak := #13#10;
+        end;
+        Result := FSQLEditorSynMemo3;
+      end;
+    else
+      Result := nil;
+  end;
+
+  if (Assigned(Result)) then
+  begin
+    Result.Visible := True;
+    Result.BringToFront();
+  end;
+  for I := 0 to PSynMemo.ControlCount - 1 do
+    if (PSynMemo.Controls[I] <> Result) then
+      PSynMemo.Controls[I].Visible := False;
 end;
 
 function TFSession.GetActiveWorkbench(): TWWorkbench;
@@ -13079,9 +13126,9 @@ begin
         View := vEditor;
       if (View in [vEditor, vEditor2, vEditor3]) then
       begin
-        ActiveBCEditor.Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
+        ActiveSynMemo.Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
 
-        Window.ActiveControl := ActiveBCEditor;
+        Window.ActiveControl := ActiveSynMemo;
       end;
     end;
   end;
@@ -13137,14 +13184,14 @@ begin
       View := vEditor;
     if (View in [vEditor, vEditor2, vEditor3]) then
     begin
-      SelStart := ActiveBCEditor.SelStart;
-      ActiveBCEditor.SelText := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
-      SelLength := ActiveBCEditor.SelStart - SelStart;
+      SelStart := ActiveSynMemo.SelStart;
+      ActiveSynMemo.SelText := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
+      SelLength := ActiveSynMemo.SelStart - SelStart;
 
-      ActiveBCEditor.SelStart := SelStart;
-      ActiveBCEditor.SelLength := SelLength;
+      ActiveSynMemo.SelStart := SelStart;
+      ActiveSynMemo.SelLength := SelLength;
 
-      Window.ActiveControl := ActiveBCEditor;
+      Window.ActiveControl := ActiveSynMemo;
     end;
   end;
 end;
@@ -13263,9 +13310,15 @@ begin
 end;
 
 procedure TFSession.MSQLEditorPopup(Sender: TObject);
+var
+  I: Integer;
 begin
-  BCEditorChange(ActiveBCEditor);
+  SynMemoStatusChange(Sender, []);
   ShowEnabledItems(MSQLEditor.Items);
+
+  if (ActiveSynMemo.Gutter.Visible) then
+    for I := 0 to MSQLEditor.Items.Count - 1 do
+      MSQLEditor.Items[I].Visible := MSQLEditor.Items[I].Visible and (MSQLEditor.PopupPoint.X - ActiveSynMemo.ClientOrigin.X > ActiveSynMemo.Gutter.Width);
 end;
 
 procedure TFSession.MSQLHistoryPopup(Sender: TObject);
@@ -13543,7 +13596,7 @@ begin
     if ((Handle = INVALID_HANDLE_VALUE) or (LARGE_INTEGER(FileSize).LowPart = INVALID_FILE_SIZE) and (GetLastError() <> 0)) then
       MsgBoxCheck(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR,
         ID_YES, '{15bd0605-628a-45f0-997b-cc2fe5867c57}')
-    else if ((ActiveBCEditor <> ActiveBCEditor) or (FileSize < TLargeInteger(LargeSQLScriptSize))) then
+    else if (FileSize < TLargeInteger(LargeSQLScriptSize)) then
       Answer := ID_NO
     else
       Answer := MsgBox(Preferences.LoadStr(751), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION);
@@ -13569,14 +13622,14 @@ begin
 
       if (Import.ErrorCount = 0) then
       begin
-        if (not Assigned(ActiveBCEditor)) then
-          ActiveBCEditor := GetActiveBCEditor;
+        if (not Assigned(ActiveSynMemo)) then
+          ActiveSynMemo := GetActiveSynMemo();
 
         if (Insert) then
-          ActiveBCEditor.SelText := Text
+          ActiveSynMemo.SelText := Text
         else
         begin
-          ActiveBCEditor.Text := Text;
+          ActiveSynMemo.Text := Text;
           SQLEditors[View].Filename := Import.Filename;
           SQLEditors[View].FileCodePage := Import.CodePage;
           URI := TUURI.Create(CurrentAddress);
@@ -13595,7 +13648,7 @@ begin
           Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
           Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
         end;
-        ActiveBCEditor.Modified := Import.SetNamesApplied;
+        ActiveSynMemo.Modified := Import.SetNamesApplied;
 
         Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
@@ -14160,13 +14213,13 @@ begin
 
     if (PListView.Align = alClient) then PListView.Align := alNone;
     if (PQueryBuilder.Align = alClient) then PQueryBuilder.Align := alNone;
-    if (PBCEditor.Align = alClient) then PBCEditor.Align := alNone;
+    if (PSynMemo.Align = alClient) then PSynMemo.Align := alNone;
     if (PResult.Align = alClient) then PResult.Align := alNone;
     PListView.Align := alNone;
     PBrowser.Align := alNone;
     PObjectIDE.Align := alNone;
     PQueryBuilder.Align := alNone;
-    PBCEditor.Align := alNone;
+    PSynMemo.Align := alNone;
     SResult.Align := alNone;
     PResult.Align := alNone;
 
@@ -14202,7 +14255,7 @@ begin
 
     if (View in [vObjects, vObjectSearch]) then ActiveListView := GetActiveListView() else ActiveListView := nil;
     if (View in [vIDE]) then ActiveIDEInputDataSet := GetActiveIDEInputDataSet() else ActiveIDEInputDataSet := nil;
-    if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveBCEditor := GetActiveBCEditor() else ActiveBCEditor := nil;
+    if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveSynMemo := GetActiveSynMemo() else ActiveSynMemo := nil;
     if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
@@ -14351,15 +14404,15 @@ begin
     else
       PQueryBuilder.Visible := False;
 
-    if (Assigned(ActiveBCEditor)
+    if (Assigned(ActiveSynMemo)
       and ((View in [vEditor, vEditor2, vEditor3]) and (CurrentClassIndex in [ciSession, ciDatabase, ciSystemDatabase])
         or (View = vIDE) and (CurrentClassIndex in [ciView, ciFunction, ciProcedure, ciEvent, ciTrigger]))) then
     begin
-      PBCEditor.Align := alClient;
-      PBCEditor.Visible := True;
+      PSynMemo.Align := alClient;
+      PSynMemo.Visible := True;
     end
     else
-      PBCEditor.Visible := False;
+      PSynMemo.Visible := False;
 
     if ((View = vObjects)
       or ((View = vBrowser) and (CurrentClassIndex = ciSession))
@@ -14530,7 +14583,7 @@ begin
         NewView := TSView.Create(Database.Tables);
         NewView.Assign(View);
 
-        NewView.Stmt := Trim(ActiveBCEditor.Text);
+        NewView.Stmt := Trim(ActiveSynMemo.Text);
 
         Result := Database.UpdateView(View, NewView);
 
@@ -14546,7 +14599,7 @@ begin
         else
           NewRoutine := TSFunction.Create(Routine.Database.Routines);
         NewRoutine.Assign(Routine);
-        NewRoutine.Source := Trim(ActiveBCEditor.Text);
+        NewRoutine.Source := Trim(ActiveSynMemo.Text);
 
         Result := Database.UpdateRoutine(Routine, NewRoutine);
 
@@ -14559,7 +14612,7 @@ begin
         NewEvent := TSEvent.Create(Database.Events);
         NewEvent.Assign(Event);
 
-        NewEvent.Stmt := Trim(ActiveBCEditor.Text);
+        NewEvent.Stmt := Trim(ActiveSynMemo.Text);
 
         Result := Database.UpdateEvent(Event, NewEvent);
 
@@ -14572,7 +14625,7 @@ begin
         NewTrigger := TSTrigger.Create(Database.Triggers);
         NewTrigger.Assign(Trigger);
 
-        NewTrigger.Stmt := Trim(ActiveBCEditor.Text);
+        NewTrigger.Stmt := Trim(ActiveSynMemo.Text);
 
         Result := Database.UpdateTrigger(Trigger, NewTrigger);
 
@@ -14859,15 +14912,15 @@ begin
         SaveDialog.FileName := ExtractFileName(SQLEditors[View].Filename);
       SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(SQLEditors[View].FileCodePage));
     end;
-    Text := ActiveBCEditor.Text;
+    Text := ActiveSynMemo.Text;
   end
   else if (Sender = aECopyToFile) then
   begin
-    if (Window.ActiveControl = ActiveBCEditor) then
+    if (Window.ActiveControl = ActiveSynMemo) then
     begin
       SaveDialog.FileName := '';
-      Text := ActiveBCEditor.SelText;
-      if (Text = '') then Text := ActiveBCEditor.Text;
+      Text := ActiveSynMemo.SelText;
+      if (Text = '') then Text := ActiveSynMemo.Text;
     end
     else if (Window.ActiveControl = FLog) then
     begin
@@ -14923,7 +14976,7 @@ begin
       else
       begin
         if ((Sender = aFSave) or (Sender = aFSaveAs)) then
-          ActiveBCEditor.Modified := False;
+          ActiveSynMemo.Modified := False;
         URI := TUURI.Create(CurrentAddress);
         URI.Param['file'] := EscapeURL(SQLEditors[View].Filename);
         if (SQLEditors[View].FileCodePage = 0) then
@@ -15204,27 +15257,27 @@ begin
 
       if ((Event.EventType = etItemValid)) then
       begin
-        if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).BCEditor)) then
+        if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
         begin
-          Desktop(TSView(Event.Item)).BCEditor.Text := TSView(Event.Item).Stmt + #13#10;
-          Desktop(TSView(Event.Item)).BCEditor.Modified := False;
+          Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10;
+          Desktop(TSView(Event.Item)).SynMemo.Modified := False;
         end
-        else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateBCEditor())) then
+        else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
         begin
-          Desktop(TSRoutine(Event.Item)).BCEditor.Text := TSRoutine(Event.Item).Source;
-          Desktop(TSRoutine(Event.Item)).BCEditor.Modified := False;
+          Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source;
+          Desktop(TSRoutine(Event.Item)).SynMemo.Modified := False;
           PContentChange(nil);
         end
-        else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateBCEditor())) then
+        else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateSynMemo())) then
         begin
-          Desktop(TSTrigger(Event.Item)).BCEditor.Text := TSTrigger(Event.Item).Stmt;
-          Desktop(TSTrigger(Event.Item)).BCEditor.Modified := False;
+          Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Stmt;
+          Desktop(TSTrigger(Event.Item)).SynMemo.Modified := False;
           PContentChange(nil);
         end
-        else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateBCEditor())) then
+        else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateSynMemo())) then
         begin
-          Desktop(TSEvent(Event.Item)).BCEditor.Text := TSEvent(Event.Item).Stmt;
-          Desktop(TSEvent(Event.Item)).BCEditor.Modified := False;
+          Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt;
+          Desktop(TSEvent(Event.Item)).SynMemo.Modified := False;
           PContentChange(nil);
         end;
 
@@ -15547,8 +15600,8 @@ begin
   begin
     if (not Assigned(Window.ActiveControl)) then
       StatusBar.Panels[sbNavigation].Text := ''
-    else if (Window.ActiveControl = ActiveBCEditor) then
-      StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveBCEditor.CaretPos.X + 1) + ':' + IntToStr(ActiveBCEditor.CaretPos.Y)
+    else if (Window.ActiveControl = ActiveSynMemo) then
+      StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
@@ -15586,14 +15639,14 @@ begin
           QueryBuilderWorkArea := FQueryBuilderActiveWorkArea();
           if (Assigned(Window.ActiveControl) and Assigned(QueryBuilderWorkArea) and IsChild(QueryBuilderWorkArea.Handle, Window.ActiveControl.Handle)) then
             Count := FQueryBuilderActiveWorkArea().ControlCount
-          else if (Window.ActiveControl = FQueryBuilderBCEditor) then
-            Count := FQueryBuilderBCEditor.Lines.Count;
+          else if (Window.ActiveControl = FQueryBuilderSynMemo) then
+            Count := FQueryBuilderSynMemo.Lines.Count;
         end;
       vEditor,
       vEditor2,
       vEditor3:
-        if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveBCEditor)) then
-          Count := ActiveBCEditor.Lines.Count
+        if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveSynMemo)) then
+          Count := ActiveSynMemo.Lines.Count
         else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
           Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
     end;
@@ -15601,7 +15654,7 @@ begin
     SelCount := -1;
     if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView) and (ActiveListView.SelCount > 1)) then
       SelCount := ActiveListView.SelCount
-    else if (Assigned(ActiveBCEditor) and (Window.ActiveControl = ActiveBCEditor)) then
+    else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo)) then
       SelCount := 0
     else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count > 0)) then
       SelCount := ActiveDBGrid.SelectedRows.Count;
@@ -15617,10 +15670,10 @@ begin
     end
     else if (SelCount > 0) then
       StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(688, FormatFloat('#,##0', SelCount, LocaleFormatSettings))
-    else if (Assigned(ActiveBCEditor) and (Window.ActiveControl = ActiveBCEditor) and (Count >= 0)) then
+    else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo) and (Count >= 0)) then
       StatusBar.Panels[sbSummarize].Text := FormatFloat('#,##0', Count, LocaleFormatSettings) + ' ' + Preferences.LoadStr(600)
     else if ((View = vBuilder) and (Count >= 0)) then
-      if (Window.ActiveControl = FQueryBuilderBCEditor) then
+      if (Window.ActiveControl = FQueryBuilderSynMemo) then
         StatusBar.Panels[sbSummarize].Text := FormatFloat('#,##0', Count, LocaleFormatSettings) + ' ' + Preferences.LoadStr(600)
       else
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, FormatFloat('#,##0', Count, LocaleFormatSettings))
@@ -15631,75 +15684,34 @@ begin
   end;
 end;
 
-procedure TFSession.BCEditorCaretChanged(Sender: TObject; Pos: TPoint);
+procedure TFSession.SynCompletionAfterCodeCompletion(Sender: TObject;
+  const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
 begin
-  if (Window.ActiveControl = Sender) then
-    StatusBar.Panels[sbNavigation].Text := IntToStr(Pos.X) + ':' + IntToStr(Pos.Y);
+  SynCompletion.ItemList.Clear();
+  SynCompletion.InsertList.Clear();
 end;
 
-procedure TFSession.BCEditorChange(Sender: TObject);
-var
-  ClassIndex: TClassIndex; // Cache for speeding
-  DDLStmt: TSQLDDLStmt;
-  Empty: Boolean; // Cache for speeding
-  Parse: TSQLParse;
-  SelSQL: string; // Cache for speeding
-  SQL: string; // Cache for speeding
+procedure TFSession.SynCompletionCancelled(Sender: TObject);
 begin
-  KillTimer(Handle, tiShowSynCompletion);
-
-  SynCompletionPending.Active := False;
-
-  SelSQL := TBCEditor(Sender).SelText; // Cache for speeding
-  if (View <> vIDE) then
-  begin
-    SQL := '';
-    ClassIndex := ciUnknown;
-  end
-  else
-  begin
-    SQL := TBCEditor(Sender).Text; // Cache for speeding
-    ClassIndex := CurrentClassIndex; // Cache for speeding
-  end;
-  Empty := ((TBCEditor(Sender).Lines.Count <= 1) and (TBCEditor(Sender).Text = '')); // Cache for speeding
-
-  aFSave.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
-  aFSaveAs.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
-  aERedo.Enabled := TBCEditor(Sender).CanRedo;
-  aECopyToFile.Enabled := (SelSQL <> '');
-  aEPasteFromFile.Enabled := (View in [vEditor, vEditor2, vEditor3]);
-
-  aDPostObject.Enabled := (View = vIDE)
-    and TBCEditor(Sender).Modified
-    and SQLSingleStmt(SQL)
-    and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-      or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-      or (ClassIndex in [ciEvent, ciTrigger]));
-
-  aDRun.Enabled :=
-    ((View in [vEditor, vEditor2, vEditor3]) and not Empty
-    or (View in [vBuilder]) and FQueryBuilder.Visible
-    or (View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent])) and not Empty;
-  aDRunSelection.Enabled :=
-    ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
-  aEFormatSQL.Enabled := not Empty;
-
-  StatusBarRefresh();
+  SynCompletion.ItemList.Clear();
+  SynCompletion.InsertList.Clear();
 end;
 
-procedure TFSession.BCEditorCompletionProposalHide(Sender: TObject);
-var
-  Column: Integer;
+procedure TFSession.SynCompletionChange(Sender: TObject; AIndex: Integer);
 begin
-  Assert(Sender is TBCEditor);
-  for Column := 0 to TBCEditor(Sender).CompletionProposal.Columns.Count - 1 do
-    TBCEditor(Sender).CompletionProposal.Columns[Column].Items.Clear();
+  KillTimer(Handle, tiHideSynCompletion);
 end;
 
-procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
-  const Columns: TBCEditorCompletionProposal.TColumns; const Input: string; var CanExecute: Boolean);
+procedure TFSession.SynCompletionClose(Sender: TObject);
+begin
+  KillTimer(Handle, tiHideSynCompletion);
+end;
 
-  procedure AddItem(const Category, Display, Insert: string);
+procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
+  Sender: TObject; var CurrentInput: string; var x, y: Integer;
+  var CanExecute: Boolean);
+
+  procedure SynCompletionListAdd(const Item: string; const Insert: string);
   type
     Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
   var
@@ -15714,18 +15726,18 @@ procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
     else
       strcmp := lstrcmpi;
 
-    if ((Columns[1].Items.Count = 0)
-      or (strcmp(PChar(Columns[1].Items[Columns[1].Items.Count - 1].Value), PChar(Display)) < 0)) then
-      Index := Columns[1].Items.Count
+    if ((SynCompletion.ItemList.Count = 0)
+      or (strcmp(PChar(SynCompletion.ItemList[SynCompletion.ItemList.Count - 1]), PChar(Item)) < 0)) then
+      Index := SynCompletion.ItemList.Count
     else
     begin
       Index := -1;
       Left := 0;
-      Right := Columns[1].Items.Count - 1;
+      Right := SynCompletion.ItemList.Count - 1;
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
-        case (strcmp(PChar(Columns[1].Items[Mid].Value), PChar(Display))) of
+        case (strcmp(PChar(SynCompletion.ItemList[Mid]), PChar(Item))) of
           -1: begin Left := Mid + 1;  Index := Mid + 1; end;
           0: begin Index := -1; break; end;
           1: begin Right := Mid - 1; Index := Mid; end;
@@ -15735,17 +15747,15 @@ procedure TFSession.BCEditorCompletionProposalShow(Sender: TObject;
 
     if (Index < 0) then
       // Skip, since it's already in list
-    else if (Index < Columns[1].Items.Count) then
+    else if (Index < SynCompletion.ItemList.Count) then
     begin
-      Columns[0].Items.Insert(Index).Value := Category;
-      Columns[1].Items.Insert(Index).Value := Display;
-      Columns[2].Items.Insert(Index).Value := Insert;
+      SynCompletion.ItemList.Insert(Index, Item);
+      SynCompletion.InsertList.Insert(Index, Insert);
     end
     else
     begin
-      Columns[0].Items.Add().Value := Category;
-      Columns[1].Items.Add().Value := Display;
-      Columns[2].Items.Add().Value := Insert;
+      SynCompletion.ItemList.Add(Item);
+      SynCompletion.InsertList.Add(Insert);
     end;
   end;
 
@@ -15762,22 +15772,26 @@ var
   SQL: string;
   Table: TSTable;
 begin
-  CanExecute := ActiveBCEditor.SelText = '';
+  // Debug 2016-11-14
+  if (not Assigned(ActiveSynMemo)) then
+    raise ERangeError.Create(SRangeError);
+
+  CanExecute := ActiveSynMemo.SelText = '';
 
   if (CanExecute) then
   begin
-    SQL := ActiveBCEditor.Text;
+    SQL := ActiveSynMemo.Text;
 
     Index := 1;
-    while (Index < ActiveBCEditor.SelStart) do
+    while (Index < ActiveSynMemo.SelStart + 1) do
     begin
-      Len := Max(SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1)), Length(SQL) - (Index - 1));
-      if ((Len = 0) or (Index + Len >= ActiveBCEditor.SelStart + 1)) then
+      Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
+      if ((Len = 0) or (Index + Len >= ActiveSynMemo.SelStart + 1)) then
         break
       else
         Inc(Index, Len);
     end;
-    SQL := Copy(SQL, Index, ActiveBCEditor.SelStart + 1 - Index - Length(Input));
+    SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index - Length(CurrentInput));
 
     Session.SQLParser.ParseSQL(SQL, True);
 
@@ -15787,8 +15801,8 @@ begin
     begin
       List := TList.Create();
 
-      Columns[0].Items.Clear();
-      Columns[1].Items.Clear();
+      SynCompletion.ItemList.Clear();
+      SynCompletion.InsertList.Clear();
 
       for I := 0 to Session.SQLParser.CompletionList.Count - 1 do
       begin
@@ -15855,6 +15869,9 @@ begin
         if (not CanExecute) then
         begin
           SynCompletionPending.Active := True;
+          SynCompletionPending.CurrentInput := CurrentInput;
+          SynCompletionPending.X := X;
+          SynCompletionPending.Y := Y;
           Wanted.Action := aSynCompletionExecute;
         end;
       end;
@@ -15865,19 +15882,10 @@ begin
         begin
           Item := Session.SQLParser.CompletionList[I];
           case (Item^.ItemType) of
-            itKeyword:
-              AddItem(
-                Preferences.LoadStr(948),
-                StrPas(PChar(@Item^.Text)),
-                StrPas(PChar(@Item^.Text)));
-            itConst:
-              AddItem(
-                Preferences.LoadStr(949),
-                StrPas(PChar(@Item^.Text)),
-                StrPas(PChar(@Item^.Text)));
+            itKeyword,
+            itConst,
             itFunction:
-              AddItem(
-                Preferences.LoadStr(769),
+              SynCompletionListAdd(
                 StrPas(PChar(@Item^.Text)),
                 StrPas(PChar(@Item^.Text)));
             itList:
@@ -15893,117 +15901,114 @@ begin
                 case (Item^.DbIdentType) of
                   ditDatabase:
                     for J := 0 to Session.Databases.Count - 1 do
-                      AddItem(
-                        Preferences.LoadStr(301),
+                      SynCompletionListAdd(
                         Session.Databases[J].Name,
                         Session.Connection.EscapeIdentifier(Session.Databases[J].Name));
                   ditTable:
                     if (Assigned(Database)) then
                       for J := 0 to Database.Tables.Count - 1 do
-                        AddItem(
-                          Preferences.LoadStr(302),
+                        SynCompletionListAdd(
                           Database.Tables[J].Name,
                           Session.Connection.EscapeIdentifier(Database.Tables[J].Name));
                   ditProcedure:
                     if (Assigned(Database) and Assigned(Database.Routines)) then
                       for J := 0 to Database.Routines.Count - 1 do
                         if (Database.Routines[J] is TSProcedure) then
-                          AddItem(
-                            Preferences.LoadStr(768),
+                          SynCompletionListAdd(
                             Database.Routines[J].Name,
                             Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
                   ditFunction:
                     if (Assigned(Database) and Assigned(Database.Routines)) then
                       for J := 0 to Database.Routines.Count - 1 do
                         if (Database.Routines[J] is TSFunction) then
-                          AddItem(
-                            Preferences.LoadStr(769),
+                          SynCompletionListAdd(
                             Database.Routines[J].Name,
                             Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
                   ditTrigger:
                     if (Assigned(Database) and Assigned(Database.Triggers)) then
                       for J := 0 to Database.Triggers.Count - 1 do
-                        AddItem(
-                          Preferences.LoadStr(788),
+                        SynCompletionListAdd(
                           Database.Triggers[J].Name,
                           Session.Connection.EscapeIdentifier(Database.Triggers[J].Name));
                   ditEvent:
                     if (Assigned(Database) and Assigned(Database.Events)) then
                       for J := 0 to Database.Events.Count - 1 do
-                        AddItem(
-                          Preferences.LoadStr(793),
+                        SynCompletionListAdd(
                           Database.Events[J].Name,
                           Session.Connection.EscapeIdentifier(Database.Events[J].Name));
                   ditKey:
                     if (Table is TSBaseTable) then
                       for J := 0 to TSBaseTable(Table).Keys.Count - 1 do
-                        AddItem(
-                          Preferences.LoadStr(163),
+                        SynCompletionListAdd(
                           TSBaseTable(Table).Keys[J].Name,
                           Session.Connection.EscapeIdentifier(TSBaseTable(Table).Keys[J].Name));
                   ditField:
                     if (Assigned(Table)) then
                       for J := 0 to Table.Fields.Count - 1 do
-                        AddItem(
-                          Preferences.LoadStr(164),
+                        SynCompletionListAdd(
                           Table.Fields[J].Name,
                           Session.Connection.EscapeIdentifier(Table.Fields[J].Name))
                     else if (Assigned(Database) and Assigned(Database.Columns) and (PChar(@Item^.TableName) = '')) then
                       for J := 0 to Database.Columns.Count - 1 do
                       begin
                         ColumnName := Database.Columns[J]; // Buffer for speeding
-                        AddItem(
-                          Preferences.LoadStr(164),
+                        SynCompletionListAdd(
                           ColumnName,
                           Session.Connection.EscapeIdentifier(ColumnName));
                       end;
                   ditForeignKey:
                     if (Table is TSBaseTable) then
                       for J := 0 to TSBaseTable(Table).ForeignKeys.Count - 1 do
-                        AddItem(
-                          Preferences.LoadStr(199),
+                        SynCompletionListAdd(
                           TSBaseTable(Table).ForeignKeys[J].Name,
                           Session.Connection.EscapeIdentifier(TSBaseTable(Table).ForeignKeys[J].Name));
                   ditUser:
                     for J := 0 to Session.Users.Count - 1 do
-                      AddItem(
-                        Preferences.LoadStr(561),
+                      SynCompletionListAdd(
                         Session.Users[J].Name,
                         Session.EscapeUser(Session.Users[J].Name));
 //                  ditConst:
                   ditEngine:
                     for J := 0 to Session.Engines.Count - 1 do
-                      AddItem(
-                        Preferences.LoadStr(110),
+                      SynCompletionListAdd(
                         Session.Engines[J].Name,
                         Session.Engines[J].Name);
                   ditCharset:
                     for J := 0 to Session.Charsets.Count - 1 do
-                      AddItem(
-                        Preferences.LoadStr(682),
+                      SynCompletionListAdd(
                         Session.Charsets[J].Name,
                         Session.Charsets[J].Name);
                   ditCollation:
                     for J := 0 to Session.Collations.Count - 1 do
-                      AddItem(
-                        Preferences.LoadStr(702),
+                      SynCompletionListAdd(
                         Session.Collations[J].Name,
                         Session.Collations[J].Name);
                   ditDatatype:
                     for J := 0 to Session.FieldTypes.Count - 1 do
-                      AddItem(
-                        Preferences.LoadStr(91),
+                      SynCompletionListAdd(
                         Session.FieldTypes[J].Name,
                         Session.FieldTypes[J].Name);
                   else
                     raise ERangeError.Create(SRangeError);
                 end;
               end;
-            else raise ERangeError.Create('ItemType: ' + IntToStr(Ord(Item^.ItemType)));
+            else
+              raise ERangeError.Create(SRangeError);
           end;
         end;
 
-        CanExecute := Columns[0].Items.Count > 0;
+        CanExecute := SynCompletion.ItemList.Count > 0;
+
+        if (CanExecute and (CurrentInput <> '')) then
+        begin
+          CanExecute := False; Len := Length(CurrentInput);
+          for I := 0 to SynCompletion.ItemList.Count - 1 do
+            if (AnsiStrLIComp(PChar(SynCompletion.ItemList[I]), PChar(CurrentInput), Len) = 0) then
+            begin
+              CanExecute := True;
+              break;
+            end;
+        end;
       end;
 
       List.Free();
@@ -16013,44 +16018,59 @@ begin
   end;
 end;
 
-procedure TFSession.BCEditorDragDrop(Sender, Source: TObject; X, Y: Integer);
+procedure TFSession.SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   DatabaseName: string;
   S: string;
+  SelStart: Integer;
 begin
-  if (Sender is TBCEditor) then
+  if ((Source = FNavigator) and (Sender is TSynMemo)) then
   begin
-    if (Source = FNavigator) then
-      case (MouseDownNode.ImageIndex) of
-        iiKey: S := TSKey(MouseDownNode.Data).Name;
-        iiForeignKey: S := TSForeignKey(MouseDownNode.Data).Name;
-        else S := MouseDownNode.Text;
-      end
-    else if (Source = FSQLHistory) then
-    begin
-      S := XMLNode(IXMLNode(MouseDownNode.Data), 'sql').Text;
-
-      DatabaseName := XMLNode(IXMLNode(MouseDownNode.Data), 'database').Text;
-      if (DatabaseName <> SelectedDatabase) then
-        S := Session.Connection.SQLUse(DatabaseName) + S;
-      S := ReplaceStr(ReplaceStr(S, #13#10, #10), #10, #13#10);
-    end
-    else if (Source = ActiveDBGrid) then
-      S := ActiveDBGrid.SelectedField.AsString
-    else
-      S := '';
-
-    if (S <> '') then
-    begin
-      TBCEditor(Sender).CaretPos := TBCEditor(Sender).InsertPos;
-      TBCEditor(Sender).SelText := S;
+    case (MouseDownNode.ImageIndex) of
+      iiKey: S := TSKey(MouseDownNode.Data).Name;
+      iiForeignKey: S := TSForeignKey(MouseDownNode.Data).Name;
+      else S := MouseDownNode.Text;
     end;
+    SelStart := TSynMemo(Sender).SelStart;
+    TSynMemo(Sender).SelText := Session.Connection.EscapeIdentifier(S);
+    TSynMemo(Sender).SelStart := SelStart;
+    TSynMemo(Sender).SelLength := Length(Session.Connection.EscapeIdentifier(S));
+    TSynMemo(Sender).AlwaysShowCaret := False;
 
-    Window.ActiveControl := TBCEditor(Sender);
+    Window.ActiveControl := TSynMemo(Sender);
+  end
+  else if ((Source = FSQLHistory) and (Sender is TSynMemo)) then
+  begin
+    S := XMLNode(IXMLNode(MouseDownNode.Data), 'sql').Text;
+
+    DatabaseName := XMLNode(IXMLNode(MouseDownNode.Data), 'database').Text;
+    if (DatabaseName <> SelectedDatabase) then
+      S := Session.Connection.SQLUse(DatabaseName) + S;
+    S := ReplaceStr(ReplaceStr(S, #13#10, #10), #10, #13#10);
+
+    SelStart := TSynMemo(Sender).SelStart;
+    TSynMemo(Sender).SelText := S;
+    TSynMemo(Sender).SelStart := SelStart;
+    TSynMemo(Sender).SelLength := Length(S);
+    TSynMemo(Sender).AlwaysShowCaret := False;
+
+    Window.ActiveControl := TSynMemo(Sender);
+  end
+  else if ((Source = ActiveDBGrid) and (Sender = ActiveSynMemo)) then
+  begin
+    S := ActiveDBGrid.SelectedField.AsString;
+
+    SelStart := TSynMemo(Sender).SelStart;
+    TSynMemo(Sender).SelText := S;
+    TSynMemo(Sender).SelStart := SelStart;
+    TSynMemo(Sender).SelLength := Length(S);
+    TSynMemo(Sender).AlwaysShowCaret := False;
+
+    Window.ActiveControl := TSynMemo(Sender);
   end;
 end;
 
-procedure TFSession.BCEditorDragOver(Sender, Source: TObject; X, Y: Integer;
+procedure TFSession.SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 begin
   if (Source = FNavigator) then
@@ -16064,13 +16084,24 @@ begin
   else
     Accept := False;
 
-  if (not Accept) then
-    ActiveBCEditor.InsertPos := Point(-1, -1)
-  else
-    ActiveBCEditor.InsertPos := ActiveBCEditor.ClientToPos(X, Y);
+  if (Accept) then
+  begin
+    if ((Sender = ActiveSynMemo) and not ActiveSynMemo.AlwaysShowCaret) then
+    begin
+      SynMemoBeforeDrag.SelStart := ActiveSynMemo.SelStart;
+      SynMemoBeforeDrag.SelLength := ActiveSynMemo.SelLength;
+      ActiveSynMemo.AlwaysShowCaret := True;
+    end;
+
+    if (not ActiveSynMemo.Gutter.Visible) then
+      ActiveSynMemo.CaretX := (X) div ActiveSynMemo.CharWidth + 1
+    else
+      ActiveSynMemo.CaretX := (X - ActiveSynMemo.Gutter.RealGutterWidth(ActiveSynMemo.CharWidth)) div ActiveSynMemo.CharWidth + 1;
+    ActiveSynMemo.CaretY := (Y div ActiveSynMemo.LineHeight) + 1;
+  end;
 end;
 
-function TFSession.BCEditorDrop(const BCEditor: TBCEditor; const dataObj: IDataObject;
+function TFSession.SynMemoDrop(const SynMemo: TSynMemo; const dataObj: IDataObject;
   grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
 var
   Format: FORMATETC;
@@ -16108,10 +16139,7 @@ begin
     end;
 
     if (Text <> '') then
-    begin
-      BCEditor.CaretPos := BCEditor.InsertPos;
-      BCEditor.SelText := Text;
-    end;
+      SynMemo.SelText := Text;
 
     if (not Assigned(Medium.unkForRelease)) then
       ReleaseStgMedium(Medium)
@@ -16125,7 +16153,7 @@ begin
   end;
 end;
 
-procedure TFSession.BCEditorEnter(Sender: TObject);
+procedure TFSession.SynMemoEnter(Sender: TObject);
 begin
   aECopyToFile.OnExecute := SaveSQLFile;
   aEPasteFromFile.OnExecute := aEPasteFromExecute;
@@ -16133,10 +16161,11 @@ begin
   aHIndex.ShortCut := 0;
   aHSQL.ShortCut := ShortCut(VK_F1, []);
 
-  BCEditorChange(Sender);
+  SynMemoStatusChange(Sender, [scAll]);
+  StatusBarRefresh();
 end;
 
-procedure TFSession.BCEditorExit(Sender: TObject);
+procedure TFSession.SynMemoExit(Sender: TObject);
 begin
   aFImportSQL.Enabled := False;
   aFExportSQL.Enabled := False;
@@ -16151,19 +16180,58 @@ begin
   SynCompletionPending.Active := False;
 end;
 
-procedure TFSession.BCEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
+var
+  ClassIndex: TClassIndex; // Cache for speeding
+  DDLStmt: TSQLDDLStmt;
+  Empty: Boolean; // Cache for speeding
+  Parse: TSQLParse;
+  SelSQL: string; // Cache for speeding
+  SQL: string; // Cache for speeding
 begin
-  KillTimer(Handle, tiShowSynCompletion);
-end;
+  if (not (csDestroying in ComponentState)) then
+  begin
+    KillTimer(Handle, tiShowSynCompletion);
 
-procedure TFSession.BCEditorKeyPress(Sender: TObject; var Key: Char);
-begin
-  if (Preferences.Editor.CodeCompletion) then
-    if (Key = '.') then
-      PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiShowSynCompletion, 10)
-    else if (CharInSet(Key, ['0'..'9', 'A'..'Z', 'a'..'z', '$', '_'])
-      or (Key > Chr(127))) then
-      PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiShowSynCompletion, Preferences.Editor.CodeCompletionTime)
+    if (((scCaretX in Changes) or (scSelection in Changes) or (scModified in Changes) or (scAll in Changes)) and Assigned(ActiveSynMemo)) then
+    begin
+      SynCompletionPending.Active := False;
+
+      SelSQL := ActiveSynMemo.SelText; // Cache for speeding
+      if (View <> vIDE) then
+      begin
+        SQL := '';
+        ClassIndex := ciUnknown;
+      end
+      else
+      begin
+        SQL := ActiveSynMemo.Text; // Cache for speeding
+        ClassIndex := CurrentClassIndex; // Cache for speeding
+      end;
+      Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Cache for speeding
+
+      aFSave.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
+      aFSaveAs.Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
+      aERedo.Enabled := ActiveSynMemo.CanRedo;
+      aECopyToFile.Enabled := (SelSQL <> '');
+      aEPasteFromFile.Enabled := (View in [vEditor, vEditor2, vEditor3]);
+      aDPostObject.Enabled := (View = vIDE)
+        and ActiveSynMemo.Modified
+        and SQLSingleStmt(SQL)
+        and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+          or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+          or (ClassIndex in [ciEvent, ciTrigger]));
+      aDRun.Enabled :=
+        ((View in [vEditor, vEditor2, vEditor3]) and not Empty
+        or (View in [vBuilder]) and FQueryBuilder.Visible
+        or (View in [vIDE]) and aDPostObject.Enabled);
+      aDRunSelection.Enabled :=
+        ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
+      aEFormatSQL.Enabled := not Empty;
+    end;
+
+    StatusBarRefresh();
+  end;
 end;
 
 procedure TFSession.TableOpen(Sender: TObject);
@@ -16367,8 +16435,12 @@ end;
 
 procedure TFSession.TreeViewEndDrag(Sender, Target: TObject; X, Y: Integer);
 begin
-  if (Assigned(ActiveBCEditor)) then
-    ActiveBCEditor.InsertPos := Point(-1, -1);
+  if (Assigned(ActiveSynMemo) and (ActiveSynMemo.AlwaysShowCaret)) then
+  begin
+    ActiveSynMemo.SelStart := SynMemoBeforeDrag.SelStart;
+    ActiveSynMemo.SelLength := SynMemoBeforeDrag.SelLength;
+    ActiveSynMemo.AlwaysShowCaret := False;
+  end;
 end;
 
 procedure TFSession.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
@@ -16489,8 +16561,10 @@ begin
   PSideBar.Width := Session.Account.Desktop.SidebarWitdth;
   PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
 
-  SQLEditor.BCEditor.Text := Session.Account.Desktop.EditorContent[ttEditor];
-  SQLEditor.BCEditor.Lines.LineBreak := #13#10;
+  SQLEditor.SynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
+  SQLEditor.SynMemo.Text := Session.Account.Desktop.EditorContent[ttEditor];
+  if (Length(SQLEditor.SynMemo.Lines.Text) < LargeSQLScriptSize) then
+    SQLEditor.SynMemo.Options := SQLEditor.SynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
   PResult.Height := Session.Account.Desktop.DataHeight;
   PResultHeight := PResult.Height;
   PBlob.Height := Session.Account.Desktop.BlobHeight;
@@ -16761,15 +16835,15 @@ begin
     SendMessage(FObjectSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(934))));
   end;
 
-  for I := 0 to PBCEditor.ControlCount - 1 do
-    if (PBCEditor.Controls[I] is TBCEditor) then
+  for I := 0 to PSynMemo.ControlCount - 1 do
+    if (PSynMemo.Controls[I] is TSynMemo) then
     begin
-      Preferences.ApplyToBCEditor(TBCEditor(PBCEditor.Controls[I]));
-      TBCEditor(PBCEditor.Controls[I]).WordWrap := Preferences.Editor.WordWrap;
+      Preferences.ApplyToSynMemo(TSynMemo(PSynMemo.Controls[I]));
+      TSynMemo(PSynMemo.Controls[I]).WordWrap := Preferences.Editor.WordWrap;
     end;
 
-  Preferences.ApplyToBCEditor(FQueryBuilderBCEditor);
-  FQueryBuilderBCEditor.WordWrap := Preferences.Editor.WordWrap;
+  Preferences.ApplyToSynMemo(FQueryBuilderSynMemo);
+  FQueryBuilderSynMemo.WordWrap := Preferences.Editor.WordWrap;
 
   smEEmpty.Caption := Preferences.LoadStr(181);
 
@@ -16807,7 +16881,7 @@ end;
 
 procedure TFSession.UMSynCompletionTime(var Message: TMessage);
 begin
-  // SetTimer must be set after BCEditorStatusChange
+  // SetTimer must be set after SynMemoStatusChange
   SetTimer(Handle, Message.WParam, Message.LParam, nil);
 end;
 
@@ -17077,6 +17151,11 @@ end;
 procedure TFSession.WMTimer(var Msg: TWMTimer);
 begin
   case (Msg.TimerID) of
+    tiHideSynCompletion:
+      begin
+        KillTimer(Handle, Msg.TimerID);
+        SynCompletion.CancelCompletion();
+      end;
     tiNavigator:
       begin
         KillTimer(Handle, Msg.TimerID);
@@ -17089,7 +17168,11 @@ begin
       begin
         KillTimer(Handle, Msg.TimerID);
         if (Window.Active and (View in [vEditor, vEditor2, vEditor3])) then
-          ActiveBCEditor.ProcessCommand(ecShowCompletionProposal, nil);
+        begin
+          SynCompletion.Form.CurrentEditor := ActiveSynMemo;
+          SynCompletion.ActivateCompletion();
+          PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiHideSynCompletion, 5000);
+        end;
       end;
     tiStatusBar:
       begin

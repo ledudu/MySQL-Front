@@ -15,7 +15,6 @@ object DOptions: TDOptions
   OldCreateOrder = False
   Position = poMainFormCenter
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106
@@ -45,13 +44,17 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSHighlighter
+    ActivePage = TSEditor
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
       OnResize = TSViewResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -141,6 +144,10 @@ object DOptions: TDOptions
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
       OnResize = TSBrowserResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -300,11 +307,15 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
         Width = 345
-        Height = 166
+        Height = 140
         Caption = 'GEditor'
         TabOrder = 0
         object FLEditorFont: TLabel
@@ -345,14 +356,6 @@ object DOptions: TDOptions
           Height = 13
           Caption = 'FLEditorWordWrap'
           FocusControl = FEditorWordWrap
-        end
-        object FLEditorCaretBeyondEOL: TLabel
-          Left = 8
-          Top = 140
-          Width = 121
-          Height = 13
-          Caption = 'FLEditorCaretBeyondEOL'
-          FocusControl = FEditorCaretBeyondEOL
         end
         object FEditorCurrRowBGColorEnabled: TCheckBox
           Left = 144
@@ -406,7 +409,7 @@ object DOptions: TDOptions
           Width = 41
           Height = 21
           TabOrder = 6
-          Text = '1.000'
+          Text = '1000'
         end
         object FEditorWordWrap: TCheckBox
           Left = 144
@@ -437,19 +440,15 @@ object DOptions: TDOptions
           Position = 1000
           TabOrder = 7
         end
-        object FEditorCaretBeyondEOL: TCheckBox
-          Left = 144
-          Top = 139
-          Width = 198
-          Height = 17
-          Caption = 'FEditorCaretBeyondEOL'
-          TabOrder = 9
-        end
       end
     end
     object TSLog: TTabSheet
       Caption = 'TSLog'
       OnResize = TSLogResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -559,6 +558,10 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -585,21 +588,40 @@ object DOptions: TDOptions
           Caption = 'PQuery'
           ParentBackground = False
           TabOrder = 8
-          object FPreview: TBCEditor
+          object FPreview: TSynMemo
             Left = 1
             Top = 1
             Width = 327
             Height = 107
             Align = alClient
-            BorderStyle = bsNone
             Enabled = False
             Font.Charset = DEFAULT_CHARSET
             Font.Color = clWindowText
             Font.Height = -11
             Font.Name = 'Courier New'
             Font.Style = []
-            LeftMargin.Bookmarks.Visible = False
-            LeftMargin.LineState.Visible = False
+            TabOrder = 0
+            TabStop = False
+            CodeFolding.GutterShapeSize = 11
+            CodeFolding.CollapsedLineColor = clGrayText
+            CodeFolding.FolderBarLinesColor = clGrayText
+            CodeFolding.IndentGuidesColor = clGray
+            CodeFolding.IndentGuides = True
+            CodeFolding.ShowCollapsedLine = False
+            CodeFolding.ShowHintMark = True
+            UseCodeFolding = False
+            BorderStyle = bsNone
+            Gutter.AutoSize = True
+            Gutter.DigitCount = 2
+            Gutter.Font.Charset = DEFAULT_CHARSET
+            Gutter.Font.Color = clWindowText
+            Gutter.Font.Height = -11
+            Gutter.Font.Name = 'Courier New'
+            Gutter.Font.Style = []
+            Gutter.LeftOffset = 0
+            Gutter.ShowLineNumbers = True
+            Gutter.Width = 0
+            Highlighter = Highlighter
             Lines.Strings = (
               '# Create new table here'
               'CREATE TABLE `NewTable` ('
@@ -607,9 +629,11 @@ object DOptions: TDOptions
               ') ENGINE=MyISAM COMMENT='#39'Test'#39';'
               '/*!40100 SET NAMES latin1;*/'
               'SELECT Upper(@TestVar);')
-            TabOrder = 0
-            TabStop = False
-            WantReturns = False
+            Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
+            ReadOnly = True
+            RightEdge = -1
+            ScrollHintFormat = shfTopToBottom
+            FontSmoothing = fsmNone
           end
         end
         object FStyles: TListView
@@ -717,6 +741,14 @@ object DOptions: TDOptions
     Font.Style = []
     Options = [fdForceFontExist, fdNoOEMFonts]
     Left = 87
+    Top = 368
+  end
+  object Highlighter: TSynSQLSyn
+    Options.AutoDetectEnabled = False
+    Options.AutoDetectLineLimit = 0
+    Options.Visible = False
+    SQLDialect = sqlMySQL
+    Left = 151
     Top = 368
   end
   object ColorDialog: TColorDialog

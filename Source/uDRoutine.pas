@@ -7,9 +7,9 @@ uses
   SysUtils, Classes,
   Graphics, Controls, Forms, Menus, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
-  BCEditor,
+  SynEdit, SynMemo,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDRoutine = class(TForm_Ext)
@@ -31,7 +31,7 @@ type
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
     FSize: TLabel;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
     GDates: TGroupBox_Ext;
@@ -303,8 +303,7 @@ end;
 procedure TDRoutine.FormCreate(Sender: TObject);
 begin
   FDependencies.SmallImages := Preferences.Images;
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -423,7 +422,6 @@ begin
 
   FSource.OnChange := nil;
   FSource.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FSource);
 
   FName.Enabled := False; FLName.Enabled := FName.Enabled;
   FComment.Enabled := True; FLComment.Enabled := FComment.Enabled;
@@ -578,7 +576,7 @@ begin
   FDependencies.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

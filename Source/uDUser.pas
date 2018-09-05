@@ -6,10 +6,10 @@ uses
   Windows, Messages,
   SysUtils, Classes,
   Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext, ComCtrls_Ext,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDUser = class (TForm_Ext)
@@ -32,7 +32,7 @@ type
     FPassword: TEdit;
     FQueriesPerHour: TEdit;
     FRights: TListView;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FUDConnectionsPerHour: TUpDown;
     FUDQueriesPerHour: TUpDown;
     FUDUpdatesPerHour: TUpDown;
@@ -285,8 +285,7 @@ begin
 
   FRights.SmallImages := Preferences.Images;
 
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -322,7 +321,6 @@ begin
   end;
 
   FSource.Lines.Clear();
-  Session.ApplyToBCEditor(FSource);
 
   NewUser := TSUser.Create(Session.Users);
 
@@ -544,7 +542,7 @@ begin
   FLUserConnections.Caption := Preferences.LoadStr(871) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBOk.Enabled := False;
 

@@ -6,9 +6,9 @@ uses
   Windows, Messages,
   SysUtils, Variants, Classes,
   Graphics, Controls, Forms, Dialogs, Menus, ComCtrls, StdCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext,
-  uBase, uSession, BCEditor.Highlighter;
+  uBase, uSession;
 
 type
   TDStatementViewType = (vtQuery, vtStatement, vtProcess);
@@ -33,7 +33,7 @@ type
     FLUser: TLabel;
     FQueryTime: TLabel;
     FRowsAffected: TLabel;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FStatementTime: TLabel;
     FUser: TLabel;
     GBasics: TGroupBox_Ext;
@@ -101,8 +101,7 @@ end;
 
 procedure TDStatement.FormCreate(Sender: TObject);
 begin
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -146,7 +145,6 @@ begin
   end;
 
   FSource.Lines.Clear();
-  Session.ApplyToBCEditor(FSource);
 
   if (DateTime = MySQLZeroDate) then
     FExecutionTime.Caption := '???'
@@ -210,7 +208,7 @@ begin
   FLHost.Caption := Preferences.LoadStr(271) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBClose.Caption := Preferences.LoadStr(231);
 end;

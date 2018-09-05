@@ -457,7 +457,7 @@ uses
   ESysInfo,
   {$ENDIF}
   acQBLocalizer,
-  BCEditor,
+  SynMemo,
   MySQLConsts, HTTPTunnel, SQLUtils, MySQLDBGrid,
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
@@ -2028,7 +2028,7 @@ end;
 
 procedure TWWindow.WMActivate(var Message: TWMActivate);
 begin
-  if ((ActiveControl is TBCEditor)
+  if ((ActiveControl is TSynMemo)
     or (ActiveControl is TMySQLDBGrid)) then
     case (Message.Active) of
       WA_INACTIVE:

@@ -6,10 +6,10 @@ uses
   Windows, Messages,
   SysUtils, Classes,
   Graphics, Controls, Forms, Menus, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
-  BCEditor,
+  SynEdit, SynMemo,
   StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
   uSession,
-  uBase, BCEditor.Highlighter;
+  uBase;
 
 type
   TDEvent = class(TForm_Ext)
@@ -53,11 +53,11 @@ type
     FName: TEdit;
     FPreserve: TCheckBox;
     FSingleExecution: TRadioButton;
-    FSource: TBCEditor;
+    FSource: TSynMemo;
     FStartDate: TDateTimePicker;
     FStartEnabled: TCheckBox;
     FStartTime: TDateTimePicker;
-    FStatement: TBCEditor;
+    FStatement: TSynMemo;
     FUDIntervalDay: TUpDown;
     FUDIntervalHour: TUpDown;
     FUDIntervalMinute: TUpDown;
@@ -352,10 +352,8 @@ end;
 
 procedure TDEvent.FormCreate(Sender: TObject);
 begin
-  FStatement.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FStatement.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
-  FSource.Highlighter.LoadFromResource('Highlighter', RT_RCDATA);
-  FSource.Highlighter.Colors.LoadFromResource('Colors', RT_RCDATA);
+  FStatement.Highlighter := Preferences.Editor.Highlighter;
+  FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -408,9 +406,7 @@ begin
     HelpContext := 1113;
 
   FStatement.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FStatement);
   FSource.Lines.Clear();
-  Database.Session.ApplyToBCEditor(FSource);
 
   if (not Assigned(Event)) then
     SessionState := ssCreate
@@ -520,7 +516,7 @@ begin
   FLComment.Caption := Preferences.LoadStr(111) + ':';
   FLStatement.Caption := Preferences.LoadStr(794) + ':';
 
-  Preferences.ApplyToBCEditor(FStatement);
+  Preferences.ApplyToSynMemo(FStatement);
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
@@ -530,7 +526,7 @@ begin
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
-  Preferences.ApplyToBCEditor(FSource);
+  Preferences.ApplyToSynMemo(FSource);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);

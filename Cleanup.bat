@@ -8,7 +8,7 @@ SET CleanRootPath=%CD%
 SET CleanImagesPath=%CleanRootPath%\Images
 SET CleanImagesPureFlatPath=%CleanImagesPath%\PureFlat
 SET CleanSourcePath=%CleanRootPath%\Source
-SET ClearSourceBCEditorPath=%CleanSourcePath%\BCEditor
+SET ClearSourceSynEditPath=%CleanSourcePath%\SynEdit
 SET ClearSourceBCHexEditorPath=%CleanSourcePath%\BCHexEditor
 SET ClearSourceFastMMPath=%CleanSourcePath%\FastMM
 SET ClearSourceMySQLPath=%CleanSourcePath%\MySQL
@@ -32,9 +32,8 @@ if exist "%CleanTempPath%" RMDIR /S /Q "%CleanTempPath%"
 if not exist "%CleanImagesPureFlatPath%" MKDIR "%CleanImagesPureFlatPath%"
 if not exist "%ClearSourceFastMMPath%\Bin" MKDIR "%ClearSourceFastMMPath%\Bin"
 if not exist "%ClearSourceMySQLPath%\Source" MKDIR "%ClearSourceMySQLPath%\Source"
-if not exist "%ClearSourceBCEditorPath%\Source" MKDIR "%ClearSourceBCEditorPath%\Source"
-if not exist "%ClearSourceBCEditorPath%\Resource" MKDIR "%ClearSourceBCEditorPath%\Resource"
-if not exist "%ClearSourceBCEditorPath%\Bin" MKDIR "%ClearSourceBCEditorPath%\Bin"
+if not exist "%ClearSourceSynEditPath%\Source" MKDIR "%ClearSourceSynEditPath%\Source"
+if not exist "%ClearSourceSynEditPath%\Bin" MKDIR "%ClearSourceSynEditPath%\Bin"
 if not exist "%ClearSourceBCHexEditorPath%\Source" MKDIR "%ClearSourceBCHexEditorPath%\Source"
 if not exist "%ClearSourceBCHexEditorPath%\Resource" MKDIR "%ClearSourceBCHexEditorPath%\Resource"
 if not exist "%ClearSourceBCHexEditorPath%\Bin" MKDIR "%ClearSourceBCHexEditorPath%\Bin2"
