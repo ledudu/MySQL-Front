@@ -856,14 +856,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 63
     end
-    object aDCreateField: TAction
-      Category = 'Database'
-      Caption = 'aDCreateField'
-      Enabled = False
-      HelpContext = 1047
-      HelpType = htContext
-      ImageIndex = 65
-    end
     object aDCreateForeignKey: TAction
       Category = 'Database'
       Caption = 'aDCreateForeignKey'
@@ -871,6 +863,14 @@ object WWindow: TWWindow
       HelpContext = 1048
       HelpType = htContext
       ImageIndex = 67
+    end
+    object aDCreateField: TAction
+      Category = 'Database'
+      Caption = 'aDCreateField'
+      Enabled = False
+      HelpContext = 1047
+      HelpType = htContext
+      ImageIndex = 65
     end
     object aDCreateUser: TAction
       Category = 'Database'
@@ -929,14 +929,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 64
     end
-    object aDDeleteField: TAction
-      Category = 'Database'
-      Caption = 'aDDeleteField'
-      Enabled = False
-      HelpContext = 1053
-      HelpType = htContext
-      ImageIndex = 66
-    end
     object aDDeleteForeignKey: TAction
       Category = 'Database'
       Caption = 'aDDeleteForeignKey'
@@ -944,6 +936,14 @@ object WWindow: TWWindow
       HelpContext = 1053
       HelpType = htContext
       ImageIndex = 72
+    end
+    object aDDeleteField: TAction
+      Category = 'Database'
+      Caption = 'aDDeleteField'
+      Enabled = False
+      HelpContext = 1053
+      HelpType = htContext
+      ImageIndex = 66
     end
     object aDDeleteProcess: TAction
       Category = 'Database'
@@ -1011,18 +1011,18 @@ object WWindow: TWWindow
       HelpContext = 1055
       HelpType = htContext
     end
-    object aDEditField: TAction
-      Category = 'Database'
-      Caption = 'aDEditField'
-      Enabled = False
-      HelpContext = 1056
-      HelpType = htContext
-    end
     object aDEditForeignKey: TAction
       Category = 'Database'
       Caption = 'aDEditForeignKey'
       Enabled = False
       HelpContext = 1057
+      HelpType = htContext
+    end
+    object aDEditField: TAction
+      Category = 'Database'
+      Caption = 'aDEditField'
+      Enabled = False
+      HelpContext = 1056
       HelpType = htContext
     end
     object aDEditProcess: TAction
@@ -1487,11 +1487,11 @@ object WWindow: TWWindow
         object miDCreateIndex: TMenuItem
           Action = aDCreateKey
         end
-        object miDCreateField: TMenuItem
-          Action = aDCreateField
-        end
         object miDCreateForeignKey: TMenuItem
           Action = aDCreateForeignKey
+        end
+        object miDCreateField: TMenuItem
+          Action = aDCreateField
         end
         object miDCreateTrigger: TMenuItem
           Action = aDCreateTrigger
@@ -1520,11 +1520,11 @@ object WWindow: TWWindow
         object miDDeleteIndex: TMenuItem
           Action = aDDeleteKey
         end
-        object miDDeleteField: TMenuItem
-          Action = aDDeleteField
-        end
         object miDDeleteForeignKey: TMenuItem
           Action = aDDeleteForeignKey
+        end
+        object miDDeleteField: TMenuItem
+          Action = aDDeleteField
         end
         object miDDeleteTrigger: TMenuItem
           Action = aDDeleteTrigger
@@ -1559,11 +1559,11 @@ object WWindow: TWWindow
         object miDEditIndex: TMenuItem
           Action = aDEditKey
         end
-        object miDEditField: TMenuItem
-          Action = aDEditField
-        end
         object miDEditForeignKey: TMenuItem
           Action = aDEditForeignKey
+        end
+        object miDEditField: TMenuItem
+          Action = aDEditField
         end
         object miDEditTrigger: TMenuItem
           Action = aDEditTrigger

@@ -1290,7 +1290,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 40682
+      Left = 62752
       Top = 0
       Width = 140
       Height = 22
@@ -1305,7 +1305,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 40667
+      Left = 62697
       Top = 0
       Width = 23
       Height = 22
@@ -1422,11 +1422,11 @@ object FSession: TFSession
       object mlDCreateIndex: TMenuItem
         Caption = 'aDCreateIndex'
       end
-      object mlDCreateField: TMenuItem
-        Caption = 'aDCreateField'
-      end
       object mlDCreateForeignKey: TMenuItem
         Caption = 'aDCreateForeignKey'
+      end
+      object mlDCreateField: TMenuItem
+        Caption = 'aDCreateField'
       end
       object mlDCreateTrigger: TMenuItem
         Caption = 'aDCreateTrigger'
@@ -1704,11 +1704,11 @@ object FSession: TFSession
       object miNCreateIndex: TMenuItem
         Caption = 'aDCreateIndex'
       end
-      object miNCreateField: TMenuItem
-        Caption = 'aDCreateField'
-      end
       object miNCreateForeignKey: TMenuItem
         Caption = 'aDCreateForeignKey'
+      end
+      object miNCreateField: TMenuItem
+        Caption = 'aDCreateField'
       end
       object miNCreateTrigger: TMenuItem
         Caption = 'aDCreateTrigger'

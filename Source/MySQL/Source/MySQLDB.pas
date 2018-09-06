@@ -2773,6 +2773,7 @@ begin
     FSyncThread := TSyncThread.Create(Self);
 
   Assert(MySQLSyncThreads.IndexOf(SyncThread) >= 0);
+  Assert(not SyncThread.IsRunning);
 
   SetLength(SyncThread.CLStmts, 0);
   SyncThread.DataSet := DataSet;
@@ -3029,7 +3030,7 @@ begin
     FCodePageClient := CharsetToCodePage(FCharsetClient);
 
     // Debug 2017-05-25
-    Assert(FCodePageClient <> 0,
+    Assert((FCodePageClient <> 0) or (lstrcmp(PChar(FCharsetClient), 'BINARY') = 0),
       'FCharsetClient: ' + FCharsetClient);
 
     if (Connected and Assigned(Lib.mysql_options) and Assigned(SyncThread)) then
@@ -4119,7 +4120,7 @@ begin
 
     TerminatedThreads.Add(SyncThread);
 
-    Self.FSyncThread := nil;
+    FSyncThread := nil;
   end;
 
   TerminateCS.Leave();
@@ -7540,11 +7541,13 @@ begin
         // Position in InternRecordBuffers changed -> move it!
 
         // Debug 2018-09-04
-        Assert((0 <= PExternRecordBuffer(ActiveBuffer())^.Index) and (PExternRecordBuffer(ActiveBuffer())^.Index < RecordCount)
-          and (0 <= InternalPostResult.NewIndex) and (InternalPostResult.NewIndex <= RecordCount),
+        Assert((0 <= PExternRecordBuffer(ActiveBuffer())^.Index) and (PExternRecordBuffer(ActiveBuffer())^.Index < InternRecordBuffers.Count)
+          and (0 <= InternalPostResult.NewIndex) and (InternalPostResult.NewIndex <= InternRecordBuffers.Count),
           'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
           + 'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-          + 'NewIndex: ' + IntToStr(InternalPostResult.NewIndex));
+          + 'NewIndex: ' + IntToStr(InternalPostResult.NewIndex) + #13#10
+          + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+          + 'RecordCount: ' + IntToStr(RecordCount));
 
         InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
         InternRecordBuffers.Index := InternalPostResult.NewIndex;

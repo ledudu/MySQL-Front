@@ -176,6 +176,7 @@ begin
       AwkFile.Add('  gsub("{BuildVerStr}", "' + MakeVerStr + '", $0)');
       AwkFile.Add('  gsub("{BuildVerStrFull}", "' + MakeVerStrFull + '", $0)');
       AwkFile.Add('  gsub("{BuildVerFileFlag}", "' + MakeVerFileFlag + '", $0)');
+      AwkFile.Add('  gsub("{BuildCopyright}", "' + Ini.ReadString('Global', 'Copyright', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetHomepage}", "' + Ini.ReadString('Internet', 'Homepage', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetDownload}", "' + Ini.ReadString('Internet', 'Download', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetPadFile}", "' + Ini.ReadString('Internet', 'PadFile', '') + '", $0)');

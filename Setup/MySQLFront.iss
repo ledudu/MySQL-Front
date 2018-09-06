@@ -4,6 +4,7 @@ AppName={BuildName}
 AppVerName={BuildName} {BuildVerStr}
 AppPublisherURL={BuildInternetHomepage}
 AppVersion={BuildVerStr}
+AppCopyright={BuildCopyright}
 DefaultDirName={pf}\{BuildProgramFiles}
 DefaultGroupName={BuildName}
 ChangesAssociations=yes

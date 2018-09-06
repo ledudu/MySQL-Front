@@ -720,7 +720,8 @@ begin
         else if (FDestination.Selected.ImageIndex in [iiBaseTable, iiView]) then
           List.Add(TSTable(FDestination.Selected.Data))
         else
-          Assert(False);
+          Assert(False,
+            'ImageIndex: ' + IntToStr(FDestination.Selected.ImageIndex));
       iiProcedure,
       iiFunction:
         if (FDestination.Selected.ImageIndex in [iiDatabase]) then
@@ -844,6 +845,7 @@ end;
 procedure TDTransfer.TSSelectShow(Sender: TObject);
 var
   Addresses: TStringList;
+  Control: TWinControl;
   Database: TSDatabase;
   FSourceOnChange: TTVChangedEvent;
   FDestinationOnChange: TTVChangedEvent;
@@ -1013,6 +1015,16 @@ begin
           + 'Enabled: ' + BoolToStr(TSWhat.Enabled, True));
         Assert(FStructure.Enabled,
           'Enabled: ' + BoolToStr(FStructure.Enabled, True));
+        Control := FStructure;
+        while Control <> Self do
+        begin
+          Assert(Control.Visible and Control.Enabled,
+            'Control: ' + Control.Name + #13#10
+            + 'ClassName: ' + Control.ClassName + #13#10
+            + 'Visible: ' + BoolToStr(Control.Visible, True) + #13#10
+            + 'Enabled: ' + BoolToStr(Control.Enabled, True));
+          Control := Control.Parent;
+        end;
         Assert(FStructure.CanFocus());
 
         ActiveControl := FStructure;

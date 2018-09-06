@@ -138,6 +138,7 @@
 	function SendErrorMessage($ErrorCode, $ErrorMessage) {
 		$Packet = "\xFF";
 		$Packet .= pack('v', $ErrorCode);
+    $Packet .= "00000\x00"; // ODBC Error Code
 		$Packet .= "HTTP Tunnel: $ErrorMessage\x00";
 		SendPacket($Packet);
 		FlushPackets();
@@ -253,7 +254,7 @@
 	}
 
 
-	if (extension_loaded('mysqli')) { /******************************************/
+	if ((! isset($_GET['extension']) || ($_GET['extension'] == 'mysqli')) && extension_loaded('mysqli')) { /******************************************/
 
 		$mysqli = mysqli_init();
 		if (! $mysqli)
@@ -277,7 +278,7 @@
 			}
 			SendPacket($Packet);
 		}
-
+        
 		if (! mysqli_connect_errno($mysqli)) {
 			if (! isset($_SESSION['server_version'])) {
 				$_SESSION['server_version'] = mysqli_get_server_version($mysqli);
@@ -483,7 +484,7 @@
 									$Packet .= pack('v', 0x0000); // Server Status
 								SendPacket($Packet);
 
-								while ($Row = mysqli_fetch_array($result)) {
+								while ($Row = mysqli_fetch_array($result, MYSQL_NUM)) {
 									$Packet = '';
 									$Lengths = mysqli_fetch_lengths($result);
 									for ($i = 0; $i < mysqli_num_fields($result); $i++)
@@ -514,7 +515,7 @@
 
 		mysqli_close($mysqli);
 
-	} else if (extension_loaded('mysql')) { /************************************/
+	} else if ((! isset($_GET['extension']) || ($_GET['extension'] == 'mysql')) && extension_loaded('mysql')) { /************************************/
 
 		if ($_SESSION['host'] != '.')
 			$Host = $_SESSION['host'] . ':' . $_SESSION['port'];

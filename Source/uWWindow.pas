@@ -933,12 +933,13 @@ end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 begin
-  if (not (csDestroying in ComponentState)) then
-    // Is csDestroying needed??? Without this, there was a AV for ToolBar on 2018-09-04
-    if (StyleServices.Enabled or not CheckWin32Version(6)) then
-      ToolBar.BorderWidth := 0
-    else
-      ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
+  // Debug 2018-09-05
+  Assert(Assigned(ToolBar));
+  Assert(ToolBar is TToolBar);
+  if (StyleServices.Enabled) then
+    ToolBar.BorderWidth := 0
+  else
+    ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
 
   if (Assigned(ToolBar.Images)) then
   begin
@@ -1084,6 +1085,8 @@ begin
   // Debug 2017-05-27
   Assert(FSessions.Count = 0,
     'UpdateStarted: ' + BoolToStr(UpdateStarted, True));
+  Assert(Assigned(Preferences));
+  Assert(Assigned(Accounts));
 
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);

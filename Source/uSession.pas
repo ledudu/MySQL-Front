@@ -4041,7 +4041,8 @@ begin
   DataSet.SortDef.Assign(ASortDef);
 
   // Debug 2017-05-20
-  Assert(Session.Connection.SynchronCount = 0);
+  Assert(Session.Connection.SynchronCount = 0,
+    'SynchronCount: ' + IntToStr(Session.Connection.SynchronCount));
 
   Session.SendSQL(DataSet.SQLSelect(), OpenEvent);
 end;

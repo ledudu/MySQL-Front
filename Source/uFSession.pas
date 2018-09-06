@@ -649,7 +649,7 @@ type
     procedure FObjectIDEGridUpdateAction(Sender: TObject;
       var CanExecute: Boolean);
   type
-    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciForeignKey, ciBaseField, ciViewField, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
     TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -1042,7 +1042,7 @@ Progress: string;
     procedure FQueryBuilderEditorPageControlChange(Sender: TObject);
     procedure FQueryBuilderEditorPageControlCheckStyle();
     procedure FQueryBuilderEditorTabSheetEnter(Sender: TObject);
-    procedure FreeDBGrid(const DBGrid: TMySQLDBGrid);
+    procedure FreeDBGrid(var DBGrid: TMySQLDBGrid);
     procedure FreeListView(const ListView: TListView);
     procedure FRTFShow(Sender: TObject);
     procedure FSQLHistoryRefresh(Sender: TObject);
@@ -1181,11 +1181,6 @@ DateUtils,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
   uDConnecting, uDExecutingSQL;
 
-// Debug 2017-06-02
-type
-  TUnprotectedDBGrid = class(TMySQLDBGrid)
-  end;
-
 const
   nlHost = 0;
   nlDatabase = 1;
@@ -1204,8 +1199,8 @@ const
   giRoutines = 4;
   giEvents = 5;
   giKeys = 6;
-  giFields = 7;
-  giForeignKeys = 8;
+  giForeignKeys = 7;
+  giFields = 8;
   giTriggers = 9;
   giProcesses = 10;
   giUsers = 12;
@@ -1509,7 +1504,7 @@ begin
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
-      if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
+      if ((0 < Len) and (Len <= Length(SQL)) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
@@ -1620,12 +1615,7 @@ begin
       DataSource.Enabled := False;
     end;
     if (not Assigned(FBuilderDBGrid)) then
-    begin
       FBuilderDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
-
-      // Debug 2017-06-02
-      Assert(Assigned(TUnprotectedDBGrid(FBuilderDBGrid).DataLink));
-    end;
     DataSource.DataSet := DataSet;
 
     FSession.ActiveDBGrid := FBuilderDBGrid;
@@ -1857,7 +1847,7 @@ begin
     if (Assigned(ListView)) then
       FSession.FreeListView(ListView);
     if (Assigned(DBGrid)) then
-      FSession.FreeDBGrid(DBGrid);
+      FSession.FreeDBGrid(FDBGrid);
     if (Assigned(DataSource)) then
       DataSource.Free();
     if (Assigned(PDBGrid)) then
@@ -3012,11 +3002,13 @@ begin
     aVEditor2.Enabled := True;
     aVEditor3.Enabled := True;
     aVDiagram.Enabled := LastSelectedDatabase <> '';
-    aDRun.Enabled :=
-      ((View in [vEditor, vEditor2, vEditor3])
-      or ((View in [vBuilder]) and FQueryBuilder.Visible)
-      or ((View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
-    aDRunSelection.Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
+    aDRun.Enabled := not Empty
+      and ((View in [vEditor, vEditor2, vEditor3])
+        or ((View in [vBuilder]) and FQueryBuilder.Visible)
+        or ((View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent])));
+    aDRunSelection.Enabled := not Empty
+      and (((View in [vEditor, vEditor2, vEditor3]))
+        or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
     aDPostObject.Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
       and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
         or (CurrentClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
@@ -4920,10 +4912,10 @@ begin
     Result := ciEvent
   else if (URI.Param['objecttype'] = 'key') then
     Result := ciKey
-  else if (URI.Param['objecttype'] = 'basefield') then
-    Result := ciBaseField
   else if (URI.Param['objecttype'] = 'foreignkey') then
     Result := ciForeignKey
+  else if (URI.Param['objecttype'] = 'basefield') then
+    Result := ciBaseField
   else if (URI.Param['objecttype'] = 'viewfield') then
     Result := ciViewField
   else if (URI.Table <> '') then
@@ -5957,6 +5949,7 @@ begin
   Result.Tag := NativeInt(SObject);
   Result.TabWidth := FSQLEditorSynMemo.TabWidth;
   Result.WantTabs := FSQLEditorSynMemo.WantTabs;
+  Result.WordWrap := FSQLEditorSynMemo.WordWrap;
 
   Result.Parent := PSynMemo;
 
@@ -8848,9 +8841,9 @@ begin
         begin
           if (Table is TSBaseTable) then
             UpdateGroup(Node, giKeys, TSBaseTable(Table).Keys);
-          UpdateGroup(Node, giFields, Table.Fields);
           if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
             UpdateGroup(Node, giForeignKeys, TSBaseTable(Table).ForeignKeys);
+          UpdateGroup(Node, giFields, Table.Fields);
           if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
             UpdateGroup(Node, giTriggers, Table.Database.Triggers);
         end;
@@ -9413,13 +9406,14 @@ begin
   if ((SQLBuilder.SQL = '')
     or not Assigned(Session)
     or Session.SQLParser.ParseSQL(SQLBuilder.SQL)) then
-    FQueryBuilderSynMemo.Lines.Text := SQLBuilder.SQL
+    FQueryBuilderSynMemo.Text := SQLBuilder.SQL
   else
   begin
-    FQueryBuilderSynMemo.Lines.Text := Session.SQLParser.FormatSQL();
+    FQueryBuilderSynMemo.Text := Session.SQLParser.FormatSQL();
 
     Session.SQLParser.Clear();
   end;
+  SynMemoStatusChange(Sender, [scAll]);
 end;
 
 procedure TFSession.FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
@@ -9763,7 +9757,7 @@ begin
   end;
 end;
 
-procedure TFSession.FreeDBGrid(const DBGrid: TMySQLDBGrid);
+procedure TFSession.FreeDBGrid(var DBGrid: TMySQLDBGrid);
 begin
   // Debug 2017-06-01
   Assert(Assigned(DBGrid));
@@ -9776,7 +9770,11 @@ begin
   if (DBGrid = ActiveDBGrid) then
     ActiveDBGrid := nil;
 
+  // Debug 2018-09-05
+  Assert(Assigned(DBGrid));
+
   DBGrid.Free();
+  DBGrid := nil;
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);
@@ -10172,13 +10170,6 @@ begin
 
   if (Assigned(Result)) then
   begin
-    // Debug 2017-01-24
-    // Occurred on 2017-06-01 - View: vBuilder, CurrentAddress and CurrentClassIndex Ok
-    Assert(Assigned(TUnprotectedDBGrid(Result).DataLink),
-      'View: ' + IntToStr(Ord(View)) + #13#10
-      + 'CurrentAddress: ' + CurrentAddress + #13#10
-      + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
-
     Result.DataSource.OnDataChange := DBGridDataSourceDataChange;
 
     for I := 0 to PResult.ControlCount - 1 do
@@ -10650,13 +10641,13 @@ begin
       Result := giEvents;
     iiKey:
       Result := giKeys;
+    iiForeignKey:
+      Result := giForeignKeys;
     iiBaseField,
     iiVirtualField,
     iiSystemViewField,
     iiViewField:
       Result := giFields;
-    iiForeignKey:
-      Result := giForeignKeys;
     iiTrigger:
       Result := giTriggers;
     iiProcesses,
@@ -11221,6 +11212,8 @@ begin
 
     // Debug 2017-03-25
     Assert(Assigned(SourceNode));
+    // Debug 2018-09-06
+    SourceNode.Parent;
 
     if (not Assigned(TargetItem)) then
       case (SourceNode.ImageIndex) of
@@ -11365,8 +11358,8 @@ begin
         ListView.Column[1].Width := 2 * Preferences.GridMaxColumnWidth;
 
       ListView.Groups.Add().GroupID := giKeys;
-      ListView.Groups.Add().GroupID := giFields;
       ListView.Groups.Add().GroupID := giForeignKeys;
+      ListView.Groups.Add().GroupID := giFields;
       ListView.Groups.Add().GroupID := giTriggers;
     end
     else if ((TObject(ListView.Tag) is TSView)
@@ -12013,6 +12006,27 @@ var
         else
           Item.SubItems.Add(TSKey(Data).Comment);
       end
+      else if (Data is TSForeignKey) then
+      begin
+        Item.Caption := TSForeignKey(Data).Caption;
+        Item.SubItems.Add(TSForeignKey(Data).DBTypeStr());
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        S := '';
+        if (TSForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
+        if (TSForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
+        if (TSForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
+        if (TSForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
+        S2 := '';
+        if (TSForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
+        if (TSForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
+        if (TSForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
+        if (TSForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
+        if (S <> '') and (S2 <> '') then S := S + ', ';
+        S := S + S2;
+        Item.SubItems.Add(S);
+        Item.SubItems.Add('');
+      end
       else if (Data is TSBaseField) then
       begin
         Item.Caption := TSBaseField(Data).Caption;
@@ -12060,26 +12074,25 @@ var
           Assert(False, 'Table Source: ' + #13#10
             + TSBaseField(Data).Table.Source);
       end
-      else if (Data is TSForeignKey) then
+      else if (Data is TSTableField) then
       begin
-        Item.Caption := TSForeignKey(Data).Caption;
-        Item.SubItems.Add(TSForeignKey(Data).DBTypeStr());
-        Item.SubItems.Add('');
-        Item.SubItems.Add('');
-        S := '';
-        if (TSForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
-        if (TSForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
-        if (TSForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
-        if (TSForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
-        S2 := '';
-        if (TSForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
-        if (TSForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
-        if (TSForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
-        if (TSForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
-        if (S <> '') and (S2 <> '') then S := S + ', ';
-        S := S + S2;
-        Item.SubItems.Add(S);
-        Item.SubItems.Add('');
+        Item.Caption := TSTableField(Data).Caption;
+        if (TSTableField(Data).FieldType <> mfUnknown) then
+        begin
+          Item.SubItems.Add(TSTableField(Data).DBTypeStr());
+          if (TSTableField(Data).NullAllowed) then
+            Item.SubItems.Add(Preferences.LoadStr(74))
+          else
+            Item.SubItems.Add(Preferences.LoadStr(75));
+          if (TSTableField(Data).AutoIncrement) then
+            Item.SubItems.Add('<auto_increment>')
+          else
+            Item.SubItems.Add(TSTableField(Data).Default);
+          if (TSTableField(Data).Charset = TSTableField(Data).Table.Database.Charset) then
+            Item.SubItems.Add('')
+          else
+            Item.SubItems.Add(TSTableField(Data).Charset);
+        end;
       end
       else if (Data is TSTrigger) then
       begin
@@ -12099,24 +12112,6 @@ var
         Item.SubItems.Add('');
         Item.SubItems.Add('');
         Item.SubItems.Add('');
-      end
-      else if (Data is TSTableField) then
-      begin
-        Item.Caption := TSTableField(Data).Caption;
-        if (TSTableField(Data).FieldType <> mfUnknown) then
-        begin
-          Item.SubItems.Add(TSTableField(Data).DBTypeStr());
-          if (TSTableField(Data).NullAllowed) then
-            Item.SubItems.Add(Preferences.LoadStr(74))
-          else
-            Item.SubItems.Add(Preferences.LoadStr(75));
-          if (TSTableField(Data).AutoIncrement) then
-            Item.SubItems.Add('<auto_increment>')
-          else
-            Item.SubItems.Add(TSTableField(Data).Default);
-          if (TSTableField(Data).Charset <> TSTableField(Data).Table.Database.Charset) then
-            Item.SubItems.Add(TSTableField(Data).Charset);
-        end;
       end
       else if (Data is TSProcesses) then
       begin
@@ -12441,12 +12436,12 @@ var
           giKeys:
             if (TObject(ListView.Tag) is TSBaseTable) then
               SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(ListView.Tag).Keys.Count) + ')');
-          giFields:
-            if (TObject(ListView.Tag) is TSTable) then
-              SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(ListView.Tag).Fields.Count) + ')');
           giForeignKeys:
             if (TObject(ListView.Tag) is TSBaseTable) then
               SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(ListView.Tag).ForeignKeys.Count) + ')');
+          giFields:
+            if (TObject(ListView.Tag) is TSTable) then
+              SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(ListView.Tag).Fields.Count) + ')');
           giTriggers:
             if (TObject(ListView.Tag) is TSBaseTable) then
             begin
@@ -12617,9 +12612,9 @@ begin
     begin
       if (TObject(ListView.Tag) is TSBaseTable) then
         UpdateGroup(Kind, giKeys, TSBaseTable(ListView.Tag).Keys);
-      UpdateGroup(Kind, giFields, TSTable(Event.Sender).Fields);
       if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).ForeignKeys)) then
         UpdateGroup(Kind, giForeignKeys, TSBaseTable(ListView.Tag).ForeignKeys);
+      UpdateGroup(Kind, giFields, TSTable(Event.Sender).Fields);
       if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
         UpdateGroup(Kind, giTriggers, TSBaseTable(ListView.Tag).Database.Triggers);
     end
@@ -14223,28 +14218,12 @@ begin
     SResult.Align := alNone;
     PResult.Align := alNone;
 
-    // 2017-02-20
     // I can't find out, why SBlob will be set to nil - but this works often... :-/
-    Assert(Assigned(SBlobDebug));
     if (not Assigned(SBlob)) then SBlob := SBlobDebug;
-    Assert(Assigned(SBlob));
-    Assert(Assigned(PBlob));
-
     try
+      // One time SBlob was set, but still an AV. So the I use try except end
       SBlob.Align := alNone;
     except
-      on E: Exception do
-        E.RaiseOuterException(EAssertionFailed.Create('SBlob: ' + BoolToStr(Assigned(SBlob), True) + #13#10
-          + 'SBlobDebug: ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10#13#10
-          + 'SBlob=SBlobDebug: ' + BoolToStr(SBlob=SBlobDebug, True) + #13#10
-          + 'SBlob0: ' + BoolToStr(Assigned(SBlob0), True) + #13#10
-          + 'SBlobDebug0: ' + BoolToStr(Assigned(SBlob0Debug), True) + #13#10#13#10
-          + 'SBlob0=SBlob0Debug: ' + BoolToStr(SBlob0=SBlob0Debug, True) + #13#10#13#10
-          + 'SBlob2: ' + BoolToStr(Assigned(SBlob2), True) + #13#10
-          + 'SBlobDebug2: ' + BoolToStr(Assigned(SBlob2Debug), True) + #13#10#13#10
-          + 'SBlob2=SBlob2Debug: ' + BoolToStr(SBlob2=SBlob2Debug, True) + #13#10#13#10
-          + E.ClassName + ':' + #13#10
-          + E.Message));
     end;
     PBlob.Align := alNone;
 
@@ -15264,21 +15243,24 @@ begin
         end
         else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
         begin
+          PContentChange(nil);
           Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source;
           Desktop(TSRoutine(Event.Item)).SynMemo.Modified := False;
-          PContentChange(nil);
+          SynMemoStatusChange(ActiveSynMemo, [scAll]);
         end
         else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateSynMemo())) then
         begin
+          PContentChange(nil);
           Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Stmt;
           Desktop(TSTrigger(Event.Item)).SynMemo.Modified := False;
-          PContentChange(nil);
+          SynMemoStatusChange(ActiveSynMemo, [scAll]);
         end
         else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateSynMemo())) then
         begin
+          PContentChange(nil);
           Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt;
           Desktop(TSEvent(Event.Item)).SynMemo.Modified := False;
-          PContentChange(nil);
+          SynMemoStatusChange(ActiveSynMemo, [scAll]);
         end;
 
         if ((View = vBrowser) and (Event.Item = CurrentData) and not Assigned(FNavigatorNodeToExpand)) then
@@ -15711,7 +15693,7 @@ procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
   Sender: TObject; var CurrentInput: string; var x, y: Integer;
   var CanExecute: Boolean);
 
-  procedure SynCompletionListAdd(const Item: string; const Insert: string);
+  procedure SynCompletionListAdd(const DisplayText: string; const InsertText: string);
   type
     Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
   var
@@ -15727,7 +15709,7 @@ procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
       strcmp := lstrcmpi;
 
     if ((SynCompletion.ItemList.Count = 0)
-      or (strcmp(PChar(SynCompletion.ItemList[SynCompletion.ItemList.Count - 1]), PChar(Item)) < 0)) then
+      or (strcmp(PChar(SynCompletion.ItemList[SynCompletion.ItemList.Count - 1]), PChar(DisplayText)) < 0)) then
       Index := SynCompletion.ItemList.Count
     else
     begin
@@ -15737,7 +15719,7 @@ procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
-        case (strcmp(PChar(SynCompletion.ItemList[Mid]), PChar(Item))) of
+        case (strcmp(PChar(SynCompletion.ItemList[Mid]), PChar(DisplayText))) of
           -1: begin Left := Mid + 1;  Index := Mid + 1; end;
           0: begin Index := -1; break; end;
           1: begin Right := Mid - 1; Index := Mid; end;
@@ -15748,15 +15730,9 @@ procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
     if (Index < 0) then
       // Skip, since it's already in list
     else if (Index < SynCompletion.ItemList.Count) then
-    begin
-      SynCompletion.ItemList.Insert(Index, Item);
-      SynCompletion.InsertList.Insert(Index, Insert);
-    end
+      SynCompletion.AddItemAt(Index, DisplayText, InsertText)
     else
-    begin
-      SynCompletion.ItemList.Add(Item);
-      SynCompletion.InsertList.Add(Insert);
-    end;
+      SynCompletion.AddItem(DisplayText, InsertText);
   end;
 
 var
@@ -15783,9 +15759,9 @@ begin
     SQL := ActiveSynMemo.Text;
 
     Index := 1;
-    while (Index < ActiveSynMemo.SelStart + 1) do
+    while (Index < ActiveSynMemo.SelStart) do
     begin
-      Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
+      Len := Max(SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1)), Length(SQL) - (Index - 1));
       if ((Len = 0) or (Index + Len >= ActiveSynMemo.SelStart + 1)) then
         break
       else
@@ -16221,12 +16197,12 @@ begin
         and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
           or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
           or (ClassIndex in [ciEvent, ciTrigger]));
-      aDRun.Enabled :=
-        ((View in [vEditor, vEditor2, vEditor3]) and not Empty
-        or (View in [vBuilder]) and FQueryBuilder.Visible
-        or (View in [vIDE]) and aDPostObject.Enabled);
-      aDRunSelection.Enabled :=
-        ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
+      aDRun.Enabled := not Empty
+        and ((View in [vEditor, vEditor2, vEditor3])
+          or (View in [vBuilder]) and FQueryBuilder.Visible
+        or ((View in [vIDE]) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent])));
+      aDRunSelection.Enabled := not Empty
+        and (View in [vEditor, vEditor2, vEditor3]);
       aEFormatSQL.Enabled := not Empty;
     end;
 

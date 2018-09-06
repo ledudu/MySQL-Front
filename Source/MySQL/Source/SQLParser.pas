@@ -2979,6 +2979,7 @@ type
           SignedToken: TOffset;
           PreDatatypeToken: TOffset;
           DatatypeToken: TOffset;
+          PrecisionToken: TOffset;
           OpenBracket: TOffset;
           LengthToken: TOffset;
           CommaToken: TOffset;
@@ -6186,6 +6187,7 @@ type
     diNVARCHAR,
     diPOINT,
     diPOLYGON,
+    diPRECISION,
     diREAL,
     diSERIAL,
     diSET,
@@ -7268,7 +7270,7 @@ const
     'armscii8,big5,binary,cp1250,cp1251,cp1256,cp1257,cp850,cp852,' +
 		'cp866,cp932,dec8,eucjpms,euckr,gb18030,gb2312,gbk,geostd8,greek,hebrew,' +
 		'hp8,keybcs2,koi8r,koi8u,latin1,latin2,latin5,latin7,macce,macroman,sjis,' +
-		'swe7,tis620,ucs2,ujis,utf16,utf16le,utf32,utf8,utf8mb4';
+		'swe7,tis620,ucs2,ujis,utf16,utf16le,utf32,utf8,utf8mb3,utf8mb4';
 
   MySQLConstants =
     'CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,DEFAULT,FALSE,' +
@@ -7280,8 +7282,8 @@ const
     'DATE,DATETIME,DOUBLE,ENUM,FLOAT,GEOMETRY,GEOMETRYCOLLECTION,INT,INT4,' +
     'INTEGER,LARGEINT,LINESTRING,JSON,LONG,LONGBLOB,LONGTEXT,MEDIUMBLOB,' +
     'MEDIUMINT,MEDIUMTEXT,MULTILINESTRING,MULTIPOINT,MULTIPOLYGON,' +
-    'NUMBER,NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
-    'SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
+    'NUMBER,NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,PRECISION,REAL,SERIAL,SET,' +
+    'SIGNED,SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
     'VARBINARY,VARCHAR,YEAR';
 
   MySQLEngineTypes =
@@ -12911,6 +12913,7 @@ begin
   FormatNode(Nodes.NationalToken, stSpaceAfter);
 
   FormatNode(Nodes.DatatypeToken);
+  FormatNode(Nodes.PrecisionToken, stSpaceBefore);
   if (Nodes.OpenBracket > 0) then
   begin
     FormatNode(Nodes.OpenBracket);
@@ -18395,28 +18398,36 @@ begin
         SetError(PE_UnexpectedToken);
     end;
 
-  if (not ErrorFound
-    and ((DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED))
-    and (TokenPtr(CurrentToken)^.TokenType = ttIdent)) then
-  begin
-    TokenPtr(CurrentToken)^.GetText(Text, Length);
-    DatatypeIndex2 := DatatypeList.IndexOf(Text, Length);
-    if ((DatatypeIndex2 = diBIGINT)
-      or (DatatypeIndex2 = diBYTE)
-      or (DatatypeIndex2 = diINT)
-      or (DatatypeIndex2 = diINT4)
-      or (DatatypeIndex2 = diINTEGER)
-      or (DatatypeIndex2 = diLARGEINT)
-      or (DatatypeIndex2 = diLONG)
-      or (DatatypeIndex2 = diMEDIUMINT)
-      or (DatatypeIndex2 = diSMALLINT)
-      or (DatatypeIndex2 = diTINYINT)) then
+  if (not ErrorFound) then
+    if ((DataTypeIndex = diDOUBLE) and not EndOfStmt(CurrentToken)) then
     begin
-      Nodes.SignedToken := Nodes.DatatypeToken;
-      Nodes.DatatypeToken := ApplyCurrentToken(utDatatype);
-      DatatypeIndex := DatatypeIndex2;
+      TokenPtr(CurrentToken)^.GetText(Text, Length);
+      if (DatatypeList.IndexOf(Text, Length) = diPRECISION) then
+        Nodes.PrecisionToken := ApplyCurrentToken(utDatatype);
     end;
-  end;
+
+  if (not ErrorFound) then
+    if (((DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED))
+      and (TokenPtr(CurrentToken)^.TokenType = ttIdent)) then
+    begin
+      TokenPtr(CurrentToken)^.GetText(Text, Length);
+      DatatypeIndex2 := DatatypeList.IndexOf(Text, Length);
+      if ((DatatypeIndex2 = diBIGINT)
+        or (DatatypeIndex2 = diBYTE)
+        or (DatatypeIndex2 = diINT)
+        or (DatatypeIndex2 = diINT4)
+        or (DatatypeIndex2 = diINTEGER)
+        or (DatatypeIndex2 = diLARGEINT)
+        or (DatatypeIndex2 = diLONG)
+        or (DatatypeIndex2 = diMEDIUMINT)
+        or (DatatypeIndex2 = diSMALLINT)
+        or (DatatypeIndex2 = diTINYINT)) then
+      begin
+        Nodes.SignedToken := Nodes.DatatypeToken;
+        Nodes.DatatypeToken := ApplyCurrentToken(utDatatype);
+        DatatypeIndex := DatatypeIndex2;
+      end;
+    end;
 
   if (not ErrorFound
     and (DatatypeIndex = diLONG)
@@ -27073,6 +27084,7 @@ begin
     diNVARCHAR             := IndexOf('NVARCHAR');
     diPOINT                := IndexOf('POINT');
     diPOLYGON              := IndexOf('POLYGON');
+    diPRECISION            := IndexOf('PRECISION');
     diREAL                 := IndexOf('REAL');
     diSERIAL               := IndexOf('SERIAL');
     diSET                  := IndexOf('SET');

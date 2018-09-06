@@ -17,6 +17,8 @@
         VALUE "FileDescription", "{BuildName}\0"
         VALUE "ProductName", "{BuildName}\0"
         VALUE "ProductVersion", "{BuildVerStr}\0"
+        VALUE "CompanyName", "{BuildCopyright}"
+        VALUE "LegalCopyright", "{BuildCopyright}"
       END
     END
   END

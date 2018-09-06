@@ -21,7 +21,7 @@ ShellBrowser:
 http://www.jam-software.de/shellbrowser_delphi/
 
 Synopse PDF:
-http://synopse.info/fossil/wiki?name=PDF+Engine
+https://github.com/synopse/SynPDF/
 
 SynEdit:
 https://github.com/SynEdit/SynEdit/

@@ -22,14 +22,14 @@
         <GenPackage>true</GenPackage>
         <VerInfo_Locale>1031</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0</VerInfo_Keys>
-        <DCC_Define>PUREPASCAL;$(DCC_Define)</DCC_Define>
+        <DCC_Define>CPUINTEL;HASAESNI;$(DCC_Define)</DCC_Define>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;Bde;System.Win;Vcl;$(DCC_Namespace)</DCC_Namespace>
         <DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
         <DCC_Platform>x86</DCC_Platform>
         <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
         <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
         <DCC_IOChecking>false</DCC_IOChecking>
-        <DCC_DebugInformation>0</DCC_DebugInformation>
+        <DCC_DebugInformation>false</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
     </PropertyGroup>
@@ -58,7 +58,7 @@
                     <Source Name="MainSource">SynopsePDF_18.dpk</Source>
                 </Source>
                 <VersionInfo>
-                    <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
+                    <VersionInfo Name="IncludeVerInfo">True</VersionInfo>
                     <VersionInfo Name="AutoIncBuild">False</VersionInfo>
                     <VersionInfo Name="MajorVer">1</VersionInfo>
                     <VersionInfo Name="MinorVer">0</VersionInfo>

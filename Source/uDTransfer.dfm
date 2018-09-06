@@ -158,10 +158,6 @@ object DTransfer: TDTransfer
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)

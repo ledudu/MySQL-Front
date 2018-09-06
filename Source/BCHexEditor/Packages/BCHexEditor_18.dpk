@@ -1,4 +1,4 @@
-package SynopsePDF_18;
+package MPHexEditor_18;
 
 {$ALIGN 8}
 {$ASSERTIONS OFF}
@@ -13,7 +13,7 @@ package SynopsePDF_18;
 {$OPTIMIZATION ON}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-{$REFERENCEINFO ON}
+{$REFERENCEINFO OFF}
 {$SAFEDIVIDE OFF}
 {$STACKFRAMES OFF}
 {$TYPEDADDRESS OFF}
@@ -21,21 +21,15 @@ package SynopsePDF_18;
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE CPUINTEL}
-{$DEFINE HASAESNI}
-{$RUNONLY}
+{$DESCRIPTION 'BCHexEditor Components'}
 
 requires
-  vcl,
-  rtl;
+  rtl,
+  designide;
 
 contains
-  SynPdf in '..\Source\SynPdf.pas',
-  SynCommons in '..\Source\SynCommons.pas',
-  SynGdiPlus in '..\Source\SynGdiPlus.pas',
-  SynCrypto in '..\Source\SynCrypto.pas',
-  SynLZ in '..\Source\SynLZ.pas',
-  SynZip in '..\Source\SynZip.pas';
+  BCHexEditor.Package.Designtime in 'BCHexEditor.Package.Designtime.pas',
+  BCHexEditor in '..\Source\BCHexEditor.pas',
+  BCHexEditorEx in '..\Source\BCHexEditorEx.pas';
 
 end.
-
