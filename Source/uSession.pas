@@ -3345,6 +3345,9 @@ end;
 
 function TSTableField.GetFields(): TSTableFields;
 begin
+  // Debug 2018-09-07
+  Assert(Items is TSTableFields);
+
   Result := TSTableFields(Items);
 end;
 
@@ -4493,6 +4496,9 @@ end;
 
 function TSBaseTable.GetFields(): TSTableFields;
 begin
+  // Debug 2018-09-07
+  Assert(FFields is TSTableFields);
+
   Result := FFields;
 end;
 
@@ -4959,6 +4965,9 @@ begin
               SQLParseChar(Parse, ')')
             end;
 
+            if (SQLParseKeyword(Parse, 'DESC')) then
+              NewKeyColumn.Ascending := False;
+
             NewKey.Columns.AddColumn(NewKeyColumn);
 
             NewKeyColumn.Free();
@@ -5393,6 +5402,9 @@ end;
 
 function TSView.GetFields(): TSTableFields;
 begin
+  // Debug 2018-09-07
+  Assert(FFields is TSTableFields);
+
   Result := FFields;
 end;
 
@@ -5408,6 +5420,9 @@ end;
 
 function TSView.GetViewFields(): TSViewFields;
 begin
+  // Debug 2018-09-07
+  Assert(GetFields() is TSViewFields);
+
   Result := TSViewFields(GetFields());
 end;
 
@@ -5620,6 +5635,9 @@ end;
 
 function TSSystemView.GetFields(): TSTableFields;
 begin
+  // Debug 2018-09-07
+  Assert(FFields is TSTableFields);
+
   Result := FFields;
 end;
 
@@ -5635,6 +5653,9 @@ end;
 
 function TSSystemView.GetViewFields(): TSViewFields;
 begin
+  // Debug 2018-09-07
+  Assert(GetFields() is TSViewFields);
+
   Result := TSViewFields(GetFields());
 end;
 

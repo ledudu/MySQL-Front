@@ -5592,6 +5592,11 @@ begin
                 if (MySQL_Collations[I].CharsetNr = LibField.charsetnr) then
                 begin
                   CodePage := MySQL_Collations[I].CodePage;
+
+                  // Debug 2018-09-07
+                  Assert(CodePage <> 0,
+                    'Collation: ' + MySQL_Collations[I].CharsetName);
+
                   if (MySQL_Collations[I].MaxLen = 0) then
                     raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
                   else
@@ -5680,7 +5685,10 @@ begin
               if (Binary) then
                 begin Field := TMySQLBlobField.Create(Self); Field.Size := Len; end
               else
-                begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
+                begin
+                  Assert(CodePage <> 0);
+                  Field := TMySQLWideMemoField.Create(Self); Field.Size := Len;
+                end;
             MYSQL_TYPE_IPV6,
             MYSQL_TYPE_VAR_STRING,
             MYSQL_TYPE_STRING:
@@ -5691,7 +5699,10 @@ begin
               else if ((Len <= $5555) and (Connection.MySQLVersion >= 50000)) then
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
               else
-                begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
+                begin
+                  Assert(CodePage <> 0);
+                  Field := TMySQLWideMemoField.Create(Self); Field.Size := Len;
+                end;
             MYSQL_TYPE_GEOMETRY:
               begin Field := TMySQLBlobField.Create(Self); Field.Size := Len; Field.Tag := ftGeometryField; end;
             else
@@ -6741,6 +6752,7 @@ begin
   // AV: 2017-06-01 - CallStack WMTimer, ActivateHint
   // AV: 2018-09-04 - CallStack WMTimer
   // 2018-09-04 - CallStack Grid.UpdateAction, GetIsNull
+  // AV: 2018-09-06 - CallStack WMTimer, ActivateHint Identifier432 = -2147483648
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -7018,8 +7030,7 @@ var
   Index: Integer;
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
-    bfBOF,
-    bfEOF:
+    bfBOF:
       begin
         FreeInternRecordBuffer(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
         InternalInitRecord(ActiveBuffer());
@@ -7035,7 +7046,18 @@ begin
         Index := PExternRecordBuffer(ActiveBuffer())^.Index;
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
-        InternalInitRecord(ActiveBuffer());
+        PExternRecordBuffer(ActiveBuffer())^.Identifier432 := 432;
+        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
+        PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag := bfCurrent;
+      end;
+    bfEOF:
+      begin
+        FreeInternRecordBuffer(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        PExternRecordBuffer(ActiveBuffer())^.Identifier432 := 432;
+        PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Count - 1;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Count - 1];
+        PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag := bfCurrent;
       end;
   end;
 end;
@@ -7549,7 +7571,16 @@ begin
           + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
           + 'RecordCount: ' + IntToStr(RecordCount));
 
-        InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
+        try
+          InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
+        except
+          on E: Exception do
+            E.RaiseOuterException(EAssertionFailed.Create(
+              'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+              + 'NewIndex: ' + IntToStr(InternalPostResult.NewIndex) + #13#10
+              + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+              + 'RecordCount: ' + IntToStr(RecordCount)));
+        end;
         InternRecordBuffers.Index := InternalPostResult.NewIndex;
         PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Index;
       end;
@@ -8604,6 +8635,10 @@ begin
       Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963);
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths));
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow));
+
+      // Debug 2018-09-07
+      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo] >= 0);
+      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo] >= 0);
 
       if (pfInUpdate in Fields[I].ProviderFlags) then
         if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])) then

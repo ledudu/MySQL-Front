@@ -266,7 +266,8 @@ var
 begin
   if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount)
     and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes)
-    and not EditorMode) then
+    and not EditorMode
+    and not (csDestroying in ComponentState)) then
   begin
     if (not Assigned(FHintWindow)) then
     begin

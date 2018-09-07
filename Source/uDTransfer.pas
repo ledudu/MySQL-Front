@@ -845,7 +845,6 @@ end;
 procedure TDTransfer.TSSelectShow(Sender: TObject);
 var
   Addresses: TStringList;
-  Control: TWinControl;
   Database: TSDatabase;
   FSourceOnChange: TTVChangedEvent;
   FDestinationOnChange: TTVChangedEvent;
@@ -998,37 +997,11 @@ begin
   begin
     if ((FSource.SelectionCount > 0) and (FDestination.SelectionCount > 0) and FirstShow) then
     begin
+      TSWhat.Enabled := True;
       PageControl.ActivePage := TSWhat;
 
       if (not FBForward.Enabled and FStructure.Enabled) then
-      begin
-        // Debug 2018-09-04
-        Assert(PageControl.ActivePage = TSWhat);
-        Assert(FStructure.Visible);
-        Assert(GetParentForm(FStructure) = Self,
-          'Parent: ' + BoolToStr(Assigned(FStructure.Parent), True));
-        Assert(GWhat.Visible and GWhat.Enabled,
-          'Visible: ' + BoolToStr(GWhat.Visible, True) + #13#10
-          + 'Enabled: ' + BoolToStr(GWhat.Enabled, True));
-        Assert(TSWhat.Visible and GWhat.Enabled,
-          'Visible: ' + BoolToStr(TSWhat.Visible, True) + #13#10
-          + 'Enabled: ' + BoolToStr(TSWhat.Enabled, True));
-        Assert(FStructure.Enabled,
-          'Enabled: ' + BoolToStr(FStructure.Enabled, True));
-        Control := FStructure;
-        while Control <> Self do
-        begin
-          Assert(Control.Visible and Control.Enabled,
-            'Control: ' + Control.Name + #13#10
-            + 'ClassName: ' + Control.ClassName + #13#10
-            + 'Visible: ' + BoolToStr(Control.Visible, True) + #13#10
-            + 'Enabled: ' + BoolToStr(Control.Enabled, True));
-          Control := Control.Parent;
-        end;
-        Assert(FStructure.CanFocus());
-
-        ActiveControl := FStructure;
-      end
+        ActiveControl := FStructure
       else if (not FBForward.Enabled and FData.Enabled) then
         ActiveControl := FData
       else

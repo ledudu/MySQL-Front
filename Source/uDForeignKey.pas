@@ -289,10 +289,15 @@ end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 var
+  Database: TSDatabase;
   FirstValid: Boolean;
 begin
   FirstValid := SessionState = ssInit;
 
+  if (Assigned(Table)) then
+    Database := nil
+  else
+    Database := Table.Database.Session.DatabaseByName(ForeignKey.Parent.DatabaseName);
   if ((SessionState in [ssTable, ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
     BuiltTable();
@@ -304,7 +309,7 @@ begin
       SessionState := ssValid;
     end;
   end
-  else if ((SessionState in [ssParentTable]) and (Event.EventType = etItemValid) and (Event.Item = Table.Database.Session.DatabaseByName(ForeignKey.Parent.DatabaseName).BaseTableByName(ForeignKey.Parent.TableName))) then
+  else if ((SessionState in [ssParentTable]) and (Event.EventType = etItemValid) and Assigned(Database) and (Event.Item = Database.BaseTableByName(ForeignKey.Parent.TableName))) then
     SessionState := ssValid
   else if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel

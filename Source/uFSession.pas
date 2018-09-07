@@ -4636,6 +4636,9 @@ begin
             ciView,
             CiSystemView:
               begin
+                // Debug 2018-09-07
+                Assert(Assigned(CurrentData),
+                  'CurrentAddress: ' + CurrentAddress);
                 TSTable(CurrentData).Invalidate();
 
                 if ((TSTable(CurrentData) is TSBaseTable) and
@@ -5949,9 +5952,11 @@ begin
   Result.Tag := NativeInt(SObject);
   Result.TabWidth := FSQLEditorSynMemo.TabWidth;
   Result.WantTabs := FSQLEditorSynMemo.WantTabs;
-  Result.WordWrap := FSQLEditorSynMemo.WordWrap;
 
   Result.Parent := PSynMemo;
+
+  // This must be after Result.Parent := . A SynEdit bug?
+  Result.WordWrap := FSQLEditorSynMemo.WordWrap;
 
   SynCompletion.AddEditor(Result);
 
@@ -8220,7 +8225,11 @@ begin
     begin
       FNavigatorNodeToExpand := Node;
       if (Assigned(Table) and Table.ValidSource) then
+      begin
+        // Debug 2018-09-07
+        Assert(Table is TSTable);
         Table.PushBuildEvent()
+      end
       else if (Assigned(Database) and Database.Valid) then
         Database.PushBuildEvents();
     end;
@@ -8620,11 +8629,7 @@ var
     while (Assigned(Node)) do
     begin
       if (Node = Child) then
-        // Debug 2017-06-01
-        Assert(False);
-        // Why is the FNaviatorMenu still assiged???
-
-//        FNavigatorMenuNode := nil;
+        FNavigatorMenuNode := nil;
       Node := Node.Parent;
     end;
 
@@ -14165,6 +14170,7 @@ procedure TFSession.PContentChange(Sender: TObject);
 
   procedure DisableAligns(const Control: TWinControl);
   var
+    B: Boolean;
     I: Integer;
     Top: Integer;
   begin
@@ -14172,8 +14178,19 @@ procedure TFSession.PContentChange(Sender: TObject);
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Max(0, Control.Left), Top));
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
-      if (Control.Controls[I] is TWinControl) then
+    begin
+      B := False;
+      try
+        B := Control.Controls[I] is TWinControl;
+      except
+        on E: Exception do
+          E.RaiseOuterException(EAssertionFailed.Create(
+            'Index: ' + IntToStr(I) + #13#10
+            + 'Count: ' + IntToStr(Control.ControlCount)));
+      end;
+      if (B) then
         DisableAligns(TWinControl(Control.Controls[I]));
+    end;
   end;
 
   procedure EnableAligns(const Control: TWinControl);
@@ -15593,7 +15610,7 @@ begin
       else
         StatusBar.Panels[sbNavigation].Text := '';
     end
-    else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
+    else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
     else if (Window.ActiveControl = FText) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(FText.CaretPos.Y + 1) + ':' + IntToStr(FText.CaretPos.X + 1)
