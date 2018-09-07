@@ -25875,6 +25875,7 @@ begin
       MySQLCondStartL:
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
+        MOV AX,[ESI]                     // One character from SQL to AX
         CMP AX,'0'                       // Version number?
         JB Finish                        // No!
         CMP AX,'9'                       // Version number?

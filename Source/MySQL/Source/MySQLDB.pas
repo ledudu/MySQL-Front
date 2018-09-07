@@ -5568,7 +5568,7 @@ begin
           if ((Connection.MySQLVersion < 40101) or (Connection.Lib.Version < 40101)) then
           begin
             Binary := LibField.flags and BINARY_FLAG <> 0;
-            if (not (LibField.field_type in [MYSQL_TYPE_ENUM, MYSQL_TYPE_SET, MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING]) or (LibField.flags and BINARY_FLAG <> 0)) then
+            if (Binary or not (LibField.field_type in [MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING])) then
               Len := LibField.length
             else
             begin
@@ -5576,10 +5576,10 @@ begin
               CodePage := Connection.CharsetToCodePage(Connection.CharsetResult);
               if (Connection.MySQLVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
                 Len := LibField.length
-              else if (MySQL_Character_Sets[CharsetNr].MaxLen = 0) then
-                raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[CharsetNr].CharsetName])
+              else if (MySQL_Character_Sets[CharsetNr].MaxLen > 0) then
+                Len := LibField.length div MySQL_Character_Sets[CharsetNr].MaxLen
               else
-                Len := LibField.length div MySQL_Character_Sets[CharsetNr].MaxLen;
+                raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[CharsetNr].CharsetName]);
             end;
           end
           else
