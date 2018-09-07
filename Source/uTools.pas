@@ -4178,10 +4178,18 @@ begin
             begin
               DataTable := Data and (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0);
 
+              // Debug 2018-09-07
+              Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssNext, ssAfterExecuteSQL],
+                'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
+
               if (DataTable) then
               begin
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
                   DoError(DatabaseError(Session), nil, True);
+
+                // Debug 2018-09-07
+                Assert(Session.Connection.DebugSyncThread.DebugState in [ssResult],
+                  'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
               end;
 
               if (Success <> daAbort) then
@@ -4204,6 +4212,10 @@ begin
 
               if (DataTable and (Success <> daSuccess)) then
                 Session.Connection.CancelResultHandle(ResultHandle);
+
+              // Debug 2018-09-07
+              Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssNext, ssAfterExecuteSQL],
+                'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
             end;
           end;
 
@@ -4868,7 +4880,15 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
+try
         Len := AnsiCharToWideChar(FieldCodePage(Field), DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+except
+  // Debug 2018-09-07
+  on E: Exception do
+    E.RaiseOuterException(EAssertionFailed.Create(
+      'CodePage: ' + IntToStr(FieldCodePage(Field)) + #13#10
+      + 'DataType: ' + IntToStr(Ord(Field.DataType))));
+end;
 
         LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
         SQLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);

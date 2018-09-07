@@ -306,7 +306,16 @@ begin
     + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
     + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True));
 
-  Result := ShowModal() = mrOk;
+  Result := False;
+  try
+    Result := ShowModal() = mrOk;
+  except
+    on E: Exception do
+      E.RaiseOuterException(EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+        + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
+        + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+        + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True)));
+  end;
 end;
 
 procedure TDAccounts.FBOkEnabledCheck(Sender: TObject);

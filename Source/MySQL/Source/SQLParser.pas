@@ -7236,13 +7236,12 @@ const
   PE_UnexpectedChar = 3; // Unexpected character
 
   // Bugs with MySQL conditional options
-  PE_InvalidMySQLCond = 4; // Invalid version number in MySQL conditional option
-  PE_NestedMySQLCond = 5; // Nested conditional MySQL conditional options
+  PE_NestedMySQLCond = 4; // Nested conditional MySQL conditional options
 
   // Bugs while parsing Stmts:
-  PE_IncompleteStmt = 6; // Incompleted statement
-  PE_UnexpectedToken = 7; // Unexpected character
-  PE_ExtraToken = 8; // Unexpected character
+  PE_IncompleteStmt = 5; // Incompleted statement
+  PE_UnexpectedToken = 6; // Unexpected character
+  PE_ExtraToken = 7; // Unexpected character
 
 implementation {***************************************************************}
 
@@ -12126,8 +12125,6 @@ begin
       Result := 'Incomplete token';
     PE_UnexpectedChar:
       Result := 'Unexpected character';
-    PE_InvalidMySQLCond:
-      Result := 'Invalid version number in MySQL conditional option';
     PE_NestedMySQLCond:
       Result := 'Nested conditional MySQL conditional options';
     PE_IncompleteStmt:
@@ -12163,7 +12160,7 @@ begin
     Result := Result + ' near "' + Copy(S, 1, 20) + '"';
   end;
 
-  if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_InvalidMySQLCond, PE_NestedMySQLCond, PE_IncompleteStmt, PE_UnexpectedToken, PE_ExtraToken])
+  if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_NestedMySQLCond, PE_IncompleteStmt, PE_UnexpectedToken, PE_ExtraToken])
     and (Error.Line > 0)) then
     Result := Result + ' in line ' + IntToStr(Error.Line);
 end;
@@ -25044,7 +25041,7 @@ begin
     ErrorLine := Parse.Line;
     ErrorPos := Parse.Pos;
     IdentBefore := Parse.Before = pbIdent;
-    InMySQLCond := AllowedMySQLVersion > 0;
+    InMySQLCond := AllowedMySQLVersion <> 0;
     Length := Parse.Length;
     Line := Parse.Line;
     NewLines := 0;
@@ -25875,30 +25872,15 @@ begin
         SUB ECX,3                        // Three characters handled
         CMP ECX,0                        // End of SQL?
         JE IncompleteToken               // Yes!
-        MOV EDX,ECX
-        SUB EDX,5                        // Version must be 5 characters long
-        MOV AX,[ESI]                     // One character from SQL to AX
-        CMP AX,'0'                       // First digit = '0'?
-        JE MySQLCondStartErr             // Yes!
       MySQLCondStartL:
-        CMP ECX,EDX                      // 5 digits handled?
-        JE Finish
-        MOV AX,[ESI]                     // One character from SQL to AX
-        CMP AX,'0'                       // Digit?
-        JB MySQLCondStartErr             // No!
-        CMP AX,'9'                       // Digit?
-        JA MySQLCondStartErr             // No!
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CMP AX,'0'                       // Version number?
+        JB Finish                        // No!
+        CMP AX,'9'                       // Version number?
+        JA Finish                        // No!
         ADD ESI,2                        // Next character in SQL
         LOOP MySQLCondStartL
-        JMP IncompleteToken
-      MySQLCondStartErr:
-        MOV ErrorCode,PE_InvalidMySQLCond
-        MOV EAX,Line
-        ADD EAX,NewLines
-        MOV ErrorLine,EAX
-        MOV ErrorPos,ESI
-        ADD ESI,2                        // Step over invalid character
-        JMP Finish
 
       // ------------------------------
 
@@ -25979,15 +25961,14 @@ begin
     if (ErrorCode = 0) then
       case (TokenType) of
         ttMySQLCondStart:
-          if (AllowedMySQLVersion = 0) then
-          begin
-            SetString(S, PChar(@SQL[3]), TokenLength - 3);
-            AllowedMySQLVersion := StrToInt(S);
-          end
+          if (AllowedMySQLVersion <> 0) then
+            ErrorCode := PE_NestedMySQLCond
+          else if (TokenLength <= 3) then
+            AllowedMySQLVersion := -1
           else
-            ErrorCode := PE_NestedMySQLCond;
+            AllowedMySQLVersion := StrToInt(Copy(StrPas(SQL), 4, TokenLength - 3));
         ttMySQLCondEnd:
-          if (AllowedMySQLVersion > 0) then
+          if (AllowedMySQLVersion <> 0) then
             AllowedMySQLVersion := 0
           else
             ErrorCode := PE_UnexpectedToken;
@@ -27185,15 +27166,12 @@ begin
         Error.Token := NextToken[FoundTokenCount];
   end;
 
-  if (Error.Code = PE_InvalidMySQLCond) then
-    Error.Line := Parse.Line
-  else
-    for I := 0 to TokenBuffer.Count - 1 do
-      if (Error.Token = TokenBuffer.Items[I].Token) then
-      begin
-        Error.Line := TokenBuffer.Items[I].Error.Line;
-        Error.Pos := TokenBuffer.Items[I].Error.Pos;
-      end;
+  for I := 0 to TokenBuffer.Count - 1 do
+    if (Error.Token = TokenBuffer.Items[I].Token) then
+    begin
+      Error.Line := TokenBuffer.Items[I].Error.Line;
+      Error.Pos := TokenBuffer.Items[I].Error.Pos;
+    end;
 
   if (FirstError.Code = PE_Success) then
     FirstError := Error;

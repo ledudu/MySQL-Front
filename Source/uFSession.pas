@@ -14349,7 +14349,9 @@ begin
     begin
       NewTop := PContent.ClientHeight - PResult.Height;
       for I := 0 to PContent.ControlCount - 1 do
-        if (PContent.Controls[I].Align = alBottom) then
+        if ((PContent.Controls[I].Align = alBottom)
+          and (PContent.Controls[I] <> SBlob0)
+          and (PContent.Controls[I] <> SBlob2)) then
           Dec(NewTop, PContent.Controls[I].Height);
       PResult.Top := NewTop;
       if (View = vBrowser) then

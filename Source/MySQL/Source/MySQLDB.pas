@@ -5570,13 +5570,13 @@ begin
             Binary := LibField.flags and BINARY_FLAG <> 0;
             if (not (LibField.field_type in [MYSQL_TYPE_ENUM, MYSQL_TYPE_SET, MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING]) or (LibField.flags and BINARY_FLAG <> 0)) then
               Len := LibField.length
-            else if (Connection.MySQLVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
-              Len := LibField.length
             else
             begin
               CharsetNr := Connection.CharsetToCharsetNr(Connection.CharsetResult);
               CodePage := Connection.CharsetToCodePage(Connection.CharsetResult);
-              if (MySQL_Character_Sets[CharsetNr].MaxLen = 0) then
+              if (Connection.MySQLVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
+                Len := LibField.length
+              else if (MySQL_Character_Sets[CharsetNr].MaxLen = 0) then
                 raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[CharsetNr].CharsetName])
               else
                 Len := LibField.length div MySQL_Character_Sets[CharsetNr].MaxLen;
@@ -7551,7 +7551,8 @@ begin
       if ((ControlSQL = '') and CheckPosition) then
       begin
         InternalPostResult.NewIndex := InternRecordBuffers.IndexFor(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^, PExternRecordBuffer(ActiveBuffer())^.Index);
-        if (InternalPostResult.NewIndex < 0) then
+        if ((InternalPostResult.NewIndex < 0)
+          or (InternalPostResult.NewIndex >= InternRecordBuffers.Count)) then
           InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
         else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
           Dec(InternalPostResult.NewIndex);
@@ -7562,25 +7563,7 @@ begin
       begin
         // Position in InternRecordBuffers changed -> move it!
 
-        // Debug 2018-09-04
-        Assert((0 <= PExternRecordBuffer(ActiveBuffer())^.Index) and (PExternRecordBuffer(ActiveBuffer())^.Index < InternRecordBuffers.Count)
-          and (0 <= InternalPostResult.NewIndex) and (InternalPostResult.NewIndex <= InternRecordBuffers.Count),
-          'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
-          + 'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-          + 'NewIndex: ' + IntToStr(InternalPostResult.NewIndex) + #13#10
-          + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-          + 'RecordCount: ' + IntToStr(RecordCount));
-
-        try
-          InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
-        except
-          on E: Exception do
-            E.RaiseOuterException(EAssertionFailed.Create(
-              'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-              + 'NewIndex: ' + IntToStr(InternalPostResult.NewIndex) + #13#10
-              + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-              + 'RecordCount: ' + IntToStr(RecordCount)));
-        end;
+        InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
         InternRecordBuffers.Index := InternalPostResult.NewIndex;
         PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Index;
       end;

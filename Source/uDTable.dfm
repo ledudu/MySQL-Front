@@ -47,7 +47,7 @@ object DTable: TDTable
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
-    TabOrder = 2
+    TabOrder = 3
   end
   object FBCancel: TButton
     Left = 255
@@ -58,7 +58,7 @@ object DTable: TDTable
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
-    TabOrder = 3
+    TabOrder = 4
   end
   object FBHelp: TButton
     Left = 8
@@ -67,7 +67,7 @@ object DTable: TDTable
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
-    TabOrder = 1
+    TabOrder = 2
     OnClick = FBHelpClick
   end
   object PageControl: TPageControl
@@ -75,17 +75,13 @@ object DTable: TDTable
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSSource
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
-    TabOrder = 4
+    TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -243,10 +239,6 @@ object DTable: TDTable
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -370,10 +362,6 @@ object DTable: TDTable
     object TSKeys: TTabSheet
       Caption = 'TSKeys'
       OnShow = TSKeysShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -436,13 +424,71 @@ object DTable: TDTable
         end
       end
     end
+    object TSForeignKeys: TTabSheet
+      Caption = 'TSForeignKeys'
+      OnShow = TSForeignKeysShow
+      DesignSize = (
+        313
+        261)
+      object FForeignKeys: TListView
+        Left = 8
+        Top = 32
+        Width = 297
+        Height = 211
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end
+          item
+            AutoSize = True
+            Caption = 'Extras'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        MultiSelect = True
+        PopupMenu = MList
+        TabOrder = 0
+        ViewStyle = vsReport
+        OnChange = FForeignKeysChange
+        OnDblClick = FListDblClick
+        OnEnter = FForeignKeysEnter
+        OnSelectItem = FListSelectItem
+      end
+      object TBForeignKeys: TToolBar
+        Left = 0
+        Top = 0
+        Width = 313
+        Height = 24
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 1
+        Transparent = False
+        object tbCreateForeignKey: TToolButton
+          Left = 0
+          Top = 0
+          Action = aPCreateForeignKey
+        end
+        object tbDeleteForeignKey: TToolButton
+          Left = 23
+          Top = 0
+          Action = aPDeleteForeignKey
+        end
+        object tbPropertiesForeignKey: TToolButton
+          Left = 46
+          Top = 0
+          Action = aPEditForeignKey
+        end
+      end
+    end
     object TSFields: TTabSheet
       Caption = 'TSFields'
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -532,79 +578,9 @@ object DTable: TDTable
         end
       end
     end
-    object TSForeignKeys: TTabSheet
-      Caption = 'TSForeignKeys'
-      OnShow = TSForeignKeysShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        313
-        261)
-      object FForeignKeys: TListView
-        Left = 8
-        Top = 32
-        Width = 297
-        Height = 211
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Columns = <
-          item
-            AutoSize = True
-            Caption = 'Name'
-          end
-          item
-            AutoSize = True
-            Caption = 'Type'
-          end
-          item
-            AutoSize = True
-            Caption = 'Extras'
-          end>
-        ColumnClick = False
-        HideSelection = False
-        MultiSelect = True
-        PopupMenu = MList
-        TabOrder = 0
-        ViewStyle = vsReport
-        OnChange = FForeignKeysChange
-        OnDblClick = FListDblClick
-        OnEnter = FForeignKeysEnter
-        OnSelectItem = FListSelectItem
-      end
-      object TBForeignKeys: TToolBar
-        Left = 0
-        Top = 0
-        Width = 313
-        Height = 24
-        ParentShowHint = False
-        ShowHint = True
-        TabOrder = 1
-        Transparent = False
-        object tbCreateForeignKey: TToolButton
-          Left = 0
-          Top = 0
-          Action = aPCreateForeignKey
-        end
-        object tbDeleteForeignKey: TToolButton
-          Left = 23
-          Top = 0
-          Action = aPDeleteForeignKey
-        end
-        object tbPropertiesForeignKey: TToolButton
-          Left = 46
-          Top = 0
-          Action = aPEditForeignKey
-        end
-      end
-    end
     object TSTriggers: TTabSheet
       Caption = 'TSTriggers'
       OnShow = TSTriggersShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -638,10 +614,6 @@ object DTable: TDTable
     object TSPartitions: TTabSheet
       Caption = 'TSPartitions'
       OnShow = TSPartitionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -786,10 +758,6 @@ object DTable: TDTable
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
       OnShow = TSDependenciesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -818,10 +786,6 @@ object DTable: TDTable
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -927,10 +891,6 @@ object DTable: TDTable
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
