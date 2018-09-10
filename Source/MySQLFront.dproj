@@ -26,7 +26,7 @@
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
         <DCC_Namespace>Winapi;System;System.Win;Xml;Data;Vcl;Vcl.Imaging;$(DCC_Namespace)</DCC_Namespace>
         <DCC_UsePackage>vcl;rtl;vclimg;dbrtl;vcldb;xmlrtl;bdertl;DISQLite3_D2010;MySQL;Win32_Extensions;TPerlRegEx_D2010;$(DCC_UsePackage)</DCC_UsePackage>
-        <DCC_UnitSearchPath>FastMM\Bin;SynopsePDF\Bin;BCEditor\Source;BCEditor\Resource;BCHexEditor\Resource;BCHexEditor\Bin;QueryBuilder\Resource;QueryBuilder\Bin;ShellBrowser\Bin;ShellBrowser\Resource;Win32\Bin;MySQL\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>FastMM\Bin;SynopsePDF\Bin;SynEdit\Bin;SynEdit\Resource;BCHexEditor\Resource;BCHexEditor\Bin;QueryBuilder\Resource;QueryBuilder\Bin;ShellBrowser\Bin;ShellBrowser\Resource;Win32\Bin;MySQL\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_RangeChecking>true</DCC_RangeChecking>
         <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <DCC_Optimize>false</DCC_Optimize>
@@ -82,7 +82,7 @@
         <DCCReference Include="uDDatabases.pas">
             <Form>DDatabases</Form>
         </DCCReference>
-        <DCCReference Include="uDDowndate.pas">
+        <DCCReference Include="udDowndate.pas">
             <Form>DDowndate</Form>
         </DCCReference>
         <DCCReference Include="uDEvent.pas">
