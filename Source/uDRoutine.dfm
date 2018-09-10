@@ -72,20 +72,16 @@ object DRoutine: TDRoutine
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSSource
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object GBasics: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -172,7 +168,7 @@ object DRoutine: TDRoutine
       ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object GDates: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -274,6 +270,39 @@ object DRoutine: TDRoutine
         end
       end
     end
+    object TSReferences: TTabSheet
+      Caption = 'TSReferences'
+      ImageIndex = 4
+      OnShow = TSReferencesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      DesignSize = (
+        313
+        279)
+      object FReferences: TListView
+        Left = 8
+        Top = 8
+        Width = 297
+        Height = 261
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        ReadOnly = True
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+    end
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
       ImageIndex = 3
@@ -284,12 +313,12 @@ object DRoutine: TDRoutine
       ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object FDependencies: TListView
         Left = 8
         Top = 8
         Width = 297
-        Height = 273
+        Height = 261
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -315,12 +344,12 @@ object DRoutine: TDRoutine
       ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
-        Height = 273
+        Height = 261
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText

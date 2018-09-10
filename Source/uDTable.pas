@@ -1115,14 +1115,12 @@ begin
 
   if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
-  else if ((SessionState in [ssInit, ssStatus, ssDependencies]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  else if ((SessionState in [ssInit, ssStatus]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
     if (SessionState = ssInit) then
       Built()
     else if (SessionState = ssStatus) then
-      BuiltStatus()
-    else
-      BuiltDependencies();
+      BuiltStatus();
     SessionState := ssValid;
   end
   else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
@@ -1133,7 +1131,17 @@ begin
       SessionState := ssValid;
   end
   else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemRenamed])) then
-    ModalResult := mrOk;
+    ModalResult := mrOk
+  else if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    BuiltDependencies();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssDependencies) and (Event.EventType = etAfterExecuteSQL)) then
+  begin
+    BuiltDependencies();
+    SessionState := ssValid;
+  end;
 
   if (SessionState in [ssCreate, ssValid]) then
   begin

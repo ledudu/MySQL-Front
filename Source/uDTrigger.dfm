@@ -47,10 +47,6 @@ object DTrigger: TDTrigger
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -211,10 +207,6 @@ object DTrigger: TDTrigger
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -275,12 +267,37 @@ object DTrigger: TDTrigger
         end
       end
     end
+    object TSReferences: TTabSheet
+      Caption = 'TSReferences'
+      ImageIndex = 3
+      OnShow = TSReferencesShow
+      DesignSize = (
+        313
+        297)
+      object FReferences: TListView
+        Left = 8
+        Top = 8
+        Width = 297
+        Height = 281
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        ReadOnly = True
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+    end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -288,7 +305,7 @@ object DTrigger: TDTrigger
         Left = 8
         Top = 8
         Width = 297
-        Height = 273
+        Height = 281
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText

@@ -44,7 +44,6 @@ type
       Col: Longint;
     end;
     FHeaderControl: THeaderControl;
-    FHeaderSplitButton: THeaderSplitBottonEvent;
     FHintWindow: THintWindow;
     FIgnoreKeyPress: Boolean;
     FListView: HWND;
@@ -53,6 +52,7 @@ type
     FOnCanEditShowExecuted: Boolean;
     FOnOverflow: TOverflowEvent;
     FOnSelect: TNotifyEvent;
+    FOnHeaderSplitButton: THeaderSplitBottonEvent;
     FOnUpdateAction: TUpdateActionEvent;
     FOverflow: Boolean;
     FSelectedFields: TFieldList;
@@ -134,7 +134,7 @@ type
     property CurrentRow: Boolean read GetCurrentRow;
     property Header: THeaderControl read GetHeaderControl;
     property MouseDownShiftState: TShiftState read LeftClickAnchor.Shift;
-    property OnHeaderSplitButton: THeaderSplitBottonEvent read FHeaderSplitButton write FHeaderSplitButton;
+    property OnHeaderSplitButton: THeaderSplitBottonEvent read FOnHeaderSplitButton write FOnHeaderSplitButton;
     property SelectedFields: TFieldList read FSelectedFields;
     property SelSQLData: string read GetSelSQLData;
     property SelText: string read GetSelText;
@@ -267,7 +267,7 @@ begin
   if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount)
     and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes)
     and not EditorMode
-    and not (csDestroying in ComponentState)) then
+    and DataLink.Active and DataSource.DataSet.Active) then
   begin
     if (not Assigned(FHintWindow)) then
     begin
@@ -606,7 +606,7 @@ constructor TMySQLDBGrid.Create(AOwner: TComponent);
 begin
   AltDownAnchor.Col := -1;
   FHeaderControl := nil;
-  FHeaderSplitButton := nil;
+  FOnHeaderSplitButton := nil;
   FIgnoreKeyPress := False;
   FListView := 0;
   FOnCanEditShow := nil;
@@ -917,7 +917,6 @@ begin
           and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
           Inc(NeededWidth, 2 * DefaultRowHeight);
       end;
-
       if ((FHeaderControl.Sections[Index].Width < NeededWidth)
         and (Y < DefaultRowHeight)) then
         FHeaderControl.Hint := Columns[LeftCol + Index].DisplayName;
@@ -1627,15 +1626,6 @@ begin
   HDItem.Mask := HDI_FORMAT;
   if (DataLink.DataSet is TMySQLDataSet) then
     for I := LeftCol to Min(LeftCol + VisibleColCount, Columns.Count) - 1 do
-    begin
-      // Debug 2017-02-07
-      Assert((0 <= I) and (I < Columns.Count),
-        'I: ' + IntToStr(I) + #13#10
-        + 'LeftCol: ' + IntToStr(LeftCol) + #13#10
-        + 'VisibleColCount: ' + IntToStr(VisibleColCount) + #13#10
-        + 'Count: ' + IntToStr(Columns.Count) + #13#10
-        + TMySQLDataSet(DataLink.DataSet).CommandText);
-
       if (Columns[I].Visible
         and Assigned(Columns[I].Field)
         and BOOL(SendMessage(Header.Handle, HDM_GETITEM, Index, LParam(@HDItem)))) then
@@ -1646,10 +1636,13 @@ begin
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN;
+        {$IFDEF Debug}
+        if (Assigned(FOnHeaderSplitButton)) then
+          HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
+        {$ENDIF}
         SendMessage(Header.Handle, HDM_SETITEM, Index, LPARAM(@HDItem));
         Inc(Index);
       end;
-    end;
 end;
 
 procedure TMySQLDBGrid.SetOverflow(const AValue: Boolean);
@@ -1801,7 +1794,7 @@ begin
           end;
         end;
       HDN_DROPDOWN:
-        if (Assigned(FHeaderSplitButton)) then
+        if (Assigned(FOnHeaderSplitButton)) then
         begin
           case (HDNotify^.Button) of
             0: Shift := [ssLeft];
@@ -1812,6 +1805,7 @@ begin
           if (GetKeyState(VK_SHIFT) < 0) then Shift := Shift + [ssShift];
           if (GetKeyState(VK_CONTROL) < 0) then Shift := Shift + [ssCtrl];
           if (GetKeyState(VK_MENU) < 0) then Shift := Shift + [ssAlt];
+          FOnHeaderSplitButton(Self, Columns[LeftCol + HDNotify^.Item], Shift);
         end;
       HDN_OVERFLOWCLICK:
         if (Assigned(FOnOverflow)) then
@@ -1832,7 +1826,7 @@ begin
     tiShowHint:
       begin
         KillTimer(Handle, Msg.TimerID);
-        if (Visible and not (csDestroying in ComponentState)) then
+        if (Visible) then
           ActivateHint();
       end;
     tiHideHint:

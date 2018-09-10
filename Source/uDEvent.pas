@@ -52,6 +52,7 @@ type
     FMultipleExecution: TRadioButton;
     FName: TEdit;
     FPreserve: TCheckBox;
+    FReferences: TListView;
     FSingleExecution: TRadioButton;
     FSource: TSynMemo;
     FStartDate: TDateTimePicker;
@@ -83,6 +84,7 @@ type
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
     TSInformation: TTabSheet;
+    TSReferences: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
@@ -97,6 +99,7 @@ type
     procedure FStartEnabledClick(Sender: TObject);
     procedure FStartEnabledKeyPress(Sender: TObject; var Key: Char);
     procedure TSSourceShow(Sender: TObject);
+    procedure TSReferencesShow(Sender: TObject);
   private
     SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
@@ -115,7 +118,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils,
+  StrUtils, SysConst,
   SQLUtils,
   uPreferences;
 
@@ -353,6 +356,7 @@ end;
 procedure TDEvent.FormCreate(Sender: TObject);
 begin
   FStatement.Highlighter := Preferences.Editor.Highlighter;
+  FReferences.SmallImages := Preferences.Images;
   FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
@@ -367,6 +371,8 @@ begin
   msDelete.Action := aEDelete; msDelete.ShortCut := 0;
   msSelectAll.Action := aESelectAll; msSelectAll.ShortCut := 0;
 
+  TSReferences.TabVisible := Assigned(Event);
+
   PageControl.ActivePage := TSBasics
 end;
 
@@ -376,6 +382,10 @@ begin
 
   Preferences.Event.Width := Width;
   Preferences.Event.Height := Height;
+
+  FReferences.Items.BeginUpdate();
+  FReferences.Items.Clear();
+  FReferences.Items.EndUpdate();
 
   FSource.Lines.Clear();
   PageControl.ActivePage := TSBasics;
@@ -484,6 +494,57 @@ begin
   FStartEnabledClick(Sender);
 end;
 
+procedure TDEvent.TSReferencesShow(Sender: TObject);
+var
+  I: Integer;
+  Item: TListItem;
+begin
+  if (FReferences.Items.Count = 0) then
+  begin
+    FReferences.Items.BeginUpdate();
+
+    for I := 0 to Event.References.Count - 1 do
+    begin
+      Item := FReferences.Items.Add();
+
+      if (Event.References[I].DatabaseName = Database.Name) then
+        Item.Caption := Event.References[I].DBObjectName
+      else
+        Item.Caption := Event.References[I].DatabaseName + '.' + Event.References[I].DBObjectName;
+
+      if (Event.References[I].DBObjectClass = TSBaseTable) then
+      begin
+        Item.ImageIndex := iiBaseTable;
+        Item.SubItems.Add(Preferences.LoadStr(302));
+      end
+      else if (Event.References[I].DBObjectClass = TSView) then
+      begin
+        Item.ImageIndex := iiView;
+        Item.SubItems.Add(Preferences.LoadStr(738));
+      end
+      else if (Event.References[I].DBObjectClass = TSTable) then
+      begin
+        Item.ImageIndex := iiTable;
+        Item.SubItems.Add(Preferences.LoadStr(302));
+      end
+      else if (Event.References[I].DBObjectClass = TSProcedure) then
+      begin
+        Item.ImageIndex := iiProcedure;
+        Item.SubItems.Add(Preferences.LoadStr(768));
+      end
+      else if (Event.References[I].DBObjectClass = TSFunction) then
+      begin
+        Item.ImageIndex := iiFunction;
+        Item.SubItems.Add(Preferences.LoadStr(769));
+      end
+      else
+        raise ERangeError.Create(SRangeError);
+    end;
+
+    FReferences.Items.EndUpdate();
+  end;
+end;
+
 procedure TDEvent.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
@@ -524,6 +585,10 @@ begin
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
+
+  TSReferences.Caption := Preferences.LoadStr(948);
+  FReferences.Column[0].Caption := Preferences.LoadStr(35);
+  FReferences.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToSynMemo(FSource);

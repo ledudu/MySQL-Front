@@ -3328,7 +3328,10 @@ begin
           if (Assigned(SyncThread.Done)) then
             SyncThread.Done.SetEvent();
         end;
-      else raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
+      else raise ERangeError.Create(
+        'State: ' + IntToStr(Ord(SyncThread.State))
+        + 'SQL:' + #13#10
+        + SyncThread.SQL);
     end;
 
     DebugMonitor.Append('Sync - end - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
@@ -8619,8 +8622,10 @@ begin
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths));
       Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow));
 
-      // Debug 2018-09-07
+      // Debug 2018-09-08
       Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo] >= 0);
+      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData));
+      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths));
       Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo] >= 0);
 
       if (pfInUpdate in Fields[I].ProviderFlags) then

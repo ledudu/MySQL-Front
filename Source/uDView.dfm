@@ -41,13 +41,17 @@ object DView: TDView
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSBasics
+    ActivePage = TSSource
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -55,13 +59,13 @@ object DView: TDView
         Left = 8
         Top = 4
         Width = 297
-        Height = 259
+        Height = 261
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GBasics'
         TabOrder = 0
         DesignSize = (
           297
-          259)
+          261)
         object FLAlgorithm: TLabel
           Left = 8
           Top = 67
@@ -111,7 +115,7 @@ object DView: TDView
           Left = 8
           Top = 224
           Width = 281
-          Height = 27
+          Height = 29
           Anchors = [akLeft, akTop, akRight, akBottom]
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
@@ -209,6 +213,10 @@ object DView: TDView
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -243,6 +251,10 @@ object DView: TDView
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -285,17 +297,54 @@ object DView: TDView
         ViewStyle = vsReport
       end
     end
+    object TSReferences: TTabSheet
+      Caption = 'TSReferences'
+      ImageIndex = 5
+      OnShow = TSReferencesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      DesignSize = (
+        313
+        279)
+      object FReferences: TListView
+        Left = 8
+        Top = 8
+        Width = 297
+        Height = 261
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        ReadOnly = True
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+    end
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
       OnShow = TSDependenciesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         279)
       object FDependencies: TListView
-        Left = 13
-        Top = 3
+        Left = 8
+        Top = 8
         Width = 297
-        Height = 255
+        Height = 261
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -315,6 +364,10 @@ object DView: TDView
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -322,7 +375,7 @@ object DView: TDView
         Left = 8
         Top = 8
         Width = 297
-        Height = 255
+        Height = 261
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText

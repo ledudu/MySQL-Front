@@ -24,6 +24,8 @@ object PDBGridFilter: TPDBGridFilter
     Width = 17
     Height = 17
     TabOrder = 0
+    OnClick = FActiveClick
+    OnKeyPress = FActiveKeyPress
   end
   object FOperator: TComboBox
     Left = 31

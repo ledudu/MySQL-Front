@@ -837,7 +837,7 @@ type
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
-    function SQLRun(): string; virtual;
+    function SQLRun(): string; virtual; abstract;
     property Stmt: string read FStmt;
     property Comment: string read FComment write FComment;
     property Created: TDateTime read FCreated;
@@ -2647,8 +2647,6 @@ begin
     Entities.Delete(Self, False);
     if (Self is TSTable) then
       FItems := ADatabase.Tables
-    else if (Self is TSRoutine) then
-      FItems := ADatabase.Routines
     else if (Self is TSRoutine) then
       FItems := ADatabase.Routines
     else if (Self is TSTrigger) then
@@ -5532,6 +5530,10 @@ begin
       FName := SQLParseValue(Parse);
     end;
 
+    if (SQLParseChar(Parse, '(')) then
+      while (not SQLParseChar(Parse, ')')) do
+        SQLParseValue(Parse);
+  
     if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
@@ -6526,11 +6528,6 @@ begin
   raise EAbstractError.Create(SAbstractError);
 end;
 
-function TSRoutine.SQLRun(): string;
-begin
-  raise EAbstractError.Create(SAbstractError);
-end;
-
 { TSProcedure *****************************************************************}
 
 function TSProcedure.Build(const DataSet: TMySQLQuery): Boolean;
@@ -6918,6 +6915,8 @@ begin
     if (not SQLParseKeyword(Parse, 'CREATE')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
+    SQLParseKeyword(Parse, 'OR REPLACE'); // Extension of MariaDB
+
     Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
@@ -7118,10 +7117,6 @@ begin
           else
             raise ERangeError.Create(SRangeError);
           if (not TryStrToDateTime(DataSet.FieldByName('CREATED').AsString, Trigger[Index].FCreated)) then Trigger[Index].FCreated := 0;
-
-          // Debug 2016-11-17
-          if (Trigger[Index].FTableName = '') then
-            raise ERangeError.Create(SRangeError);
         end;
         Trigger[Index].FValid := True;
 
@@ -8458,7 +8453,7 @@ begin
       OldField := TSBaseField(Table.Fields[I]);
       Found := False;
       for J := 0 to NewTable.Fields.Count - 1 do
-        if (Session.TableNameCmp(TSBaseField(NewTable.Fields[J]).OriginalName, OldField.Name) = 0) then
+        if (lstrcmpi(PChar(TSBaseField(NewTable.Fields[J]).OriginalName), PChar(OldField.Name)) = 0) then
           Found := True;
       if (not Found) then
       begin
@@ -12978,7 +12973,7 @@ begin
                       Routine := Database.FunctionByName(DDLStmt.ObjectName);
                     if (not Assigned(Routine)) then
                       if (DDLStmt.ObjectType = otProcedure) then
-                        Database.Routines.Add(TSRoutine.Create(Database.Routines, DDLStmt.ObjectName))
+                        Database.Routines.Add(TSProcedure.Create(Database.Routines, DDLStmt.ObjectName))
                       else
                         Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName))
                     else

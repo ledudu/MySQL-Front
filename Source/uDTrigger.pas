@@ -28,6 +28,7 @@ type
     FLStatement: TLabel;
     FLTiming: TLabel;
     FName: TEdit;
+    FReferences: TListView;
     FSize: TLabel;
     FSource: TSynMemo;
     FStatement: TSynMemo;
@@ -50,6 +51,7 @@ type
     PTiming: TPanel_Ext;
     TSBasics: TTabSheet;
     TSInformation: TTabSheet;
+    TSReferences: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FEventClick(Sender: TObject);
@@ -64,6 +66,7 @@ type
     procedure FTimingClick(Sender: TObject);
     procedure FTimingKeyPress(Sender: TObject; var Key: Char);
     procedure HideTSSource(Sender: TObject);
+    procedure TSReferencesShow(Sender: TObject);
   private
     SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
@@ -83,7 +86,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils,
+  StrUtils, SysConst,
   SQLUtils,
   uPreferences;
 
@@ -236,6 +239,7 @@ end;
 procedure TDTrigger.FormCreate(Sender: TObject);
 begin
   FStatement.Highlighter := Preferences.Editor.Highlighter;
+  FReferences.SmallImages := Preferences.Images;
   FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
@@ -259,6 +263,10 @@ begin
 
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;
+
+  FReferences.Items.BeginUpdate();
+  FReferences.Items.Clear();
+  FReferences.Items.EndUpdate();
 
   PageControl.ActivePage := TSBasics;
 
@@ -326,6 +334,8 @@ begin
   PageControl.Visible := SessionState in [ssCreate, ssValid];
   PSQLWait.Visible := not PageControl.Visible;
 
+  TSReferences.TabVisible := Assigned(Trigger);
+
   FBOk.Enabled := PageControl.Visible and not Assigned(Trigger);
 
   ActiveControl := FBCancel;
@@ -337,6 +347,7 @@ procedure TDTrigger.FStatementChange(Sender: TObject);
 begin
   FBOkCheckEnabled(Sender);
   HideTSSource(Sender);
+  TSReferences.TabVisible := False;
 end;
 
 procedure TDTrigger.FTableNameChange(Sender: TObject);
@@ -359,6 +370,57 @@ end;
 procedure TDTrigger.HideTSSource(Sender: TObject);
 begin
   TSSource.TabVisible := False;
+end;
+
+procedure TDTrigger.TSReferencesShow(Sender: TObject);
+var
+  I: Integer;
+  Item: TListItem;
+begin
+  if (FReferences.Items.Count = 0) then
+  begin
+    FReferences.Items.BeginUpdate();
+
+    for I := 0 to Trigger.References.Count - 1 do
+    begin
+      Item := FReferences.Items.Add();
+
+      if (Trigger.References[I].DatabaseName = Table.Database.Name) then
+        Item.Caption := Trigger.References[I].DBObjectName
+      else
+        Item.Caption := Trigger.References[I].DatabaseName + '.' + Trigger.References[I].DBObjectName;
+
+      if (Trigger.References[I].DBObjectClass = TSBaseTable) then
+      begin
+        Item.ImageIndex := iiBaseTable;
+        Item.SubItems.Add(Preferences.LoadStr(302));
+      end
+      else if (Trigger.References[I].DBObjectClass = TSView) then
+      begin
+        Item.ImageIndex := iiView;
+        Item.SubItems.Add(Preferences.LoadStr(738));
+      end
+      else if (Trigger.References[I].DBObjectClass = TSTable) then
+      begin
+        Item.ImageIndex := iiTable;
+        Item.SubItems.Add(Preferences.LoadStr(302));
+      end
+      else if (Trigger.References[I].DBObjectClass = TSProcedure) then
+      begin
+        Item.ImageIndex := iiProcedure;
+        Item.SubItems.Add(Preferences.LoadStr(768));
+      end
+      else if (Trigger.References[I].DBObjectClass = TSFunction) then
+      begin
+        Item.ImageIndex := iiFunction;
+        Item.SubItems.Add(Preferences.LoadStr(769));
+      end
+      else
+        raise ERangeError.Create(SRangeError);
+    end;
+
+    FReferences.Items.EndUpdate();
+  end;
 end;
 
 procedure TDTrigger.UMPreferencesChanged(var Message: TMessage);
@@ -390,6 +452,10 @@ begin
   FLDefiner.Caption := Preferences.LoadStr(799) + ':';
   GSize.Caption := Preferences.LoadStr(67);
   FLSize.Caption := Preferences.LoadStr(67) + ':';
+
+  TSReferences.Caption := Preferences.LoadStr(948);
+  FReferences.Column[0].Caption := Preferences.LoadStr(35);
+  FReferences.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToSynMemo(FSource);

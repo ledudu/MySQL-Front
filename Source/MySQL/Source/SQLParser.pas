@@ -163,6 +163,7 @@ type
         ntAlterTableStmt,
         ntAlterTableStmtAddField,
         ntAlterTableStmtAddFields,
+        ntAlterTableStmtAddPartition,
         ntAlterTableStmtAlterField,
         ntAlterTableStmtConvertTo,
         ntAlterTableStmtDropObject,
@@ -568,6 +569,7 @@ type
         otBitInversion,           // "~"
 
         otJSONExtract,            // "->"
+        otJSONUnquotedExtract,    // "->>"
 
         otBitXOR,                 // "^"
 
@@ -685,6 +687,7 @@ type
         'ntAlterTableStmt',
         'ntAlterTableStmtAddField',
         'ntAlterTableStmtAddFields',
+        'ntAlterTableStmtAddPartition',
         'ntAlterTableStmtAlterField',
         'ntAlterTableStmtConvertTo',
         'ntAlterTableStmtDropObject',
@@ -1090,6 +1093,7 @@ type
         'otInvertBits',
 
         'otJSONExtract',
+        'otJSONUnquotedExtract',
 
         'otBitXOR',
 
@@ -1365,6 +1369,7 @@ type
         5,   // otBitInversion
 
         6,   // otJSONExtract
+        6,   // otJSONUnquotedExtract
 
         7,   // otBitXOR
 
@@ -1940,6 +1945,24 @@ type
             AddTag: TOffset;
             ColumnTag: TOffset;
             DefinitionList: TOffset;
+          end;
+        private
+          Heritage: TRange;
+        private
+          Nodes: TNodes;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
+        PAddPartition = ^TAddPartition;
+        TAddPartition = packed record
+        private type
+          TNodes = packed record
+            AddPartitionTag: TOffset;
+            OpenBracket: TOffset;
+            PartitionSpecification: TOffset;
+            CloseBracket: TOffset;
           end;
         private
           Heritage: TRange;
@@ -6033,7 +6056,7 @@ type
           At2Token: TOffset;
           ScopeTag: TOffset;
           ScopeDotToken: TOffset;
-          Ident: TOffset;
+          IdentList: TOffset;
         end;
       private
         Heritage: TRange;
@@ -6769,6 +6792,7 @@ type
     procedure FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
     procedure FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
     procedure FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
+    procedure FormatAlterTableStmtAddPartition(const Nodes: TAlterTableStmt.TAddPartition.TNodes);
     procedure FormatAlterTableStmtAlterField(const Nodes: TAlterTableStmt.TAlterField.TNodes);
     procedure FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
     procedure FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
@@ -6892,6 +6916,7 @@ type
     function ParseAlterTableStmt(const AlterTag, IgnoreTag: TOffset): TOffset;
     function ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
     function ParseAlterTableStmtAddFields(): TOffset;
+    function ParseAlterTableStmtAddPartition(): TOffset;
     function ParseAlterTableStmtAlterField(): TOffset;
     function ParseAlterTableStmtConvertTo(): TOffset;
     function ParseAlterTableStmtDropItem(): TOffset;
@@ -7149,6 +7174,7 @@ type
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
     function ParseVariableIdent(): TOffset;
+    function ParseVariableIdent2(): TOffset;
     function ParseWeightStringFunc(): TOffset;
     function ParseWeightStringFuncLevel(): TOffset;
     function ParseWhileStmt(const BeginLabel: TOffset = 0): TOffset;
@@ -7239,7 +7265,7 @@ const
   PE_NestedMySQLCond = 4; // Nested conditional MySQL conditional options
 
   // Bugs while parsing Stmts:
-  PE_IncompleteStmt = 5; // Incompleted statement
+  PE_IncompleteStmt = 5; // Incomplete statement
   PE_UnexpectedToken = 6; // Unexpected character
   PE_ExtraToken = 7; // Unexpected character
 
@@ -8810,6 +8836,20 @@ begin
   Result := TRange.Create(AParser, ntAlterTableStmtAddFields);
 
   with PAddFields(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TAlterTableStmt.TAddPartition ************************************}
+
+class function TSQLParser.TAlterTableStmt.TAddPartition.Create(const AParser: TSQLParser; const ANodes: TAddPartition.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntAlterTableStmtAddPartition);
+
+  with PAddPartition(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -12128,7 +12168,7 @@ begin
     PE_NestedMySQLCond:
       Result := 'Nested conditional MySQL conditional options';
     PE_IncompleteStmt:
-      Result := 'Incompleted statement';
+      Result := 'Incomplete statement';
     PE_UnexpectedToken:
       if (Length = 1) then
         Result := 'Unexpected character'
@@ -12319,6 +12359,14 @@ begin
     Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.PartitionOptions, stReturnBefore);
+end;
+
+procedure TSQLParser.FormatAlterTableStmtAddPartition(const Nodes: TAlterTableStmt.TAddPartition.TNodes);
+begin
+  FormatNode(Nodes.AddPartitionTag);
+  FormatNode(Nodes.OpenBracket);
+  FormatNode(Nodes.PartitionSpecification);
+  FormatNode(Nodes.CloseBracket);
 end;
 
 procedure TSQLParser.FormatAlterTableStmtAlterField(const Nodes: TAlterTableStmt.TAlterField.TNodes);
@@ -13533,6 +13581,7 @@ begin
       ntAlterTableStmt: FormatAlterTableStmt(PAlterTableStmt(Node)^.Nodes);
       ntAlterTableStmtAddField: DefaultFormatNode(@TAlterTableStmt.PAddField(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddField.TNodes));
       ntAlterTableStmtAddFields: DefaultFormatNode(@TAlterTableStmt.PAddFields(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddFields.TNodes));
+      ntAlterTableStmtAddPartition: FormatAlterTableStmtAddPartition(TAlterTableStmt.PAddPartition(Node)^.Nodes);
       ntAlterTableStmtAlterField: FormatAlterTableStmtAlterField(TAlterTableStmt.PAlterField(Node)^.Nodes);
       ntAlterTableStmtConvertTo: DefaultFormatNode(@TAlterTableStmt.PConvertTo(Node)^.Nodes, SizeOf(TAlterTableStmt.TConvertTo.TNodes));
       ntAlterTableStmtDropObject: DefaultFormatNode(@TAlterTableStmt.PDropObject(Node)^.Nodes, SizeOf(TAlterTableStmt.TDropObject.TNodes));
@@ -14580,7 +14629,7 @@ begin
   FormatNode(Nodes.At2Token);
   FormatNode(Nodes.ScopeTag);
   FormatNode(Nodes.ScopeDotToken);
-  FormatNode(Nodes.Ident);
+  FormatNode(Nodes.IdentList);
 end;
 
 procedure TSQLParser.FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
@@ -15024,6 +15073,7 @@ begin
     ntAlterTableStmt: Result := SizeOf(TAlterTableStmt);
     ntAlterTableStmtAddField: Result := SizeOf(TAlterTableStmt.TAddField);
     ntAlterTableStmtAddFields: Result := SizeOf(TAlterTableStmt.TAddFields);
+    ntAlterTableStmtAddPartition: Result := SizeOf(TAlterTableStmt.TAddPartition);
     ntAlterTableStmtAlterField: Result := SizeOf(TAlterTableStmt.TAlterField);
     ntAlterTableStmtConvertTo: Result := SizeOf(TAlterTableStmt.TConvertTo);
     ntAlterTableStmtDropObject: Result := SizeOf(TAlterTableStmt.TDropObject);
@@ -15810,7 +15860,9 @@ begin
       // Do nothing
 
     else if (IsTag(kiADD)) then
-      if (not IsNextSymbol(1, ttOpenBracket)) then
+      if (IsTag(kiADD, kiPARTITION)) then
+        Specifications.Add(ParseAlterTableStmtAddPartition)
+      else if (not IsNextSymbol(1, ttOpenBracket)) then
         Specifications.Add(ParseCreateTableStmtDefinition(True))
       else
         Specifications.Add(ParseAlterTableStmtAddFields())
@@ -15983,6 +16035,26 @@ begin
     Nodes.DefinitionList := ParseList(True, ParseCreateTableStmtField, ttComma, False);
 
   Result := TAlterTableStmt.TAddFields.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseAlterTableStmtAddPartition(): TOffset;
+var
+  Nodes: TAlterTableStmt.TAddPartition.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.AddPartitionTag := ParseTag(kiADD, kiPARTITION);
+
+  if (not ErrorFound) then
+    Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+  if (not ErrorFound) then
+    Nodes.PartitionSpecification := ParseCreateTableStmtPartition();
+
+  if (not ErrorFound) then
+    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+  Result := TAlterTableStmt.TAddPartition.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseAlterTableStmtAlterField(): TOffset;
@@ -19656,7 +19728,8 @@ begin
           else
             Nodes.Add(ParseDefaultFunc()); // Func()
         end
-        else if (ConstantList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0) then
+        else if (not IsNextSymbol(1, ttDot)
+          and (ConstantList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0)) then
           Nodes.Add(ParseConstIdent())
         else if (IsNextSymbol(1, ttDot)) then
           if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
@@ -19776,7 +19849,8 @@ begin
                 Nodes[NodeIndex - 1] := TList.Create(Self, ListNodes, ttUnknown, @Operands);
                 Dec(NodeIndex);
               end;
-            otJSONExtract:
+            otJSONExtract,
+            otJSONUnquotedExtract:
               if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (not (IsToken(Nodes[NodeIndex]) and (TokenPtr(Nodes[NodeIndex])^.DbIdentType = ditField))
@@ -24977,7 +25051,7 @@ label
     SelNot, SelUnaryNot, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
     SelMulti, SelComma, SelDot, SelDot2, SelMySQLCode, SelDiv, SelHexODBCHigh,
-    SelHexODBCLow, SelDigit, SelSLComment, SelSLComment2, SelExtract, SelMinus, SelPlus, SelAssign,
+    SelHexODBCLow, SelDigit, SelSLComment, SelSLComment2, SelJSONExtract, SelJSONExtract2, SelMinus, SelPlus, SelAssign,
     SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft,
     SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater,
     SelAt, SelQuestionMark, SelBitLiteral, SelNatStringHigh, SelNatStringLow,
@@ -25000,7 +25074,7 @@ label
   WhiteSpace, WhiteSpaceL, WhiteSpaceLE,
   MySQLCondStart, MySQLCondStartL, MySQLCondStartErr,
   IncompleteToken, UnexpectedChar, UnexpectedCharL,
-  TrippelChar,
+  TripelChar,
   DoubleChar,
   SingleChar,
   Finish;
@@ -25161,7 +25235,7 @@ begin
         CMP AX,'-'                       // "-" ?
         JNE SelDot                       // No!
         CMP EAX,$002D002D                // "--" ?
-        JNE SelExtract                   // No!
+        JNE SelJSONExtract               // No!
         CMP ECX,3                        // Three characters in SQL?
         JAE SelSLComment2                // Yes!
         ADD ESI,4                        // Step over "--"
@@ -25179,9 +25253,16 @@ begin
         ADD ESI,4                        // Step over "--"
         SUB ECX,2                        // Two characters handled
         JMP UnexpectedChar
-      SelExtract:
+      SelJSONExtract:
         CMP EAX,$003E002D                // "->" ?
         JNE SelMinus                     // No!
+        CMP ECX,3                        // Three characters in SQL?
+        JB SelJSONExtract2               // No!
+        CMP WORD PTR [ESI + 4],'>'       // "->>" ?
+        JNE SelJSONExtract2              // No!
+        MOV OperatorType,otJSONUnquotedExtract
+        JMP TripelChar
+      SelJSONExtract2:
         MOV OperatorType,otJSONExtract
         JMP DoubleChar
       SelMinus:
@@ -25251,7 +25332,7 @@ begin
         CMP WORD PTR [ESI + 4],'>'       // "<=>" ?
         JNE SelLessEqual                 // No!
         MOV OperatorType,otNULLSaveEqual
-        JMP TrippelChar
+        JMP TripelChar
       SelLessEqual:
         MOV OperatorType,otLessEqual     // "<="!
         JMP DoubleChar
@@ -25914,7 +25995,7 @@ begin
         LOOP UnexpectedCharL
         JMP Finish
 
-      TrippelChar:
+      TripelChar:
         ADD ESI,2                        // Next character in SQL
         DEC ECX                          // One character handled
       DoubleChar:
@@ -26370,12 +26451,15 @@ begin
   if (not ErrorFound) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else if (IsNextSymbol(1, ttDot)) then
-      Nodes.Ident := ParseList(False, ParseVariableIdent, ttDot)
     else
-      Nodes.Ident := ParseDbIdent(ditVariable, False);
+      Nodes.IdentList := ParseList(False, ParseVariableIdent2, ttDot, False);
 
   Result := TVariable.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseVariableIdent2(): TOffset;
+begin
+  Result := ParseDbIdent(ditVariable, False);
 end;
 
 function TSQLParser.ParseWeightStringFunc(): TOffset;

@@ -437,6 +437,7 @@ type
     procedure DBGridEmptyExecute(Sender: TObject);
     procedure DBGridEnter(Sender: TObject);
     procedure DBGridExit(Sender: TObject);
+    procedure DBGridFilterClose(Sender: TObject);
     procedure DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
     procedure DBGridKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
@@ -3190,6 +3191,7 @@ begin
   else if ((URI.Database = '') and (URI.Param['system'] = 'variables')) then
     Result := Preferences.LoadStr(22);
 
+
   if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['file'] <> Null)) then
   begin
     if (URI.Database <> '') then
@@ -5192,7 +5194,7 @@ begin
 
   NMListView := nil;
   Session := ASession;
-  SQLEditor := TSQLEditor.Create(Self, CreateSynMemo(nil), PSQLEditorDBGrid);
+  SQLEditor := TSQLEditor.Create(Self, FSQLEditorSynMemo, PSQLEditorDBGrid);
   Param := AParam;
   ActiveControlOnDeactivate := nil;
   ActiveDBGrid := nil;
@@ -6664,6 +6666,11 @@ begin
   end;
 end;
 
+procedure TFSession.DBGridFilterClose(Sender: TObject);
+begin
+  Write;
+end;
+
 procedure TFSession.DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
 var
   Rect: TRect;
@@ -6688,6 +6695,7 @@ begin
           PDBGridFilter.Hide();
 
         PDBGridFilter.Column := Column;
+        PDBGridFilter.OnClose := DBGridFilterClose;
         PDBGridFilter.Left := DBGrid.ClientToScreen(Point(Rect.Left, 0)).X;
         PDBGridFilter.Top := DBGrid.ClientToScreen(Point(0, DBGrid.DefaultRowHeight)).Y;
         if (PDBGridFilter.Left + PDBGridFilter.Width > Screen.Width) then
@@ -10718,7 +10726,8 @@ begin
   else if (TObject(Data) is TSVariables) then
     Result := iiVariables
   else
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create(SRangeError + #13#10
+      + 'ClassType: ' + TObject(Data).ClassName);
 end;
 
 function TFSession.ImportError(const Details: TTool.TErrorDetails): TDataAction;
@@ -14660,7 +14669,6 @@ function TFSession.QuickAccessStep1(): Boolean;
 var
   Addresses: TStringList;
   Count: Integer;
-  FirstIndex: Integer;
   I: Integer;
   FrequentObjects: TStringList;
   RecentObjects: TStringList;
@@ -14698,22 +14706,19 @@ begin
     end;
   end;
 
-  FirstIndex := Max(0, RecentObjects.Count - QuickAccessItemCount);
-  for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, RecentObjects.Count) - 1 do
+  for I := 0 to Min(QuickAccessItemCount, RecentObjects.Count) - 1 do
     Addresses.Add(RecentObjects[I]);
 
   FrequentObjects.CustomSort(QuickAccessFrequentObjectsCompare);
-  FirstIndex := Max(0, FrequentObjects.Count - QuickAccessItemCount);
-  for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, FrequentObjects.Count) - 1 do
+  for I := 0 to Min(QuickAccessItemCount, FrequentObjects.Count) - 1 do
     if (Addresses.IndexOf(FrequentObjects.Names[I]) < 0) then
       Addresses.Add(ReplaceStr(FrequentObjects.Names[I], QuickAccessListEscaper, '='));
 
-  if (RecentObjects.Count > 0) then
+  if (Addresses.Count > 0) then
   begin
-    FirstIndex := Max(0, RecentObjects.Count - QuickAccessItemCount);
-    for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, RecentObjects.Count) - 1 do
+    for I := 0 to Addresses.Count - 1 do
     begin
-      URI1.Address := RecentObjects[I];
+      URI1.Address := Addresses[I];
 
       SetLength(Items, Length(Items) + 1);
       Items[Length(Items) - 1].DatabaseName := URI1.Database;

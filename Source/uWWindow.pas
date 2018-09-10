@@ -1084,7 +1084,8 @@ destructor TWWindow.Destroy();
 begin
   // Debug 2017-05-27
   Assert(FSessions.Count = 0,
-    'UpdateStarted: ' + BoolToStr(UpdateStarted, True));
+    'UpdateStarted: ' + BoolToStr(UpdateStarted, True) + #13#10
+    + 'Session.Count: ' + IntToStr(FSessions.Count));
   Assert(Assigned(Preferences));
   Assert(Assigned(Accounts));
 

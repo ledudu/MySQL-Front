@@ -79,10 +79,6 @@ object DEvent: TDEvent
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -528,10 +524,6 @@ object DEvent: TDEvent
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -608,13 +600,38 @@ object DEvent: TDEvent
         end
       end
     end
+    object TSReferences: TTabSheet
+      Caption = 'TSReferences'
+      ImageIndex = 3
+      OnShow = TSReferencesShow
+      DesignSize = (
+        373
+        455)
+      object FReferences: TListView
+        Left = 8
+        Top = 8
+        Width = 357
+        Height = 437
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        ReadOnly = True
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+    end
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -622,7 +639,7 @@ object DEvent: TDEvent
         Left = 8
         Top = 8
         Width = 357
-        Height = 431
+        Height = 437
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText

@@ -19,13 +19,19 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FOperatorChange(Sender: TObject);
+    procedure FActiveKeyPress(Sender: TObject; var Key: Char);
+    procedure FActiveClick(Sender: TObject);
+  type
+    TOnCloseEvent = procedure(Sender: TObject) of object;
   private
+    FOnClose: TOnCloseEvent;
     procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
     Column: TColumn;
+    property OnClose: TOnCloseEvent read FOnClose write FOnClose;
   end;
 
 var
@@ -78,6 +84,16 @@ begin
     Params.WndParent := PopupParent.Handle;
 end;
 
+procedure TPDBGridFilter.FActiveClick(Sender: TObject);
+begin
+  Close();
+end;
+
+procedure TPDBGridFilter.FActiveKeyPress(Sender: TObject; var Key: Char);
+begin
+  FActiveClick(Sender);
+end;
+
 procedure TPDBGridFilter.FOperatorChange(Sender: TObject);
 begin
   FNull.Visible := (FOperator.Text = 'IS');
@@ -92,6 +108,9 @@ end;
 
 procedure TPDBGridFilter.FormHide(Sender: TObject);
 begin
+  if (Assigned(FOnClose)) then
+    FOnClose(Self);
+
   FOperator.Items.BeginUpdate();
   FOperator.Items.Clear();
   FOperator.Items.EndUpdate();

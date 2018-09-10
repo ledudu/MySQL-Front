@@ -28,6 +28,7 @@ type
     FLSize: TLabel;
     FLUpdated: TLabel;
     FName: TEdit;
+    FReferences: TListView;
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
     FSize: TLabel;
@@ -51,6 +52,7 @@ type
     TSBasics: TTabSheet;
     TSDependencies: TTabSheet;
     TSInformation: TTabSheet;
+    TSReferences: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
@@ -64,6 +66,7 @@ type
     procedure FSecurityKeyPress(Sender: TObject; var Key: Char);
     procedure FSourceChange(Sender: TObject);
     procedure TSDependenciesShow(Sender: TObject);
+    procedure TSReferencesShow(Sender: TObject);
   private
     SessionState: (ssCreate, ssInit, ssDependencies, ssValid, ssAlter);
     procedure Built();
@@ -303,6 +306,7 @@ end;
 procedure TDRoutine.FormCreate(Sender: TObject);
 begin
   FDependencies.SmallImages := Preferences.Images;
+  FReferences.SmallImages := Preferences.Images;
   FSource.Highlighter := Preferences.Editor.Highlighter;
 
   Constraints.MinWidth := Width;
@@ -332,6 +336,9 @@ begin
   Preferences.Routine.Width := Width;
   Preferences.Routine.Height := Height;
 
+  FReferences.Items.BeginUpdate();
+  FReferences.Items.Clear();
+  FReferences.Items.EndUpdate();
   FDependencies.Items.BeginUpdate();
   FDependencies.Items.Clear();
   FDependencies.Items.EndUpdate();
@@ -350,7 +357,7 @@ begin
 
   if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
-  else if ((SessionState in [ssInit, ssDependencies]) and (Event.EventType = etItemValid) and (Event.Item = Routine)) then
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Routine)) then
   begin
     if (SessionState = ssInit) then
       Built()
@@ -366,7 +373,12 @@ begin
       SessionState := ssValid;
   end
   else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemRenamed])) then
-    ModalResult := mrOk;
+    ModalResult := mrOk
+  else if ((SessionState = ssDependencies) and (Event.EventType = etAfterExecuteSQL)) then
+  begin
+    BuiltDependencies();
+    SessionState := ssValid;
+  end;
 
   if (SessionState in [ssCreate, ssValid]) then
   begin
@@ -484,6 +496,7 @@ begin
   TSBasics.TabVisible := True;
   TSInformation.TabVisible := Assigned(Routine);
   TSDependencies.TabVisible := Assigned(Routine);
+  TSReferences.TabVisible := Assigned(Routine);
 
   PageControl.Visible := SessionState in [ssCreate, ssValid];
   PSQLWait.Visible := not PageControl.Visible;
@@ -526,6 +539,7 @@ begin
 
   TSBasics.TabVisible := False;
   TSInformation.TabVisible := False;
+  TSReferences.TabVisible := False;
 
   FBOkCheckEnabled(Sender);
 end;
@@ -547,6 +561,57 @@ begin
     else
       BuiltDependencies();
     List.Free();
+  end;
+end;
+
+procedure TDRoutine.TSReferencesShow(Sender: TObject);
+var
+  I: Integer;
+  Item: TListItem;
+begin
+  if (FReferences.Items.Count = 0) then
+  begin
+    FReferences.Items.BeginUpdate();
+
+    for I := 0 to Routine.References.Count - 1 do
+    begin
+      Item := FReferences.Items.Add();
+
+      if (Routine.References[I].DatabaseName = Database.Name) then
+        Item.Caption := Routine.References[I].DBObjectName
+      else
+        Item.Caption := Routine.References[I].DatabaseName + '.' + Routine.References[I].DBObjectName;
+
+      if (Routine.References[I].DBObjectClass = TSBaseTable) then
+      begin
+        Item.ImageIndex := iiBaseTable;
+        Item.SubItems.Add(Preferences.LoadStr(302));
+      end
+      else if (Routine.References[I].DBObjectClass = TSView) then
+      begin
+        Item.ImageIndex := iiView;
+        Item.SubItems.Add(Preferences.LoadStr(738));
+      end
+      else if (Routine.References[I].DBObjectClass = TSTable) then
+      begin
+        Item.ImageIndex := iiTable;
+        Item.SubItems.Add(Preferences.LoadStr(302));
+      end
+      else if (Routine.References[I].DBObjectClass = TSProcedure) then
+      begin
+        Item.ImageIndex := iiProcedure;
+        Item.SubItems.Add(Preferences.LoadStr(768));
+      end
+      else if (Routine.References[I].DBObjectClass = TSFunction) then
+      begin
+        Item.ImageIndex := iiFunction;
+        Item.SubItems.Add(Preferences.LoadStr(769));
+      end
+      else
+        raise ERangeError.Create(SRangeError);
+    end;
+
+    FReferences.Items.EndUpdate();
   end;
 end;
 
@@ -574,6 +639,10 @@ begin
   TSDependencies.Caption := Preferences.LoadStr(782);
   FDependencies.Column[0].Caption := Preferences.LoadStr(35);
   FDependencies.Column[1].Caption := Preferences.LoadStr(69);
+
+  TSReferences.Caption := Preferences.LoadStr(948);
+  FReferences.Column[0].Caption := Preferences.LoadStr(35);
+  FReferences.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
   Preferences.ApplyToSynMemo(FSource);

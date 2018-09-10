@@ -2801,10 +2801,12 @@ begin
             Value := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
           except
             on E: Exception do
-              raise Exception.Create(
-                'Text: ' + CSVValues[I].Text + #13#10#13#10
+              E.RaiseOuterException(Exception.Create(
+                'Text: ' + CSVValues[I].Text + #13#10
+                + 'Length: ' + IntToStr(CSVValues[I].Length) + #13#10
+                + 'Quoter: ' + Quoter + #13#10#13#10
                 + E.ClassName + ':' + #13#10
-                + E.Message);
+                + E.Message));
           end;
           if ((SQL_INTEGER in FileFields[I].FieldTypes) and not TryStrToInt(Value, Int)) then
             Exclude(FileFields[I].FieldTypes, SQL_INTEGER);
@@ -4189,7 +4191,9 @@ begin
 
                 // Debug 2018-09-07
                 Assert(Session.Connection.DebugSyncThread.DebugState in [ssResult],
-                  'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
+                  'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)) + #13#10
+                  + 'I' + #13#10
+                  + 'SQL: ' + #13#10 + SQL);
               end;
 
               if (Success <> daAbort) then
@@ -4214,7 +4218,7 @@ begin
                 Session.Connection.CancelResultHandle(ResultHandle);
 
               // Debug 2018-09-07
-              Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssNext, ssAfterExecuteSQL],
+              Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssFirst, ssNext, ssAfterExecuteSQL],
                 'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
             end;
           end;
