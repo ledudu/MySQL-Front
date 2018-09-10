@@ -22353,11 +22353,11 @@ begin
             Nodes.Having.Expr := ParseExpr();
         end;
 
-      if (not ErrorFound and not (soUnionSelect in Options)) then
+      if (not ErrorFound) then
         if (IsTag(kiORDER, kiBY)) then
           Nodes.OrderBy := ParseSelectStmtOrderBy();
 
-      if (not ErrorFound and not (soUnionSelect in Options)) then
+      if (not ErrorFound) then
         if (IsTag(kiLIMIT)) then
           Nodes.Limit := ParseSelectStmtLimit();
 
