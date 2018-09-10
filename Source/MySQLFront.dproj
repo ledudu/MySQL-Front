@@ -63,6 +63,7 @@
         <DCCReference Include="uDeveloper.pas"/>
         <DCCReference Include="uPreferences.pas"/>
         <DCCReference Include="uSession.pas"/>
+        <DCCReference Include="uShareware.pas"/>
         <DCCReference Include="uTools.pas"/>
         <DCCReference Include="uURI.pas"/>
         <DCCReference Include="uBase.pas"/>
@@ -81,9 +82,8 @@
         <DCCReference Include="uDDatabases.pas">
             <Form>DDatabases</Form>
         </DCCReference>
-        <DCCReference Include="udDowndate.pas">
+        <DCCReference Include="uDDowndate.pas">
             <Form>DDowndate</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="uDEvent.pas">
             <Form>DEvent</Form>
@@ -117,7 +117,6 @@
         </DCCReference>
         <DCCReference Include="uDMail.pas">
             <Form>DMail</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="uDODBC.pas">
             <Form>DDBODBC</Form>
