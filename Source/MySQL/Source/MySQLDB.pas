@@ -4078,9 +4078,6 @@ procedure TMySQLConnection.Terminate();
 begin
   TerminateCS.Enter();
 
-  // Debug 2018-09-11
-  Assert(GetCurrentThreadId() = MainThreadID);
-
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
     if (MySQLDataSets.IndexOf(CommittingDataSet) >= 0) then
@@ -6795,6 +6792,9 @@ end;
 
 function TMySQLDataSet.GetRecNo(): Integer;
 begin
+  // Debug 2018-09-12
+  Assert(ActiveBuffer() <> 0);
+
   if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
     Result := -1
   else
