@@ -8,7 +8,6 @@ uses
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB, MySQLConsts, SQLParser,
-uProfiling,
   uPreferences;
 
 type
@@ -1530,7 +1529,7 @@ type
     type
       TEventType = (etItemsValid, etItemValid, etItemCreated, etItemRenamed,
         etItemDeleted, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL,
-        etMonitor, etError);
+        etMonitor, etError, etBeginUpdate, etEndUpdate);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -1603,11 +1602,11 @@ type
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
   public
-InExport: Boolean;
-InImport: Boolean;
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
     function ApplyIdentifierName(const AIdentifierName: string): string;
+    procedure BeginUpdate();
+    procedure EndUpdate();
     procedure GridCanEditShow(Sender: TObject);
     function CharsetByName(const CharsetName: string): TSCharset;
     function CharsetByCollation(const Collation: string): TSCharset;
@@ -2422,6 +2421,9 @@ end;
 
 function TSReferences.GetReference(Index: Integer): TSReference;
 begin
+  // Debug 2018-09-11
+  Assert(Assigned(Self));
+
   Result := TSReference(Items[Index]);
 end;
 
@@ -4041,6 +4043,9 @@ begin
   DataSet.QuickSearch := QuickSearch;
   DataSet.SortDef.Assign(ASortDef);
 
+  // Is this needed? Maybe because of this missing call, we
+  Session.Connection.Terminate();
+
   // Debug 2017-05-20
   Assert(Session.Connection.SynchronCount = 0,
     'SynchronCount: ' + IntToStr(Session.Connection.SynchronCount));
@@ -4543,10 +4548,9 @@ var
   I: Integer;
 begin
   Result := 0;
-  if (Assigned(Database.Triggers)) then
-    for I := 0 to Database.Triggers.Count - 1 do
-      if (Database.Triggers[I].Table = Self) then
-        Inc(Result);
+  for I := 0 to Database.Triggers.Count - 1 do
+    if (Database.Triggers[I].Table = Self) then
+      Inc(Result);
 end;
 
 function TSBaseTable.GetValid(): Boolean;
@@ -8457,14 +8461,6 @@ begin
           Found := True;
       if (not Found) then
       begin
-        // Debug 2017-02-18
-        for J := 0 to NewTable.Fields.Count - 1 do
-          Assert(NewTable.Fields[J].Name <> OldField.Name,
-            'OldField.Name: ' + OldField.Name + #13#10
-            + 'NewTable.Fields[J].Name: ' + NewTable.Fields[J].Name + #13#10
-            + 'NewTable.Fields[J].OriginalName: ' + NewTable.Fields[J].OriginalName + #13#10
-            + SQL);
-
         if (SQL <> '') then SQL := SQL + ',' + #13#10;
         SQL := SQL + '  DROP COLUMN ' + Session.Connection.EscapeIdentifier(OldField.Name);
       end;
@@ -11376,6 +11372,9 @@ begin
     // Debug 2018-09-04
     Assert(Assigned(Session));
     Assert(Assigned(Session.Connection));
+    // Debug 2018-09-12
+    Assert(Session is TSSession);
+    Assert(Session.Connection is TMySQLConnection);
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
@@ -11884,6 +11883,11 @@ begin
   end;
 end;
 
+procedure TSSession.BeginUpdate();
+begin
+  SendEvent(etBeginUpdate, nil, nil);
+end;
+
 function TSSession.BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Database: TSDatabase;
@@ -12116,8 +12120,6 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   FUserRequested := False;
-  InExport := False;
-  InImport := False;
   ManualURL := '';
   UnparsableSQL := '';
 
@@ -12470,6 +12472,11 @@ begin
     begin Value := ''; IntervalType := itUnknown; end;
 
   Result := IntervalType <> itUnknown;
+end;
+
+procedure TSSession.EndUpdate();
+begin
+  SendEvent(etEndUpdate, nil, nil);
 end;
 
 function TSSession.EngineByName(const EngineName: string): TSEngine;
@@ -13779,7 +13786,6 @@ var
 begin
   // Debug 2017-05-04
   Assert(Assigned(Connection));
-  Assert(not InImport or (GetCurrentThreadId() <> MainThreadID));
 
   SQL := '';
 

@@ -1510,6 +1510,7 @@ begin
   end;
 
   Session.Connection.EndSilent();
+  Session.EndUpdate();
 
   inherited;
 
@@ -1528,6 +1529,7 @@ var
 begin
   inherited;
 
+  Session.BeginUpdate();
   Session.Connection.BeginSilent();
 
   if (Data and (Session.Connection.MySQLVersion >= 40014)) then
@@ -1680,8 +1682,6 @@ begin
     SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
-  Session.InImport := True; try
-
   BeforeExecute();
 
   Open();
@@ -1723,8 +1723,6 @@ begin
     end;
 
   AfterExecute();
-
-  finally Session.InImport := False; end;
 
   {$IFDEF EurekaLog}
   except
@@ -3855,6 +3853,7 @@ begin
     end;
 
   FSession.Connection.EndSilent();
+  FSession.EndUpdate();
 
   inherited;
 
@@ -3871,6 +3870,7 @@ var
 begin
   inherited;
 
+  FSession.BeginUpdate();
   FSession.Connection.BeginSilent();
 
   for I := 0 to Items.Count - 1 do
@@ -3994,13 +3994,12 @@ var
   ResultHandle: TMySQLConnection.TResultHandle;
   SQL: string;
   Table: TSTable;
+  Process: string;
 begin
   {$IFDEF EurekaLog}
   try
     SetEurekaLogStateInThread(0, True);
   {$ENDIF}
-
-  Session.InExport := True; try
 
   BeforeExecute();
 
@@ -4175,30 +4174,37 @@ begin
           if (Success <> daAbort) then
           begin
             Success := daSuccess;
+Process := '';
 
             if (Items[I] is TDBObjectItem) then
             begin
               DataTable := Data and (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0);
 
               // Debug 2018-09-07
-              Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssNext, ssAfterExecuteSQL],
-                'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
+              if (Assigned(Session.Connection.DebugSyncThread)) then
+                Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssNext, ssAfterExecuteSQL],
+                  'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
+Process := Process + 'a';
 
               if (DataTable) then
               begin
+Process := Process + 'b';
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
                   DoError(DatabaseError(Session), nil, True);
 
                 // Debug 2018-09-07
-                Assert(Session.Connection.DebugSyncThread.DebugState in [ssResult],
-                  'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)) + #13#10
-                  + 'I' + #13#10
-                  + 'SQL: ' + #13#10 + SQL);
+                if (Assigned(Session.Connection.DebugSyncThread)) then
+                  Assert(Session.Connection.DebugSyncThread.DebugState in [ssResult],
+                    'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)) + #13#10
+                    + 'I:' + IntToStr(I) + #13#10
+                    + 'Process: ' + Process);
               end;
+Process := Process + 'c';
 
               if (Success <> daAbort) then
               begin
                 Success := daSuccess;
+Process := Process + 'd';
 
                 if (TDBObjectItem(Items[I]).DBObject is TSTable) then
                   if (not DataTable) then
@@ -4215,11 +4221,18 @@ begin
               end;
 
               if (DataTable and (Success <> daSuccess)) then
+              begin
+Process := Process + 'e';
                 Session.Connection.CancelResultHandle(ResultHandle);
+              end;
 
               // Debug 2018-09-07
-              Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssFirst, ssNext, ssAfterExecuteSQL],
-                'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
+              if (Assigned(Session.Connection.DebugSyncThread)) then
+              begin
+Process := Process + 'f';
+                Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssFirst, ssNext, ssAfterExecuteSQL],
+                  'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)));
+              end;
             end;
           end;
 
@@ -4250,8 +4263,6 @@ begin
   AfterExecute();
 
   DataTables.Free();
-
-  finally Session.InExport := False; end;
 
   {$IFDEF EurekaLog}
   except
@@ -8030,7 +8041,8 @@ begin
   DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
 
   // Debug 2017-04-06
-  Assert(Assigned(DestinationTable));
+  Assert(Assigned(DestinationTable),
+    'Structure: ' + BoolToStr(Structure, True));
   Assert(Assigned(DestinationTable.Fields));
 
   FieldCount := 0;

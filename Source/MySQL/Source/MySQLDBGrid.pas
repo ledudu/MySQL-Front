@@ -266,8 +266,7 @@ var
 begin
   if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount)
     and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes)
-    and not EditorMode
-    and DataLink.Active and DataSource.DataSet.Active) then
+    and not EditorMode) then
   begin
     if (not Assigned(FHintWindow)) then
     begin
@@ -1026,7 +1025,7 @@ begin
     else
     begin
       Col := Col - 1;
-      for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
+      for I := Max(0, Min(Col, ShiftDownAnchor.Col)) to Min(Columns.Count - 1, Max(Col, ShiftDownAnchor.Col)) do
         SelectedFields.Add(Columns[I].Field);
       if (Col < ShiftDownAnchor.Col) then
         InvalidateCol(Col);
@@ -1826,8 +1825,9 @@ begin
     tiShowHint:
       begin
         KillTimer(Handle, Msg.TimerID);
-        if (Visible) then
-          ActivateHint();
+        // Often the DataSet.GetLibRow crashes. But why???
+//        if (Visible) then
+//          ActivateHint();
       end;
     tiHideHint:
       begin

@@ -852,23 +852,25 @@ type
     end;
 
     TWanted = class
-    private
+    strict private
       FAction: TAction;
       FAddress: string;
+      FDisabled: Boolean;
       FSession: TFSession;
       FUpdate: TSSession.TUpdate;
-      procedure Clear();
       function GetNothing(): Boolean;
       procedure SetAction(const AAction: TAction);
       procedure SetAddress(const AAddress: string);
+      procedure SetDisabled(const AValue: Boolean);
       procedure SetUpdate(const AUpdate: TSSession.TUpdate);
-    protected
-      procedure Synchronize();
     public
+      procedure Clear();
       constructor Create(const AFSession: TFSession);
       procedure Execute();
+      procedure Synchronize();
       property Action: TAction read FAction write SetAction;
       property Address: string read FAddress write SetAddress;
+      property Disabled: Boolean read FDisabled write SetDisabled;
       property Update: TSSession.TUpdate read FUpdate write SetUpdate;
       property Nothing: Boolean read GetNothing;
     end;
@@ -2399,31 +2401,29 @@ procedure TFSession.TWanted.SetAddress(const AAddress: string);
 begin
   if (AAddress <> FAddress) then
   begin
-    // Debug 2017-05-22
-    Assert(not FSession.Session.InImport);
-
-    // Debug 2017-05-22
-    Assert(not FSession.Session.InExport);
-
     Clear();
 
-    if (not FSession.Session.Connection.InUse()) then
+    if (not Disabled and not FSession.Session.Connection.InUse()) then
       FSession.CurrentAddress := AAddress
     else
       FAddress := AAddress;
   end;
 end;
 
+procedure TFSession.TWanted.SetDisabled(const AValue: Boolean);
+begin
+  if (AValue <> FDisabled) then
+  begin
+    FDisabled := AValue;
+    if (not FDisabled) then
+      Synchronize();
+  end;
+end;
+
 procedure TFSession.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
-  // Debug 2017-05-12
-  Assert(not FSession.Session.InImport);
-
-  // Debug 2017-05-22
-  Assert(not FSession.Session.InExport);
-
   Clear();
-  if (not FSession.Session.Connection.InUse()) then
+  if (not Disabled and not FSession.Session.Connection.InUse()) then
     AUpdate()
   else
     FUpdate := AUpdate;
@@ -2435,25 +2435,26 @@ var
   TempAddress: string;
   TempUpdate: TSSession.TUpdate;
 begin
-  if (Assigned(Action)) then
-  begin
-    TempAction := Action;
-    Clear();
-    TempAction.Execute();
-  end
-  else if (Address <> '') then
-  begin
-    TempAddress := Address;
-    Clear();
-    if (not FSession.ChangeCurrentAddress(TempAddress) and not FSession.Session.Connection.InUse()) then
-      FSession.ChangeCurrentAddress(FSession.Session.Address);
-  end
-  else if (Assigned(Update)) then
-  begin
-    TempUpdate := Update;
-    Clear();
-    TempUpdate();
-  end;
+  if (not Disabled) then
+    if (Assigned(Action)) then
+    begin
+      TempAction := Action;
+      Clear();
+      TempAction.Execute();
+    end
+    else if (Address <> '') then
+    begin
+      TempAddress := Address;
+      Clear();
+      if (not FSession.ChangeCurrentAddress(TempAddress) and not FSession.Session.Connection.InUse()) then
+        FSession.ChangeCurrentAddress(FSession.Session.Address);
+    end
+    else if (Assigned(Update)) then
+    begin
+      TempUpdate := Update;
+      Clear();
+      TempUpdate();
+    end;
 end;
 
 { TFSession *******************************************************************}
@@ -4701,7 +4702,8 @@ begin
                         + 'DataSet: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet), True) + #13#10
                         + 'CommandText: ' + LeftStr(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText, 100) + #13#10
                         + 'Progress: ' + Progress + #13#10
-                        + E.ClassName + ':' + #13#10 + E.Message));
+                        + E.ClassName + ':' + #13#10
+                        + E.Message));
                     end;
                 end;
 
@@ -7740,17 +7742,26 @@ begin
       + 'Text: ' + Node.Text) // Occurred on 2017-05-10: After this,
         // I implemented the ClassType detection, but the ClassType detection failed - so Node.Data was obsolete
         // ImageIndex = iiBaseTable
-        // 2017-05-22:
-        // SQL Log: CREATE DATABASE failed, because database already exists
+        // 2017-05-22: SQL Log: CREATE DATABASE failed, because database already exists
   else
     raise ERangeError.Create(SRangeError);
 
-  // Debug 2017-05-16
+  // Debug 2018-09-11
+  try
   Assert((URI.Param['view'] <> 'browser') or (URI.Table <> ''),
     'URI: ' + URI.Address + #13#10
     + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
     + 'Text: ' + Node.Text + #13#10
-    + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True));
+    + 'ClassType: ' + TObject(Node.Data).ClassName);
+  except
+    on E: Exception do
+      E.RaiseOuterException(EAssertionFailed.Create('URI: ' + URI.Address + #13#10
+      + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+      + 'Text: ' + Node.Text + #13#10
+      + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True) + #13#10#13#10
+      + E.ClassName
+      + E.Message));
+  end;
 
   URI.Param['view'] := ViewToParam(View);
 
@@ -7765,12 +7776,23 @@ begin
   if ((ParamToView(URI.Param['view']) in [vObjectSearch])) then
     URI.Param['view'] := Null;
 
-  // Debug 2017-05-16
+  // Debug 2018-09-11
+  try
   Assert((URI.Param['view'] <> 'browser') or (URI.Table <> ''),
     'URI: ' + URI.Address + #13#10
     + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
     + 'Text: ' + Node.Text + #13#10
-    + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True));
+    + 'ClassType: ' + TObject(Node.Data).ClassName);
+  except
+    on E: Exception do
+      E.RaiseOuterException(EAssertionFailed.Create('URI: ' + URI.Address + #13#10
+      + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+      + 'Text: ' + Node.Text + #13#10
+      + 'Assigned(Data): ' + BoolToStr(Assigned(Node.Data), True) + #13#10#13#10
+      + E.ClassName
+      + E.Message));
+  end;
+  // 2018-09-11: SQL Log unauffällig
 
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
@@ -9197,6 +9219,10 @@ begin
         AfterExecuteSQL(Event);
       etError:
         Wanted.Clear();
+      etBeginUpdate:
+        Wanted.Disabled := True;
+      etEndUpdate:
+        Wanted.Disabled := False;
     end;
 end;
 
@@ -14351,6 +14377,8 @@ begin
     else
     begin
       SBlob.Visible := False;
+      // Debug 2018-09-11
+      Assert(Assigned(SBlob));
       SBlob.Parent := nil;
     end;
 
@@ -16911,6 +16939,8 @@ begin
           if (Session.Connection.MySQLVersion < 50002) then
           begin
             List := TList.Create();
+            // Debug 2018-09-11
+            Assert(Assigned(Session.Databases));
             for I := 0 to Session.Databases.Count - 1 do
               List.Add(Session.Databases[I]);
             Result := not Session.Update(List, True);

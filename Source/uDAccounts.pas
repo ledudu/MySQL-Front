@@ -97,6 +97,7 @@ uses
 
 var
   FDAccounts: TDAccounts;
+  Process: string;
 
 function DAccounts(): TDAccounts;
 begin
@@ -278,28 +279,10 @@ end;
 
 function TDAccounts.Execute(): Boolean;
 begin
+  Process := Process + 'a';
+
   // Debug 2017-05-24
   CancelDrag;
-  Assert(not Visible and Enabled and not (fsModal in FFormState) and (FormStyle <> fsMDIChild),
-    'Visible: ' + BoolToStr(Visible, True) + #13#10
-    + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
-    + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-    + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True));
-  Assert(not Visible and Enabled and not (fsModal in FFormState) and (FormStyle <> fsMDIChild),
-    'Visible: ' + BoolToStr(Visible, True) + #13#10
-    + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
-    + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-    + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True));
-  Assert(not Visible and Enabled and not (fsModal in FFormState) and (FormStyle <> fsMDIChild),
-    'Visible: ' + BoolToStr(Visible, True) + #13#10
-    + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
-    + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-    + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True));
-  Assert(not Visible and Enabled and not (fsModal in FFormState) and (FormStyle <> fsMDIChild),
-    'Visible: ' + BoolToStr(Visible, True) + #13#10
-    + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
-    + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-    + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True));
   Assert(not Visible and Enabled and not (fsModal in FFormState) and (FormStyle <> fsMDIChild),
     'Visible: ' + BoolToStr(Visible, True) + #13#10
     + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
@@ -311,11 +294,14 @@ begin
     Result := ShowModal() = mrOk;
   except
     on E: Exception do
-      E.RaiseOuterException(EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      E.RaiseOuterException(EAssertionFailed.Create(
+        'Visible: ' + BoolToStr(Visible, True) + #13#10
         + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
         + 'Modal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-        + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True)));
+        + 'FormStyle: ' + BoolToStr(FormStyle = fsMDIChild, True)
+        + 'Process: ' + Process));
   end;
+  Process := Process + 'd';
 end;
 
 procedure TDAccounts.FBOkEnabledCheck(Sender: TObject);
@@ -359,6 +345,8 @@ end;
 
 procedure TDAccounts.FormHide(Sender: TObject);
 begin
+  Process := Process + 'c';
+
   if (ModalResult = mrOk) then
     Accounts.Default := Accounts.AccountByName(FList.Selected.Caption);
 
@@ -400,6 +388,8 @@ end;
 
 procedure TDAccounts.FormShow(Sender: TObject);
 begin
+  Process := Process + 'b';
+
   if ((Preferences.Accounts.Width >= Width) and (Preferences.Accounts.Height >= Height)) then
   begin
     Width := Preferences.Accounts.Width;
@@ -797,5 +787,6 @@ end;
 
 initialization
   FDAccounts := nil;
+  Process := '';
 end.
 

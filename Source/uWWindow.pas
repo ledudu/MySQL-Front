@@ -1082,17 +1082,11 @@ end;
 
 destructor TWWindow.Destroy();
 begin
-  // Debug 2017-05-27
-  Assert(FSessions.Count = 0,
-    'UpdateStarted: ' + BoolToStr(UpdateStarted, True) + #13#10
-    + 'Session.Count: ' + IntToStr(FSessions.Count));
-  Assert(Assigned(Preferences));
-  Assert(Assigned(Accounts));
+  inherited;
 
+  // Sometimes, inherited frees a FSession frame. So we still need Accounts.
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
-
-  inherited;
 end;
 
 procedure TWWindow.EmptyWorkingMem();
@@ -1669,9 +1663,6 @@ begin
         DAccounts.Session := DConnecting.Session;
     end;
   end;
-
-  // Debug 2018-09-04
-  Assert(not DAccounts.Visible);
 
   if ((not Assigned(DAccounts.Session) and not DAccounts.Execute()) or UpdateStarted) then
     FSession := nil

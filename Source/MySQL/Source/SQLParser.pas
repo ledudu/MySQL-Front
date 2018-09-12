@@ -1960,9 +1960,7 @@ type
         private type
           TNodes = packed record
             AddPartitionTag: TOffset;
-            OpenBracket: TOffset;
-            PartitionSpecification: TOffset;
-            CloseBracket: TOffset;
+            PartitionSpecificationList: TOffset;
           end;
         private
           Heritage: TRange;
@@ -6792,7 +6790,6 @@ type
     procedure FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
     procedure FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
     procedure FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
-    procedure FormatAlterTableStmtAddPartition(const Nodes: TAlterTableStmt.TAddPartition.TNodes);
     procedure FormatAlterTableStmtAlterField(const Nodes: TAlterTableStmt.TAlterField.TNodes);
     procedure FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
     procedure FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
@@ -12361,14 +12358,6 @@ begin
   FormatNode(Nodes.PartitionOptions, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatAlterTableStmtAddPartition(const Nodes: TAlterTableStmt.TAddPartition.TNodes);
-begin
-  FormatNode(Nodes.AddPartitionTag);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.PartitionSpecification);
-  FormatNode(Nodes.CloseBracket);
-end;
-
 procedure TSQLParser.FormatAlterTableStmtAlterField(const Nodes: TAlterTableStmt.TAlterField.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
@@ -13581,7 +13570,7 @@ begin
       ntAlterTableStmt: FormatAlterTableStmt(PAlterTableStmt(Node)^.Nodes);
       ntAlterTableStmtAddField: DefaultFormatNode(@TAlterTableStmt.PAddField(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddField.TNodes));
       ntAlterTableStmtAddFields: DefaultFormatNode(@TAlterTableStmt.PAddFields(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddFields.TNodes));
-      ntAlterTableStmtAddPartition: FormatAlterTableStmtAddPartition(TAlterTableStmt.PAddPartition(Node)^.Nodes);
+      ntAlterTableStmtAddPartition: DefaultFormatNode(@TAlterTableStmt.PAddPartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddPartition.TNodes));
       ntAlterTableStmtAlterField: FormatAlterTableStmtAlterField(TAlterTableStmt.PAlterField(Node)^.Nodes);
       ntAlterTableStmtConvertTo: DefaultFormatNode(@TAlterTableStmt.PConvertTo(Node)^.Nodes, SizeOf(TAlterTableStmt.TConvertTo.TNodes));
       ntAlterTableStmtDropObject: DefaultFormatNode(@TAlterTableStmt.PDropObject(Node)^.Nodes, SizeOf(TAlterTableStmt.TDropObject.TNodes));
@@ -16046,13 +16035,7 @@ begin
   Nodes.AddPartitionTag := ParseTag(kiADD, kiPARTITION);
 
   if (not ErrorFound) then
-    Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
-
-  if (not ErrorFound) then
-    Nodes.PartitionSpecification := ParseCreateTableStmtPartition();
-
-  if (not ErrorFound) then
-    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+    Nodes.PartitionSpecificationList := ParseList(True, ParseCreateTableStmtPartition);
 
   Result := TAlterTableStmt.TAddPartition.Create(Self, Nodes);
 end;
