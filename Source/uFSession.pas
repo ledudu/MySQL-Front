@@ -1784,6 +1784,9 @@ begin
     end;
     FDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := Table.DataSet;
+    {$IFDEF Debug}
+    FDBGrid.OnHeaderSplitButton := FSession.DBGridHeaderSplitButton;
+    {$ENDIF}
   end;
 
   Result := FDBGrid;
@@ -5806,7 +5809,6 @@ begin
   Result.OnDragOver := DBGridDragOver;
   Result.OnEnter := DBGridEnter;
   Result.OnExit := DBGridExit;
-  Result.OnHeaderSplitButton := DBGridHeaderSplitButton;
   Result.OnKeyDown := DBGridKeyDown;
   Result.OnMouseMove := DBGridMouseMove;
   Result.OnOverflow := DBGridOverflowClick;
@@ -6669,8 +6671,14 @@ begin
 end;
 
 procedure TFSession.DBGridFilterClose(Sender: TObject);
+var
+  DataSet: TSTable.TDataSet;
 begin
-  Write;
+  if (PDBGridFilter.Actives[0]) then
+  begin
+    Assert(ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet);
+    DataSet := TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet);
+  end;
 end;
 
 procedure TFSession.DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
@@ -9722,7 +9730,12 @@ begin
 
         Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-          IDYES: SaveSQLFile(aFSave);
+          IDYES:
+            begin
+              Assert(Self.View in [vEditor, vEditor2, vEditor3],
+                'Self.View: ' + IntToStr(Ord(Self.View)));
+              SaveSQLFile(aFSave);
+            end;
           IDCANCEL: CanClose := False;
         end;
       end;

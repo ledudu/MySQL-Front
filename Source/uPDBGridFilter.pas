@@ -31,6 +31,9 @@ type
     procedure CreateParams(var Params: TCreateParams); override;
   public
     Column: TColumn;
+    Actives: array of Boolean;
+    Operators: array of string;
+    Values: array of string;
     property OnClose: TOnCloseEvent read FOnClose write FOnClose;
   end;
 
@@ -108,6 +111,18 @@ end;
 
 procedure TPDBGridFilter.FormHide(Sender: TObject);
 begin
+  SetLength(Actives, 1);
+  Actives[0] := FActive.Checked;
+  SetLength(Operators, 1);
+  Operators[0] := FOperator.Text;
+  SetLength(Values, 1);
+  if (FText.Visible) then
+    Values[0] := FText.Text
+  else if (FNull.Visible) then
+    Values[0] := FNull.Text
+  else
+    Values[0] := '';
+
   if (Assigned(FOnClose)) then
     FOnClose(Self);
 

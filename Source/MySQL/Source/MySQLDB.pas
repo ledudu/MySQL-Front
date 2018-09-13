@@ -3308,7 +3308,7 @@ begin
             SyncThread.Done.SetEvent();
         end;
       else raise ERangeError.Create(
-        'State: ' + IntToStr(Ord(SyncThread.State))
+        'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
         + 'SQL:' + #13#10
         + SyncThread.SQL);
     end;
@@ -6109,8 +6109,6 @@ end;
 function TMySQLQuery.SetActiveEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
-  Assert(not Assigned(SyncThread));
-
   if (Assigned(DataHandle)) then
   begin
     Assert(Assigned(Connection.SyncThread));
@@ -6302,19 +6300,10 @@ end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Delete(AIndex: Integer);
 begin
-  Assert(AIndex >= 0);
-  // Debug 2017-03-27
-  Assert(AIndex < Count);
-
   inherited;
 
   if (AIndex = Count) then
-  begin
-    // Debug 2018-09-12
-    Assert(Index >= 1);
-
-    SetIndex(Index - 1);
-  end;
+    FIndex := Count - 1;
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
@@ -6359,6 +6348,7 @@ begin
   Result := -1;
   Left := 0;
   Right := Count - 1;
+  Mid := -1;
   while (Left < Right) do
   begin
     Mid := (Right - Left) div 2 + Left;
@@ -6380,7 +6370,12 @@ begin
   if ((Result < 0) and (IgnoreIndex >= 0)) then
     Result := Left + 1;
 
-  Assert(Result >= 0);
+  Assert(Result >= 0,
+    'Count: ' + IntToStr(Count) + #13#10
+      + 'Left: ' + IntToStr(Left) + #13#10
+      + 'Mid: ' + IntToStr(Mid) + #13#10
+      + 'Right: ' + IntToStr(Right) + #13#10
+      + 'Field: ' + BoolToStr(Assigned(CompareDefs[0].Field), True));
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; const Item: PInternRecordBuffer);
@@ -6726,7 +6721,8 @@ function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
   Assert(Active);
   Assert(not (csDestroying in ComponentState));
-  Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432));
+  Assert((ActiveBuffer() = 0) or (PExternRecordBuffer(ActiveBuffer())^.Identifier432 = 432),
+    'Identifier432: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Identifier432));
 
   if ((ActiveBuffer() = 0)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
@@ -6976,6 +6972,8 @@ begin
           Inc(InternRecordBuffers.FilteredRecordCount);
 
         InternRecordBuffersCS.Enter();
+        // Debug 2018-09-12
+        Assert(Assigned(InternRecordBuffer));
         if (Index >= 0) then
           InternRecordBuffers.Insert(Index, InternRecordBuffer)
         else
@@ -8596,33 +8594,14 @@ begin
           Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
       end;
   end
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData = PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
+  else if ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData = PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
     Result := ''
   else
   begin
     Result := '';
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
-    begin
-      // Debug 2017-05-29
-
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData));
-      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier963 = 963);
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths));
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow));
-
-      // Debug 2018-09-08
-      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo] >= 0);
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData));
-      Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths));
-      Assert(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo] >= 0);
-
-      if (pfInUpdate in Fields[I].ProviderFlags) then
-        if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])) then
-        if (not (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))) then
-        if (not (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1]))) then
-        Write;
-
       if ((pfInUpdate in Fields[I].ProviderFlags)
         and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
           or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
@@ -8632,7 +8611,6 @@ begin
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Pointer(ActiveBuffer()));
         ValueHandled := True;
       end;
-    end;
     if (Result <> '') then
       Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
   end;

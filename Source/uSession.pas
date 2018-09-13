@@ -537,14 +537,23 @@ type
   TSTable = class(TSDBObject)
   type
     TDataSet = class(TMySQLTable)
+    type
+      TFilter = record
+        Enabled: Boolean;
+        Operator: string;
+        Value: string;
+      end;
+      TFilters = TList<TFilter>;
     private
+      FFilters: TList<TFilters>;
       FFilterSQL: string;
       FQuickSearch: string;
       FTable: TSTable;
     protected
       function SQLSelect(const IgnoreLimit: Boolean = False): string; override;
     public
-      constructor Create(const ATable: TSTable); reintroduce; virtual;
+      constructor Create(const ATable: TSTable); reintroduce;
+      destructor Destroy(); override;
       procedure Invalidate(); virtual;
       property FilterSQL: string read FFilterSQL write FFilterSQL;
       property QuickSearch: string read FQuickSearch write FQuickSearch;
@@ -3855,6 +3864,14 @@ begin
 
   Connection := Table.Session.Connection;
   FFilterSQL := '';
+  FFilters := TList<TFilters>.Create();
+end;
+
+destructor TSTable.TDataSet.Destroy();
+begin
+  FFilters.Free();
+
+  inherited;
 end;
 
 procedure TSTable.TDataSet.Invalidate();
@@ -4319,10 +4336,8 @@ end;
 
 function TSBaseTable.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  // Debug 2017-05-01
-  Assert(Assigned(DataSet.FindField('Create Table')),
-    'CommandText: ' + DataSet.CommandText + #13#10
-    + 'Fields[0].Name: ' + DataSet.Fields[0].Name);
+  if (DataSet.Fields[0].Name = 'View') then
+    raise ERangeError.CreateFmt('%s.%s is not a BASE TABLE! Did MySQL response this VIEW as a BASE TABLE wrongly? Please check the information_schema.TABLES table.', [Database.Name, Name]);
 
   Result := Build(DataSet.FindField('Create Table'));
 end;
@@ -4548,9 +4563,10 @@ var
   I: Integer;
 begin
   Result := 0;
-  for I := 0 to Database.Triggers.Count - 1 do
-    if (Database.Triggers[I].Table = Self) then
-      Inc(Result);
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      if (Database.Triggers[I].Table = Self) then
+        Inc(Result);
 end;
 
 function TSBaseTable.GetValid(): Boolean;
@@ -10128,7 +10144,8 @@ function TSProcess.GetThreadId(): Longword;
 begin
   // Debug 2017-04-12
   Assert(Assigned(Self));
-  Assert(Self is TSProcess);
+  Assert(Self is TSProcess,
+    'ClassType: ' + TObject(Self).ClassName);
   Assert(Name <> '');
 
   Result := StrToUInt64(Name);

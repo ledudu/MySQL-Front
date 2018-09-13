@@ -4193,7 +4193,7 @@ Process := Process + 'b';
                   DoError(DatabaseError(Session), nil, True);
 
                 // Debug 2018-09-07
-                if (Assigned(Session.Connection.DebugSyncThread)) then
+                if ((Success <> daSuccess) or Assigned(Session.Connection.DebugSyncThread)) then
                   Assert(Session.Connection.DebugSyncThread.DebugState in [ssResult],
                     'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)) + #13#10
                     + 'I:' + IntToStr(I) + #13#10
@@ -4227,7 +4227,7 @@ Process := Process + 'e';
               end;
 
               // Debug 2018-09-07
-              if (Assigned(Session.Connection.DebugSyncThread)) then
+              if ((Success <> daSuccess) or Assigned(Session.Connection.DebugSyncThread)) then
               begin
 Process := Process + 'f';
                 Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssFirst, ssNext, ssAfterExecuteSQL],
@@ -4902,7 +4902,9 @@ except
   on E: Exception do
     E.RaiseOuterException(EAssertionFailed.Create(
       'CodePage: ' + IntToStr(FieldCodePage(Field)) + #13#10
-      + 'DataType: ' + IntToStr(Ord(Field.DataType))));
+      + 'DataType: ' + IntToStr(Ord(Field.DataType)) + #13#10
+      + E.ClassName + #13#10
+      + E.Message));
 end;
 
         LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
@@ -6427,7 +6429,16 @@ begin
           else
             raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
         end;
-      GetMem(Parameter[I].Mem, Parameter[I].MemSize);
+      try
+        GetMem(Parameter[I].Mem, Parameter[I].MemSize);
+      except
+        // Debug 2018-09-13
+        on E: Exception do
+          E.RaiseOuterException(Exception.Create(
+            'MemSize: ' + IntToStr(Parameter[I].MemSize) + #13#10#13#10
+            + E.ClassName + ':' + #13#10
+            + E.Message));
+      end;
 
       if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
         ColumnSize, 0, Parameter[I].Mem, Parameter[I].MemSize, @Parameter[I].Size))) then

@@ -283,6 +283,8 @@ var
 begin
   if (Visible and Assigned(Item) and Assigned(Item.Data)) then
   begin
+    IndexTypeChange(Sender);
+
     FIndexedFields.Enabled := (FIndexedFields.Items.Count > 0);
     FLIndexedFields.Enabled := FIndexedFields.Enabled;
 
@@ -308,12 +310,6 @@ begin
     FFulltext.Enabled :=
       Table.Engine.IsInnoDB and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 50600)
         or Table.Engine.IsMyISAM and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 32323);
-  end
-  else
-  begin
-    FLength.Enabled := False;
-    FUnique.Enabled := False;
-    FFulltext.Enabled := False;
   end;
 
   for I := 0 to FIndexedFields.Items.Count - 1 do
