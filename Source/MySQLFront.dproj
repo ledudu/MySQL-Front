@@ -148,6 +148,9 @@
         <DCCReference Include="uDServer.pas">
             <Form>DServer</Form>
         </DCCReference>
+        <DCCReference Include="uDSequence.pas">
+            <Form>DSequence</Form>
+        </DCCReference>
         <DCCReference Include="uDStatement.pas">
             <Form>DStatement</Form>
         </DCCReference>
