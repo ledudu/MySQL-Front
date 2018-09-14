@@ -1534,9 +1534,8 @@ end;
 
 function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
 var
-  Hex: string;
-  Length: Integer;
-  Text: TBytes;
+  RBS: RawByteString;
+  S: string;
 begin
   if (not Assigned(lpMultiByteStr) or (cchMultiByte = 0)) then
     Result := 0
@@ -1545,13 +1544,11 @@ begin
     Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
     if (Result = 0) then
     begin
-      Length := cchMultiByte - 1;
-      while ((Length > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Length, nil, 0) = 0)) do
-        Dec(Length);
-      SetLength(Text, cchMultiByte);
-      BinToHex(BytesOf(lpMultiByteStr, cchMultiByte), 0, Text, 0, cchMultiByte);
-      Hex := '0x' + string(AnsiStrings.StrPas(PAnsiChar(@Text[0])));
-      raise EMySQLEncodingError.CreateFMT('#%d %s (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
+      SetString(RBS, lpMultiByteStr, cchMultiByte);
+      S := string(RBS);
+      if (Assigned(lpWideCharStr) and (cchWideChar >= Length(S))) then
+        StrPCopy(lpWideCharStr, S);
+      Result := Length(S);
     end;
   end;
 end;
@@ -6348,7 +6345,6 @@ begin
   Result := -1;
   Left := 0;
   Right := Count - 1;
-  Mid := -1;
   while (Left < Right) do
   begin
     Mid := (Right - Left) div 2 + Left;
@@ -6366,16 +6362,11 @@ begin
       1: Right := Mid - 1;
     end;
   end;
+  if ((Result < 0) and (Right = Left)) then
+    Result := Right;
 
   if ((Result < 0) and (IgnoreIndex >= 0)) then
     Result := Left + 1;
-
-  Assert(Result >= 0,
-    'Count: ' + IntToStr(Count) + #13#10
-      + 'Left: ' + IntToStr(Left) + #13#10
-      + 'Mid: ' + IntToStr(Mid) + #13#10
-      + 'Right: ' + IntToStr(Right) + #13#10
-      + 'Field: ' + BoolToStr(Assigned(CompareDefs[0].Field), True));
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; const Item: PInternRecordBuffer);

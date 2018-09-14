@@ -313,7 +313,10 @@ begin
   end;
 
   for I := 0 to FIndexedFields.Items.Count - 1 do
-    FFulltext.Enabled := FFulltext.Enabled and Assigned(Table) and (TSBaseField(FIndexedFields.Items[I].Data).FieldType in [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText]);
+    FFulltext.Enabled := FFulltext.Enabled
+      and Assigned(Table)
+      and Assigned(FIndexedFields.Items[I].Data)
+      and (TSBaseField(FIndexedFields.Items[I].Data).FieldType in [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText]);
   FFulltext.Checked := FFulltext.Enabled and FFulltext.Checked;
 
   tbUp.Enabled := Assigned(FIndexedFields.Selected) and (FIndexedFields.Items.IndexOf(Item) > 0);

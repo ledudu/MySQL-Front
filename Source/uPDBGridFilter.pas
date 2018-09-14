@@ -22,9 +22,11 @@ type
     procedure FActiveKeyPress(Sender: TObject; var Key: Char);
     procedure FActiveClick(Sender: TObject);
   type
-    TOnCloseEvent = procedure(Sender: TObject) of object;
+    TOnHideEvent = procedure(Sender: TObject) of object;
+    TOnShowEvent = procedure(Sender: TObject) of object;
   private
-    FOnClose: TOnCloseEvent;
+    FOnHide: TOnHideEvent;
+    FOnShow: TOnShowEvent;
     procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
   protected
@@ -34,7 +36,8 @@ type
     Actives: array of Boolean;
     Operators: array of string;
     Values: array of string;
-    property OnClose: TOnCloseEvent read FOnClose write FOnClose;
+    property OnHide: TOnHideEvent read FOnHide write FOnHide;
+    property OnShow: TOnShowEvent read FOnShow write FOnShow;
   end;
 
 var
@@ -89,7 +92,8 @@ end;
 
 procedure TPDBGridFilter.FActiveClick(Sender: TObject);
 begin
-  Close();
+  if (FActive.Checked) then
+    Close();
 end;
 
 procedure TPDBGridFilter.FActiveKeyPress(Sender: TObject; var Key: Char);
@@ -123,8 +127,8 @@ begin
   else
     Values[0] := '';
 
-  if (Assigned(FOnClose)) then
-    FOnClose(Self);
+  if (Assigned(FOnHide)) then
+    FOnHide(Self);
 
   FOperator.Items.BeginUpdate();
   FOperator.Items.Clear();
@@ -137,7 +141,9 @@ begin
   FOperator.Items.Add('=');
   FOperator.Items.Add('<>');
   FOperator.Items.Add('>');
+  FOperator.Items.Add('>=');
   FOperator.Items.Add('<');
+  FOperator.Items.Add('<=');
   if (Column.Field.DataType in TextDataTypes) then
   begin
     FOperator.Items.Add('LIKE');
@@ -148,8 +154,19 @@ begin
   FOperator.Items.EndUpdate();
   FOperator.ItemIndex := 0;
 
-  FText.Text := Column.Field.AsString;
-  if (Column.Field.IsNull) then
+  if (Assigned(FOnShow)) then
+    FOnShow(Self);
+
+  FActive.Checked := (Length(Actives) >= 1) and Actives[0];
+  if (Length(Operators) = 0) then
+    FOperator.ItemIndex := 0
+  else
+    FOperator.Text := Operators[0];
+  if (Length(Values) = 0) then
+    FText.Text := ''
+  else
+    FText.Text := Values[0];
+  if ((Length(Values) = 0) or (Values[0] <> 'NOT NULL')) then
     FNull.ItemIndex := 0
   else
     FNull.ItemIndex := 1;

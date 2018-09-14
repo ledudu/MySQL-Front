@@ -933,24 +933,25 @@ end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 begin
-  // Debug 2018-09-05
-  Assert(Assigned(ToolBar));
-  Assert(ToolBar is TToolBar);
-  if (StyleServices.Enabled) then
-    ToolBar.BorderWidth := 0
-  else
-    ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
-
-  if (Assigned(ToolBar.Images)) then
+  // How can it happen, that ToolBar is not assigned???
+  if (Assigned(ToolBar)) then
   begin
-    // Recalculate height of Toolbar:
-    CToolBar.AutoSize := False;
-    ToolBar.AutoSize := False;
-    ToolBar.ButtonHeight := 0;
-    ToolBar.ButtonHeight := ToolBar.Images.Height + 2 * GetSystemMetrics(SM_CYFIXEDFRAME);
-    ToolBar.ButtonWidth := ToolBar.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
-    ToolBar.AutoSize := True;
-    CToolBar.AutoSize := True;
+    if (StyleServices.Enabled) then
+      ToolBar.BorderWidth := 0
+    else
+      ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
+
+    if (Assigned(ToolBar.Images)) then
+    begin
+      // Recalculate height of Toolbar:
+      CToolBar.AutoSize := False;
+      ToolBar.AutoSize := False;
+      ToolBar.ButtonHeight := 0;
+      ToolBar.ButtonHeight := ToolBar.Images.Height + 2 * GetSystemMetrics(SM_CYFIXEDFRAME);
+      ToolBar.ButtonWidth := ToolBar.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
+      ToolBar.AutoSize := True;
+      CToolBar.AutoSize := True;
+    end;
   end;
 end;
 

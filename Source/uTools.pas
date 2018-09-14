@@ -4193,7 +4193,7 @@ Process := Process + 'b';
                   DoError(DatabaseError(Session), nil, True);
 
                 // Debug 2018-09-07
-                if ((Success <> daSuccess) or Assigned(Session.Connection.DebugSyncThread)) then
+                if ((Success = daSuccess) and Assigned(Session.Connection.DebugSyncThread)) then
                   Assert(Session.Connection.DebugSyncThread.DebugState in [ssResult],
                     'State: ' + IntToStr(Ord(Session.Connection.DebugSyncThread.DebugState)) + #13#10
                     + 'I:' + IntToStr(I) + #13#10
@@ -4227,7 +4227,7 @@ Process := Process + 'e';
               end;
 
               // Debug 2018-09-07
-              if ((Success <> daSuccess) or Assigned(Session.Connection.DebugSyncThread)) then
+              if ((Success = daSuccess) and Assigned(Session.Connection.DebugSyncThread)) then
               begin
 Process := Process + 'f';
                 Assert(Session.Connection.DebugSyncThread.DebugState in [ssClose, ssReady, ssFirst, ssNext, ssAfterExecuteSQL],

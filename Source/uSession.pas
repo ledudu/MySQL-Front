@@ -545,7 +545,7 @@ type
       end;
       TFilters = TList<TFilter>;
     private
-      FFilters: TList<TFilters>;
+      FFilters: TObjectList<TFilters>;
       FFilterSQL: string;
       FQuickSearch: string;
       FTable: TSTable;
@@ -555,6 +555,7 @@ type
       constructor Create(const ATable: TSTable); reintroduce;
       destructor Destroy(); override;
       procedure Invalidate(); virtual;
+      property Filters: TObjectList<TFilters> read FFilters;
       property FilterSQL: string read FFilterSQL write FFilterSQL;
       property QuickSearch: string read FQuickSearch write FQuickSearch;
       property Table: TSTable read FTable;
@@ -3864,7 +3865,7 @@ begin
 
   Connection := Table.Session.Connection;
   FFilterSQL := '';
-  FFilters := TList<TFilters>.Create();
+  FFilters := TObjectList<TFilters>.Create();
 end;
 
 destructor TSTable.TDataSet.Destroy();
@@ -3886,15 +3887,22 @@ var
   DescPos: Integer;
   FieldName: string;
   FirstField: Boolean;
+  FirstFilter: Boolean;
   I: Integer;
+  J: Integer;
   Pos: Integer;
+  UseFilters: Boolean;
 begin
+  UseFilters := False;
+  for I := 0 to Filters.Count - 1 do
+    for J := 0 to Filters[I].Count - 1 do
+      UseFilters := UseFilters or Filters[I][J].Enabled;
   Result := 'SELECT * FROM ' + Connection.EscapeIdentifier(Table.Database.Name) + '.' + Connection.EscapeIdentifier(Table.Name);
+  if ((FilterSQL <> '') or (QuickSearch <> '') or UseFilters) then
+    Result := Result + ' WHERE ';
   if ((FilterSQL <> '') or (QuickSearch <> '')) then
   begin
-    Result := Result + ' WHERE ';
-    if ((FilterSQL <> '') and (QuickSearch <> '')) then
-      Result := Result + '(';
+    Result := Result + '(';
     if (FilterSQL <> '') then
       Result := Result + FilterSQL;
     if ((FilterSQL <> '') and (QuickSearch <> '')) then
@@ -3905,8 +3913,29 @@ begin
         if (I > 0) then Result := Result + ' OR ';
         Result := Result + Connection.EscapeIdentifier(Table.Fields[I].Name) + ' LIKE ' + SQLEscape('%' + QuickSearch + '%');
       end;
-    if ((FilterSQL <> '') and (QuickSearch <> '')) then
-      Result := Result + ')';
+    Result := Result + ')';
+  end;
+  if (UseFilters) then
+  begin
+    if ((FilterSQL <> '') or (QuickSearch <> '')) then
+      Result := Result + ' AND ';
+    FirstFilter := True;
+    for I := 0 to Filters.Count - 1 do
+      for J := 0 to Filters[I].Count - 1 do
+        if (Filters[I][J].Enabled) then
+        begin
+          if (not FirstFilter) then Result := Result + ' AND ';
+          if ((Filters[I][J].Operator = 'LIKE') or (Filters[I][J].Operator = 'NOT LIKE') or (Filters[I][J].Operator = 'IS')) then
+            Result := Result + '(' + Connection.EscapeIdentifier(Table.Fields[I].Name) + ' ' + Filters[I][J].Operator + ' '
+          else
+            Result := Result + '(' + Connection.EscapeIdentifier(Table.Fields[I].Name) + Filters[I][J].Operator;
+          if (Table.Fields[I].FieldType in NotQuotedFieldTypes) then
+            Result := Result + Filters[I][J].Value
+          else
+            Result := Result + SQLEscape(Filters[I][J].Value);
+          Result := Result + ')';
+          FirstFilter := False;
+        end;
   end;
   if (SortDef.Fields <> '') then
   begin

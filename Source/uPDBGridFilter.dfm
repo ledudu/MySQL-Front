@@ -4,7 +4,7 @@ object PDBGridFilter: TPDBGridFilter
   BorderStyle = bsNone
   Caption = 'PDBGridFilter'
   ClientHeight = 42
-  ClientWidth = 357
+  ClientWidth = 315
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

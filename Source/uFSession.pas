@@ -437,7 +437,8 @@ type
     procedure DBGridEmptyExecute(Sender: TObject);
     procedure DBGridEnter(Sender: TObject);
     procedure DBGridExit(Sender: TObject);
-    procedure DBGridFilterClose(Sender: TObject);
+    procedure DBGridFilterHide(Sender: TObject);
+    procedure DBGridFilterShow(Sender: TObject);
     procedure DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
     procedure DBGridKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
@@ -1784,9 +1785,7 @@ begin
     end;
     FDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := Table.DataSet;
-    {$IFDEF Debug}
     FDBGrid.OnHeaderSplitButton := FSession.DBGridHeaderSplitButton;
-    {$ENDIF}
   end;
 
   Result := FDBGrid;
@@ -3379,6 +3378,9 @@ begin
       DVariable.Execute();
     end;
 
+    // Debug 2018-09-13
+    Assert(Assigned(Wanted));
+
     Wanted.Update := UpdateAfterAddressChanged;
   end;
 end;
@@ -4181,7 +4183,13 @@ begin
   begin
     DImport.Session := Session;
     if (SItem is TSObject) then
-      DImport.SObject := TSObject(SItem)
+    begin
+      DImport.SObject := TSObject(SItem);
+
+      // Debug 2018-09-14
+      if (DImport.SObject is TSDBObject) then
+        Assert(Assigned(TSDBObject(DImport.SObject).Database));
+    end
     else
       DImport.SObject := nil;
     DImport.Filename := '';
@@ -6670,14 +6678,49 @@ begin
   end;
 end;
 
-procedure TFSession.DBGridFilterClose(Sender: TObject);
+procedure TFSession.DBGridFilterHide(Sender: TObject);
+var
+  DataSet: TSTable.TDataSet;
+  I: Integer;
+  Item: TSTable.TDataSet.TFilter;
+begin
+  Assert(ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet);
+  DataSet := TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet);
+  if (DataSet.Filters.Count = 0) then
+    for I := 0 to DataSet.FieldCount - 1 do
+      DataSet.Filters.Add(TSTable.TDataSet.TFilters.Create());
+  DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1].Clear();
+  if (PDBGridFilter.Actives[0]) then
+    for I := 0 to Length(PDBGridFilter.Operators) - 1 do
+    begin
+      Item.Enabled := PDBGridFilter.Actives[I];
+      Item.Operator := PDBGridFilter.Operators[I];
+      Item.Value := PDBGridFilter.Values[I];
+      DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1].Add(Item);
+    end;
+  TableOpen(Sender);
+end;
+
+procedure TFSession.DBGridFilterShow(Sender: TObject);
 var
   DataSet: TSTable.TDataSet;
 begin
-  if (PDBGridFilter.Actives[0]) then
+  SetLength(PDBGridFilter.Actives, 1);
+  SetLength(PDBGridFilter.Operators, 1);
+  SetLength(PDBGridFilter.Values, 1);
+  Assert(ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet);
+  DataSet := TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet);
+  if ((DataSet.Filters.Count = 0) or (DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1].Count < 1)) then
   begin
-    Assert(ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet);
-    DataSet := TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet);
+    PDBGridFilter.Actives[0] := False;
+    PDBGridFilter.Operators[0] := '=';
+    PDBGridFilter.Values[0] := PDBGridFilter.Column.Field.AsString;
+  end
+  else
+  begin
+    PDBGridFilter.Actives[0] := DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1][0].Enabled;
+    PDBGridFilter.Operators[0] := DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1][0].Operator;
+    PDBGridFilter.Values[0] := DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1][0].Value;
   end;
 end;
 
@@ -6705,7 +6748,8 @@ begin
           PDBGridFilter.Hide();
 
         PDBGridFilter.Column := Column;
-        PDBGridFilter.OnClose := DBGridFilterClose;
+        PDBGridFilter.OnHide := DBGridFilterHide;
+        PDBGridFilter.OnShow := DBGridFilterShow;
         PDBGridFilter.Left := DBGrid.ClientToScreen(Point(Rect.Left, 0)).X;
         PDBGridFilter.Top := DBGrid.ClientToScreen(Point(0, DBGrid.DefaultRowHeight)).Y;
         if (PDBGridFilter.Left + PDBGridFilter.Width > Screen.Width) then
@@ -6978,7 +7022,10 @@ begin
   Assert(Assigned(Accounts));
   Assert(Assigned(Sessions));
   Assert(Sessions.Count > 0);
+
   Assert(Sessions.IndexOf(Session) >= 0);
+  // Occurred on 2018-09-14, but invalid call stack
+
   Assert(Assigned(Session));
   Assert(TObject(Session) is TSSession);
   Assert(Assigned(Session.Account));
@@ -9838,7 +9885,11 @@ begin
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
   ListView.Items.EndUpdate();
-  ListView.Free();
+  try
+    ListView.Free();
+  except
+    // There occurred an exception in Delphi XE4. Why?
+  end;
 end;
 
 procedure TFSession.FRTFChange(Sender: TObject);
@@ -10552,6 +10603,9 @@ function TFSession.GetWindow(): TForm_Ext;
 var
   Control: TWinControl;
 begin
+  // Debug 2018-09-14
+  Assert(Assigned(Parent));
+
   Control := GetParentForm(Self);
   if (Control is TForm_Ext) then
     Result := TForm_Ext(Control)
@@ -10564,7 +10618,9 @@ begin
     if (not Assigned(Control)) then
       raise ERangeError.Create('Parent not set')
     else
-      raise ERangeError.Create('ClassType: ' + Control.ClassName);
+      raise ERangeError.Create(
+        'ClassType: ' + Control.ClassName + #13#10
+        + 'Parent: ' + Control.Parent.ClassName);
   end
   else
     raise ERangeError.Create(TObject(Control).ClassName);
@@ -13095,7 +13151,8 @@ begin
   begin
     gmFilter.Clear(); gmFilter.Enabled := False;
 
-    if (Assigned(ActiveDBGrid.SelectedField)
+    if ((View <> vBrowser)
+      and Assigned(ActiveDBGrid.SelectedField)
       and not ActiveDBGrid.EditorMode
       and not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     begin
@@ -14392,7 +14449,11 @@ begin
       SBlob.Visible := False;
       // Debug 2018-09-11
       Assert(Assigned(SBlob));
-      SBlob.Parent := nil;
+      try
+        // Sometimes, there is a AV reading from 000000000. Why? Does this help?
+        SBlob.Parent := nil;
+      except
+      end;
     end;
 
     if (PResultVisible and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
@@ -16538,6 +16599,9 @@ begin
       iiSystemViewField,
       iiViewField:
         begin
+          // Debug 2018-09-14
+          Assert(Assigned(Node.Data));
+
           URI := TUURI.Create(TSItem(Node.Data).Address);
           URI.Param['view'] := 'browser';
           Wanted.Address := URI.Address;

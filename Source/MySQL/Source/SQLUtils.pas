@@ -2566,7 +2566,11 @@ var
   Pos: PChar;
   RepeatDeep: Integer;
   WhileDeep: Integer;
+S: string;
 begin
+  // Debug 2018-09-14
+  try
+
   if (not Assigned(SQL) or (Length = 0)) then
   begin
     Result := 0;
@@ -2940,6 +2944,18 @@ begin
         POP EDI
         POP ESI
     end;
+
+  except
+    on E: Exception do
+      begin
+        SetString(S, SQL, Length);
+        E.RaiseOuterException(EAssertionFailed.Create(
+          E.ClassName + #13#10
+          + E.Message + #13#10
+          + 'SQL:' + #13#10
+          + S));
+      end;
+  end;
 end;
 
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;

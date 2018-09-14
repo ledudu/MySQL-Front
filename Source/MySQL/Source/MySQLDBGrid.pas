@@ -73,7 +73,7 @@ type
       Rec: Integer;
     end;
     TitleBoldFont: TFont;
-    procedure ActivateHint();
+//    procedure ActivateHint();
     function CalcSelText(): string;
     function CalcSQLData(): string;
     function CanvasTextWidth(const Text: string): Integer; inline;
@@ -255,86 +255,86 @@ end;
 
 { TMySQLDBGrid ****************************************************************}
 
-procedure TMySQLDBGrid.ActivateHint();
-var
-  I: Integer;
-  LogFont: TLogFont;
-  NonClientMetrics: TNonClientMetrics;
-  OldActiveRecord: Integer;
-  Rect: TRect;
-  StringList: TStringList;
-begin
-  if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount)
-    and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes)
-    and not EditorMode) then
-  begin
-    if (not Assigned(FHintWindow)) then
-    begin
-      FHintWindow := THintWindow.Create(Self);
-      FHintWindow.Color := clInfoBk;
-    end;
-
-    OldActiveRecord := DataLink.ActiveRecord;
-    DataLink.ActiveRecord := FMouseMoveCell.Y - 1;
-
-    StringList := TStringList.Create();
-    if (FMouseMoveCell.Y = 0) then
-      StringList.Text := Columns[FMouseMoveCell.X].Field.DisplayName
-    else if (Columns[FMouseMoveCell.X].Field.IsNull) then
-      StringList.Text := ''
-    else if (Columns[FMouseMoveCell.X].Field.DataType = ftWideMemo) then
-      StringList.Text := Columns[FMouseMoveCell.X].Field.AsString
-    else
-      StringList.Text := Columns[FMouseMoveCell.X].Field.DisplayText;
-
-    if (Length(StringList.Text) < 10 * 1024) then
-    begin
-      if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)
-        and (GetObject(Columns[FMouseMoveCell.X].Font.Handle, SizeOf(LogFont), @LogFont) <> 0)) then
-      begin
-        LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
-        FHintWindow.Canvas.Font.Handle := CreateFontIndirect(LogFont);
-      end
-      else
-        FHintWindow.Canvas.Font := Columns[FMouseMoveCell.X].Font;
-
-      Rect.Left := 0;
-      for I := LeftCol to FMouseMoveCell.X - 1 do
-        if (Columns[I].Visible) then
-          if (dgColLines in Options) then
-            Inc(Rect.Left, Columns[I].Width + GridLineWidth)
-          else
-            Inc(Rect.Left, Columns[I].Width);
-      Rect.Top := 0;
-      for I := 0 to FMouseMoveCell.Y - 1 do
-        if ((I > 0) and (dgRowLines in Options)) then
-          Inc(Rect.Top, RowHeights[I] + GridLineWidth)
-        else
-          Inc(Rect.Top, RowHeights[I]);
-
-      Rect.Left := ClientToScreen(Point(Rect.Left, Rect.Top)).X - 1;
-      Rect.Top := ClientToScreen(Point(Rect.Left, Rect.Top)).Y;
-
-      Rect.Right := 0;
-      for I := 0 to StringList.Count - 1 do
-        Rect.Right := Max(Rect.Right, Rect.Left + FHintWindow.Canvas.TextWidth(StringList[I]) + 6);
-      Rect.Bottom := Rect.Top + FHintWindow.Canvas.TextHeight('H') * StringList.Count + 2;
-
-      if ((Rect.Right - Rect.Left - 2 > Columns[FMouseMoveCell.X].Width)
-        or (Columns[FMouseMoveCell.X].Field.DataType = ftWideMemo)
-        or (StringList.Count > 1)) then
-      begin
-        FHintWindow.ActivateHint(Rect, StringList.Text);
-        SetTimer(Handle, tiHideHint, Application.HintHidePause, nil);
-      end
-      else
-        FreeAndNil(FHintWindow);
-
-      StringList.Free();
-      DataLink.ActiveRecord := OldActiveRecord;
-    end;
-  end;
-end;
+//procedure TMySQLDBGrid.ActivateHint();
+//var
+//  I: Integer;
+//  LogFont: TLogFont;
+//  NonClientMetrics: TNonClientMetrics;
+//  OldActiveRecord: Integer;
+//  Rect: TRect;
+//  StringList: TStringList;
+//begin
+//  if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount)
+//    and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes)
+//    and not EditorMode) then
+//  begin
+//    if (not Assigned(FHintWindow)) then
+//    begin
+//      FHintWindow := THintWindow.Create(Self);
+//      FHintWindow.Color := clInfoBk;
+//    end;
+//
+//    OldActiveRecord := DataLink.ActiveRecord;
+//    DataLink.ActiveRecord := FMouseMoveCell.Y - 1;
+//
+//    StringList := TStringList.Create();
+//    if (FMouseMoveCell.Y = 0) then
+//      StringList.Text := Columns[FMouseMoveCell.X].Field.DisplayName
+//    else if (Columns[FMouseMoveCell.X].Field.IsNull) then
+//      StringList.Text := ''
+//    else if (Columns[FMouseMoveCell.X].Field.DataType = ftWideMemo) then
+//      StringList.Text := Columns[FMouseMoveCell.X].Field.AsString
+//    else
+//      StringList.Text := Columns[FMouseMoveCell.X].Field.DisplayText;
+//
+//    if (Length(StringList.Text) < 10 * 1024) then
+//    begin
+//      if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)
+//        and (GetObject(Columns[FMouseMoveCell.X].Font.Handle, SizeOf(LogFont), @LogFont) <> 0)) then
+//      begin
+//        LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
+//        FHintWindow.Canvas.Font.Handle := CreateFontIndirect(LogFont);
+//      end
+//      else
+//        FHintWindow.Canvas.Font := Columns[FMouseMoveCell.X].Font;
+//
+//      Rect.Left := 0;
+//      for I := LeftCol to FMouseMoveCell.X - 1 do
+//        if (Columns[I].Visible) then
+//          if (dgColLines in Options) then
+//            Inc(Rect.Left, Columns[I].Width + GridLineWidth)
+//          else
+//            Inc(Rect.Left, Columns[I].Width);
+//      Rect.Top := 0;
+//      for I := 0 to FMouseMoveCell.Y - 1 do
+//        if ((I > 0) and (dgRowLines in Options)) then
+//          Inc(Rect.Top, RowHeights[I] + GridLineWidth)
+//        else
+//          Inc(Rect.Top, RowHeights[I]);
+//
+//      Rect.Left := ClientToScreen(Point(Rect.Left, Rect.Top)).X - 1;
+//      Rect.Top := ClientToScreen(Point(Rect.Left, Rect.Top)).Y;
+//
+//      Rect.Right := 0;
+//      for I := 0 to StringList.Count - 1 do
+//        Rect.Right := Max(Rect.Right, Rect.Left + FHintWindow.Canvas.TextWidth(StringList[I]) + 6);
+//      Rect.Bottom := Rect.Top + FHintWindow.Canvas.TextHeight('H') * StringList.Count + 2;
+//
+//      if ((Rect.Right - Rect.Left - 2 > Columns[FMouseMoveCell.X].Width)
+//        or (Columns[FMouseMoveCell.X].Field.DataType = ftWideMemo)
+//        or (StringList.Count > 1)) then
+//      begin
+//        FHintWindow.ActivateHint(Rect, StringList.Text);
+//        SetTimer(Handle, tiHideHint, Application.HintHidePause, nil);
+//      end
+//      else
+//        FreeAndNil(FHintWindow);
+//
+//      StringList.Free();
+//      DataLink.ActiveRecord := OldActiveRecord;
+//    end;
+//  end;
+//end;
 
 procedure TMySQLDBGrid.BeginAutoDrag();
 begin
