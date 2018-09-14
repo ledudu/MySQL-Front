@@ -273,7 +273,7 @@ begin
   end;
   FRDefaultClick(nil);
 
-  FComment.Text := SQLUnwrapStmt(Field.Comment, Table.Session.Connection.MySQLVersion);
+  FComment.Text := Field.Comment;
 end;
 
 procedure TDField.BuiltTable();

@@ -4813,9 +4813,6 @@ begin
 
       Field := TSBaseField(FFields[Index]);
 
-      // Debug 2017-03-01
-      Assert(Field.OriginalName <> '');
-
       if (Index = 0) then
         Field.FieldBefore := nil
       else
@@ -4827,10 +4824,6 @@ begin
         on E: Exception do
           E.RaiseOuterException(EAssertionFailed.CreateFmt(SSourceParseError + #13#10 + E.ClassName + ':' + E.Message, [Database.Name + '.' + Name, SQL]));
       end;
-
-      // Debug 2017-01-15
-      if (Field.FieldType = mfUnknown) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
         Field.Charset := SQLParseValue(Parse);
