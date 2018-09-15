@@ -930,6 +930,9 @@ var
   I: Integer;
   Success: Boolean;
 begin
+  // Debug 2018-09-15
+  Assert((ImportType = itSQLFile) or Assigned(Database));
+
   FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile];
   FEntieredObjects.Visible := FLProgressObjects.Visible;
   FDoneObjects.Visible := FLProgressObjects.Visible;

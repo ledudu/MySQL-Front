@@ -1,7 +1,6 @@
 object DView: TDView
   Left = 720
-  Top = 154
-  HelpContext = 1098
+  Top = 0
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DView'
@@ -41,17 +40,13 @@ object DView: TDView
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSSource
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -405,7 +400,6 @@ object DView: TDView
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
         OnChange = FSourceChange
-        OnStatusChange = FSourceStatusChange
         FontSmoothing = fsmNone
       end
     end
@@ -444,7 +438,7 @@ object DView: TDView
   end
   object MSource: TPopupMenu
     Left = 96
-    Top = 336
+    Top = 344
     object msUndo: TMenuItem
       Caption = 'aEUndo'
     end

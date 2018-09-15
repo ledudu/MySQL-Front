@@ -1290,7 +1290,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 120172
+      Left = 40682
       Top = 0
       Width = 140
       Height = 22
@@ -1305,7 +1305,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 120012
+      Left = 40667
       Top = 0
       Width = 23
       Height = 22
@@ -1409,6 +1409,9 @@ object FSession: TFSession
       end
       object mlDCreateView: TMenuItem
         Caption = 'aDCreateView'
+      end
+      object mlDCreateSequence: TMenuItem
+        Caption = 'aDCreateSequence'
       end
       object mlDCreateProcedure: TMenuItem
         Caption = 'aDCreateProcedure'
@@ -1691,6 +1694,9 @@ object FSession: TFSession
       end
       object miNCreateView: TMenuItem
         Caption = 'aDCreateView'
+      end
+      object miNCreateSequence: TMenuItem
+        Caption = 'aDCreateSequence'
       end
       object miNCreateProcedure: TMenuItem
         Caption = 'aDCreateProcedure'

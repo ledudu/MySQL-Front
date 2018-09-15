@@ -142,6 +142,7 @@ type
     miNCreateFunction: TMenuItem;
     miNCreateIndex: TMenuItem;
     miNCreateProcedure: TMenuItem;
+    miNCreateSequence: TMenuItem;
     miNCreateTable: TMenuItem;
     miNCreateTrigger: TMenuItem;
     miNCreateUser: TMenuItem;
@@ -180,6 +181,7 @@ type
     mlDCreateFunction: TMenuItem;
     mlDCreateIndex: TMenuItem;
     mlDCreateProcedure: TMenuItem;
+    mlDCreateSequence: TMenuItem;
     mlDCreateTable: TMenuItem;
     mlDCreateTrigger: TMenuItem;
     mlDCreateUser: TMenuItem;
@@ -380,6 +382,7 @@ type
     procedure aDCreateForeignKeyExecute(Sender: TObject);
     procedure aDCreateKeyExecute(Sender: TObject);
     procedure aDCreateRoutineExecute(Sender: TObject);
+    procedure aDCreateSequenceExecute(Sender: TObject);
     procedure aDCreateTableExecute(Sender: TObject);
     procedure aDCreateTriggerExecute(Sender: TObject);
     procedure aDCreateUserExecute(Sender: TObject);
@@ -651,7 +654,7 @@ type
     procedure FObjectIDEGridUpdateAction(Sender: TObject;
       var CanExecute: Boolean);
   type
-    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciForeignKey, ciBaseField, ciViewField, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciSequence, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciForeignKey, ciBaseField, ciViewField, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
     TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -954,7 +957,6 @@ type
     UsersListView: TListView;
     VariablesListView: TListView;
     Wanted: TWanted;
-Progress: string;
     procedure aDCancelExecute(Sender: TObject);
     procedure aDPropertiesServerExecute(Sender: TObject);
     function AddressByData(const Data: TCustomData): string;
@@ -1183,7 +1185,7 @@ DateUtils,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
   uDUser, uDQuickFilter, uWSQLHelp, uDTransfer, uDSearch, uDServer,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
-  uDConnecting, uDExecutingSQL;
+  uDConnecting, uDExecutingSQL, uDSequence;
 
 const
   nlHost = 0;
@@ -2582,6 +2584,18 @@ begin
   end;
 end;
 
+procedure TFSession.aDCreateSequenceExecute(Sender: TObject);
+begin
+  Wanted.Clear();
+
+  if (FocusedSItem is TSDatabase) then
+  begin
+    DSequence.Database := TSDatabase(FocusedSItem);
+    DSequence.Sequence := nil;
+    DSequence.Execute();
+  end;
+end;
+
 procedure TFSession.aDCreateTableExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -2668,6 +2682,7 @@ begin
     if (TSItem(Items[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(Items[0]).Caption)
     else if (TSItem(Items[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(Items[0]).Caption)
     else if (TSItem(Items[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSSequence) then Msg := Preferences.LoadStr(950, TSItem(Items[0]).Caption)
     else if (TSItem(Items[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(Items[0]).Caption)
     else if (TSItem(Items[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(Items[0]).Caption)
     else if (TSItem(Items[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(Items[0]).Caption)
@@ -3288,6 +3303,13 @@ begin
       DView.Database := TSView(SItem).Database;
       DView.View := TSView(SItem);
       if (DView.Execute()) then
+        Wanted.Update := UpdateAfterAddressChanged;
+    end
+    else if (SItem is TSSequence) then
+    begin
+      DSequence.Database := TSSequence(SItem).Database;
+      DSequence.Sequence := TSSequence(SItem);
+      if (DSequence.Execute()) then
         Wanted.Update := UpdateAfterAddressChanged;
     end
     else if (SItem is TSProcedure) then
@@ -4965,6 +4987,8 @@ begin
     Result := ciView
   else if (TObject(Data) is TSSystemView) then
     Result := ciSystemView
+  else if (TObject(Data) is TSSequence) then
+    Result := ciSequence
   else if (TObject(Data) is TSProcedure) then
     Result := ciProcedure
   else if (TObject(Data) is TSFunction) then
@@ -5187,13 +5211,9 @@ constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinContro
 var
   Kind: TPAccount.TDesktop.TListViewKind;
 begin
-  Progress := 'a';
-
   FQueryBuilderSynMemo := nil; // TacBaseSQLBuilder.SQLUpdate calls FQueryBuilderSQLUpdated
 
   inherited Create(AOwner);
-
-  Progress := 'a';
 
   ASession.Account.RegisterTab(Self);
 
@@ -5298,6 +5318,7 @@ begin
   miNCreateDatabase.Action := aDCreateDatabase;
   miNCreateTable.Action := aDCreateTable;
   miNCreateView.Action := aDCreateView;
+  miNCreateSequence.Action := aDCreateSequence;
   miNCreateProcedure.Action := aDCreateProcedure;
   miNCreateFunction.Action := aDCreateFunction;
   miNCreateIndex.Action := aDCreateKey;
@@ -5329,6 +5350,7 @@ begin
   mlDCreateDatabase.Action := aDCreateDatabase;
   mlDCreateTable.Action := aDCreateTable;
   mlDCreateView.Action := aDCreateView;
+  mlDCreateSequence.Action := aDCreateSequence;
   mlDCreateProcedure.Action := aDCreateProcedure;
   mlDCreateFunction.Action := aDCreateFunction;
   mlDCreateIndex.Action := aDCreateKey;
@@ -5492,8 +5514,6 @@ begin
 
   Window.ApplyWinAPIUpdates(Self);
 
-
-  Progress := 'b';
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
@@ -7885,7 +7905,7 @@ begin
   AllowChange := Assigned(Node)
     and (Node.ImageIndex >= 0) and (Node.Text <> '')
     and not Dragging(Sender)
-    and not (Node.ImageIndex in [iiKey, iiBaseField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey])
+    and not (Node.ImageIndex in [iiSequence, iiKey, iiBaseField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey])
     and not ((Node.ImageIndex = iiQuickAccess) and (Session.Connection.MySQLVersion < 50000));
 
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
@@ -8229,6 +8249,7 @@ begin
   aDCreateDatabase.Enabled := False;
   aDCreateTable.Enabled := False;
   aDCreateView.Enabled := False;
+  aDCreateSequence.Enabled := False;
   aDCreateProcedure.Enabled := False;
   aDCreateFunction.Enabled := False;
   aDCreateEvent.Enabled := False;
@@ -8240,6 +8261,7 @@ begin
   aDDeleteDatabase.Enabled := False;
   aDDeleteTable.Enabled := False;
   aDDeleteView.Enabled := False;
+  aDDeleteSequence.Enabled := False;
   aDDeleteRoutine.Enabled := False;
   aDDeleteEvent.Enabled := False;
   aDDeleteKey.Enabled := False;
@@ -8250,6 +8272,7 @@ begin
   aDEditDatabase.Enabled := False;
   aDEditTable.Enabled := False;
   aDEditView.Enabled := False;
+  aDEditSequence.Enabled := False;
   aDEditRoutine.Enabled := False;
   aDEditEvent.Enabled := False;
   aDEditTrigger.Enabled := False;
@@ -8513,7 +8536,7 @@ begin
             TableName := TSDatabase(DatabaseNode.Data).TriggerByName(URI.Param['object']).TableName;
           TableNode := nil;
           while (Assigned(Child) and not Assigned(TableNode)) do
-            if ((Child.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
+            if ((Child.ImageIndex in [iiBaseTable, iiView, iiSystemView, iiSequence]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
               TableNode := Child
             else
               Child := Child.getNextSibling();
@@ -8842,13 +8865,6 @@ begin
     while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
       Node := Node.getNextSibling();
 
-    // Debug 2017-04-10
-    Assert(Assigned(Node),
-      'Count: ' + IntToStr(FNavigator.Items.Count)
-      + 'Progress: ' + Progress);
-    // In UMPostShow is an additional checking too. Remove it, if this problem
-    // is solved!
-
     FNavigator.Items.BeginUpdate();
 
     if (not Assigned(Node.getFirstChild())) then
@@ -8985,6 +9001,7 @@ begin
     aDCreateDatabase.Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
     aDCreateTable.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
     aDCreateView.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
+    aDCreateSequence.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MariaDBVersion >= 100300);
     aDCreateProcedure.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
     aDCreateFunction.Enabled := aDCreateProcedure.Enabled;
     aDCreateEvent.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
@@ -8996,6 +9013,7 @@ begin
     aDDeleteDatabase.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
     aDDeleteTable.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
     aDDeleteView.Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    aDDeleteSequence.Enabled := Assigned(Node) and (Node.ImageIndex = iiSequence);
     aDDeleteRoutine.Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
     aDDeleteEvent.Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
     aDDeleteKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
@@ -9006,6 +9024,7 @@ begin
     aDEditDatabase.Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
     aDEditTable.Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
     aDEditView.Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    aDEditSequence.Enabled := Assigned(Node) and (Node.ImageIndex = iiSequence);
     aDEditRoutine.Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
     aDEditEvent.Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
     aDEditKey.Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
@@ -9019,6 +9038,7 @@ begin
     aDDelete.Enabled := aDDeleteDatabase.Enabled
       or aDDeleteTable.Enabled
       or aDDeleteView.Enabled
+      or aDDeleteSequence.Enabled
       or aDDeleteRoutine.Enabled
       or aDDeleteEvent.Enabled
       or aDDeleteKey.Enabled
@@ -9033,6 +9053,7 @@ begin
         iiDatabase: miNProperties.Action := aDEditDatabase;
         iiBaseTable: miNProperties.Action := aDEditTable;
         iiView: miNProperties.Action := aDEditView;
+        iiSequence: miNProperties.Action := aDEditSequence;
         iiProcedure,
         iiFunction: miNProperties.Action := aDEditRoutine;
         iiEvent: miNProperties.Action := aDEditEvent;
@@ -9635,6 +9656,7 @@ begin
     aDCreateDatabase.OnExecute := aDCreateDatabaseExecute;
     aDCreateTable.OnExecute := aDCreateTableExecute;
     aDCreateView.OnExecute := aDCreateViewExecute;
+    aDCreateSequence.OnExecute := aDCreateSequenceExecute;
     aDCreateProcedure.OnExecute := aDCreateRoutineExecute;
     aDCreateFunction.OnExecute := aDCreateRoutineExecute;
     aDCreateKey.OnExecute := aDCreateKeyExecute;
@@ -9647,6 +9669,7 @@ begin
     aDEditDatabase.OnExecute := aDPropertiesExecute;
     aDEditTable.OnExecute := aDPropertiesExecute;
     aDEditView.OnExecute := aDPropertiesExecute;
+    aDEditSequence.OnExecute := aDPropertiesExecute;
     aDEditRoutine.OnExecute := aDPropertiesExecute;
     aDEditEvent.OnExecute := aDPropertiesExecute;
     aDEditTrigger.OnExecute := aDPropertiesExecute;
@@ -9659,6 +9682,7 @@ begin
     aDDeleteDatabase.OnExecute := aDDeleteExecute;
     aDDeleteTable.OnExecute := aDDeleteExecute;
     aDDeleteView.OnExecute := aDDeleteExecute;
+    aDDeleteSequence.OnExecute := aDDeleteExecute;
     aDDeleteRoutine.OnExecute := aDDeleteExecute;
     aDDeleteKey.OnExecute := aDDeleteExecute;
     aDDeleteField.OnExecute := aDDeleteExecute;
@@ -10740,7 +10764,8 @@ begin
     iiTable,
     iiBaseTable,
     iiView,
-    iiSystemView:
+    iiSystemView,
+    iiSequence:
       Result := giTables;
     iiProcedure,
     iiFunction:
@@ -10787,6 +10812,8 @@ begin
     Result := iiView
   else if (TObject(Data) is TSSystemView) then
     Result := iiSystemView
+  else if (TObject(Data) is TSSequence) then
+    Result := iiSequence
   else if (TObject(Data) is TSProcedure) then
     Result := iiProcedure
   else if (TObject(Data) is TSFunction) then
@@ -11811,6 +11838,7 @@ begin
   aDCreateDatabase.Enabled := False;
   aDCreateTable.Enabled := False;
   aDCreateView.Enabled := False;
+  aDCreateSequence.Enabled := False;
   aDCreateProcedure.Enabled := False;
   aDCreateFunction.Enabled := False;
   aDCreateEvent.Enabled := False;
@@ -11822,6 +11850,7 @@ begin
   aDDeleteDatabase.Enabled := False;
   aDDeleteTable.Enabled := False;
   aDDeleteView.Enabled := False;
+  aDDeleteSequence.Enabled := False;
   aDDeleteRoutine.Enabled := False;
   aDDeleteEvent.Enabled := False;
   aDDeleteKey.Enabled := False;
@@ -11832,6 +11861,7 @@ begin
   aDEditDatabase.Enabled := False;
   aDEditTable.Enabled := False;
   aDEditView.Enabled := False;
+  aDEditSequence.Enabled := False;
   aDEditRoutine.Enabled := False;
   aDEditEvent.Enabled := False;
   aDEditKey.Enabled := False;
@@ -11914,7 +11944,15 @@ var
       else if (Data is TSSystemView) then
       begin
         Item.Caption := TSSystemView(Data).Caption;
+        Item.SubItems.Add(Preferences.LoadStr(749));
         Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+      end
+      else if (Data is TSSequence) then
+      begin
+        Item.Caption := TSSequence(Data).Caption;
+        Item.SubItems.Add(Preferences.LoadStr(949));
         Item.SubItems.Add('');
         Item.SubItems.Add('');
         Item.SubItems.Add('');
@@ -12010,7 +12048,7 @@ var
         else
           Item.SubItems.Add(S);
       end
-      else if (Data is TSTable) then
+      else if ((Data is TSTable) and not (Data is TSSequence)) then
       begin
         Item.Caption := TSTable(Data).Caption;
         if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine)) then
@@ -12051,6 +12089,14 @@ var
           Item.SubItems.Add(TSBaseTable(Data).Comment)
         else
           Item.SubItems.Add('');
+      end
+      else if (Data is TSSequence) then
+      begin
+        Item.Caption := TSSequence(Data).Caption;
+        Item.SubItems.Add(Preferences.LoadStr(949));
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
       end
       else if (Data is TSRoutine) then
       begin
@@ -12535,6 +12581,8 @@ var
               Header := Preferences.LoadStr(234);
               if (Session.Connection.MySQLVersion >= 50001) then
                 Header := Header + ' + ' + Preferences.LoadStr(873);
+              if (Session.Connection.MariaDBVersion >= 100300) then
+                Header := Header + ' + ' + Preferences.LoadStr(951);
               Header := Header + ' (' + IntToStr(Event.Items.Count) + ')';
               SetListViewGroupHeader(ListView, GroupID, Header);
             end;
@@ -12790,6 +12838,7 @@ begin
     aDCreateDatabase.Enabled := False;
     aDCreateTable.Enabled := False;
     aDCreateView.Enabled := False;
+    aDCreateSequence.Enabled := False;
     aDCreateProcedure.Enabled := False;
     aDCreateFunction.Enabled := False;
     aDCreateTrigger.Enabled := False;
@@ -12801,6 +12850,7 @@ begin
     aDDeleteDatabase.Enabled := False;
     aDDeleteTable.Enabled := False;
     aDDeleteView.Enabled := False;
+    aDDeleteSequence.Enabled := False;
     aDDeleteRoutine.Enabled := False;
     aDDeleteKey.Enabled := False;
     aDDeleteField.Enabled := False;
@@ -12811,6 +12861,7 @@ begin
     aDEditServer.Enabled := False;
     aDEditTable.Enabled := False;
     aDEditView.Enabled := False;
+    aDEditSequence.Enabled := False;
     aDEditRoutine.Enabled := False;
     aDEditEvent.Enabled := False;
     aDEditKey.Enabled := False;
@@ -12843,6 +12894,7 @@ begin
       aERename.Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiBaseField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
       aDCreateTable.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
       aDCreateView.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and (Session.Connection.MySQLVersion >= 50001);
+      aDCreateSequence.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and (Session.Connection.MariaDBVersion >= 100300);
       aDCreateProcedure.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Routines);
       aDCreateFunction.Enabled := aDCreateProcedure.Enabled;
       aDCreateEvent.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Events);
@@ -12854,6 +12906,7 @@ begin
       aDDeleteDatabase.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
       aDDeleteTable.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
       aDDeleteView.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiView);
+      aDDeleteSequence.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiSequence);
       aDDeleteRoutine.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
       aDDeleteTrigger.Enabled := (ListView.SelCount >= 1) and Selected and (Item.ImageIndex = iiTrigger);
       aDDeleteEvent.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
@@ -12865,6 +12918,7 @@ begin
       aDEditDatabase.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
       aDEditTable.Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
       aDEditView.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiView);
+      aDEditSequence.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiSequence);
       aDEditRoutine.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
       aDEditTrigger.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiTrigger);
       aDEditEvent.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
@@ -12884,6 +12938,7 @@ begin
         iiDatabase: mlEProperties.Action := aDEditDatabase;
         iiBaseTable: mlEProperties.Action := aDEditTable;
         iiView: mlEProperties.Action := aDEditView;
+        iiSequence: mlEProperties.Action := aDEditSequence;
         iiProcedure,
         iiFunction: mlEProperties.Action := aDEditRoutine;
         iiTrigger: mlEProperties.Action := aDEditTrigger;
@@ -12910,6 +12965,7 @@ begin
           aDDeleteDatabase.Enabled := aDDeleteDatabase.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
           aDDeleteTable.Enabled := aDDeleteTable.Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
           aDDeleteView.Enabled := aDDeleteView.Enabled and (ListView.Items[I].ImageIndex in [iiView]);
+          aDDeleteSequence.Enabled := aDDeleteSequence.Enabled and (ListView.Items[I].ImageIndex in [iiSequence]);
           aDDeleteRoutine.Enabled := aDDeleteRoutine.Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
           aDDeleteEvent.Enabled := aDDeleteEvent.Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
           aDDeleteTrigger.Enabled := aDDeleteTrigger.Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
@@ -12926,17 +12982,11 @@ begin
           aDEmpty.Enabled := aDEmpty.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiBaseField]);
         end;
 
-      aDDelete.Enabled := aDDeleteDatabase.Enabled
-        or aDDeleteTable.Enabled
-        or aDDeleteView.Enabled
-        or aDDeleteRoutine.Enabled
-        or aDDeleteEvent.Enabled
-        or aDDeleteKey.Enabled
-        or aDDeleteField.Enabled
-        or aDDeleteForeignKey.Enabled
-        or aDDeleteTrigger.Enabled
-        or aDDeleteProcess.Enabled
-        or aDDeleteUser.Enabled;
+      aDDelete.Enabled := ListView.SelCount >= 1;
+      for I := 0 to ListView.Items.Count - 1 do
+        if (ListView.Items[I].Selected) then
+          if (not (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSequence, iiProcedure, iiFunction, iiKey, iiForeignKey, iiBaseField, iiTrigger, iiProcess, iiTrigger])) then
+            aDDelete.Enabled := False;
     end
     else if (View = vObjects) then
     begin
@@ -12951,6 +13001,7 @@ begin
         ciDatabase: mlEProperties.Action := aDEditDatabase;
         ciBaseTable: mlEProperties.Action := aDEditTable;
         ciView: mlEProperties.Action := aDEditView;
+        ciSequence: mlEProperties.Action := aDEditSequence;
         ciProcedure,
         ciFunction: mlEProperties.Action := aDEditRoutine;
         ciTrigger: mlEProperties.Action := aDEditTrigger;
@@ -14291,7 +14342,10 @@ procedure TFSession.PContentChange(Sender: TObject);
         on E: Exception do
           E.RaiseOuterException(EAssertionFailed.Create(
             'Index: ' + IntToStr(I) + #13#10
-            + 'Count: ' + IntToStr(Control.ControlCount)));
+            + 'Count: ' + IntToStr(Control.ControlCount) + #13#10
+            + E.ClassName + #13#10
+            + E.Message));
+        // Occurred on 2018-09-15: Index: 11, Count: 11
       end;
       if (B) then
         DisableAligns(TWinControl(Control.Controls[I]));
@@ -16009,9 +16063,17 @@ begin
                   ditTable:
                     if (Assigned(Database)) then
                       for J := 0 to Database.Tables.Count - 1 do
-                        SynCompletionListAdd(
-                          Database.Tables[J].Name,
-                          Session.Connection.EscapeIdentifier(Database.Tables[J].Name));
+                        if ((Database.Tables[J] is TSBaseTable) or (Database.Tables[J] is TSView)) then
+                          SynCompletionListAdd(
+                            Database.Tables[J].Name,
+                            Session.Connection.EscapeIdentifier(Database.Tables[J].Name));
+                  ditSequence:
+                    if (Assigned(Database)) then
+                      for J := 0 to Database.Tables.Count - 1 do
+                        if (Database.Tables[J] is TSSequence) then
+                          SynCompletionListAdd(
+                            Database.Tables[J].Name,
+                            Session.Connection.EscapeIdentifier(Database.Tables[J].Name));
                   ditProcedure:
                     if (Assigned(Database) and Assigned(Database.Routines)) then
                       for J := 0 to Database.Routines.Count - 1 do
@@ -16651,8 +16713,6 @@ var
   ServerNode: TTreeNode;
   URI: TUURI;
 begin
-  Progress := 'c';
-
   PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
   PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
   PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
@@ -16684,11 +16744,7 @@ begin
   FrameResize(nil);
   PHeaderCheckElements(nil);
 
-  Progress := 'd';
-
   FrameActivate(Self);
-
-  Progress := 'e';
 
   ServerNode := FNavigator.Items.Add(nil, Session.Caption);
   ServerNode.Data := Session;
@@ -16706,13 +16762,6 @@ begin
     Node.Data := Session.Variables;
     Node.ImageIndex := iiVariables;
   end;
-
-  // Debug 2017-04-24
-  Node := FNavigator.Items.getFirstNode();
-  while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
-    Node := Node.getNextSibling();
-  Assert(Assigned(Node),
-    'Count: ' + IntToStr(FNavigator.Items.Count));
 
   ServerNode.Expand(False);
 
@@ -17473,6 +17522,7 @@ begin
   aECopy.Enabled := False;
   aDCreateTable.Enabled := False;
   aDCreateView.Enabled := False;
+  aDCreateSequence.Enabled := False;
   aDCreateProcedure.Enabled := False;
   aDCreateFunction.Enabled := False;
   aDCreateEvent.Enabled := False;

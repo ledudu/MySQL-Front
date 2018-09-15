@@ -152,7 +152,7 @@ begin
       FMaxRows.Text := ''
     else
       FUDMaxRows.Position := Partition.MaxRows;
-    FComment.Text := SQLUnwrapStmt(Partition.Comment, Table.Session.Connection.MySQLVersion);
+    FComment.Text := Partition.Comment;
   end;
 
   FBOk.Enabled := False;

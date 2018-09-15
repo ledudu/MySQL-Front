@@ -174,7 +174,7 @@ begin
 
   FEnabled.Checked := Event.Enabled;
   FPreserve.Checked := Event.Preserve;
-  FComment.Text := SQLUnwrapStmt(Event.Comment, Database.Session.Connection.MySQLVersion);
+  FComment.Text := Event.Comment;
   FStatement.Text := Event.Stmt;
 
   FDefiner.Caption := Event.Definer;

@@ -28,6 +28,7 @@ const
   iiProcesses = 31;
   iiQuery = 83;
   iiQuickAccess = 73;
+  iiSequence = 110;
   iiServer = 23;
   iiStatement = 82;
   iiStatus = 44;
@@ -104,6 +105,7 @@ var
   aDCreateFunction: TAction;
   aDCreateKey: TAction;
   aDCreateProcedure: TAction;
+  aDCreateSequence: TAction;
   aDCreateTable: TAction;
   aDCreateTrigger: TAction;
   aDCreateUser: TAction;
@@ -116,6 +118,7 @@ var
   aDDeleteProcess: TAction;
   aDDeleteRecord: TAction;
   aDDeleteRoutine: TAction;
+  aDDeleteSequence: TAction;
   aDDeleteTable: TAction;
   aDDeleteTrigger: TAction;
   aDDeleteUser: TAction;
@@ -129,6 +132,7 @@ var
   aDEditRecord: TAction;
   aDEditRoutine: TAction;
   aDEditServer: TAction;
+  aDEditSequence: TAction;
   aDEditTable: TAction;
   aDEditTrigger: TAction;
   aDEditUser: TAction;

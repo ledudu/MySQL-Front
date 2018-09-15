@@ -578,7 +578,7 @@ begin
     FCollation.ItemIndex := -1;
   FCollationChange(Self);
 
-  FComment.Text := SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.MySQLVersion);
+  FComment.Text := NewTable.Comment;
 
   if (not Assigned(NewTable.Engine)) then
     FEngine.ItemIndex := -1
@@ -1260,10 +1260,10 @@ begin
     NewTable.Keys.AddKey(NewKey);
     FreeAndNil(NewKey);
 
-    if (NewTable.Name = '') then
-      FName.Text := Preferences.LoadStr(114)
-    else
-      FName.Text := NewTable.Name;
+    FName.Text := Preferences.LoadStr(114);
+    Database.Session.Connection.BeginSynchron(28);
+    Database.Tables.Update(False);
+    Database.Session.Connection.EndSynchron(28);
     while (Assigned(Database.TableByName(FName.Text))) do
     begin
       TableName := FName.Text;

@@ -15,7 +15,7 @@ type
 
   TSQLDDLStmt = packed record // must be "packed", since asm code address it as packed
     DefinitionType: (dtCreate, dtAlter, dtAlterRename, dtRename, dtDrop);
-    ObjectType: (otDatabase, otEvent, otFunction, otProcedure, otTable, otTrigger, otView);
+    ObjectType: (otDatabase, otEvent, otFunction, otProcedure, otSequence, otTable, otTrigger, otView);
     DatabaseName: string;
     ObjectName: string;
     NewDatabaseName: string;
@@ -167,6 +167,7 @@ const
   KSetNames: PChar = 'SET NAMES';
   KSetCharacterSet: PChar = 'SET CHARACTER SET';
   KSetCharset: PChar = 'SET CHARSET';
+  KSequence: PChar = 'SEQUENCE';
   KShow: PChar = 'SHOW';
   KShutdown: PChar = 'SHUTDOWN';
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
@@ -1527,7 +1528,7 @@ label
   Definer,
   ObjType,
   Definer1, Definer2, Definer3,
-  ODatabase, OEvent, OFunction, OProcedure, OTable, OTrigger, OView,
+  ODatabase, OEvent, OFunction, OProcedure, OSequence, OTable, OTrigger, OView,
   Name,
   Found,
   Rename, RenameL, RenameLE, RenameC, RenameE,
@@ -1718,8 +1719,14 @@ begin
       OProcedure:
         MOV EAX,[KProcedure]
         CALL CompareKeyword              // 'PROCEDURE'?
-        JNE OTable                       // No!
+        JNE OSequence                    // No!
         MOV BYTE PTR [EBX + 1],otProcedure
+        JMP Found
+      OSequence:
+        MOV EAX,[KSequence]
+        CALL CompareKeyword              // 'SEQUENCE'?
+        JNE OTable                       // No!
+        MOV BYTE PTR [EBX + 1],otSequence
         JMP Found
       OTable:
         MOV EAX,[KTable]

@@ -254,6 +254,8 @@ type
 
     TRoutine = class(TWindow);
 
+    TSequence = class(TWindow);
+
     TServer = class(TWindow);
 
     TSQLHelp = class(TWindow)
@@ -396,6 +398,7 @@ type
     QuickAccessVisible: Boolean;
     Replace: TReplace;
     Routine: TRoutine;
+    Sequence: TSequence;
     Server: TServer;
     SetupProgram: TFileName;
     SetupProgramExecute: Boolean;
@@ -1728,6 +1731,8 @@ begin
     XMLNode(XML, 'replacetext/mru').AddChild('text').Text := ReplaceTextMRU[I];
 end;
 
+{ TPPreferences.TSequence *****************************************************}
+
 { TPPreferences.TServer *******************************************************}
 
 { TPPreferences.TSQLHelp ******************************************************}
@@ -2121,6 +2126,7 @@ begin
   Paste := TPaste.Create();
   Replace := TReplace.Create();
   Routine := TRoutine.Create();
+  Sequence := TSequence.Create();
   Server := TServer.Create();
   Account := TAccount.Create();
   Accounts := TAccounts.Create();
@@ -2155,6 +2161,7 @@ begin
   Paste.Free();
   Replace.Free();
   Routine.Free();
+  Sequence.Free();
   Server.Free();
   Account.Free();
   Accounts.Free(); Accounts := nil; // Debug 2017-05-19
@@ -2498,6 +2505,7 @@ begin
   if (Assigned(XMLNode(XML, 'paste'))) then Paste.LoadFromXML(XMLNode(XML, 'paste'));
   if (Assigned(XMLNode(XML, 'replace'))) then Replace.LoadFromXML(XMLNode(XML, 'replace'));
   if (Assigned(XMLNode(XML, 'routine'))) then Routine.LoadFromXML(XMLNode(XML, 'routine'));
+  if (Assigned(XMLNode(XML, 'sequence'))) then Sequence.LoadFromXML(XMLNode(XML, 'sequence'));
   if (Assigned(XMLNode(XML, 'server'))) then Server.LoadFromXML(XMLNode(XML, 'server'));
   if (Assigned(XMLNode(XML, 'account'))) then Account.LoadFromXML(XMLNode(XML, 'account'));
   if (Assigned(XMLNode(XML, 'accounts'))) then Accounts.LoadFromXML(XMLNode(XML, 'accounts'));
@@ -2699,6 +2707,7 @@ begin
   Paste.SaveToXML(XMLNode(XML, 'paste', True));
   Replace.SaveToXML(XMLNode(XML, 'replace', True));
   Routine.SaveToXML(XMLNode(XML, 'routine', True));
+  Sequence.SaveToXML(XMLNode(XML, 'sequence', True));
   Server.SaveToXML(XMLNode(XML, 'server', True));
   Account.SaveToXML(XMLNode(XML, 'account', True));
   Accounts.SaveToXML(XMLNode(XML, 'accounts', True));

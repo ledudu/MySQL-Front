@@ -13,6 +13,7 @@ uses
   ODBCAPI,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
+  SQLParser,
   uSession, uPreferences;
 
 type
@@ -351,6 +352,7 @@ type
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); virtual;
+    procedure ExecuteSequence(const Item: TTool.TDBObjectItem); virtual;
     procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.PResultHandle); virtual;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
@@ -414,6 +416,7 @@ type
     procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteHeader(); override;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
+    procedure ExecuteSequence(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -653,6 +656,7 @@ type
     procedure BeforeExecute(); override;
     procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
+    procedure ExecuteSequence(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.PResultHandle); override;
     procedure ExecuteTableData(const Item: TItem; const ResultHandle: TMySQLConnection.TResultHandle);
     procedure ExecuteTableStructure(const Item: TItem);
@@ -985,42 +989,46 @@ begin
 
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
-      if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
+      if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
+        Index1 := 1
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
         if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)
           or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
-          Index1 := 1
-        else
           Index1 := 2
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
-        Index1 := 3
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
-        Index1 := 4
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
-        Index1 := 5
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
-        Index1 := 6
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
-        Index1 := 7
-      else
-        Index1 := 8;
-
-      if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
-        if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
-          Index2 := 1
         else
-          Index2 := 2
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
-        Index2 := 3
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
-        Index2 := 4
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
-        Index2 := 5
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
-        Index2 := 6
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
-        Index2 := 7
+          Index1 := 3
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
+        Index1 := 4
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
+        Index1 := 5
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
+        Index1 := 6
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+        Index1 := 7
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 8
       else
-        Index2 := 8;
+        Index1 := 9;
+
+      if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
+        Index2 := 1
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
+        if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
+          Index2 := 2
+        else
+          Index2 := 3
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
+        Index2 := 4
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
+        Index2 := 5
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
+        Index2 := 6
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+        Index2 := 7
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 8
+      else
+        Index2 := 9;
 
       Result := Sign(Index1 - Index2);
     end;
@@ -4206,13 +4214,15 @@ Process := Process + 'c';
                 Success := daSuccess;
 Process := Process + 'd';
 
-                if (TDBObjectItem(Items[I]).DBObject is TSTable) then
+                if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) or (TDBObjectItem(Items[I]).DBObject is TSView)) then
                   if (not DataTable) then
                     ExecuteTable(TDBObjectItem(Items[I]), nil)
                   else
                     ExecuteTable(TDBObjectItem(Items[I]), @ResultHandle)
                 else if (Structure) then
-                  if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
+                  if (TDBObjectItem(Items[I]).DBObject is TSSequence) then
+                    ExecuteSequence(TDBObjectItem(Items[I]))
+                  else if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
                     ExecuteRoutine(TDBObjectItem(Items[I]))
                   else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
                     ExecuteEvent(TDBObjectItem(Items[I]))
@@ -4364,6 +4374,10 @@ begin
 end;
 
 procedure TTExport.ExecuteRoutine(const Item: TTool.TDBObjectItem);
+begin
+end;
+
+procedure TTExport.ExecuteSequence(const Item: TTool.TDBObjectItem);
 begin
 end;
 
@@ -4744,6 +4758,30 @@ begin
   WriteContent(Content);
 end;
 
+procedure TTExportSQL.ExecuteSequence(const Item: TTool.TDBObjectItem);
+var
+  Content: string;
+  Sequence: TSSequence;
+  SQL: string;
+begin
+  Sequence := TSSequence(TDBObjectItem(Item).DBObject);
+
+  Content := #13#10;
+  Content := Content + '#' + #13#10;
+  Content := Content + '# Sequence "' + Sequence.Name + '"' + #13#10;
+  Content := Content + '#' + #13#10;
+  Content := Content + #13#10;
+  SQL := Sequence.GetSourceEx(DropStmts, CrossReferencedObjects);
+  if (Session.SQLParser.ParseSQL(SQL)) then
+  begin
+    SQL := Session.SQLParser.FormatSQL;
+    Session.SQLParser.Clear();
+  end;
+  Content := Content + SQL + #13#10;
+
+  WriteContent(Content);
+end;
+
 procedure TTExportSQL.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
@@ -4772,6 +4810,7 @@ var
   First: Boolean;
   I: Integer;
   ReadOnlyFields: Boolean;
+  SQL: string;
 begin
   Content := '';
 
@@ -4786,7 +4825,13 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
-    Content := Content + Table.GetSourceEx(DropStmts, CrossReferencedObjects);
+    SQL := Table.GetSourceEx(DropStmts, CrossReferencedObjects);
+    if (Session.SQLParser.ParseSQL(SQL)) then
+    begin
+      SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Table.Database.Name, Session.LowerCaseTableNames = 0);
+      Session.SQLParser.Clear();
+    end;
+    Content := Content + SQL;
   end;
 
   if (Assigned(DataSet)) then
@@ -7923,6 +7968,35 @@ begin
   Inc(FWarningCount, DestinationSession.Connection.WarningCount);
 
   NewDestinationRoutine.Free();
+
+  if (Success = daFail) then Success := daSuccess;
+end;
+
+procedure TTTransfer.ExecuteSequence(const Item: TTool.TDBObjectItem);
+var
+  DestinationDatabase: TSDatabase;
+  DestinationSequence: TSTable;
+  NewDestinationSequence: TSSequence;
+  SourceSequence: TSSequence;
+begin
+  SourceSequence := TSSequence(Item.DBObject);
+  DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
+  DestinationSequence := DestinationDatabase.TableByName(SourceSequence.Name);
+
+  if (Assigned(DestinationSequence)) then
+    while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationSequence)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+
+  NewDestinationSequence := TSSequence.Create(DestinationDatabase.Tables);
+
+  NewDestinationSequence.Assign(SourceSequence);
+
+  while ((Success = daSuccess) and not DestinationDatabase.AddSequence(NewDestinationSequence)) do
+    DoError(DatabaseError(DestinationSession), Item, True);
+
+  Inc(FWarningCount, DestinationSession.Connection.WarningCount);
+
+  NewDestinationSequence.Free();
 
   if (Success = daFail) then Success := daSuccess;
 end;

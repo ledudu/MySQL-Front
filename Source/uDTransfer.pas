@@ -496,6 +496,12 @@ begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiView;
                   NewNode.Data := Database.Tables[I];
+                end
+                else if (Database.Tables[I] is TSSequence) then
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
+                  NewNode.ImageIndex := iiSequence;
+                  NewNode.Data := Database.Tables[I];
                 end;
               if (Assigned(Database.Routines)) then
                 for I := 0 to Database.Routines.Count - 1 do
@@ -563,6 +569,8 @@ var
         SkipAnswer := MsgBox(Preferences.LoadStr(924, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
       else if (SourceDBObject is TSView) then
         SkipAnswer := MsgBox(Preferences.LoadStr(925, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else if (SourceDBObject is TSSequence) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(961, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
       else if (SourceDBObject is TSProcedure) then
         SkipAnswer := MsgBox(Preferences.LoadStr(926, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
       else if (SourceDBObject is TSFunction) then
@@ -651,6 +659,7 @@ begin
       end;
     iiBaseTable,
     iiView,
+    iiSequence,
     iiProcedure,
     iiFunction,
     iiEvent:
@@ -707,7 +716,8 @@ begin
         else
           Assert(False);
       iiBaseTable,
-      iiView:
+      iiView,
+      iiSequence:
         if (FDestination.Selected.ImageIndex in [iiDatabase]) then
         begin
           if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Tables) < 0) then
@@ -717,7 +727,7 @@ begin
             and (List.IndexOf(TSDatabase(FDestination.Selected.Data).Triggers) < 0)) then
             List.Add(TSDatabase(FDestination.Selected.Data).Triggers);
         end
-        else if (FDestination.Selected.ImageIndex in [iiBaseTable, iiView]) then
+        else if (FDestination.Selected.ImageIndex in [iiBaseTable, iiView, iiSequence]) then
           List.Add(TSTable(FDestination.Selected.Data))
         else
           Assert(False,
@@ -786,7 +796,8 @@ begin
                     AddDBObject(SourceDatabase.Events[J], DestinationSession, SourceDatabase.Name);
               end;
             iiBaseTable,
-            iiView:
+            iiView,
+            iiSequence:
               AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
                 DestinationSession, FDestination.Selected.Text);
             iiProcedure:

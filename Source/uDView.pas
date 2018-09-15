@@ -69,10 +69,8 @@ type
     procedure FormShow(Sender: TObject);
     procedure FSecurityClick(Sender: TObject);
     procedure FSecurityKeyPress(Sender: TObject; var Key: Char);
-    procedure FSourceStatusChange(Sender: TObject;
-      Changes: TSynStatusChanges);
-    procedure FStatementChange(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
+    procedure FStatementChange(Sender: TObject);
     procedure TSDependenciesShow(Sender: TObject);
     procedure TSReferencesShow(Sender: TObject);
   private
@@ -437,10 +435,7 @@ begin
     ModalResult := mrCancel
   else if ((SessionState = ssInit) and (Event.EventType = etItemValid) and (Event.Item = View)) then
   begin
-    if (SessionState = ssInit) then
-      Built()
-    else
-      BuiltDependencies();
+    Built();
     SessionState := ssValid;
   end
   else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
@@ -477,7 +472,7 @@ end;
 
 procedure TDView.FormShow(Sender: TObject);
 var
-  TableName: string;
+  ViewName: string;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
 
@@ -518,13 +513,16 @@ begin
   if (not Assigned(View)) then
   begin
     FName.Text := Preferences.LoadStr(747);
+    Database.Session.Connection.BeginSynchron(27);
+    Database.Tables.Update(False);
+    Database.Session.Connection.EndSynchron(27);
     while (not Assigned(View) and Assigned(Database.TableByName(FName.Text))) do
     begin
-      TableName := FName.Text;
-      Delete(TableName, 1, Length(Preferences.LoadStr(747)));
-      if (TableName = '') then TableName := '1';
-      TableName := Preferences.LoadStr(747) + IntToStr(StrToInt(TableName) + 1);
-      FName.Text := TableName;
+      ViewName := FName.Text;
+      Delete(ViewName, 1, Length(Preferences.LoadStr(747)));
+      if (ViewName = '') then ViewName := '1';
+      ViewName := Preferences.LoadStr(747) + IntToStr(StrToInt(ViewName) + 1);
+      FName.Text := ViewName;
     end;
 
     FAlgorithm.ItemIndex := 0;
@@ -580,11 +578,6 @@ begin
     TSFields.TabVisible := False;
     TSReferences.TabVisible := False;
   end;
-end;
-
-procedure TDView.FSourceStatusChange(Sender: TObject; Changes: TSynStatusChanges);
-begin
-  aECopyToFile.Enabled := FSource.SelText <> '';
 end;
 
 procedure TDView.FStatementChange(Sender: TObject);

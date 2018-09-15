@@ -31,6 +31,7 @@ type
     aDCreateFunction: TAction;
     aDCreateKey: TAction;
     aDCreateProcedure: TAction;
+    aDCreateSequence: TAction;
     aDCreateTable: TAction;
     aDCreateTrigger: TAction;
     aDCreateUser: TAction;
@@ -43,6 +44,7 @@ type
     aDDeleteProcess: TAction;
     aDDeleteRecord: TAction;
     aDDeleteRoutine: TAction;
+    aDDeleteSequence: TAction;
     aDDeleteTable: TAction;
     aDDeleteTrigger: TAction;
     aDDeleteUser: TAction;
@@ -56,6 +58,7 @@ type
     aDEditRecord: TAction;
     aDEditRoutine: TAction;
     aDEditServer: TAction;
+    aDEditSequence: TAction;
     aDEditTable: TAction;
     aDEditTrigger: TAction;
     aDEditUser: TAction;
@@ -102,10 +105,12 @@ type
     aFOpenAccount: TAction;
     aFSave: TAction;
     aFSaveAs: TAction;
+    aHDowndate: TAction;
     aHIndex: TAction;
     aHInfo: TAction;
     aHManual: TAction;
     aHSQL: TAction;
+    aHSupport: TAction;
     aHUpdate: TAction;
     aOAccounts: TAction;
     aOGlobals: TAction;
@@ -140,6 +145,7 @@ type
     miDCreateFunction: TMenuItem;
     miDCreateIndex: TMenuItem;
     miDCreateRoutine: TMenuItem;
+    miDCreateSequence: TMenuItem;
     miDCreateTable: TMenuItem;
     miDCreateTrigger: TMenuItem;
     miDCreateUser: TMenuItem;
@@ -153,6 +159,7 @@ type
     miDDeleteProcess: TMenuItem;
     miDDeleteRecord: TMenuItem;
     miDDeleteRoutine: TMenuItem;
+    miDDeleteSequence: TMenuItem;
     miDDeleteTable: TMenuItem;
     miDDeleteTrigger: TMenuItem;
     miDDeleteUser: TMenuItem;
@@ -166,6 +173,7 @@ type
     miDEditRecord: TMenuItem;
     miDEditRoutine: TMenuItem;
     miDEditServer: TMenuItem;
+    miDEditSequence: TMenuItem;
     miDEditTable: TMenuItem;
     miDEditTrigger: TMenuItem;
     miDEditUser: TMenuItem;
@@ -218,11 +226,13 @@ type
     miFReopen: TMenuItem;
     miFSave: TMenuItem;
     miFSaveAs: TMenuItem;
+    miHDowndate: TMenuItem;
     miHelp: TMenuItem;
     miHIndex: TMenuItem;
     miHInfo: TMenuItem;
     miHManual: TMenuItem;
     miHSQL: TMenuItem;
+    miHSupport: TMenuItem;
     miHUpdate: TMenuItem;
     miOAccounts: TMenuItem;
     miOGlobals: TMenuItem;
@@ -326,10 +336,6 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
-    aHSupport: TAction;
-    miHSupport: TMenuItem;
-    aHDowndate: TAction;
-    miHDowndate: TMenuItem;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -1121,6 +1127,7 @@ begin
   uBase.aDCreateFunction := aDCreateFunction;
   uBase.aDCreateKey := aDCreateKey;
   uBase.aDCreateProcedure := aDCreateProcedure;
+  uBase.aDCreateSequence := aDCreateSequence;
   uBase.aDCreateTable := aDCreateTable;
   uBase.aDCreateTrigger := aDCreateTrigger;
   uBase.aDCreateUser := aDCreateUser;
@@ -1133,6 +1140,7 @@ begin
   uBase.aDDeleteProcess := aDDeleteProcess;
   uBase.aDDeleteRecord := aDDeleteRecord;
   uBase.aDDeleteRoutine := aDDeleteRoutine;
+  uBase.aDDeleteSequence := aDDeleteSequence;
   uBase.aDDeleteTable := aDDeleteTable;
   uBase.aDDeleteTrigger := aDDeleteTrigger;
   uBase.aDDeleteUser := aDDeleteUser;
@@ -1146,6 +1154,7 @@ begin
   uBase.aDEditRecord := aDEditRecord;
   uBase.aDEditRoutine := aDEditRoutine;
   uBase.aDEditServer := aDEditServer;
+  uBase.aDEditSequence := aDEditSequence;
   uBase.aDEditTable := aDEditTable;
   uBase.aDEditTrigger := aDEditTrigger;
   uBase.aDEditUser := aDEditUser;
@@ -1802,6 +1811,7 @@ begin
   aDCreateDatabase.Caption := Preferences.LoadStr(38) + '...';
   aDCreateTable.Caption := Preferences.LoadStr(302) + '...';
   aDCreateView.Caption := Preferences.LoadStr(738) + '...';
+  aDCreateSequence.Caption := Preferences.LoadStr(949) + '...';
   aDCreateProcedure.Caption := Preferences.LoadStr(768) + '...';
   aDCreateFunction.Caption := Preferences.LoadStr(769) + '...';
   aDCreateTrigger.Caption := Preferences.LoadStr(788) + '...';
@@ -1814,6 +1824,7 @@ begin
   aDDeleteDatabase.Caption := Preferences.LoadStr(38);
   aDDeleteTable.Caption := Preferences.LoadStr(302);
   aDDeleteView.Caption := Preferences.LoadStr(738);
+  aDDeleteSequence.Caption := Preferences.LoadStr(949);
   aDDeleteRoutine.Caption := Preferences.LoadStr(774);
   aDDeleteKey.Caption := Preferences.LoadStr(163);
   aDDeleteField.Caption := Preferences.LoadStr(164);
@@ -1827,6 +1838,7 @@ begin
   aDEditDatabase.Caption := Preferences.LoadStr(38) + '...';
   aDEditTable.Caption := Preferences.LoadStr(302) + '...';
   aDEditView.Caption := Preferences.LoadStr(738) + '...';
+  aDEditSequence.Caption := Preferences.LoadStr(949) + '...';
   aDEditRoutine.Caption := Preferences.LoadStr(774) + '...';
   aDEditKey.Caption := Preferences.LoadStr(163) + '...';
   aDEditField.Caption := Preferences.LoadStr(164) + '...';

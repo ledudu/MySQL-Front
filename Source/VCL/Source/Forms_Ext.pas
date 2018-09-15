@@ -136,6 +136,7 @@ constructor TForm_Ext.Create(AOwner: TComponent);
 begin
   inherited;
 
+  DoubleBuffered := True;
   MouseDownPoint := Point(-1, -1);
   FShowGripper := True;
 end;

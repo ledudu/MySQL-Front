@@ -79,6 +79,10 @@ object DEvent: TDEvent
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -524,6 +528,10 @@ object DEvent: TDEvent
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -604,6 +612,10 @@ object DEvent: TDEvent
       Caption = 'TSReferences'
       ImageIndex = 3
       OnShow = TSReferencesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -632,6 +644,10 @@ object DEvent: TDEvent
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         373
         455)

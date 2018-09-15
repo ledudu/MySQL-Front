@@ -133,7 +133,7 @@ type
       constructor Create(const ASObject: TSObject);
       property SObject: TSObject read FSObject;
     end;
-  private
+  strict private
     function GetObjects(): TSObjects; inline;
   protected
     FDesktop: TDesktop;
@@ -784,6 +784,34 @@ type
     property Fields: TSViewFields read GetViewFields;
   end;
 
+  TSSequence = class(TSTable)
+  private
+    FCache: string;
+    FCycle: Boolean;
+    FIncrement: string;
+    FMaxValue: string;
+    FMinValue: string;
+    FStart: string;
+    FTemporary: Boolean;
+    function ParseCreateSequence(const SQL: string): string;
+  protected
+    function Build(const DataSet: TMySQLQuery): Boolean; override;
+    function Build(const Field: TField): Boolean; override;
+    function GetFields(): TSTableFields; override;
+    function SQLGetSource(): string; override;
+  public
+    procedure Assign(const Source: TSSequence); reintroduce; virtual;
+    constructor Create(const ASDBObjects: TSDBObjects; const AName: string = '');
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
+    property Cache: string read FCache write FCache;
+    property Cycle: Boolean read FCycle write FCycle;
+    property Increment: string read FIncrement write FIncrement;
+    property MaxValue: string read FMaxValue write FMaxValue;
+    property MinValue: string read FMinValue write FMinValue;
+    property Start: string read FStart write FStart;
+    property Temporary: Boolean read FTemporary write FTemporary;
+  end;
+
   TSTables = class(TSDBObjects)
   private
     function GetTable(Index: Integer): TSTable; inline;
@@ -1064,6 +1092,7 @@ type
     function AddBaseTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddEvent(const NewEvent: TSEvent): Boolean; virtual;
     function AddRoutine(const NewRoutine: TSRoutine): Boolean; virtual;
+    function AddSequence(const NewSequence: TSSequence): Boolean; virtual;
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
     procedure Assign(const Source: TSObject); reintroduce; virtual;
@@ -1093,6 +1122,7 @@ type
     function UpdateBaseTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TSTableField.TRowType): Boolean; virtual;
     function UpdateEvent(const Event, NewEvent: TSEvent): Boolean; virtual;
     function UpdateRoutine(const Routine: TSRoutine; const NewRoutine: TSRoutine): Boolean; overload; virtual;
+    function UpdateSequence(const Sequence, NewSequence: TSSequence): Boolean; virtual;
     function UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean; virtual;
     function UpdateView(const View, NewView: TSView): Boolean; virtual;
     function ViewByName(const TableName: string): TSView; overload; virtual;
@@ -1897,6 +1927,12 @@ begin
     else if (TSTable(Self) is TSSystemView) then
       URI.Param['objecttype'] := 'systemview';
   end
+  else if (Self is TSSequence) then
+  begin
+    URI.Database := TSTable(Self).Database.Name;
+    URI.Table := Name;
+    URI.Param['objecttype'] := 'sequence';
+  end
   else if (TObject(Self) is TSKey) then
   begin
     URI.Database := TSKey(Self).Table.Database.Name;
@@ -2370,7 +2406,10 @@ begin
 
   if (not Assigned(Database)) then
     Result := nil
-  else if (FDBObjectClass = TSTable) then
+  else if ((FDBObjectClass = TSTable)
+    or (FDBObjectClass = TSBaseTable)
+    or (FDBObjectClass = TSView)
+    or (FDBObjectClass = TSSequence)) then
     Result := Database.TableByName(FDBObjectName)
   else if (FDBObjectClass = TSProcedure) then
     Result := Database.ProcedureByName(FDBObjectName)
@@ -2495,6 +2534,11 @@ begin
     else
       Result := False;
 
+  if (DBObject is TSSequence) then
+    for I := 0 to Database.Tables.Count - 1 do
+      if (Database.Tables[I] is TSBaseTable) then
+        Result := Result and Database.Tables[I].ValidSource;
+
   for I := 0 to Database.Tables.Count - 1 do
     if (Database.Tables[I] is TSView) then
       Result := Result and Database.Tables[I].ValidSource;
@@ -2552,6 +2596,12 @@ begin
       end;
     end;
 
+  if (DBObject is TSSequence) then
+    for I := 0 to Database.Tables.Count - 1 do
+      if (not Database.Tables[I].ValidSource
+        and (Database.Tables[I] is TSBaseTable)) then
+        SQL := SQL + Database.Tables[I].SQLGetSource();
+
   if ((DBObject is TSTable) or (DBObject is TSFunction)) then
     for I := 0 to Database.Tables.Count - 1 do
       if ((Database.Tables[I] is TSView)
@@ -2599,8 +2649,7 @@ function TSDBObject.Build(const Field: TField): Boolean;
 begin
   Result := inherited;
 
-  if (not (Self is TSBaseTable)) then
-    SetReferences(Source);
+  SetReferences(Source);
 end;
 
 procedure TSDBObject.Clear();
@@ -2696,7 +2745,15 @@ begin
             DatabaseName := PreviousToken2^.AsString;
           References.Add(TSReference.Create(References, DatabaseName, TSTable, Token^.AsString));
         end
-        else if ((Token^.DbIdentType = ditProcedure)) then
+        else if (Token^.DbIdentType = ditSequence) then
+        begin
+          if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
+            DatabaseName := Database.Name
+          else
+            DatabaseName := PreviousToken2^.AsString;
+          References.Add(TSReference.Create(References, DatabaseName, TSSequence, Token^.AsString));
+        end
+        else if (Token^.DbIdentType = ditProcedure) then
         begin
           if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
             DatabaseName := Database.Name
@@ -4004,15 +4061,13 @@ end;
 
 procedure TSTable.Assign(const Source: TSTable);
 begin
-  Assert(Assigned(Source.Fields));
-
-
   inherited Assign(Source);
 
   if (Assigned(FDataSet)) then
     FreeAndNil(FDataSet);
 
-  Fields.Assign(Source.Fields);
+  if (Assigned(Fields)) then
+    Fields.Assign(Source.Fields);
 end;
 
 constructor TSTable.Create(const ASDBObjects: TSDBObjects; const AName: string = '');
@@ -4065,10 +4120,13 @@ procedure TSTable.Invalidate();
 begin
   inherited;
 
-  Fields.Invalidate();
-  InvalidateData();
+  if (Assigned(Fields)) then
+  begin
+    Fields.Invalidate();
+    InvalidateData();
 
-  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
+    if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
+  end;
 end;
 
 procedure TSTable.InvalidateData();
@@ -4876,7 +4934,9 @@ begin
               begin
                 Field.Default := SQLParseValue(Parse);
                 if (TryStrToInt(Field.Default, I) and SQLParseChar(Parse, '.')) then
-                  Field.Default := Field.Default + '.' + SQLParseValue(Parse);
+                  Field.Default := Field.Default + '.' + SQLParseValue(Parse)
+                else if (SQLParseChar(Parse, '(', False)) then
+                  Field.Default := Field.Default + SQLParseValue(Parse);
                 Field.Default := SQLEscape(Field.Default);
               end;
             end
@@ -5708,6 +5768,136 @@ begin
   Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + '=' + SQLEscape(Name) + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10
 end;
 
+{ TSSequence ******************************************************************}
+
+procedure TSSequence.Assign(const Source: TSSequence);
+begin
+  Assert(Assigned(Source));
+
+  inherited Assign(Source);
+
+  FCache := Source.FCache;
+  FCycle := Source.FCycle;
+  FIncrement := Source.FIncrement;
+  FMaxValue := Source.FMaxValue;
+  FMinValue := Source.FMinValue;
+  FStart := Source.FStart;
+  FTemporary := Source.FTemporary;
+end;
+
+function TSSequence.Build(const DataSet: TMySQLQuery): Boolean;
+begin
+  Result := Build(DataSet.FieldByName('Create Table'));
+end;
+
+function TSSequence.Build(const Field: TField): Boolean;
+begin
+  Result := inherited;
+
+  if (Source <> '') then
+    ParseCreateSequence(Source);
+end;
+
+constructor TSSequence.Create(const ASDBObjects: TSDBObjects; const AName: string = '');
+begin
+  inherited;
+
+  FCache := '';
+  FCycle := False;
+  FIncrement := '';
+  FMaxValue := '';
+  FMinValue := '';
+  FStart := '';
+  FTemporary := False;
+end;
+
+function TSSequence.GetFields(): TSTableFields;
+begin
+  Result := nil;
+end;
+
+function TSSequence.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
+var
+  SQL: string;
+begin
+  SQL := Trim(FSource) + #13#10;
+
+  if (DropBeforeCreate) then
+    SQL := 'DROP SEQUENCE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  if (FullQualifiedIdentifier) then
+  begin
+    if (Session.SQLParser.ParseSQL(SQL)) then
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+    Session.SQLParser.Clear();
+  end;
+
+  Result := SQL;
+end;
+
+function TSSequence.ParseCreateSequence(const SQL: string): string;
+var
+  Parse: TSQLParse;
+begin
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
+  begin
+    Result := SQL;
+
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (SQLParseKeyword(Parse, 'TEMPORARY')) then
+      FTemporary := True;
+
+    if (not SQLParseKeyword(Parse, 'SEQUENCE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    FName := SQLParseValue(Parse);
+
+    while (not SQLParseEnd(Parse)) do
+      if (SQLParseKeyword(Parse, 'INCREMENT')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'BY')) then SQLParseChar(Parse, '=');
+        FIncrement := SQLParseValue(Parse);
+      end
+      else if (SQLParseKeyword(Parse, 'MINVALUE')) then
+      begin
+        SQLParseChar(Parse, '=');
+        FMinValue := SQLParseValue(Parse);
+      end
+      else if (SQLParseKeyword(Parse, 'MAXVALUE')) then
+      begin
+        SQLParseChar(Parse, '=');
+        FMaxValue := SQLParseValue(Parse);
+      end
+      else if (SQLParseKeyword(Parse, 'START')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'WITH')) then SQLParseChar(Parse, '=');
+        FStart := SQLParseValue(Parse);
+      end
+      else if (SQLParseKeyword(Parse, 'CACHE')) then
+      begin
+        SQLParseChar(Parse, '=');
+        FCache := SQLParseValue(Parse);
+      end
+      else if (SQLParseKeyword(Parse, 'CYCLE')) then
+        FCycle := True
+      else if (SQLParseKeyword(Parse, 'NOCYCLE')) then
+        FCycle := False
+      else
+      begin
+        SQLParseValue(Parse);
+        SQLParseChar(Parse, '=');
+        SQLParseValue(Parse);
+      end;
+
+    Session.SendEvent(etItemValid, Database, Tables, Self);
+  end;
+end;
+
+function TSSequence.SQLGetSource(): string;
+begin
+  Result := 'SHOW CREATE SEQUENCE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10;
+end;
+
 { TSTables ********************************************************************}
 
 function TSTables.Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer;
@@ -5747,7 +5937,7 @@ var
   Index: Integer;
   Item: TSItem;
   Name: string;
-  NewTable: TSTable;
+  NewDBObject: TSDBObject;
   RBS: RawByteString;
   TempCharset: TSCharset;
 begin
@@ -5772,21 +5962,23 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            NewTable := TSSystemView.Create(Self, Name)
+            NewDBObject := TSSystemView.Create(Self, Name)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
-            NewTable := TSBaseTable.Create(Self, Name)
+            NewDBObject := TSBaseTable.Create(Self, Name)
+          else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SEQUENCE') = 0) then
+            NewDBObject := TSSequence.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            NewTable := TSSystemView.Create(Self, Name)
+            NewDBObject := TSSystemView.Create(Self, Name)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
-            NewTable := TSView.Create(Self, Name)
+            NewDBObject := TSView.Create(Self, Name)
           else
             raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for table %s.%s.' + #13#10#13#10 + 'SQL Query:' + #13#10 + '%s',
               [DataSet.FieldByName('TABLE_TYPE').AsString, Database.Name, Name, DataSet.CommandText]);
 
           if (Index < Count) then
-            Insert(Index, NewTable)
+            Insert(Index, NewDBObject)
           else
-            Add(NewTable);
+            Add(NewDBObject);
         end
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
@@ -5828,21 +6020,21 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            NewTable := TSSystemView.Create(Self, Name)
+            NewDBObject := TSSystemView.Create(Self, Name)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
-            NewTable := TSBaseTable.Create(Self, Name)
+            NewDBObject := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            NewTable := TSSystemView.Create(Self, Name)
+            NewDBObject := TSSystemView.Create(Self, Name)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
-            NewTable := TSView.Create(Self, Name)
+            NewDBObject := TSView.Create(Self, Name)
           else
             raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for table %s.%s.' + #13#10#13#10 + 'SQL Query:' + #13#10 + '%s',
               [DataSet.FieldByName('TABLE_TYPE').AsString, Database.Name, Name, DataSet.CommandText]);
 
           if (Index < Count) then
-            Insert(Index, NewTable)
+            Insert(Index, NewDBObject)
           else
-            Add(NewTable);
+            Add(NewDBObject);
         end
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
@@ -7550,6 +7742,11 @@ begin
   Result := UpdateRoutine(nil, NewRoutine);
 end;
 
+function TSDatabase.AddSequence(const NewSequence: TSSequence): Boolean;
+begin
+  Result := UpdateSequence(nil, NewSequence);
+end;
+
 function TSDatabase.AddTrigger(const NewTrigger: TSTrigger): Boolean;
 begin
   NewTrigger.FDatabase := Self;
@@ -9020,6 +9217,44 @@ begin
 
   SQL := SQL + Routines.SQLGetItems();
   SQL := SQL + NewRoutine.SQLGetSource();
+
+  Result := Session.SendSQL(SQL, Session.SessionResult);
+end;
+
+function TSDatabase.UpdateSequence(const Sequence, NewSequence: TSSequence): Boolean;
+var
+  I64: Int64;
+  SQL: string;
+begin
+  Assert(not Assigned(Sequence) or (NewSequence.Name = Sequence.Name));
+
+  if (not Assigned(Sequence)) then
+    SQL := 'CREATE'
+  else
+    SQL := 'ALTER';
+  SQL := SQL + ' SEQUENCE ' + Session.Connection.EscapeIdentifier(NewSequence.Database.Name) + '.' + Session.Connection.EscapeIdentifier(NewSequence.Name);
+  SQL := SQL + ' INCREMENT BY ' + NewSequence.Increment;
+  if (not TryStrToInt64(NewSequence.MinValue, I64)) then
+    SQL := SQL + ' MINVALUE NOMINVALUE'
+  else
+    SQL := SQL + ' MINVALUE ' + NewSequence.MinValue;
+  if (not TryStrToInt64(NewSequence.MaxValue, I64)) then
+    SQL := SQL + ' MAXVALUE NOMAXVALUE'
+  else
+    SQL := SQL + ' MAXVALUE ' + NewSequence.MaxValue;
+  SQL := SQL + ' START WITH ' + NewSequence.Start;
+  if (TryStrToInt64(NewSequence.MaxValue, I64)) then
+    SQL := SQL + ' CACHE ' + NewSequence.Cache;
+  if (not NewSequence.Cycle) then
+    SQL := SQL + ' NOCYCLE'
+  else
+    SQL := SQL + ' CYCLE';
+  SQL := SQL + ';' + #13#10;
+
+  SQL := SQL + NewSequence.SQLGetSource();
+
+  if (Session.Connection.DatabaseName <> Name) then
+    SQL := SQLUse() + SQL;
 
   Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
@@ -11450,7 +11685,7 @@ begin
       end
       else if (SQLParseKeyword(Parse, 'SHOW')
         and SQLParseKeyword(Parse, 'CREATE')
-        and (SQLParseKeyword(Parse, 'TABLE') or SQLParseKeyword(Parse, 'VIEW'))) then
+        and (SQLParseKeyword(Parse, 'TABLE') or SQLParseKeyword(Parse, 'VIEW') or SQLParseKeyword(Parse, 'SEQUENCE'))) then
       begin
         Database := Session.DatabaseByName(SQLParseValue(Parse));
         if (Assigned(Database) and SQLParseChar(Parse, '.')) then
@@ -12359,6 +12594,27 @@ begin
   if (Identifiers <> '') then
     SQL := SQL + 'DROP TABLE ' + Identifiers + ';' + #13#10;
 
+  Identifiers := '';
+  for I := 0 to List.Count - 1 do
+    if (TSObject(List[I]) is TSSequence) then
+    begin
+      if (not Assigned(Database) or (TSSequence(List[I]).Database <> Database) or not Assigned(Database) and (Databases.NameCmp(TSSequence(List[I]).Database.Name, Connection.DatabaseName) <> 0)) then
+      begin
+        if (Assigned(Database) or (TSBaseTable(List[I]).Database.Name <> Connection.DatabaseName)) then
+          SQL := SQL + TSBaseTable(List[I]).Database.SQLUse() + SQL;
+        Database := TSSequence(List[I]).Database;
+        if (Identifiers <> '') then
+        begin
+          SQL := SQL + 'DROP SEQUENCE ' + Identifiers + ';' + #13#10;
+          Identifiers := '';
+        end;
+      end;
+      if (Identifiers <> '') then Identifiers := Identifiers + ',';
+      Identifiers := Identifiers + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSSequence(List[I]).Name);
+    end;
+  if (Identifiers <> '') then
+    SQL := SQL + 'DROP SEQUENCE ' + Identifiers + ';' + #13#10;
+
   for I := 0 to List.Count - 1 do
     if (TObject(List[I]) is TSDatabase) then
       SQL := SQL + 'DROP DATABASE ' + Connection.EscapeIdentifier(TSDatabase(List[I]).Name) + ';' + #13#10;
@@ -12860,7 +13116,7 @@ begin
     else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
-      if (DDLStmt.ObjectType = otTable) then
+      if (DDLStmt.ObjectType in [otTable, otSequence]) then
         DDLStmt.ObjectName := TableName(DDLStmt.ObjectName);
 
       if (DDLStmt.ObjectType = otDatabase) then
@@ -12900,7 +13156,8 @@ begin
         if (Assigned(Database)) then
           case (DDLStmt.ObjectType) of
             otTable,
-            otView:
+            otView,
+            otSequence:
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   begin
@@ -12911,6 +13168,8 @@ begin
                     begin
                       if (DDLStmt.ObjectType = otTable) then
                         Table := TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName)
+                      else if (DDLStmt.ObjectType = otSequence) then
+                        Table := TSSequence.Create(Database.Tables, DDLStmt.ObjectName)
                       else
                         Table := TSView.Create(Database.Tables, DDLStmt.ObjectName);
                       Database.Tables.Add(Table, True);
@@ -12961,7 +13220,7 @@ begin
                   end;
                 dtDrop:
                   if (not SQLParseKeyword(Parse, 'DROP')
-                    or not SQLParseKeyword(Parse, 'TABLE') and not SQLParseKeyword(Parse, 'VIEW')) then
+                    or not SQLParseKeyword(Parse, 'TABLE') and not SQLParseKeyword(Parse, 'VIEW') and not SQLParseKeyword(Parse, 'SEQUENCE')) then
                     raise ERangeError.Create('SQL: ' + SQL)
                   else
                   begin
@@ -13247,9 +13506,9 @@ begin
         if (Assigned(Database)) then
         begin
           Table := Database.TableByName(ObjectName);
-          if (Assigned(Table)) then
+          if (Table is TSTable) then
           begin
-            Table.InvalidateData();
+            TSTable(Table).InvalidateData();
             SendEvent(etItemValid, Database, Database.Tables, Table);
           end;
         end;
@@ -13563,6 +13822,8 @@ begin
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).FunctionByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).ProcedureByName(ObjectName); end
+          else if (SQLParseKeyword(Parse, 'SEQUENCE')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).TableByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'TABLE')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).TableByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'TRIGGER')) then
@@ -13585,6 +13846,8 @@ begin
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).FunctionByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).ProcedureByName(ObjectName).Build(DataSet); end
+          else if (SQLParseKeyword(Parse, 'SEQUENCE')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'TABLE')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'TRIGGER')) then

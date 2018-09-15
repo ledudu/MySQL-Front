@@ -115,7 +115,7 @@ begin
     seDefiner: FSecurityDefiner.Checked := True;
     seInvoker: FSecurityInvoker.Checked := True;
   end;
-  FComment.Text := SQLUnwrapStmt(Routine.Comment, Database.Session.Connection.MySQLVersion);
+  FComment.Text := Routine.Comment;
 
   if (Double(Routine.Created) = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Routine.Created, LocaleFormatSettings);
   if (Double(Routine.Updated) = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Routine.Updated, LocaleFormatSettings);

@@ -1635,10 +1635,8 @@ begin
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN;
-        {$IFDEF Debug}
         if (Assigned(FOnHeaderSplitButton)) then
           HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
-        {$ENDIF}
         SendMessage(Header.Handle, HDM_SETITEM, Index, LPARAM(@HDItem));
         Inc(Index);
       end;

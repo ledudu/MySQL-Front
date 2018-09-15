@@ -820,6 +820,13 @@ object WWindow: TWWindow
       HelpContext = 1096
       HelpType = htContext
     end
+    object aDCreateSequence: TAction
+      Category = 'Database'
+      Caption = 'aDCreateSequence'
+      Enabled = False
+      HelpContext = 1160
+      HelpType = htContext
+    end
     object aDCreateProcedure: TAction
       Category = 'Database'
       Caption = 'aDCreateProcedure'
@@ -900,6 +907,13 @@ object WWindow: TWWindow
       Caption = 'aDDeleteView'
       Enabled = False
       HelpContext = 1100
+      HelpType = htContext
+    end
+    object aDDeleteSequence: TAction
+      Category = 'Database'
+      Caption = 'aDDeleteSequence'
+      Enabled = False
+      HelpContext = 1159
       HelpType = htContext
     end
     object aDDeleteRoutine: TAction
@@ -983,6 +997,13 @@ object WWindow: TWWindow
       Caption = 'aDEditView'
       Enabled = False
       HelpContext = 1098
+      HelpType = htContext
+    end
+    object aDEditSequence: TAction
+      Category = 'Database'
+      Caption = 'aDEditSequence'
+      Enabled = False
+      HelpContext = 1158
       HelpType = htContext
     end
     object aDEditRoutine: TAction
@@ -1475,6 +1496,9 @@ object WWindow: TWWindow
         object miDCreateView: TMenuItem
           Action = aDCreateView
         end
+        object miDCreateSequence: TMenuItem
+          Action = aDCreateSequence
+        end
         object miDCreateRoutine: TMenuItem
           Action = aDCreateProcedure
         end
@@ -1510,6 +1534,9 @@ object WWindow: TWWindow
         end
         object miDDeleteView: TMenuItem
           Action = aDDeleteView
+        end
+        object miDDeleteSequence: TMenuItem
+          Action = aDDeleteSequence
         end
         object miDDeleteRoutine: TMenuItem
           Action = aDDeleteRoutine
@@ -1547,14 +1574,17 @@ object WWindow: TWWindow
         object miDEditTable: TMenuItem
           Action = aDEditTable
         end
+        object miDEditView: TMenuItem
+          Action = aDEditView
+        end
+        object miDEditSequence: TMenuItem
+          Action = aDEditSequence
+        end
         object miDEditRoutine: TMenuItem
           Action = aDEditRoutine
         end
         object miDEditEvent: TMenuItem
           Action = aDEditEvent
-        end
-        object miDEditView: TMenuItem
-          Action = aDEditView
         end
         object miDEditIndex: TMenuItem
           Action = aDEditKey
