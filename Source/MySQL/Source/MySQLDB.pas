@@ -1201,28 +1201,61 @@ begin
   WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), PAnsiChar(Result), Len);
 end;
 
-function LibPack(const Value: string): RawByteString; inline;
-begin
-  Result := RawByteString(Value);
-end;
-
-function LibUnpack(Data: my_char; Length: my_int = -1): string;
+function LibPack(const Value: string): RawByteString;
+label
+  StringL;
 var
   Len: Integer;
-  Value: PChar;
+begin
+  if (Value = '') then
+    Result := ''
+  else
+  begin
+    Len := Length(Value);
+    SetLength(Result, Len);
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,PChar(Value)             // Copy characters from Value
+        MOV EAX,Result                   //   to Result
+        MOV EDI,[EAX]
+
+        MOV ECX,Len
+      StringL:
+        LODSW                            // Load WideChar from Value
+        STOSB                            // Store AnsiChar into Result
+        LOOP StringL                     // Repeat for all characters
+
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+  end;
+end;
+
+function LibUnpack(Value: my_char; Length: my_int = -1): string;
+var
+  Len: Integer;
+  Res: PChar;
 begin
   if (Length = -1) then
-    Len := lstrlenA(Data)
+    Len := lstrlenA(Value)
   else
     Len := Length;
   SetLength(Result, Len);
   if (Len > 0) then
   begin
-    Value := @Result[1];
+    Res := @Result[1];
     while (Len > 0) do
     begin
-      Value^ := Char(Data^);
-      Inc(Value); Dec(Len);
+      Res^ := Char(Value^);
+      Inc(Res); Inc(Value); Dec(Len);
     end;
   end;
 end;
