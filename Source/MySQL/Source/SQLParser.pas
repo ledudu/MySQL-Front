@@ -241,6 +241,7 @@ type
         ntFlushStmt,
         ntFlushStmtOption,
         ntFlushStmtOptionLogs,
+        ntFlushStmtTablesOption,
         ntFunctionReturns,
         ntGetDiagnosticsStmt,
         ntGetDiagnosticsStmtStmtInfo,
@@ -772,6 +773,7 @@ type
         'ntFlushStmt',
         'ntFlushStmtOption',
         'ntFlushStmtOptionLogs',
+        'ntFlushStmtTablesOption',
         'ntFunctionReturns',
         'ntGetDiagnosticsStmt',
         'ntGetDiagnosticsStmtStmtInfo',
@@ -3636,6 +3638,23 @@ type
             property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
           end;
 
+          PTablesOption = ^TTablesOption;
+          TTablesOption = packed record
+          private type
+            TNodes = packed record
+              TablesTag: TOffset;
+              TableIdentList: TOffset;
+              LockIdent: TOffset;
+            end;
+          private
+            Heritage: TRange;
+          private
+            Nodes: TNodes;
+            class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+          public
+            property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+          end;
+
         TNodes = packed record
           StmtTag: TOffset;
           NoWriteToBinLogTag: TOffset;
@@ -6443,6 +6462,7 @@ type
     kiEXPANSION,
     kiEXPIRE,
     kiEXPLAIN,
+    kiEXPORT,
     kiEXIT,
     kiEXTENDED,
     kiFALSE,
@@ -7104,6 +7124,7 @@ type
     function ParseFlushStmt(): TOffset;
     function ParseFlushStmtOption(): TOffset;
     function ParseFlushStmtOptionLogs(): TOffset;
+    function ParseFlushStmtTablesOption(): TOffset;
     function ParseForeignKeyIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseFunctionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseFunctionParam(): TOffset;
@@ -7188,6 +7209,7 @@ type
     function ParseSetStmtAssignment(): TOffset;
     function ParseSetTransactionStmt(): TOffset;
     function ParseSetTransactionStmtCharacterisic(): TOffset;
+    function ParseSetValFunc(): TOffset;
     function ParseShowBinaryLogsStmt(): TOffset;
     function ParseShowBinlogEventsStmt(): TOffset;
     function ParseShowCharacterSetStmt(): TOffset;
@@ -7507,7 +7529,7 @@ const
     'DIAGNOSTICS,DIRECTORY,DISABLE,DISCARD,DISTINCT,DISTINCTROW,DIV,DO,DROP,' +
     'DUAL,DUMPFILE,DUPLICATE,EACH,ELSE,ELSEIF,ENABLE,ENCLOSED,END,ENDS,' +
     'ENGINE,ENGINES,ERROR,ERRORS,ESCAPE,ESCAPED,EVENT,EVENTS,EVERY,EXCHANGE,' +
-    'EXCLUSIVE,EXECUTE,EXISTS,EXPANSION,EXPIRE,EXPLAIN,EXTENDED,FALSE,FAST,' +
+    'EXCLUSIVE,EXECUTE,EXISTS,EXPANSION,EXPIRE,EXPLAIN,EXPORT,EXTENDED,FALSE,FAST,' +
     'FAULTS,FILE_BLOCK_SIZE,FLUSH,FIELDS,FILE,FIRST,FOLLOWS,FOR,FORCE,' +
     'FOREIGN,FOUND,FROM,FULL,FULLTEXT,FUNCTION,GENERAL,GENERATED,GET,GLOBAL,' +
     'GRANT,GRANTS,GROUP,HAVING,HELP,HIGH_PRIORITY,HOST,HOSTS,' +
@@ -7585,146 +7607,48 @@ const
     'UTC_TIMESTAMP,VALUES,VARBINARY,VARCHAR,VARCHARACTER,VARYING,VIRTUAL,' +
     'WHEN,WHERE,WHILE,WITH,WRITE,XOR,YEAR_MONTH,ZEROFILL';
 
-function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
-label
-  StartL,
-  StringL, String2, String3, String4,
-  MoveReplace, MoveReplaceL, MoveReplaceE,
-  PosL, PosE,
-  FindPos, FindPos2,
-  Error,
-  Finish;
+function HTMLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer): Integer; overload;
 const
   SearchLen = 6;
   Search: array [0 .. SearchLen - 1] of Char = (#0, #10, #13, '"', '<', '>');
   Replace: array [0 .. SearchLen - 1] of PChar = ('', '<br>' + #13#10, '', '&quot;', '&lt;', '&gt;');
 var
+  Found: Integer;
+  I: Integer;
   Len: Integer;
-  Poss: packed array [0 .. SearchLen - 1] of Cardinal;
 begin
   Result := 0;
-  Len := EscapedLen;
-
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EDI,Escaped                  //   to Escaped
-        MOV ECX,ValueLen                 // Length of Value string
-
-      // -------------------
-
-        MOV EBX,0                        // Numbers of characters in Search
-      StartL:
-        CALL FindPos                     // Find Search character Pos
-        INC EBX                          // Next character in Search
-        CMP EBX,SearchLen                // All Search characters handled?
-        JNE StartL                       // No!
-
-      // -------------------
-
-        CMP ECX,0                        // Empty string?
-        JE Finish                        // Yes!
-      StringL:
-        PUSH ECX
-
-        MOV ECX,0                        // Numbers of characters in Search
-        MOV EBX,-1                       // Index of first Pos
-        MOV EAX,0                        // Last character
-        LEA EDX,Poss
-      PosL:
-        CMP [EDX + ECX * 4],EAX          // Pos before other Poss?
-        JB PosE                          // No!
-        MOV EBX,ECX                      // Index of first Pos
-        MOV EAX,[EDX + EBX * 4]          // Value of first Pos
-      PosE:
-        INC ECX                          // Next Pos
-        CMP ECX,SearchLen                // All Poss compared?
-        JNE PosL                         // No!
-
-        POP ECX
-
-        SUB ECX,EAX                      // Copy normal characters from Value
-        JZ String3                       // End of Value!
-        ADD @Result,ECX                  // Characters to copy
-        CMP Escaped,0                    // Calculate length only?
-        JE String2                       // Yes!
-        CMP Len,ECX                      // Enough character left in Escaped?
-        JB Error                         // No!
-        SUB Len,ECX                      // Calc new len space in Escaped
-        REPNE MOVSW                      // Copy normal characters to Result
-        JMP String3
-      String2:
-        SHL ECX,1
-        ADD ESI,ECX
-
-      String3:
-        MOV ECX,EAX
-        JECXZ Finish                     // End of Value!
-
-        ADD ESI,2                        // Step of Search character
-
-
-      MoveReplace:
-        PUSH ESI
-        LEA EDX,Replace                  // Insert Replace string
-        MOV ESI,[EDX + EBX * 4]
-      MoveReplaceL:
-        LODSW                            // Get Replace character
-        CMP AX,0                         // End of Replace?
-        JE MoveReplaceE                  // Yes!
-        INC @Result                      // One characters in replace
-        CMP Escaped,0                    // Calculate length only?
-        JE MoveReplaceL                  // Yes!
-        CMP Len,ECX                      // Enough character left in Escaped?
-        JB Error                         // No!
-        STOSW                            // Put character in Result
-        JMP MoveReplaceL
-      MoveReplaceE:
-        POP ESI
-
-
-      String4:
-        DEC ECX                          // Ignore Search character
-        JZ Finish                        // All character in Value handled!
-        CALL FindPos                     // Find Search character
-        JMP StringL
-
-      // -------------------
-
-      FindPos:
-        PUSH ECX
-        PUSH EDI
-        LEA EDI,Search                   // Character to Search
-        MOV AX,[EDI + EBX * 2]
-        MOV EDI,ESI                      // Search in Value
-        REPNE SCASW                      // Find Search character
-        JNE FindPos2                     // Search character not found!
-        INC ECX
-      FindPos2:
-        LEA EDI,Poss
-        MOV [EDI + EBX * 4],ECX          // Store found Position
-        POP EDI
-        POP ECX
-        RET
-
-      // -------------------
-
-      Error:
-        MOV @Result,0                    // Too few space in Escaped
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+  while (ValueLen > 0) do
+  begin
+    Found := -1;
+    for I := 0 to SearchLen - 1 do
+      if (Value^ = Search[I]) then
+        Found := I;
+    if (Found < 0) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result);
+    end
+    else
+    begin
+      Len := StrLen(Replace[Found]);
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < Len) then
+          Exit(0); // Too few space in Escaped
+        if (Assigned(Escaped) and (Len > 0)) then
+        begin
+          StrCopy(Escaped, Replace[Found]); Inc(Escaped, Len); Dec(EscapedLen, Len);
+        end;
+      end;
+      Inc(Result, Len);
+    end;
+    Inc(Value); Dec(ValueLen);
   end;
 end;
 
@@ -10105,6 +10029,20 @@ begin
   Result := TRange.Create(AParser, ntFlushStmtOption);
 
   with POption(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TFlushStmtTablesOption ********************************************}
+
+class function TSQLParser.TFlushStmt.TTablesOption.Create(const AParser: TSQLParser; const ANodes: TTablesOption.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntFlushStmtTablesOption);
+
+  with PTablesOption(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -13804,6 +13742,7 @@ begin
       ntFlushStmt: DefaultFormatNode(@PFlushStmt(Node)^.Nodes, SizeOf(TFlushStmt.TNodes));
       ntFlushStmtOption: DefaultFormatNode(@TFlushStmt.POption(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TNodes));
       ntFlushStmtOptionLogs: DefaultFormatNode(@TFlushStmt.TOption.PLogs(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TLogs.TNodes));
+      ntFlushStmtTablesOption: DefaultFormatNode(@TFlushStmt.PTablesOption(Node)^.Nodes, SizeOf(TFlushStmt.TTablesOption.TNodes));
       ntDefaultFunc: FormatDefaultFunc(PDefaultFunc(Node)^.Nodes);
       ntFunctionReturns: DefaultFormatNode(@PFunctionReturns(Node)^.Nodes, SizeOf(TFunctionReturns.TNodes));
       ntGetDiagnosticsStmt: DefaultFormatNode(@PGetDiagnosticsStmt(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TNodes));
@@ -15301,6 +15240,7 @@ begin
     ntFlushStmt: Result := SizeOf(TFlushStmt);
     ntFlushStmtOption: Result := SizeOf(TFlushStmt.TOption);
     ntFlushStmtOptionLogs: Result := SizeOf(TFlushStmt.TOption.TLogs);
+    ntFlushStmtTablesOption: Result := SizeOf(TFlushStmt.TTablesOption);
     ntFunctionReturns: Result := SizeOf(TFunctionReturns);
     ntGetDiagnosticsStmt: Result := SizeOf(TGetDiagnosticsStmt);
     ntGetDiagnosticsStmtStmtInfo: Result := SizeOf(TGetDiagnosticsStmt.TStmtInfo);
@@ -20286,237 +20226,194 @@ var
   OperatorPrecedence: Integer;
   Text: PChar;
 begin
-  Nodes.Init();
+  if (IsTag(kiNEXT, kiVALUE, kiFOR)) then
+    Result := ParseValue(WordIndices(kiNEXT, kiVALUE, kiFOR), vaNo, ParseSequenceIdent)
+  else if (IsTag(kiPREVIOUS, kiVALUE, kiFOR)) then
+    Result := ParseValue(WordIndices(kiPREVIOUS, kiVALUE, kiFOR), vaNo, ParseSequenceIdent)
+  else
+  begin
+    Nodes.Init();
 
-  if (not EndOfStmt(CurrentToken)) then
-    repeat
-      if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
-        Nodes.Add(ApplyCurrentToken(utInteger))
-      else if (TokenPtr(CurrentToken)^.TokenType = ttNumeric) then
-        Nodes.Add(ApplyCurrentToken(utNumeric))
-      else if ((TokenPtr(CurrentToken)^.TokenType = ttString)
-        or ((TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes)) then
-        Nodes.Add(ApplyCurrentToken(utString))
-      else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
-        Nodes.Add(ParseVariableIdent())
-      else if (IsTag(kiNEXT, kiVALUE, kiFOR)) then
-        Result := ParseValue(WordIndices(kiNEXT, kiVALUE, kiFOR), vaNo, ParseSequenceIdent)
-      else if (IsTag(kiPREVIOUS, kiVALUE, kiFOR)) then
-        Result := ParseValue(WordIndices(kiPREVIOUS, kiVALUE, kiFOR), vaNo, ParseSequenceIdent)
-      else if (IsSelectStmt()) then
-        Nodes.Add(ParseSubSelectStmt())
-      else if (IsSymbol(ttOpenBracket)) then
-        Nodes.Add(ParseList(True, ParseExpr, ttComma, False))
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
-        // BINARY is operator and function, so we have to handle it separately
-        if (IsNextSymbol(1, ttOpenBracket)) then
-        begin
-          TokenPtr(CurrentToken)^.FOperatorType := otNone;
-          Nodes.Add(ParseDefaultFunc());
-        end
-        else
-          Nodes.Add(ApplyCurrentToken(utOperator))
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMOD) then
-        // MOD is operator and function, so we have to handle it separately
-        if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
-          Nodes.Add(ParseDefaultFunc())
-        else
-          Nodes.Add(ApplyCurrentToken(utOperator))
-      else if (TokenPtr(CurrentToken)^.OperatorType <> otNone) then
-        if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
-        begin
-          TokenPtr(CurrentToken)^.FOperatorType := otNone;
-          Nodes.Add(ApplyCurrentToken(utDbIdent));
-          break; // * is a complete expression!
-        end
-        else if ((TokenPtr(CurrentToken)^.OperatorType = otMinus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
-        begin
-          TokenPtr(CurrentToken)^.FOperatorType := otUnaryMinus;
-          Nodes.Add(ApplyCurrentToken(utOperator));
-        end
-        else if ((TokenPtr(CurrentToken)^.OperatorType = otPlus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
-        begin
-          TokenPtr(CurrentToken)^.FOperatorType := otUnaryPlus;
-          Nodes.Add(ApplyCurrentToken(utOperator));
-        end
-        else if ((TokenPtr(CurrentToken)^.OperatorType in [otUnaryNot, otNot]) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
-          Nodes.Add(ApplyCurrentToken(utOperator))
-        else if (TokenPtr(CurrentToken)^.OperatorType = otInterval) then
-          Nodes.Add(ParseInterval())
-        else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
-          Nodes.Add(ParseCaseOp())
-        else if (((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike, otRegexp])))
-          and not (TokenPtr(CurrentToken)^.OperatorType in otUnaryOperators)
-          and not ((Nodes.Count >= 1) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otSounds) and IsToken(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otLike))) then
-          SetError(PE_UnexpectedToken)
-        else
-          Nodes.Add(ApplyCurrentToken(utOperator))
-      else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
-        if (IsTag(kiEXISTS)
-          or IsTag(kiNOT, kiEXISTS)
-          or (Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType in [otEqual, otGreater, otLess, otGreaterEqual, otLessEqual, otNotEqual])
-            and (IsTag(kiALL) or IsTag(kiANY) or IsTag(kiNOT, kiALL) or IsTag(kiNOT, kiANY) or IsTag(kiNOT, kiSOME) or IsTag(kiSOME))) then
-          Nodes.Add(ParseSubquery())
-        else if (IsNextSymbol(1, ttOpenBracket)) then
-        begin
-          TokenPtr(CurrentToken)^.GetText(Text, Length);
-          if ((Length = 7) and (StrLIComp(Text, 'ADDDATE', Length) = 0)) then
-            Nodes.Add(ParseDateAddFunc())
-          else if ((Length = 3) and (StrLIComp(Text, 'AVG', Length) = 0)) then
-            Nodes.Add(ParseSumFunc())
-          else if ((Length = 4) and (StrLIComp(Text, 'CAST', Length) = 0)) then
-            Nodes.Add(ParseCastFunc())
-          else if ((Length = 4) and (StrLIComp(Text, 'CHAR', Length) = 0)) then
-            Nodes.Add(ParseCharFunc())
-          else if ((Length = 7) and (StrLIComp(Text, 'CONVERT', Length) = 0)) then
-            Nodes.Add(ParseConvertFunc())
-          else if ((Length = 5) and (StrLIComp(Text, 'COUNT', Length) = 0)) then
-            Nodes.Add(ParseCountFunc())
-          else if ((Length = 8) and (StrLIComp(Text, 'DATE_ADD', Length) = 0)) then
-            Nodes.Add(ParseDateAddFunc())
-          else if ((Length = 8) and (StrLIComp(Text, 'DATE_SUB', Length) = 0)) then
-            Nodes.Add(ParseDateAddFunc())
-          else if ((Length = 7) and (StrLIComp(Text, 'EXTRACT', Length) = 0)) then
-            Nodes.Add(ParseExtractFunc())
-          else if ((Length = 12) and (StrLIComp(Text, 'GROUP_CONCAT', Length) = 0)) then
-            Nodes.Add(ParseGroupConcatFunc())
-          else if ((Length = 5) and (StrLIComp(Text, 'MATCH', Length) = 0)) then
-            Nodes.Add(ParseMatchFunc())
-          else if ((Length = 3) and (StrLIComp(Text, 'MAX', Length) = 0)) then
-            Nodes.Add(ParseSumFunc())
-          else if ((Length = 3) and (StrLIComp(Text, 'MIN', Length) = 0)) then
-            Nodes.Add(ParseSumFunc())
-          else if ((Length = 7) and (StrLIComp(Text, 'NEXTVAL', Length) = 0)) then
-            Nodes.Add(ParseSequenceValFunc())
-          else if ((Length = 8) and (StrLIComp(Text, 'POSITION', Length) = 0)) then
-            Nodes.Add(ParsePositionFunc())
-          else if ((Length = 7) and (StrLIComp(Text, 'LASTVAL', Length) = 0)) then
-            Nodes.Add(ParseSequenceValFunc())
-          else if ((Length = 7) and (StrLIComp(Text, 'SUBDATE', Length) = 0)) then
-            Nodes.Add(ParseDateAddFunc())
-          else if ((Length = 6) and (StrLIComp(Text, 'SUBSTR', Length) = 0)) then
-            Nodes.Add(ParseSubstringFunc())
-          else if ((Length = 9) and (StrLIComp(Text, 'SUBSTRING', Length) = 0)) then
-            Nodes.Add(ParseSubstringFunc())
-          else if ((Length = 3) and (StrLIComp(Text, 'SUM', Length) = 0)) then
-            Nodes.Add(ParseSumFunc())
-          else if ((Length = 2) and (StrLIComp(Text, 'TIMESTAMPADD', Length) = 0)) then
-            Nodes.Add(ParseTimestampAddFunc())
-          else if ((Length = 13) and (StrLIComp(Text, 'TIMESTAMPDIFF', Length) = 0)) then
-            Nodes.Add(ParseTimestampDiffFunc())
-          else if ((Length = 4) and (StrLIComp(Text, 'TRIM', Length) = 0)) then
-            Nodes.Add(ParseTrimFunc())
-          else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
-            Nodes.Add(ParseWeightStringFunc())
-          else if ((FunctionList.IndexOf(Text, Length) < 0)
-            and (ReservedWordList.IndexOf(Text, Length) >= 0)) then
+    if (not EndOfStmt(CurrentToken)) then
+      repeat
+        if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
+          Nodes.Add(ApplyCurrentToken(utInteger))
+        else if (TokenPtr(CurrentToken)^.TokenType = ttNumeric) then
+          Nodes.Add(ApplyCurrentToken(utNumeric))
+        else if ((TokenPtr(CurrentToken)^.TokenType = ttString)
+          or ((TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes)) then
+          Nodes.Add(ApplyCurrentToken(utString))
+        else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
+          Nodes.Add(ParseVariableIdent())
+        else if (IsSelectStmt()) then
+          Nodes.Add(ParseSubSelectStmt())
+        else if (IsSymbol(ttOpenBracket)) then
+          Nodes.Add(ParseList(True, ParseExpr, ttComma, False))
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
+          // BINARY is operator and function, so we have to handle it separately
+          if (IsNextSymbol(1, ttOpenBracket)) then
+          begin
+            TokenPtr(CurrentToken)^.FOperatorType := otNone;
+            Nodes.Add(ParseDefaultFunc());
+          end
+          else
+            Nodes.Add(ApplyCurrentToken(utOperator))
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMOD) then
+          // MOD is operator and function, so we have to handle it separately
+          if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
+            Nodes.Add(ParseDefaultFunc())
+          else
+            Nodes.Add(ApplyCurrentToken(utOperator))
+        else if (TokenPtr(CurrentToken)^.OperatorType <> otNone) then
+          if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
+          begin
+            TokenPtr(CurrentToken)^.FOperatorType := otNone;
+            Nodes.Add(ApplyCurrentToken(utDbIdent));
+            break; // * is a complete expression!
+          end
+          else if ((TokenPtr(CurrentToken)^.OperatorType = otMinus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+          begin
+            TokenPtr(CurrentToken)^.FOperatorType := otUnaryMinus;
+            Nodes.Add(ApplyCurrentToken(utOperator));
+          end
+          else if ((TokenPtr(CurrentToken)^.OperatorType = otPlus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+          begin
+            TokenPtr(CurrentToken)^.FOperatorType := otUnaryPlus;
+            Nodes.Add(ApplyCurrentToken(utOperator));
+          end
+          else if ((TokenPtr(CurrentToken)^.OperatorType in [otUnaryNot, otNot]) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+            Nodes.Add(ApplyCurrentToken(utOperator))
+          else if (TokenPtr(CurrentToken)^.OperatorType = otInterval) then
+            Nodes.Add(ParseInterval())
+          else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
+            Nodes.Add(ParseCaseOp())
+          else if (((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike, otRegexp])))
+            and not (TokenPtr(CurrentToken)^.OperatorType in otUnaryOperators)
+            and not ((Nodes.Count >= 1) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otSounds) and IsToken(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otLike))) then
             SetError(PE_UnexpectedToken)
           else
-            Nodes.Add(ParseDefaultFunc()); // Func()
-        end
-        else if (not IsNextSymbol(1, ttDot)
-          and (ConstantList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0)) then
-          Nodes.Add(ParseConstIdent())
-        else if (IsNextSymbol(1, ttDot)) then
-          if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
-            and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
-            Nodes.Add(ParseDefaultFunc()) // Db.Func()
+            Nodes.Add(ApplyCurrentToken(utOperator))
+        else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+          if (IsTag(kiEXISTS)
+            or IsTag(kiNOT, kiEXISTS)
+            or (Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType in [otEqual, otGreater, otLess, otGreaterEqual, otLessEqual, otNotEqual])
+              and (IsTag(kiALL) or IsTag(kiANY) or IsTag(kiNOT, kiALL) or IsTag(kiNOT, kiANY) or IsTag(kiNOT, kiSOME) or IsTag(kiSOME))) then
+            Nodes.Add(ParseSubquery())
+          else if (IsNextSymbol(1, ttOpenBracket)) then
+          begin
+            TokenPtr(CurrentToken)^.GetText(Text, Length);
+            if ((Length = 7) and (StrLIComp(Text, 'ADDDATE', Length) = 0)) then
+              Nodes.Add(ParseDateAddFunc())
+            else if ((Length = 3) and (StrLIComp(Text, 'AVG', Length) = 0)) then
+              Nodes.Add(ParseSumFunc())
+            else if ((Length = 4) and (StrLIComp(Text, 'CAST', Length) = 0)) then
+              Nodes.Add(ParseCastFunc())
+            else if ((Length = 4) and (StrLIComp(Text, 'CHAR', Length) = 0)) then
+              Nodes.Add(ParseCharFunc())
+            else if ((Length = 7) and (StrLIComp(Text, 'CONVERT', Length) = 0)) then
+              Nodes.Add(ParseConvertFunc())
+            else if ((Length = 5) and (StrLIComp(Text, 'COUNT', Length) = 0)) then
+              Nodes.Add(ParseCountFunc())
+            else if ((Length = 8) and (StrLIComp(Text, 'DATE_ADD', Length) = 0)) then
+              Nodes.Add(ParseDateAddFunc())
+            else if ((Length = 8) and (StrLIComp(Text, 'DATE_SUB', Length) = 0)) then
+              Nodes.Add(ParseDateAddFunc())
+            else if ((Length = 7) and (StrLIComp(Text, 'EXTRACT', Length) = 0)) then
+              Nodes.Add(ParseExtractFunc())
+            else if ((Length = 12) and (StrLIComp(Text, 'GROUP_CONCAT', Length) = 0)) then
+              Nodes.Add(ParseGroupConcatFunc())
+            else if ((Length = 5) and (StrLIComp(Text, 'MATCH', Length) = 0)) then
+              Nodes.Add(ParseMatchFunc())
+            else if ((Length = 3) and (StrLIComp(Text, 'MAX', Length) = 0)) then
+              Nodes.Add(ParseSumFunc())
+            else if ((Length = 3) and (StrLIComp(Text, 'MIN', Length) = 0)) then
+              Nodes.Add(ParseSumFunc())
+            else if ((Length = 7) and (StrLIComp(Text, 'NEXTVAL', Length) = 0)) then
+              Nodes.Add(ParseSequenceValFunc())
+            else if ((Length = 8) and (StrLIComp(Text, 'POSITION', Length) = 0)) then
+              Nodes.Add(ParsePositionFunc())
+            else if ((Length = 7) and (StrLIComp(Text, 'LASTVAL', Length) = 0)) then
+              Nodes.Add(ParseSequenceValFunc())
+            else if ((Length = 6) and (StrLIComp(Text, 'SETVAL', Length) = 0)) then
+              Nodes.Add(ParseSetValFunc())
+            else if ((Length = 7) and (StrLIComp(Text, 'SUBDATE', Length) = 0)) then
+              Nodes.Add(ParseDateAddFunc())
+            else if ((Length = 6) and (StrLIComp(Text, 'SUBSTR', Length) = 0)) then
+              Nodes.Add(ParseSubstringFunc())
+            else if ((Length = 9) and (StrLIComp(Text, 'SUBSTRING', Length) = 0)) then
+              Nodes.Add(ParseSubstringFunc())
+            else if ((Length = 3) and (StrLIComp(Text, 'SUM', Length) = 0)) then
+              Nodes.Add(ParseSumFunc())
+            else if ((Length = 2) and (StrLIComp(Text, 'TIMESTAMPADD', Length) = 0)) then
+              Nodes.Add(ParseTimestampAddFunc())
+            else if ((Length = 13) and (StrLIComp(Text, 'TIMESTAMPDIFF', Length) = 0)) then
+              Nodes.Add(ParseTimestampDiffFunc())
+            else if ((Length = 4) and (StrLIComp(Text, 'TRIM', Length) = 0)) then
+              Nodes.Add(ParseTrimFunc())
+            else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
+              Nodes.Add(ParseWeightStringFunc())
+            else if ((FunctionList.IndexOf(Text, Length) < 0)
+              and (ReservedWordList.IndexOf(Text, Length) >= 0)) then
+              SetError(PE_UnexpectedToken)
+            else
+              Nodes.Add(ParseDefaultFunc()); // Func()
+          end
+          else if (not IsNextSymbol(1, ttDot)
+            and (ConstantList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0)) then
+            Nodes.Add(ParseConstIdent())
+          else if (IsNextSymbol(1, ttDot)) then
+            if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
+              and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
+              Nodes.Add(ParseDefaultFunc()) // Db.Func()
+            else
+              Nodes.Add(ParseDbIdent(ditField, True, eoAllFields in Options)) // Tbl.Clmn or Db.Tbl.Clmn
           else
-            Nodes.Add(ParseDbIdent(ditField, True, eoAllFields in Options)) // Tbl.Clmn or Db.Tbl.Clmn
+            Nodes.Add(ParseDbIdent(ditUnknown, False, eoAllFields in Options))
         else
-          Nodes.Add(ParseDbIdent(ditUnknown, False, eoAllFields in Options))
-      else
-        SetError(PE_UnexpectedToken);
+          SetError(PE_UnexpectedToken);
 
-      Assert(ErrorFound or (Nodes.Count > 0) and (Nodes[Nodes.Count - 1] > 0));
-    until (ErrorFound
-      or EndOfStmt(CurrentToken)
-      or IsOperator(CurrentToken) and not (eoOperators in Options)
-      or not IsOperator(Nodes[Nodes.Count - 1]) and not IsOperator(CurrentToken)
-      or not (eoIn in Options) and (TokenPtr(CurrentToken)^.OperatorType = otIn));
+        Assert(ErrorFound or (Nodes.Count > 0) and (Nodes[Nodes.Count - 1] > 0));
+      until (ErrorFound
+        or EndOfStmt(CurrentToken)
+        or IsOperator(CurrentToken) and not (eoOperators in Options)
+        or not IsOperator(Nodes[Nodes.Count - 1]) and not IsOperator(CurrentToken)
+        or not (eoIn in Options) and (TokenPtr(CurrentToken)^.OperatorType = otIn));
 
-  if (not ErrorFound and (Nodes.Count > 1)) then
-    for OperatorPrecedence := 1 to MaxOperatorPrecedence do
-    begin
-      NodeIndex := 0;
-      while (not ErrorFound and (NodeIndex < Nodes.Count)) do
-        if (not IsToken(Nodes[NodeIndex])
-          or (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[NodeIndex])^.OperatorType] <> OperatorPrecedence)) then
-          Inc(NodeIndex)
-        else
-          case (TokenPtr(Nodes[NodeIndex])^.OperatorType) of
-            otCase,
-            otDot:
-              SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
-            otBinary,
-            otNot:
-              if (NodeIndex + 1 = Nodes.Count) then
-                begin
-                  AddOperandsToCompletionList();
-                  SetError(PE_IncompleteStmt);
-                end
-              else if (IsOperator(Nodes[NodeIndex + 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
-              else
-              begin
-                Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex + 1);
-              end;
-            otBitInversion,
-            otUnaryMinus,
-            otUnaryNot,
-            otUnaryPlus:
-              begin
-                while ((NodeIndex + 1 < Nodes.Count)
-                  and IsToken(Nodes[NodeIndex + 1]) and (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType in [otBitInversion, otUnaryMinus, otUnaryNot, otUnaryPlus])) do
-                  Inc(NodeIndex);
+    if (not ErrorFound and (Nodes.Count > 1)) then
+      for OperatorPrecedence := 1 to MaxOperatorPrecedence do
+      begin
+        NodeIndex := 0;
+        while (not ErrorFound and (NodeIndex < Nodes.Count)) do
+          if (not IsToken(Nodes[NodeIndex])
+            or (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[NodeIndex])^.OperatorType] <> OperatorPrecedence)) then
+            Inc(NodeIndex)
+          else
+            case (TokenPtr(Nodes[NodeIndex])^.OperatorType) of
+              otCase,
+              otDot:
+                SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
+              otBinary,
+              otNot:
                 if (NodeIndex + 1 = Nodes.Count) then
-                begin
-                  AddOperandsToCompletionList();
-                  SetError(PE_IncompleteStmt);
-                end
+                  begin
+                    AddOperandsToCompletionList();
+                    SetError(PE_IncompleteStmt);
+                  end
                 else if (IsOperator(Nodes[NodeIndex + 1])) then
                   SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
                 else
-                  repeat
-                    Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
-                    Nodes.Delete(NodeIndex + 1);
-                    if ((NodeIndex = 0) or not IsToken(Nodes[NodeIndex - 1]) or not (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType in [otBitInversion, otUnaryMinus, otUnaryNot, otUnaryPlus])) then
-                      break
-                    else
-                      Dec(NodeIndex);
-                  until (False);
-              end;
-            otAnd,
-            otAssign,
-            otBitAND,
-            otBitOR,
-            otBitXOR,
-            otCollate,
-            otDiv,
-            otDivision,
-            otEqual,
-            otGreater,
-            otGreaterEqual,
-            otLess,
-            otLessEqual,
-            otMinus,
-            otMod,
-            otMulti,
-            otNotEqual,
-            otNullSaveEqual,
-            otOr,
-            otPlus,
-            otShiftLeft,
-            otShiftRight,
-            otXOr:
-              if ((NodeIndex = 0) or IsOperator(Nodes[NodeIndex - 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else
-              begin
-                Operands.Init();
-                Operands.Add(Nodes[NodeIndex - 1]);
-                repeat
+                begin
+                  Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                  Nodes.Delete(NodeIndex + 1);
+                end;
+              otBitInversion,
+              otUnaryMinus,
+              otUnaryNot,
+              otUnaryPlus:
+                begin
+                  while ((NodeIndex + 1 < Nodes.Count)
+                    and IsToken(Nodes[NodeIndex + 1]) and (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType in [otBitInversion, otUnaryMinus, otUnaryNot, otUnaryPlus])) do
+                    Inc(NodeIndex);
                   if (NodeIndex + 1 = Nodes.Count) then
                   begin
                     AddOperandsToCompletionList();
@@ -20525,187 +20422,146 @@ begin
                   else if (IsOperator(Nodes[NodeIndex + 1])) then
                     SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
                   else
-                  begin
-                    Operands.Add(TBinaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]));
-                    Nodes.Delete(NodeIndex, 2);
-                  end;
-                until (ErrorFound or (NodeIndex = Nodes.Count) or not IsToken(Nodes[NodeIndex]) or (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[NodeIndex])^.OperatorType] <> OperatorPrecedence));
+                    repeat
+                      Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                      Nodes.Delete(NodeIndex + 1);
+                      if ((NodeIndex = 0) or not IsToken(Nodes[NodeIndex - 1]) or not (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType in [otBitInversion, otUnaryMinus, otUnaryNot, otUnaryPlus])) then
+                        break
+                      else
+                        Dec(NodeIndex);
+                    until (False);
+                end;
+              otAnd,
+              otAssign,
+              otBitAND,
+              otBitOR,
+              otBitXOR,
+              otCollate,
+              otDiv,
+              otDivision,
+              otEqual,
+              otGreater,
+              otGreaterEqual,
+              otLess,
+              otLessEqual,
+              otMinus,
+              otMod,
+              otMulti,
+              otNotEqual,
+              otNullSaveEqual,
+              otOr,
+              otPlus,
+              otShiftLeft,
+              otShiftRight,
+              otXOr:
+                if ((NodeIndex = 0) or IsOperator(Nodes[NodeIndex - 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else
+                begin
+                  Operands.Init();
+                  Operands.Add(Nodes[NodeIndex - 1]);
+                  repeat
+                    if (NodeIndex + 1 = Nodes.Count) then
+                    begin
+                      AddOperandsToCompletionList();
+                      SetError(PE_IncompleteStmt);
+                    end
+                    else if (IsOperator(Nodes[NodeIndex + 1])) then
+                      SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                    else
+                    begin
+                      Operands.Add(TBinaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]));
+                      Nodes.Delete(NodeIndex, 2);
+                    end;
+                  until (ErrorFound or (NodeIndex = Nodes.Count) or not IsToken(Nodes[NodeIndex]) or (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[NodeIndex])^.OperatorType] <> OperatorPrecedence));
 
-                FillChar(ListNodes, SizeOf(ListNodes), 0);
-                Nodes[NodeIndex - 1] := TList.Create(Self, ListNodes, ttUnknown, @Operands);
-                Dec(NodeIndex);
-              end;
-            otJSONExtract,
-            otJSONUnquotedExtract:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (not (IsToken(Nodes[NodeIndex]) and (TokenPtr(Nodes[NodeIndex])^.DbIdentType = ditField))
-                and not ((NodePtr(Nodes[NodeIndex - 1])^.NodeType = ntDbIdent) and (PDbIdent(NodePtr(Nodes[NodeIndex - 1]))^.DbIdentType = ditField))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex = Nodes.Count) then
-              begin
-                AddOperandsToCompletionList();
-                SetError(PE_IncompleteStmt);
-              end
-              else
-              begin
-                Operands.Init();
-                Operands.Add(Nodes[NodeIndex - 1]);
-                Operands.Add(TBinaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]));
-                FillChar(ListNodes, SizeOf(ListNodes), 0);
-                Nodes.Delete(NodeIndex, 2);
-                Nodes[NodeIndex - 1] := TList.Create(Self, ListNodes, ttUnknown, @Operands);
-                Dec(NodeIndex);
-              end;
-            otIs:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex + 1 = Nodes.Count) then
-              begin
-                CompletionList.AddConst('FALSE');
-                CompletionList.AddConst('NULL');
-                CompletionList.AddConst('TRUE');
-                CompletionList.AddConst('UNKNOWN');
-                SetError(PE_IncompleteStmt);
-              end
-              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType = ntDbIdent)
-                and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'FALSE', 5) = 0)
-                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'NULL', 4) = 0)
-                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'TRUE', 4) = 0)
-                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'UNKNOWN', 7) = 0))) then
-              begin // ... IS ...
-                Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], 0, Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex, 2);
-                Dec(NodeIndex);
-              end
-              else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex <> kiNOT)) then
-                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
-              else if (NodeIndex + 2 = Nodes.Count) then
-              begin
-                CompletionList.AddConst('FALSE');
-                CompletionList.AddConst('NULL');
-                CompletionList.AddConst('TRUE');
-                CompletionList.AddConst('UNKNOWN');
-                SetError(PE_IncompleteStmt);
-              end
-              else if ((NodePtr(Nodes[NodeIndex + 2])^.NodeType = ntDbIdent)
-                and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'FALSE', 5) = 0)
-                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'NULL', 4) = 0)
-                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'TRUE', 4) = 0)
-                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'UNKNOWN', 7) = 0))) then
-              begin // ... IS NOT ...
-                Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
-                Nodes.Delete(NodeIndex, 3);
-                Dec(NodeIndex);
-              end
-              else
-                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 2])^.FirstToken^.Offset);
-            otBetween:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex = kiNOT))
-                and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and IsOperator(Nodes[NodeIndex - 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
-              else if (NodeIndex + 2 = Nodes.Count) then
-              begin
-                CompletionList.AddTag(kiAND);
-                SetError(PE_IncompleteStmt);
-              end
-              else if (not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.OperatorType <> otAnd)) then
-                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 2])^.FirstToken^.Offset)
-              else if (NodeIndex + 3 = Nodes.Count) then
-              begin
-                AddOperandsToCompletionList();
-                SetError(PE_IncompleteStmt);
-              end
-              else if (IsOperator(Nodes[NodeIndex + 3])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex = kiNOT)) then
-              begin // ... NOT BETWEEN ... AND ...
-                Nodes[NodeIndex - 2] := TBetweenOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
-                Nodes.Delete(NodeIndex - 1, 5);
-                Dec(NodeIndex, 2);
-              end
-              else
-              begin // ... BETWEEN ... AND ...
-                Nodes[NodeIndex - 1] := TBetweenOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
-                Nodes.Delete(NodeIndex, 4);
-                Dec(NodeIndex);
-              end;
-            otIn:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
-                and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
-              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSelectStmt)
-                and (NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntList)) then
-                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
-              begin // ... NOT IN (...)
-                Nodes[NodeIndex - 2] := TInOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex - 1, 3);
-                Dec(NodeIndex, 2);
-              end
-              else
-              begin // ... IN (...)
-                Nodes[NodeIndex - 1] := TInOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex, 2);
-                Dec(NodeIndex);
-              end;
-            otLike:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
-                and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and IsOperator(Nodes[NodeIndex - 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex + 1 = Nodes.Count) then
-              begin
-                AddOperandsToCompletionList();
-                SetError(PE_IncompleteStmt);
-              end
-              else if (IsOperator(Nodes[NodeIndex + 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
-              begin // ... NOT LIKE ...
-                if ((NodeIndex + 2 = Nodes.Count) or not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex <> kiESCAPE)) then
-                begin // ... NOT LIKE ...
-                  Nodes[NodeIndex - 2] := TLikeOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], 0, 0);
-                  Nodes.Delete(NodeIndex - 1, 3);
-                  Dec(NodeIndex, 2);
-                end
-                else if (NodeIndex + 3 = Nodes.Count) then
+                  FillChar(ListNodes, SizeOf(ListNodes), 0);
+                  Nodes[NodeIndex - 1] := TList.Create(Self, ListNodes, ttUnknown, @Operands);
+                  Dec(NodeIndex);
+                end;
+              otJSONExtract,
+              otJSONUnquotedExtract:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (not (IsToken(Nodes[NodeIndex]) and (TokenPtr(Nodes[NodeIndex])^.DbIdentType = ditField))
+                  and not ((NodePtr(Nodes[NodeIndex - 1])^.NodeType = ntDbIdent) and (PDbIdent(NodePtr(Nodes[NodeIndex - 1]))^.DbIdentType = ditField))) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex = Nodes.Count) then
                 begin
                   AddOperandsToCompletionList();
                   SetError(PE_IncompleteStmt);
                 end
-                else if (IsOperator(Nodes[NodeIndex + 3])) then
-                  SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
                 else
-                begin // ... NOT LIKE ... ESCAPE ...
-                  Nodes[NodeIndex - 2] := TLikeOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
-                  Nodes.Delete(NodeIndex - 1, 5);
-                  Dec(NodeIndex, 4);
+                begin
+                  Operands.Init();
+                  Operands.Add(Nodes[NodeIndex - 1]);
+                  Operands.Add(TBinaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]));
+                  FillChar(ListNodes, SizeOf(ListNodes), 0);
+                  Nodes.Delete(NodeIndex, 2);
+                  Nodes[NodeIndex - 1] := TList.Create(Self, ListNodes, ttUnknown, @Operands);
+                  Dec(NodeIndex);
                 end;
-              end
-              else
-              begin // ... LIKE ...
-                if ((NodeIndex + 2 = Nodes.Count) or not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex <> kiESCAPE)) then
-                begin // ... LIKE ...
-                  Nodes[NodeIndex - 1] := TLikeOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1], 0, 0);
+              otIs:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex + 1 = Nodes.Count) then
+                begin
+                  CompletionList.AddConst('FALSE');
+                  CompletionList.AddConst('NULL');
+                  CompletionList.AddConst('TRUE');
+                  CompletionList.AddConst('UNKNOWN');
+                  SetError(PE_IncompleteStmt);
+                end
+                else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType = ntDbIdent)
+                  and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'FALSE', 5) = 0)
+                    or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'NULL', 4) = 0)
+                    or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'TRUE', 4) = 0)
+                    or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'UNKNOWN', 7) = 0))) then
+                begin // ... IS ...
+                  Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], 0, Nodes[NodeIndex + 1]);
                   Nodes.Delete(NodeIndex, 2);
                   Dec(NodeIndex);
                 end
+                else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex <> kiNOT)) then
+                  SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
+                else if (NodeIndex + 2 = Nodes.Count) then
+                begin
+                  CompletionList.AddConst('FALSE');
+                  CompletionList.AddConst('NULL');
+                  CompletionList.AddConst('TRUE');
+                  CompletionList.AddConst('UNKNOWN');
+                  SetError(PE_IncompleteStmt);
+                end
+                else if ((NodePtr(Nodes[NodeIndex + 2])^.NodeType = ntDbIdent)
+                  and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'FALSE', 5) = 0)
+                    or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'NULL', 4) = 0)
+                    or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'TRUE', 4) = 0)
+                    or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'UNKNOWN', 7) = 0))) then
+                begin // ... IS NOT ...
+                  Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
+                  Nodes.Delete(NodeIndex, 3);
+                  Dec(NodeIndex);
+                end
+                else
+                  SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 2])^.FirstToken^.Offset);
+              otBetween:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if ((IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex = kiNOT))
+                  and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                  and IsOperator(Nodes[NodeIndex - 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex + 1 = Nodes.Count) then
+                  SetError(PE_IncompleteStmt)
+                else if (NodeIndex + 2 = Nodes.Count) then
+                begin
+                  CompletionList.AddTag(kiAND);
+                  SetError(PE_IncompleteStmt);
+                end
+                else if (not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.OperatorType <> otAnd)) then
+                  SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 2])^.FirstToken^.Offset)
                 else if (NodeIndex + 3 = Nodes.Count) then
                 begin
                   AddOperandsToCompletionList();
@@ -20713,96 +20569,185 @@ begin
                 end
                 else if (IsOperator(Nodes[NodeIndex + 3])) then
                   SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex = kiNOT)) then
+                begin // ... NOT BETWEEN ... AND ...
+                  Nodes[NodeIndex - 2] := TBetweenOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
+                  Nodes.Delete(NodeIndex - 1, 5);
+                  Dec(NodeIndex, 2);
+                end
                 else
-                begin // ... LIKE ... ESCAPE ...
-                  Nodes[NodeIndex - 1] := TLikeOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
+                begin // ... BETWEEN ... AND ...
+                  Nodes[NodeIndex - 1] := TBetweenOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
                   Nodes.Delete(NodeIndex, 4);
                   Dec(NodeIndex);
+                end;
+              otIn:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
+                  and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex + 1 = Nodes.Count) then
+                  SetError(PE_IncompleteStmt)
+                else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSelectStmt)
+                  and (NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntList)) then
+                  SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
+                begin // ... NOT IN (...)
+                  Nodes[NodeIndex - 2] := TInOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                  Nodes.Delete(NodeIndex - 1, 3);
+                  Dec(NodeIndex, 2);
                 end
-              end;
-            otRegExp:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
-                and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and IsOperator(Nodes[NodeIndex - 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex + 1 = Nodes.Count) then
-              begin
-                AddOperandsToCompletionList();
-                SetError(PE_IncompleteStmt);
-              end
-              else if (IsOperator(Nodes[NodeIndex + 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
-              begin // ... NOT REGEXP ...
-                Nodes[NodeIndex - 2] := TRegExpOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex - 1, 3);
-                Dec(NodeIndex, 2);
-              end
+                else
+                begin // ... IN (...)
+                  Nodes[NodeIndex - 1] := TInOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                  Nodes.Delete(NodeIndex, 2);
+                  Dec(NodeIndex);
+                end;
+              otLike:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
+                  and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                  and IsOperator(Nodes[NodeIndex - 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex + 1 = Nodes.Count) then
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
+                else if (IsOperator(Nodes[NodeIndex + 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
+                begin // ... NOT LIKE ...
+                  if ((NodeIndex + 2 = Nodes.Count) or not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex <> kiESCAPE)) then
+                  begin // ... NOT LIKE ...
+                    Nodes[NodeIndex - 2] := TLikeOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], 0, 0);
+                    Nodes.Delete(NodeIndex - 1, 3);
+                    Dec(NodeIndex, 2);
+                  end
+                  else if (NodeIndex + 3 = Nodes.Count) then
+                  begin
+                    AddOperandsToCompletionList();
+                    SetError(PE_IncompleteStmt);
+                  end
+                  else if (IsOperator(Nodes[NodeIndex + 3])) then
+                    SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
+                  else
+                  begin // ... NOT LIKE ... ESCAPE ...
+                    Nodes[NodeIndex - 2] := TLikeOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
+                    Nodes.Delete(NodeIndex - 1, 5);
+                    Dec(NodeIndex, 4);
+                  end;
+                end
+                else
+                begin // ... LIKE ...
+                  if ((NodeIndex + 2 = Nodes.Count) or not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex <> kiESCAPE)) then
+                  begin // ... LIKE ...
+                    Nodes[NodeIndex - 1] := TLikeOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1], 0, 0);
+                    Nodes.Delete(NodeIndex, 2);
+                    Dec(NodeIndex);
+                  end
+                  else if (NodeIndex + 3 = Nodes.Count) then
+                  begin
+                    AddOperandsToCompletionList();
+                    SetError(PE_IncompleteStmt);
+                  end
+                  else if (IsOperator(Nodes[NodeIndex + 3])) then
+                    SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
+                  else
+                  begin // ... LIKE ... ESCAPE ...
+                    Nodes[NodeIndex - 1] := TLikeOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2], Nodes[NodeIndex + 3]);
+                    Nodes.Delete(NodeIndex, 4);
+                    Dec(NodeIndex);
+                  end
+                end;
+              otRegExp:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
+                  and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                  and IsOperator(Nodes[NodeIndex - 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex + 1 = Nodes.Count) then
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
+                else if (IsOperator(Nodes[NodeIndex + 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
+                begin // ... NOT REGEXP ...
+                  Nodes[NodeIndex - 2] := TRegExpOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                  Nodes.Delete(NodeIndex - 1, 3);
+                  Dec(NodeIndex, 2);
+                end
+                else
+                begin // ... REGEXP ...
+                  Nodes[NodeIndex - 1] := TRegExpOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                  Nodes.Delete(NodeIndex, 2);
+                  Dec(NodeIndex);
+                end;
+              otSounds:
+                if (NodeIndex = 0) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
+                  and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                  and IsOperator(Nodes[NodeIndex - 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+                else if (NodeIndex + 1 = Nodes.Count) then
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
+                else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType <> otLike)) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                else if (NodeIndex + 2 = Nodes.Count) then
+                begin
+                  CompletionList.AddTag(kiLIKE);
+                  SetError(PE_IncompleteStmt);
+                end
+                else if (IsOperator(Nodes[NodeIndex + 2])) then
+                  SetError(PE_UnexpectedToken)
+                else
+                begin // ... SOUNDS LIKE ...
+                  Nodes[NodeIndex - 1] := TSoundsLikeOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
+                  Nodes.Delete(NodeIndex, 3);
+                  Dec(NodeIndex);
+                end;
               else
-              begin // ... REGEXP ...
-                Nodes[NodeIndex - 1] := TRegExpOp.Create(Self, Nodes[NodeIndex - 1], 0, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
-                Nodes.Delete(NodeIndex, 2);
-                Dec(NodeIndex);
-              end;
-            otSounds:
-              if (NodeIndex = 0) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
-                and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and IsOperator(Nodes[NodeIndex - 1])) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if (NodeIndex + 1 = Nodes.Count) then
-              begin
-                AddOperandsToCompletionList();
-                SetError(PE_IncompleteStmt);
-              end
-              else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType <> otLike)) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
-              else if (NodeIndex + 2 = Nodes.Count) then
-              begin
-                CompletionList.AddTag(kiLIKE);
-                SetError(PE_IncompleteStmt);
-              end
-              else if (IsOperator(Nodes[NodeIndex + 2])) then
-                SetError(PE_UnexpectedToken)
-              else
-              begin // ... SOUNDS LIKE ...
-                Nodes[NodeIndex - 1] := TSoundsLikeOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
-                Nodes.Delete(NodeIndex, 3);
-                Dec(NodeIndex);
-              end;
-            else
-              SetError(PE_Unknown);
-          end;
-    end;
+                SetError(PE_Unknown);
+            end;
+      end;
 
-  if ((not ErrorFound or (Error.Code = PE_IncompleteStmt)) and EndOfStmt(CurrentToken)) then
-    if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
-    begin // Add operands
-      AddOperandsToCompletionList();
-      if (not ErrorFound) then
-        SetError(PE_IncompleteStmt);
-    end
+    if ((not ErrorFound or (Error.Code = PE_IncompleteStmt)) and EndOfStmt(CurrentToken)) then
+      if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
+      begin // Add operands
+        AddOperandsToCompletionList();
+        if (not ErrorFound) then
+          SetError(PE_IncompleteStmt);
+      end
+      else
+      begin // Add operators
+        for KeywordIndex := 0 to KeywordList.Count - 1 do
+          if (OperatorTypeByKeywordIndex[KeywordIndex] <> otNone) then
+            CompletionList.AddTag(KeywordIndex);
+      end;
+
+    if (not ErrorFound and (Nodes.Count <> 1)) then
+      SetError(PE_Unknown);
+
+    if (Nodes.Count = 0) then
+      Result := 0
     else
-    begin // Add operators
-      for KeywordIndex := 0 to KeywordList.Count - 1 do
-        if (OperatorTypeByKeywordIndex[KeywordIndex] <> otNone) then
-          CompletionList.AddTag(KeywordIndex);
-    end;
-
-  if (not ErrorFound and (Nodes.Count <> 1)) then
-    SetError(PE_Unknown);
-
-  if (Nodes.Count = 0) then
-    Result := 0
-  else
-    Result := Nodes[0];
+      Result := Nodes[0];
+  end;
 end;
 
 function TSQLParser.ParseExtractFunc(): TOffset;
@@ -20895,7 +20840,10 @@ begin
       Nodes.NoWriteToBinLogTag := ParseTag(kiLOCAL);
 
   if (not ErrorFound) then
-    Nodes.OptionList := ParseList(False, ParseFlushStmtOption);
+    if (IsTag(kiTABLES)) then
+      Nodes.OptionList := ParseList(False, ParseFlushStmtTablesOption, ttUnknown, False)
+    else
+      Nodes.OptionList := ParseList(False, ParseFlushStmtOption);
 
   Result := TFlushStmt.Create(Self, Nodes);
 end;
@@ -20940,6 +20888,25 @@ begin
     SetError(PE_UnexpectedToken);
 
   Result := TFlushStmt.TOption.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseFlushStmtTablesOption(): TOffset;
+var
+  Nodes: TFlushStmt.TTablesOption.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.TablesTag := ParseTag(kiTABLES);
+
+  if (not ErrorFound) then
+    Nodes.TableIdentList := ParseList(False, ParseTableIdent);
+
+  if (IsTag(kiWITH, kiREAD, kiLOCK)) then
+    Nodes.LockIdent := ParseTag(kiWITH, kiREAD, kiLOCK)
+  else if (IsTag(kiFOR, kiEXPORT)) then
+    Nodes.LockIdent := ParseTag(kiFOR, kiEXPORT);
+
+  Result := TFlushStmt.TTablesOption.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseFlushStmtOptionLogs(): TOffset;
@@ -23897,6 +23864,38 @@ begin
     SetError(PE_UnexpectedToken);
 
   Result := TSetTransactionStmt.TCharacteristic.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseSetValFunc(): TOffset;
+var
+  Ident: TOffset;
+  ListNodes: TList.TNodes;
+  Nodes: TDefaultFunc.TNodes;
+  Options: TOffsetList;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+  FillChar(ListNodes, SizeOf(ListNodes), 0);
+  Options.Init();
+
+  Ident := ApplyCurrentToken(utDbIdent);
+
+  ListNodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+  if (not ErrorFound) then
+    Options.Add(ParseSequenceIdent());
+
+  while (not ErrorFound and IsSymbol(ttComma)) do
+  begin
+    Options.Add(ParseSymbol(ttComma));
+
+    if (not ErrorFound) then
+      Options.Add(ParseExpr());
+  end;
+
+  if (not ErrorFound) then
+    ListNodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+  Result := TDefaultFunc.Create(Self, Ident, TList.Create(Self, ListNodes, ttComma, @Options));
 end;
 
 function TSQLParser.ParseShowBinaryLogsStmt(): TOffset;
@@ -28147,6 +28146,7 @@ begin
     kiEXPANSION                     := IndexOf('EXPANSION');
     kiEXPIRE                        := IndexOf('EXPIRE');
     kiEXPLAIN                       := IndexOf('EXPLAIN');
+    kiEXPORT                        := IndexOf('EXPORT');
     kiEXIT                          := IndexOf('EXIT');
     kiEXTENDED                      := IndexOf('EXTENDED');
     kiFALSE                         := IndexOf('FALSE');

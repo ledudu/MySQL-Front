@@ -99,10 +99,10 @@ type
       destructor Destroy(); override;
       procedure Write(const Data: Pointer; const Size: Integer; const Quote: Boolean = False); overload;
       procedure WriteChar(const Char: AnsiChar);
-      procedure WriteData(const Text: PChar; const Length: Integer; const Quote: Boolean = False);
+      procedure WriteData(Value: PChar; ValueLen: Integer; Quote: Boolean = False);
       procedure WriteText(const Text: PChar; const Length: Integer); overload;
       procedure WriteText(const Text: my_char; const Length: Integer; const CodePage: Cardinal); overload;
-      procedure WriteBinary(const Value: PChar; const Length: Integer); overload;
+      procedure WriteBinary(const Value: PChar; const ValueLen: Integer); overload;
       procedure WriteBinary(const Value: my_char; const Length: Integer); overload;
       property Data: Pointer read GetData;
       property Size: Integer read GetSize;
@@ -937,26 +937,30 @@ begin
 
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
-      if (TTExport.TDBObjectItem(Item1).DBObject is TSTable) then
+      if (TTExport.TDBObjectItem(Item1).DBObject is TSSequence) then
         Index1 := 0
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSRoutine) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTable) then
         Index1 := 1
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSRoutine) then
         Index1 := 2
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
         Index1 := 3
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 4
       else
-        Index1 := 4;
-      if (TTExport.TDBObjectItem(Item2).DBObject is TSTable) then
+        Index1 := 5;
+      if (TTExport.TDBObjectItem(Item2).DBObject is TSSequence) then
         Index2 := 0
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSRoutine) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTable) then
         Index2 := 1
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSRoutine) then
         Index2 := 2
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
         Index2 := 3
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 4
       else
-        Index2 := 4;
+        Index2 := 5;
       Result := Sign(Index1 - Index2);
     end;
 
@@ -989,7 +993,7 @@ begin
 
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
-      if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
+      if (TTExport.TDBObjectItem(Item1).DBObject is TSSequence) then
         Index1 := 1
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
         if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)
@@ -997,38 +1001,42 @@ begin
           Index1 := 2
         else
           Index1 := 3
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
-        Index1 := 4
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
+        Index1 := 4
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
         Index1 := 5
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
         Index1 := 6
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
         Index1 := 7
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
         Index1 := 8
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 9
       else
-        Index1 := 9;
+        Index1 := 10;
 
-      if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
+      if (TTExport.TDBObjectItem(Item2).DBObject is TSSequence) then
         Index2 := 1
       else if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
         if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
           Index2 := 2
         else
           Index2 := 3
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
-        Index2 := 4
       else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
+        Index2 := 4
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
         Index2 := 5
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
         Index2 := 6
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
         Index2 := 7
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
         Index2 := 8
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 9
       else
-        Index2 := 9;
+        Index2 := 10;
 
       Result := Sign(Index1 - Index2);
     end;
@@ -1113,61 +1121,27 @@ begin
   Buffer.Write := @Buffer.Write[1];
 end;
 
-procedure TTool.TDataFileBuffer.WriteData(const Text: PChar; const Length: Integer; const Quote: Boolean = False);
-label
-  StringL, StringE,
-  Finish;
-var
-  Len: Integer;
-  Write: PAnsiChar;
+procedure TTool.TDataFileBuffer.WriteData(Value: PChar; ValueLen: Integer; Quote: Boolean = False);
 begin
   if (not Quote) then
-    Len := Length
+    Reallocate(ValueLen)
   else
-    Len := 1 + Length + 1;
+    Reallocate(1 + ValueLen + 1);
 
-  Reallocate(Len);
+  if (Quote) then
+  begin
+    Buffer.Write^ := ''''; Inc(Buffer.Write);
+  end;
 
-  Write := Buffer.Write;
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
+  while (ValueLen > 0) do
+  begin
+    Buffer.Write^ := AnsiChar(Value^); Inc(Buffer.Write); Dec(ValueLen);
+  end;
 
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Text                     // Copy characters from Text
-        MOV EDI,Write                    //   to Write
-        MOV ECX,Length                   // Character count
-
-        CMP Quote,False                  // Quote Value?
-        JE StringL                       // No!
-        MOV AL,''''                      // Starting quoter
-        STOSB                            //   into Write
-
-      StringL:
-        CMP ECX,0
-        JE StringE
-        LODSW                            // Load WideChar from Text
-        STOSB                            // Store AnsiChar into Buffer.Mem
-        DEC ECX
-        JMP StringL                     // Repeat for all characters
-
-      StringE:
-        CMP Quote,False                  // Quote Value?
-        JE Finish                        // No!
-        MOV AL,''''                      // Ending quoter
-        STOSB                            //   into Write
-
-      Finish:
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-  Buffer.Write := @Buffer.Write[Len];
+  if (Quote) then
+  begin
+    Buffer.Write^ := ''''; Inc(Buffer.Write);
+  end;
 end;
 
 procedure TTool.TDataFileBuffer.WriteText(const Text: PChar; const Length: Integer);
@@ -1215,61 +1189,36 @@ begin
   end;
 end;
 
-procedure TTool.TDataFileBuffer.WriteBinary(const Value: PChar; const Length: Integer);
+procedure TTool.TDataFileBuffer.WriteBinary(const Value: PChar; const ValueLen: Integer);
 label
   StringL;
 var
   Len: Integer;
-  Read: Pointer;
   Size: Integer;
-  Write: my_char;
 begin
-  if (Length = 0) then
+  if (ValueLen = 0) then
   begin
     Reallocate(2);
-    Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
-    Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
+    Buffer.Write[0] := ''''; Inc(Buffer.Write);
+    Buffer.Write[0] := ''''; Inc(Buffer.Write);
   end
   else
   begin
-    Len := 1 + 2 * Length + 1;
+    Len := 1 + 2 * ValueLen + 1;
     Size := Len * SizeOf(Char);
     if (Size > Temp1.Size) then
     begin
       Temp1.Size := Size;
       ReallocMem(Temp1.Mem, Temp1.Size);
     end;
-    Len := SQLEscape(Value, Length, PChar(Temp1.Mem), Len);
+    Len := SQLEscape(Value, ValueLen, PChar(Temp1.Mem), Len);
     if (Len = 0) then
       raise ERangeError.Create(SRangeError);
 
     Reallocate(Len);
 
-    Read := Temp1.Mem;
-    Write := Buffer.Write;
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Read                     // Copy characters from Temp1.Mem
-        MOV EDI,Write                    //   to Buffer.Write
-        MOV ECX,Len                      // Character count
-
-      StringL:
-        LODSW                            // Load WideChar
-        STOSB                            // Store AnsiChar
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-    Buffer.Write := @Buffer.Write[Len];
+    MoveMemory(Buffer.Write, Temp1.Mem, Len);
+    Inc(Buffer.Write, Len);
   end;
 end;
 
@@ -4828,7 +4777,7 @@ begin
     SQL := Table.GetSourceEx(DropStmts, CrossReferencedObjects);
     if (Session.SQLParser.ParseSQL(SQL)) then
     begin
-      SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Table.Database.Name, Session.LowerCaseTableNames = 0);
+      SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Table.Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
       Session.SQLParser.Clear();
     end;
     Content := Content + SQL;
@@ -5159,173 +5108,49 @@ end;
 
 { TTExportHTML ****************************************************************}
 
-function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
-label
-  StringL, String2, String3, String4, String5, String6, String7, StringLE,
-  Error,
-  Finish;
-asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Value                    // Copy characters from Value
-        MOV EDI,Escaped                  //   to Escaped
-        MOV ECX,ValueLen                 // Length of Value string
-        MOV EDX,EscapedLen               // Length of Escaped
-
-        MOV EBX,0                        // Result
-
-        CMP ECX,0                        // Empty string?
-        JE Error                         // Yes!
-
-      StringL:
-        LODSW                            // Character from Value
-
-        CMP AX,9                         // #9 ?
-        JE String7                       // Yes!
-        CMP AX,10                        // #10 ?
-        JE String7                       // Yes!
-
-        CMP AX,13                        // #13 ?
-        JNE String2                      // No!
-        ADD EBX,5                        // 5 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,5                        // 5 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'<'
-        STOSW
-        MOV AX,'b'
-        STOSW
-        MOV AX,'r'
-        STOSW
-        MOV AX,'>'
-        STOSW
-        MOV AX,13
-        STOSW
-        JMP StringLE
-
-      String2:
-        CMP AX,31                        // <= #31 ?
-        JA String3                       // No!
-        INC EBX                          // 1 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'?'
-        STOSW
-        JMP StringLE
-
-      String3:
-        CMP AX,'"'                       // '"' ?
-        JNE String4                      // No!
-        ADD EBX,6                        // 6 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,6                        // 6 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'q'
-        STOSW
-        MOV AX,'u'
-        STOSW
-        MOV AX,'o'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String4:                           // "normal" character
-        CMP AX,'&'                       // "&" ?
-        JNE String5                      // No!
-        ADD EBX,5                        // 5 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,5                        // 5 characters left in Escaped?
-        JC Error                         // No!
-        STOSW
-        MOV AX,'a'
-        STOSW
-        MOV AX,'m'
-        STOSW
-        MOV AX,'p'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String5:
-        CMP AX,'<'                       // "<" ?
-        JNE String6                      // No!
-        ADD EBX,4                        // 4 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,4                        // 4 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'l'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String6:
-        CMP AX,'>'                       // ">" ?
-        JNE String7                      // No!
-        ADD EBX,4                        // 4 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,4                        // 4 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'g'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String7:                           // "normal" character
-        INC EBX                          // One character needed
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        DEC EDX                          // One character left in Escaped?
-        JC Error                         // No!
-        STOSW
-
-      StringLE:
-        DEC ECX
-        CMP ECX,0
-        JA StringL
-
-        MOV @Result,EBX
-        JMP Finish
-
-      // -------------------
-
-      Error:
-        MOV @Result,0                    // Too few space in Escaped!
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+function HTMLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer): Integer; overload;
+const
+  SearchLen = 6;
+  Search: array [0 .. SearchLen - 1] of Char = (#0, #10, #13, '"', '<', '>');
+  Replace: array [0 .. SearchLen - 1] of PChar = ('', '<br>' + #13#10, '', '&quot;', '&lt;', '&gt;');
+var
+  Found: Integer;
+  I: Integer;
+  Len: Integer;
+begin
+  Result := 0;
+  while (ValueLen > 0) do
+  begin
+    Found := -1;
+    for I := 0 to SearchLen - 1 do
+      if (Value^ = Search[I]) then
+        Found := I;
+    if (Found < 0) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result);
+    end
+    else
+    begin
+      Len := StrLen(Replace[Found]);
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < Len) then
+          Exit(0); // Too few space in Escaped
+        if (Assigned(Escaped) and (Len > 0)) then
+        begin
+          StrCopy(Escaped, Replace[Found]); Inc(Escaped, Len); Dec(EscapedLen, Len);
+        end;
+      end;
+      Inc(Result, Len);
+    end;
+    Inc(Value); Dec(ValueLen);
+  end;
 end;
 
 function HTMLEscape(const Value: string): string; overload;
@@ -6597,7 +6422,6 @@ begin
     if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NEED_DATA)) then
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
-      Error.ErrorMessage := Error.ErrorMessage;
       DoError(Error, nil, False);
     end;
   until ((Success = daAbort) or SQL_SUCCEEDED(ReturnCode) or (ReturnCode = SQL_NEED_DATA));

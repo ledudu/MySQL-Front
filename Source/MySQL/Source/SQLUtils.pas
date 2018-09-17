@@ -45,7 +45,7 @@ function BitStringToInt(const BitString: PChar; const Length: Integer; const Err
 function IntToBitString(const Value: UInt64; const MinWidth: Integer = 1): string;
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
 function SQLEscape(const Value: string; const Quoter: Char = ''''): string; overload;
-function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
+function SQLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = ''''): Integer; overload;
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer; overload;
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string; overload;
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string; overload;
@@ -946,177 +946,124 @@ begin
   SQLEscape(PChar(Value), Length(Value), PChar(Result), Len, Quoter);
 end;
 
-function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
-label
-  Start, StartE,
-  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8,
-  ValueLE, ValueFinish,
-  Error,
-  Finish;
+function SQLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = ''''): Integer; overload;
 begin
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV EBX,0                        // Result
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EDI,Escaped                  //   to Escaped
-        MOV EDX,EscapedLen               // Length of Escaped
-        MOV ECX,ValueLen                 // Length of Value string
-
-      Start:
-        INC EBX                          // 1 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE StartE                        // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,Quoter
-        STOSW
-
-      StartE:
-        CMP ECX,0                        // Empty string?
-        JE ValueFinish                   // Yes!
-
-      ValueL:
-        LODSW                            // Character from Value
-
-        CMP AX,0                         // #0 ?
-        JNE Value2                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'0'
-        STOSW
-        JMP ValueLE
-
-      Value2:
-        CMP AX,9                         // #9 ?
-        JNE Value3                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        JMP ValueLE
-
-      Value3:
-        CMP AX,10                        // #10 ?
-        JNE Value4                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'n'
-        STOSW
-        JMP ValueLE
-
-      Value4:
-        CMP AX,13                        // #13 ?
-        JNE Value5                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'r'
-        STOSW
-        JMP ValueLE
-
-      Value5:
-        CMP AX,'"'                       // '"' ?
-        JNE Value6                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'"'
-        STOSW
-        JMP ValueLE
-
-      Value6:
-        CMP AX,''''                      // "'" ?
-        JNE Value7                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,''''
-        STOSW
-        JMP ValueLE
-
-      Value7:
-        CMP AX,'\'                       // "\" ?
-        JNE Value8                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'\'
-        STOSW
-        JMP ValueLE
-
-      Value8:                            // "normal" character
-        INC EBX                          // One character needed
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        DEC EDX                          // One character left in Escaped?
-        JC Error                         // No!
-        STOSW
-
-      ValueLE:
-        DEC ECX
-        JNZ ValueL
-
-      ValueFinish:
-        INC EBX                          // 1 characters needed in Escaped
-        MOV @Result,EBX
-        CMP Escaped,0                    // Calculate length only?
-        JE Finish                        // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,Quoter
-        STOSW
-        JMP Finish
-
-      // -------------------
-
-      Error:
-        MOV @Result,0                    // Too few space in Escaped
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+  if (Assigned(Escaped)) then
+  begin
+    if (EscapedLen < 1) then
+      Exit(0); // Too few space in Escaped
+    Escaped^ := Quoter;
+    Inc(Escaped); Dec(EscapedLen);
   end;
+  Result := 1;
+
+  while (ValueLen > 0) do
+  begin
+    if (Value^ = #0) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '0'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = #9) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 't'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = #10) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'n'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = #13) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'r'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = '"') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '"'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = '''') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ''''; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = '\') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result);
+    end;
+    Dec(ValueLen);
+  end;
+
+  if (Assigned(Escaped)) then
+  begin
+    if (EscapedLen < 1) then
+      Exit(0); // Too few space in Escaped
+    Escaped^ := Quoter;
+  end;
+  Inc(Result);
 end;
 
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer;

@@ -64,18 +64,18 @@ const
   CLIENT_IGNORE_SIGPIPE                 = $00001000;    // IGNORE sigpipes
   CLIENT_TRANSACTIONS                   = $00002000;    // Client knows about transactions
   CLIENT_RESERVED                       = $00004000;    // Old flag for 4.1 protocol
-  CLIENT_SECURE_CONNECTION              = $00008000;    // New 4.1 authentication
+  CLIENT_SECURE_CONNECTION              = $00008000;    // Old flag for 4.1 authentication
   CLIENT_MULTI_STATEMENTS               = $00010000;    // Enable/disable multi-stmt support
   CLIENT_MULTI_RESULTS                  = $00020000;    // Enable/disable multi-results
-  CLIENT_PS_MULTI_RESULTS               = $00040000;
-  CLIENT_PLUGIN_AUTH                    = $00080000;
-  CLIENT_CONNECT_ATTRS                  = $00100000;
-  CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = $00200000;
-  CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS   = $00400000;
-  CLIENT_SESSION_TRACK                  = $00800000;
-  CLIENT_DEPRECATE_EOF                  = $01000000;
-  CLIENT_SSL_VERIFY_SERVER_CERT         = $04000000;
-  CLIENT_REMEMBER_OPTIONS               = $80000000;
+  CLIENT_PS_MULTI_RESULTS               = $00040000;    // Multi-results and OUT parameters in PS-protocol.
+  CLIENT_PLUGIN_AUTH                    = $00080000;    // Client supports plugin authentication.
+  CLIENT_CONNECT_ATTRS                  = $00100000;    // Client supports connection attributes.
+  CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = $00200000;    // Enable authentication response packet to be larger than 255 bytes.
+  CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS   = $00400000;    // Don't close the connection for a user account with expired password.
+  CLIENT_SESSION_TRACK                  = $00800000;    // Capable of handling server state change information.
+  CLIENT_DEPRECATE_EOF                  = $01000000;    // Client no longer needs EOF_Packet and will use OK_Packet instead.
+  CLIENT_SSL_VERIFY_SERVER_CERT         = $04000000;    // Verify server certificate.
+  CLIENT_REMEMBER_OPTIONS               = $80000000;    // Don't reset the options after an unsuccessful connect.
 
   //field flags
   NOT_NULL_FLAG                  = $00000001;   // Field can't be NULL

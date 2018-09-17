@@ -12624,10 +12624,10 @@ begin
     begin
       if (Connection.MySQLVersion < 40101) then
       begin
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user')         + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('db')           + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('tables_priv')  + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('columns_priv') + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user')         + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Login) + ' AND ' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(TSUser(List[I]).Host) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('db')           + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Login) + ' AND ' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(TSUser(List[I]).Host) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('tables_priv')  + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Login) + ' AND ' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(TSUser(List[I]).Host) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('columns_priv') + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Login) + ' AND ' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(TSUser(List[I]).Host) + ';' + #13#10;
       end
       else
         SQL := SQL + 'DROP USER ' + EscapeUser(TSUser(List[I]).Name) + ';' + #13#10;
@@ -12643,6 +12643,8 @@ begin
 
   if (FlushPrivileges) then
     SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
+
+  SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user') + ';' + #13#10;
 
   Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
@@ -14533,14 +14535,17 @@ begin
   end;
 
   if (not Assigned(User) and (NewUser.NewPassword <> '') or Assigned(User) and (NewUser.NewPassword <> User.RawPassword) and (NewUser.RightCount > 0)) then
-    SQL := SQL + 'SET PASSWORD FOR ' + EscapeUser(NewUser.Name) + '=PASSWORD(' + SQLEscape(NewUser.NewPassword) + ');' + #13#10;
+    if (Connection.MySQLVersion < 80011) then
+      SQL := SQL + 'SET PASSWORD FOR ' + EscapeUser(NewUser.Name) + '=PASSWORD(' + SQLEscape(NewUser.NewPassword) + ');' + #13#10
+    else
+      SQL := SQL + 'ALTER USER ' + EscapeUser(NewUser.Name) + ' IDENTIFIED BY ' + SQLEscape(NewUser.NewPassword) + ';' + #13#10;
 
   if (SQL <> '') then
     SQL := SQL
       + 'FLUSH PRIVILEGES;' + #13#10
       + NewUser.SQLGetSource();
 
-  Result := (SQL = '') or SendSQL(SQL);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;

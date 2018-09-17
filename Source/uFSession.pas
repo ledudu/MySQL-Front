@@ -9044,7 +9044,8 @@ begin
       or aDDeleteKey.Enabled
       or aDDeleteField.Enabled
       or aDDeleteForeignKey.Enabled
-      or aDDeleteTrigger.Enabled;
+      or aDDeleteTrigger.Enabled
+      or aDDeleteUser.Enabled;
     if (not Assigned(Node)) then
       miNProperties.Action := nil
     else
@@ -12985,7 +12986,7 @@ begin
       aDDelete.Enabled := ListView.SelCount >= 1;
       for I := 0 to ListView.Items.Count - 1 do
         if (ListView.Items[I].Selected) then
-          if (not (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSequence, iiProcedure, iiFunction, iiKey, iiForeignKey, iiBaseField, iiTrigger, iiProcess, iiTrigger])) then
+          if (not (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSequence, iiProcedure, iiFunction, iiKey, iiForeignKey, iiBaseField, iiTrigger, iiProcess, iiTrigger, iiUser])) then
             aDDelete.Enabled := False;
     end
     else if (View = vObjects) then

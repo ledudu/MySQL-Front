@@ -1356,7 +1356,10 @@ begin
   if (Assigned(Wanted.Page)) then
     SetControlCursor(GFields, crSQLWait)
   else
+  begin
     SetControlCursor(GFields, crDefault);
+    TSExecute.Enabled := not FLDestinationFields.Visible;
+  end;
 
   CheckActivePageChange(TSFields);
 end;

@@ -1448,7 +1448,7 @@ begin
     EE_READ: Msg := ErrorMessage;
     ER_DBACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
     ER_ACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
-    ER_CANT_OPEN_LIBRARY: Msg := Preferences.LoadStr(570, Connection.LibraryName, ExtractFilePath(Application.ExeName));
+    ER_CANT_OPEN_LIBRARY: Msg := Preferences.LoadStr(570, Connection.LibraryName, ExtractFilePath(Application.ExeName)) + #10#10 + '(' + ErrorMessage + ')';
     CR_COMMANDS_OUT_OF_SYNC: Msg := 'Internal Program Bug #' + IntToStr(ErrorCode) + ': ' + ErrorMessage;
     CR_CONN_HOST_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(495, Connection.Host) else Msg := Preferences.LoadStr(495, Connection.Host + ':' + IntToStr(Connection.Port));
     CR_SERVER_GONE_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(881, Connection.Host) else Msg := Preferences.LoadStr(881, Connection.Host + ':' + IntToStr(Connection.Port));
@@ -1468,7 +1468,7 @@ begin
     DS_OUT_OF_MEMORY: Msg := Preferences.LoadStr(733);
     else
       if ((CR_MIN_ERROR <= ErrorCode) and (ErrorCode <= CR_MAX_ERROR)) then
-        Msg := ErrorMessage
+        Msg := Preferences.LoadStr(962, IntToStr(ErrorCode), ErrorMessage)
       else
         Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
   end;

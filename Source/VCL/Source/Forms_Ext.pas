@@ -97,7 +97,7 @@ begin
   end
   else if (Control is TTreeView) then
   begin
-    SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CXEDGE), 0);
+    SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + GetSystemMetrics(SM_CXEDGE), 0);
     if (CheckWin32Version(6)) then
     begin
       TTreeView(Control).Indent := GetSystemMetrics(SM_CXSMICON) div 2 + GetSystemMetrics(SM_CXEDGE);
@@ -139,6 +139,8 @@ begin
   DoubleBuffered := True;
   MouseDownPoint := Point(-1, -1);
   FShowGripper := True;
+
+  ApplyWinAPIUpdates(Self);
 end;
 
 procedure TForm_Ext.CreateWindowHandle(const Params: TCreateParams);

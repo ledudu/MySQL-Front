@@ -9,9 +9,7 @@ type
     Length: Integer;
   end;
 
-function CSVBinary(const Data: PChar; const Length: Integer; const Quoter: Char = '"'): RawByteString;
-function CSVEscape(const Bin: PAnsiChar; const Length: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): string; overload;
-function CSVEscape(const Value: PChar; const Length: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): Integer; overload;
+function CSVEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = '"'; Quote: Boolean = True): Integer; overload;
 function CSVEscape(const Value: string; const Quoter: Char = '"'; const Quote: Boolean = True): string; overload;
 procedure CSVSplitValues(const TextLine: string; const Delimiter, Quoter: Char; var Values: TCSVStrings); overload;
 function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues; const TextComplete: Boolean = True): Boolean; overload;
@@ -25,172 +23,46 @@ uses
   Windows,
   SysUtils, SysConst;
 
-function CSVBinary(const Data: PChar; const Length: Integer; const Quoter: Char = '"'): RawByteString;
-label
-  UnquotedL,
-  QuotedL, QuotedB, QuotedLE,
-  Finish;
-var
-  Len: Integer;
+function CSVEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = '"'; Quote: Boolean = True): Integer;
 begin
-  if (Length = 0) then
-    Result := ''
-  else if (Data[0] <> Quoter) then
+  if (Assigned(Escaped)) then
   begin
-    SetLength(Result, Length);
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Data                     // Copy characters from Data
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-
-        MOV ECX,Length                   // Number of characters
-
-        MOV AH,0                         // Clear AH, since AL will be load, but AX stored
-      UnquotedL:
-        LODSW                            // Load character from Data
-        STOSB                            // Store character into Result
-        LOOP UnquotedL                   // Next character in Data!
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-  end
-  else
-  begin
-    SetLength(Result, Length - 2);
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Data                     // Copy characters from Data
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-
-        MOV ECX,Length                   // Number of characters
-
-      // -------------------
-
-        LODSW                            // Step over starting Quoter
-        DEC ECX                          // Ignore the starting Quoter
-        JZ Finish                        // No characters left!
-      QuotedL:
-        LODSW                            // Load character from Data
-        CMP AX,Quoter                    // Previous character = Quoter?
-        JNE QuotedB                      // No!
-        DEC ECX                          // Ignore Quoter
-        JZ Finish                        // End of Data!
-        MOV AX,[ESI]
-        CMP AX,Quoter                    // Second Quoter?
-        JNE Finish                       // No!
-        ADD ESI,2                        // Step over second Quoter
-      QuotedB:
-        STOSW                            // Store character into Result
-      QuotedLE:
-        LOOP QuotedL                     // Next character in Data!
-
-      // -------------------
-
-      Finish:
-        MOV EAX,Result                   // Calculate new length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-    if (Len <> Length - 2) then
-      SetLength(Result, Len);
+    if (EscapedLen < 1) then
+      Exit(0); // Too few space in Escaped!
+    Escaped^ := Quoter; Inc(Escaped); Dec(EscapedLen);
   end;
-end;
+  Result := 1;
 
-function CSVEscape(const Bin: PAnsiChar; const Length: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): string;
-label
-  StringI, StringL, StringS, StringLE,
-  Finish;
-var
-  Len: Integer;
-begin
-  if (not Assigned(Bin) or (Length = 0)) then
-    Result := Quoter + Quoter
-  else
+  while (ValueLen > 0) do
   begin
-    SetLength(Result, 2 * Length + 2);
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Bin                      // Copy bytes from Bin
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-        MOV ECX,Length                  // Number of characters
-
-      // -------------------
-
-        CMP Quote,False                  // Quote value?
-        JE StringI                       // No!
-        MOV AX,Quoter                    // Put starting Quoter
-        STOSW                            //   in Result
-
-      StringI:
-        MOV AH,0                         // Clear AH, since AL will be loaded, but AX stored
-      StringL:
-        LODSB                            // Get character from Value
-        STOSW                            // Put character to Result
-        CMP AX,Quoter                    // Current character = Quoter?
-        JNE StringLE                     // No!
-        STOSW                            // Put Quoter again to Result
-      StringLE:
-        LOOP StringL                     // Next character in Value!
-
-        CMP Quote,False                  // Quote value?
-        JE Finish                        // No!
-        MOV AX,Quoter                    // Put ending Quoter
-        STOSW                            //   in Result
-
-      // -------------------
-
-      Finish:
-        MOV EAX,Result                   // Calculate length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+    if (Assigned(Escaped)) then
+    begin
+      if (EscapedLen < 1) then
+        Exit(0); // Too few space in Escaped!
+      Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
     end;
-
-    SetLength(Result, Len);
+    Inc(Result);
+    if (Value^ = Quoter) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space in Escaped!
+        Escaped^ := Quoter; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result);
+    end;
+    Inc(Value);
+    Dec(ValueLen);
   end;
+
+  if (Assigned(Escaped)) then
+  begin
+    if (EscapedLen < 1) then
+      Exit(0); // Too few space in Escaped!
+    Escaped^ := Quoter;
+  end;
+  Inc(Result);
 end;
 
 function CSVEscape(const Value: string; const Quoter: Char = '"'; const Quote: Boolean = True): string;
@@ -200,91 +72,6 @@ begin
   Len := CSVEscape(PChar(Value), Length(Value), nil, 0, '"', Quote);
   SetLength(Result, Len);
   CSVEscape(PChar(Value), Length(Value), PChar(Result), Len, '"', Quote);
-end;
-
-function CSVEscape(const Value: PChar; const Length: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): Integer;
-label
-  ValueL, ValueQuot, ValueLE, ValueE,
-
-  Error,
-  Finish;
-begin
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV EBX,0
-
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EDI,Escaped                  //   to Escaped
-        MOV ECX,Length                   // Length of Value string
-        MOV EDX,EscapedLen               // Length of Escaped
-
-      // -------------------
-
-        CMP Quote,False                  // Quote value?
-        JE ValueL                        // No!
-        INC EBX                          // 1 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueL                        // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,Quoter                    // Put starting Quoter
-        STOSW                            //   in Result
-
-      ValueL:
-        CMP ECX,0                        // All characters handled?
-        JE ValueE                        // Yes!
-        LODSW                            // Get character from Value
-        INC EBX                          // 1 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueQuot                     // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        STOSW                            // Put character to Escaped
-      ValueQuot:
-        CMP AX,Quoter                    // Current character = Quoter?
-        JNE ValueLE                      // No!
-        INC EBX                          // 1 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        STOSW                            // Put Quoter again to Result
-      ValueLE:
-        LOOP ValueL                      // Next character in Value
-
-      ValueE:
-        MOV @Result,EBX
-        CMP Quote,False                  // Quote value?
-        JE Finish                        // No!
-        INC EBX                          // 1 characters needed in Escaped
-        MOV @Result,EBX
-        CMP Escaped,0                    // Calculate length only?
-        JE Finish                        // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,Quoter                    // Put ending Quoter
-        STOSW                            //   in Result
-        JMP Finish
-
-      // -------------------
-
-      Error:
-        MOV @Result,0                    // Too few space in Escaped
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
 end;
 
 procedure CSVSplitValues(const TextLine: string; const Delimiter, Quoter: Char; var Values: TCSVStrings);
@@ -680,5 +467,7 @@ asm
         POP ES
 end;
 
+begin
+  CSVEscape('"Hallo"Welt');
 end.
 

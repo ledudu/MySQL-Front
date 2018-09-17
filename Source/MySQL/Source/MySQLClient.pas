@@ -121,13 +121,17 @@ type
 
   MYSQL = class(TMySQL_Packet)
   protected const
-    CLIENT_CAPABILITIES  = CLIENT_LONG_PASSWORD or
-                           CLIENT_LONG_FLAG or
-                           CLIENT_LOCAL_FILES or
-                           CLIENT_PROTOCOL_41 or
-                           CLIENT_TRANSACTIONS or
-                           CLIENT_SECURE_CONNECTION or
-                           CLIENT_SESSION_TRACK;
+    CLIENT_CAPABILITIES =
+      CLIENT_LONG_PASSWORD
+        or CLIENT_LONG_FLAG
+        or CLIENT_LOCAL_FILES
+        or CLIENT_INTERACTIVE
+        or CLIENT_PROTOCOL_41
+        or CLIENT_TRANSACTIONS
+        or CLIENT_SECURE_CONNECTION
+        or CLIENT_SESSION_TRACK
+        or CLIENT_LONG_PASSWORD
+        or CLIENT_PLUGIN_AUTH;
   private
     FieldCount: my_uint;
     FSQLState: array [0 .. SQLSTATE_LENGTH - 1] of AnsiChar;
@@ -590,6 +594,18 @@ begin
     Scramled[I] := AnsiChar(Byte(Scramled[I]) xor Byte(hash_stage1[I]));
 
   SetString(Result, PAnsiChar(@Scramled), SCRAMBLE_LENGTH);
+end;
+
+function EncodePassword(const Password, AuthPluginData, AuthPluginName: RawByteString; const NewPassword: Boolean): RawByteString;
+begin
+  if (Password = '') then
+    Result := ''
+  else if (not NewPassword) then
+    Result := Scramble(my_char(Password), my_char(AuthPluginData))
+  else if (AuthPluginName <> 'caching_sha2_password') then
+    Result := SecureScramble(my_char(Password), my_char(AuthPluginData))
+  else
+    raise Exception.Create('"chaching_sha2_password" is not supported. Please use DLL connection type.');
 end;
 
 {$IFDEF Debug}
@@ -1810,7 +1826,7 @@ begin
   fres := nil;
   UseNamedPipe := False;
 
-  CAPABILITIES := CLIENT_CAPABILITIES;
+  CAPABILITIES := 0;
   faffected_rows := 0;
   fcharacter_set_name := '';
   fcompress := False;
@@ -2261,12 +2277,15 @@ end;
 
 function MYSQL.real_connect(host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MYSQL;
 var
+  AuthPluginDataLen: my_int;
+  AuthPluginName: RawByteString;
   CharsetNr: my_uint;
   I: my_int;
   ProtocolVersion: my_int;
   RBS: RawByteString;
   S: string;
-  Salt: RawByteString;
+  AuthPluginData: RawByteString;
+  ServerCapabilitiesHi: my_uint;
 begin
   if (IOType <> itNone) then
     Seterror(CR_ALREADY_CONNECTED)
@@ -2287,9 +2306,6 @@ begin
       fpipe_name := MYSQL_NAMEDPIPE
     else
       fpipe_name := unix_socket;
-    CAPABILITIES := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
-    if (fdb = '') then
-      CAPABILITIES := CAPABILITIES and not CLIENT_CONNECT_WITH_DB;
 
     if (UseNamedPipe or (host = LOCAL_HOST_NAMEDPIPE)) then
       CreatePacket(itNamedPipe, fhost, fport, ftimeout)
@@ -2313,15 +2329,23 @@ begin
     begin
       ReadPacket(fserver_info);
       ReadPacket(fthread_id, 4);
-      ReadPacket(Salt);
+      ReadPacket(AuthPluginData);
       ReadPacket(SERVER_CAPABILITIES, 2);
       ReadPacket(CharsetNr, 1);
       ReadPacket(SERVER_STATUS, 2);
-
-      if ((SetPacketPointer(13, FILE_CURRENT) + 1 < GetPacketSize()) and ReadPacket(RBS)) then
-        Salt := Salt + RBS
+      ReadPacket(ServerCapabilitiesHi, 2);
+      SERVER_CAPABILITIES := ServerCapabilitiesHi shl 16 + SERVER_CAPABILITIES;
+      if (SERVER_CAPABILITIES and CLIENT_PLUGIN_AUTH <> 0) then
+        ReadPacket(AuthPluginDataLen, 1)
+      else
+        SetPacketPointer(1, FILE_CURRENT);
+      SetPacketPointer(10, FILE_CURRENT);
+      if ((SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION <> 0) and ReadPacket(RBS)) then
+        AuthPluginData := AuthPluginData + RBS
       else if (get_server_version() <> 40100) then
         SERVER_CAPABILITIES := SERVER_CAPABILITIES and not CLIENT_SECURE_CONNECTION;
+      if ((SERVER_CAPABILITIES and CLIENT_PLUGIN_AUTH = 0) or not ReadPacket(AuthPluginName)) then
+        AuthPluginName := '';
 
       if (errno() = 0) then
       begin
@@ -2345,12 +2369,31 @@ begin
           end;
         end;
 
-        CAPABILITIES := CAPABILITIES and ($FFFF2481 or ($0000DB7E and SERVER_CAPABILITIES));
-        if (get_server_version() < 40101) then
+        CAPABILITIES := CLIENT_CAPABILITIES or client_flag;
+        ServerCapabilitiesHi := CAPABILITIES and SERVER_CAPABILITIES;
+        CAPABILITIES := CAPABILITIES and (
+          CLIENT_LONG_PASSWORD
+          or CLIENT_LOCAL_FILES
+          or CLIENT_INTERACTIVE
+          or CLIENT_TRANSACTIONS
+          or CLIENT_MULTI_STATEMENTS
+          or CLIENT_MULTI_RESULTS
+          or CLIENT_PS_MULTI_RESULTS
+          or CLIENT_PLUGIN_AUTH
+          or CLIENT_CONNECT_ATTRS
+          or CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
+          or CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS
+          or CLIENT_SESSION_TRACK
+          or CLIENT_DEPRECATE_EOF
+          or CLIENT_SSL_VERIFY_SERVER_CERT
+          or CLIENT_REMEMBER_OPTIONS
+          or (SERVER_CAPABILITIES and $0000DB7E));
+        if (fserver_version < 40101) then
           CAPABILITIES := CAPABILITIES and $FFFFF
-        else if ((SERVER_CAPABILITIES and CLIENT_RESERVED <> 0) and (get_server_version() < 50000)) then
-          CAPABILITIES := CAPABILITIES or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
-        CAPABILITIES := CAPABILITIES and not CLIENT_SSL;
+        else if ((fserver_version < 50000) and (SERVER_CAPABILITIES and CLIENT_RESERVED <> 0)) then
+          CAPABILITIES := CAPABILITIES or CLIENT_PROTOCOL_41; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
+        if (fdb = '') then
+          CAPABILITIES := CAPABILITIES and not CLIENT_CONNECT_WITH_DB;
 
         if (fcharacter_set_name = '') then
         begin
@@ -2394,60 +2437,62 @@ begin
           WritePacket(CharsetNr, 1);
           WritePacket(RawByteString(StringOfChar(#0, 22))); // unused space
         end;
-
+        WritePacket(fuser);
+        if (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION = 0) then
+          WritePacket(EncodePassword(fpasswd, AuthPluginData, AuthPluginName, False))
+        else
+          try
+            WritePacket(EncodePassword(fpasswd, AuthPluginData, AuthPluginName, True), False);
+          except
+            on E: Exception do
+              SetError(CR_UNKNOWN_ERROR, RawByteString(E.Message));
+          end;
+        if (CAPABILITIES and CLIENT_CONNECT_WITH_DB <> 0) then
+          WritePacket(fdb);
+        if (CAPABILITIES and CLIENT_PLUGIN_AUTH <> 0) then
+          WritePacket(AuthPluginName);
         if (errno() = 0) then
-        begin
-          WritePacket(fuser);
-          if (fpasswd = '') then
-            WritePacket('')
-          else if (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION = 0) then
-            WritePacket(Scramble(my_char(fpasswd), my_char(Salt)))
-          else
-            WritePacket(SecureScramble(my_char(fpasswd), my_char(Salt)), False);
-          if (CAPABILITIES and CLIENT_CONNECT_WITH_DB <> 0) then
-            WritePacket(fdb);
           FlushPacketBuffers();
 
 
-          Direction := idRead;
-          if (SetPacketPointer(1, PACKET_CURRENT) = 0) then
+        Direction := idRead;
+        if (SetPacketPointer(1, PACKET_CURRENT) = 0) then
+        begin
+          if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (GetPacketSize() < 9) and (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION <> 0)) then
           begin
-            if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (GetPacketSize() < 9) and (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION <> 0)) then
+            Direction := idWrite;
+            WritePacket(EncodePassword(fpasswd, RawByteString(Copy(AuthPluginData, 1, SCRAMBLE_LENGTH_323)), AuthPluginName, False));
+            if (not FlushPacketBuffers()) then
+              Seterror(CR_SERVER_GONE_ERROR)
+            else
             begin
-              Direction := idWrite;
-              WritePacket(Scramble(my_char(fpasswd), my_char(RawByteString(Copy(Salt, 1, SCRAMBLE_LENGTH_323)))));
-              if (not FlushPacketBuffers()) then
-                Seterror(CR_SERVER_GONE_ERROR)
-              else
-              begin
-                Direction := idRead;
-                SetPacketPointer(1, PACKET_CURRENT);
-              end;
+              Direction := idRead;
+              SetPacketPointer(1, PACKET_CURRENT);
             end;
-
-            if (errno() = 0) then
-              if (GetPacketSize() = 0) then
-                Seterror(CR_SERVER_HANDSHAKE_ERR)
-              else if (not ServerError()) then
-              begin
-                SetPacketPointer(1, FILE_CURRENT); // $00
-                ReadPacket(faffected_rows);
-                ReadPacket(finsert_id);
-
-                if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
-                begin
-                  ReadPacket(SERVER_STATUS, 2);
-                  ReadPacket(fwarning_count, 2);
-                end
-                else if (SERVER_CAPABILITIES and CLIENT_TRANSACTIONS <> 0) then
-                begin
-                  ReadPacket(SERVER_STATUS, 2);
-                  fwarning_count := 0;
-                end;
-
-                UseCompression := CAPABILITIES and CLIENT_COMPRESS <> 0;
-              end;
           end;
+
+          if (errno() = 0) then
+            if (GetPacketSize() = 0) then
+              Seterror(CR_SERVER_HANDSHAKE_ERR)
+            else if (not ServerError()) then
+            begin
+              SetPacketPointer(1, FILE_CURRENT); // $00
+              ReadPacket(faffected_rows);
+              ReadPacket(finsert_id);
+
+              if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
+              begin
+                ReadPacket(SERVER_STATUS, 2);
+                ReadPacket(fwarning_count, 2);
+              end
+              else if (SERVER_CAPABILITIES and CLIENT_TRANSACTIONS <> 0) then
+              begin
+                ReadPacket(SERVER_STATUS, 2);
+                fwarning_count := 0;
+              end;
+
+              UseCompression := CAPABILITIES and CLIENT_COMPRESS <> 0;
+            end;
         end;
       end;
     end;

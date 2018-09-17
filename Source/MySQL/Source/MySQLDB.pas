@@ -18,6 +18,7 @@ type
   type
     TLibraryType = (ltBuiltIn, ltDLL, ltHTTP);
   strict private
+    FErrorMessage: string;
     FHandle: HModule;
     FLibraryType: TLibraryType;
     FFilename: TFileName;
@@ -73,6 +74,7 @@ type
     constructor Create(const ALibraryType: TLibraryType; const AFilename: TFileName);
     destructor Destroy(); override;
     procedure SetField(const RawField: MYSQL_FIELD; out Field: TMYSQL_FIELD); inline;
+    property ErrorMessage: string read FErrorMessage;
     property Filename: TFileName read FFilename;
     property Handle: HModule read FHandle;
     property LibraryType: TLibraryType read FLibraryType;
@@ -272,6 +274,7 @@ type
     InMonitor: Boolean;
     InOnResult: Boolean;
     KillThreadId: my_uint;
+    LibErrorMessage: string;
     SilentCount: Integer;
     FSyncThreadExecuted: TEvent;
     function GetNextCommandText(): string;
@@ -1278,7 +1281,8 @@ begin
   end;
 end;
 
-function LoadMySQLLibrary(const ALibraryType: TMySQLLibrary.TLibraryType; const AFileName: TFileName): TMySQLLibrary;
+function LoadMySQLLibrary(const ALibraryType: TMySQLLibrary.TLibraryType;
+  const AFileName: TFileName; out AErrorMessage: string): TMySQLLibrary;
 var
   I: Integer;
 begin
@@ -1290,6 +1294,7 @@ begin
   if (not Assigned(Result)) then
   begin
     Result := TMySQLLibrary.Create(ALibraryType, AFileName);
+    AErrorMessage := Result.ErrorMessage;
     if (Result.Version = 0) then
       FreeAndNil(Result);
 
@@ -1623,6 +1628,7 @@ begin
     Assert(FFilename <> '');
 
     FHandle := LoadLibrary(PChar(FFilename));
+    FErrorMessage := 'MS Windows: #' + IntToStr(GetLastError()) + '  ' + ReplaceStr(SysErrorMessage(GetLastError()), '%1', FFilename);
 
     if (Handle > 0) then
     begin
@@ -2183,6 +2189,8 @@ var
   Timeout: LongWord;
   WaitResult: TWaitResult;
 begin
+  NameThreadForDebugging('SyncThread');
+
   {$IFDEF EurekaLog}
   try
   {$ENDIF}
@@ -3031,7 +3039,7 @@ begin
   begin
     if (Assigned(BeforeConnect)) then BeforeConnect(Self);
     if (not Assigned(FLib)) then
-      FLib := LoadMySQLLibrary(FLibraryType, LibraryName);
+      FLib := LoadMySQLLibrary(FLibraryType, LibraryName, LibErrorMessage);
     DoConnect();
     // Maybe we're using Asynchron. So the Events should be called after
     // thread execution in SyncConnected.
@@ -3381,7 +3389,7 @@ begin
   if (not Assigned(Lib)) then
   begin
     SyncThread.ErrorCode := ER_CANT_OPEN_LIBRARY;
-    SyncThread.ErrorMessage := Format(SLibraryNotAvailable, [LibraryName]);
+    SyncThread.ErrorMessage := LibErrorMessage;
   end
   else
   begin
@@ -4089,6 +4097,8 @@ begin
     MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
 
     SyncThread.Terminate();
+    SyncThread.RunExecute.SetEvent();
+    SyncThreadExecuted.SetEvent();
 
     if (GetCurrentThreadId() = MainThreadID) then
       DebugMonitor.Append('--> Connection terminated!', ttInfo);
