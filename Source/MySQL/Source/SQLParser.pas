@@ -14501,7 +14501,10 @@ begin
       Dest := @Keyword[0];
 
       for I := 0 to Length - 1 do
-        Dest[I] := Char(Byte(Text[I]) and not $20);
+        if (('a' <= Text[I]) and (Text[I] <= 'z')) then
+          Dest[I] := Char(Byte(Text[I]) and not $20)
+        else
+          Dest[I] := Text[I];
 
       Commands.Write(@Keyword[0], Token.Length);
     end;
@@ -14515,7 +14518,10 @@ begin
       Dest := @Keyword[0];
 
       for I := 0 to Length - 1 do
-        Dest[I] := Char(Byte(Text[I]) or $20);
+        if (('A' <= Text[I]) and (Text[I] <= 'Z')) then
+          Dest[I] := Char(Byte(Text[I]) or $20)
+        else
+          Dest[I] := Text[I];
 
       Commands.Write(@Keyword[0], Token.Length);
     end;

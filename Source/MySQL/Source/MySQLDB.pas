@@ -4044,8 +4044,8 @@ begin
 
     SyncThread.Terminate();
     SyncThread.RunExecute.SetEvent();
-    if (GetCurrentThreadId() = MainThreadID) then
-    	SyncThreadExecuted.SetEvent();
+  	SyncThreadExecuted.SetEvent(); // Release waiting beside thread
+    SyncThreadExecuted.ResetEvent(); // Reset for InternExecuteSQL
 
     if (GetCurrentThreadId() = MainThreadID) then
       DebugMonitor.Append('--> Connection terminated!', ttInfo);
