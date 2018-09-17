@@ -338,6 +338,73 @@ var
 
 {$Q-}
 
+function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
+
+  procedure hashPassword(const pass: my_char; var res0, res1: my_int);
+  var
+    nr, add, nr2, tmp: my_ulonglong;
+    I: my_int;
+    e1: my_ulonglong;
+    len: my_int;
+  begin
+    nr := 1345345333;
+    add := 7;
+    nr2 := $12345671;
+    len := Length(pass)-1;
+    for I := 0 to len do
+    begin
+      if (Pass[I] = #20) or (Pass[I] = #9)then
+        continue;
+      tmp := $ff and Byte(Pass[I]);
+      e1 := (((nr and 63) +add)*tmp)+(nr shl 8);
+      nr := nr xor e1;
+      nr2 := nr2+((nr2 shl 8) xor nr);
+      add := add+tmp;
+    end;
+    res0 := nr and $7fffffff;
+    res1 := nr2 and $7fffffff;
+  end;
+
+  function Floor(X: Extended): my_int;
+  begin
+    Result := Trunc(X);
+    if ((X < 0) and (Result <> X)) then
+      Dec(Result);
+  end;
+
+var
+  dRes: Double;
+  e: Byte;
+  hm0: my_int;
+  hm1: my_int;
+  hp0: my_int;
+  hp1: my_int;
+  I: my_int;
+  maxValue: my_ulonglong;
+  Scramled: array [0..7] of AnsiChar;
+  Seed: my_ulonglong;
+  Seed2: my_ulonglong;
+begin
+  hashPassword(Password, hp0, hp1);
+  hashPassword(Salt, hm0, hm1);
+  MaxValue := $3FFFFFFF;
+  Seed  := (hp0 xor hm0) mod maxValue ;
+  Seed2 := (hp1 xor hm1) mod maxValue ;
+  for I := 0 to AnsiStrings.StrLen(Salt) - 1 do
+  begin
+    Seed  := (Seed * 3 + Seed2) mod MaxValue;
+    Seed2 := (Seed + Seed2 + 33) mod MaxValue;
+    dRes := Seed / maxValue;
+    Scramled[I] := AnsiChar(Floor(dRes * 31) + 64);
+  end;
+  dRes := (Seed * 3 + Seed2) mod MaxValue / MaxValue;
+  e := Floor(dRes * 31);
+  for I := 0 to AnsiStrings.StrLen(Salt) - 1 do
+    Scramled[I] := AnsiChar(Byte(Scramled[I]) xor e);
+
+  SetString(Result, PAnsiChar(@Scramled), AnsiStrings.StrLen(Salt));
+end;
+
 procedure sha1_ProcessMessageBlock(var Context: TSHA1Context);
 const
   ctKeys: array[0..3] of Longint =
@@ -498,73 +565,6 @@ begin
     for I := 0 to SCRAMBLE_LENGTH -1 do
       msgDigest[I] := AnsiChar(context.FInterimHash[I shr 2] shr (8 * (3 - (I and 3))) and $FF);
   end;
-end;
-
-function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
-
-  procedure hashPassword(const pass: my_char; var res0, res1: my_int);
-  var
-    nr, add, nr2, tmp: my_ulonglong;
-    I: my_int;
-    e1: my_ulonglong;
-    len: my_int;
-  begin
-    nr := 1345345333;
-    add := 7;
-    nr2 := $12345671;
-    len := Length(pass)-1;
-    for I := 0 to len do
-    begin
-      if (Pass[I] = #20) or (Pass[I] = #9)then
-        continue;
-      tmp := $ff and Byte(Pass[I]);
-      e1 := (((nr and 63) +add)*tmp)+(nr shl 8);
-      nr := nr xor e1;
-      nr2 := nr2+((nr2 shl 8) xor nr);
-      add := add+tmp;
-    end;
-    res0 := nr and $7fffffff;
-    res1 := nr2 and $7fffffff;
-  end;
-
-  function Floor(X: Extended): my_int;
-  begin
-    Result := Trunc(X);
-    if ((X < 0) and (Result <> X)) then
-      Dec(Result);
-  end;
-
-var
-  dRes: Double;
-  e: Byte;
-  hm0: my_int;
-  hm1: my_int;
-  hp0: my_int;
-  hp1: my_int;
-  I: my_int;
-  maxValue: my_ulonglong;
-  Scramled: array [0..7] of AnsiChar;
-  Seed: my_ulonglong;
-  Seed2: my_ulonglong;
-begin
-  hashPassword(Password, hp0, hp1);
-  hashPassword(Salt, hm0, hm1);
-  MaxValue := $3FFFFFFF;
-  Seed  := (hp0 xor hm0) mod maxValue ;
-  Seed2 := (hp1 xor hm1) mod maxValue ;
-  for I := 0 to AnsiStrings.StrLen(Salt) - 1 do
-  begin
-    Seed  := (Seed * 3 + Seed2) mod MaxValue;
-    Seed2 := (Seed + Seed2 + 33) mod MaxValue;
-    dRes := Seed / maxValue;
-    Scramled[I] := AnsiChar(Floor(dRes * 31) + 64);
-  end;
-  dRes := (Seed * 3 + Seed2) mod MaxValue / MaxValue;
-  e := Floor(dRes * 31);
-  for I := 0 to AnsiStrings.StrLen(Salt) - 1 do
-    Scramled[I] := AnsiChar(Byte(Scramled[I]) xor e);
-
-  SetString(Result, PAnsiChar(@Scramled), AnsiStrings.StrLen(Salt));
 end;
 
 function SecureScramble(const Password: my_char; const Salt: my_char): RawByteString;

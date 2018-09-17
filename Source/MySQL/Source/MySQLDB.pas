@@ -1201,82 +1201,28 @@ begin
   WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), PAnsiChar(Result), Len);
 end;
 
-function LibPack(const Value: string): RawByteString;
-label
-  StringL;
-var
-  Len: Integer;
+function LibPack(const Value: string): RawByteString; inline;
 begin
-  if (Value = '') then
-    Result := ''
-  else
-  begin
-    Len := Length(Value);
-    SetLength(Result, Len);
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-
-        MOV ECX,Len
-      StringL:
-        LODSW                            // Load WideChar from Value
-        STOSB                            // Store AnsiChar into Result
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-  end;
+  Result := RawByteString(Value);
 end;
 
-function LibUnpack(const Data: my_char; const Length: my_int = -1): string;
-label
-  StringL;
+function LibUnpack(Data: my_char; Length: my_int = -1): string;
 var
   Len: Integer;
+  Value: PChar;
 begin
   if (Length = -1) then
     Len := lstrlenA(Data)
   else
     Len := Length;
-  if (not Assigned(Data) or (Len = 0)) then
-    Result := ''
-  else
+  SetLength(Result, Len);
+  if (Len > 0) then
   begin
-    SetLength(Result, Len);
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Data                     // Copy characters from Data
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-        MOV ECX,Len                      // Length of Data
-
-        MOV AH,0                         // Clear AH, since AL will be load but AX stored
-      StringL:
-        LODSB                            // Load AnsiChar from Data
-        STOSW                            // Store WideChar into S
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
+    Value := @Result[1];
+    while (Len > 0) do
+    begin
+      Value^ := Char(Data^);
+      Inc(Value); Dec(Len);
     end;
   end;
 end;
@@ -4098,7 +4044,8 @@ begin
 
     SyncThread.Terminate();
     SyncThread.RunExecute.SetEvent();
-    SyncThreadExecuted.SetEvent();
+    if (GetCurrentThreadId() = MainThreadID) then
+    	SyncThreadExecuted.SetEvent();
 
     if (GetCurrentThreadId() = MainThreadID) then
       DebugMonitor.Append('--> Connection terminated!', ttInfo);
@@ -9388,7 +9335,7 @@ initialization
 //  SL.Free();
 
   MySQLConnectionOnSynchronize := nil;
-
+SwapUInt64($12345678);
   LocaleFormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
   SetLength(MySQLLibraries, 0);
 

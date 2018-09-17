@@ -103,7 +103,7 @@ type
       procedure WriteText(const Text: PChar; const Length: Integer); overload;
       procedure WriteText(const Text: my_char; const Length: Integer; const CodePage: Cardinal); overload;
       procedure WriteBinary(const Value: PChar; const ValueLen: Integer); overload;
-      procedure WriteBinary(const Value: my_char; const Length: Integer); overload;
+      procedure WriteBinary(const Value: my_char; const ValueLen: Integer); overload;
       property Data: Pointer read GetData;
       property Size: Integer read GetSize;
     end;
@@ -1222,54 +1222,39 @@ begin
   end;
 end;
 
-procedure TTool.TDataFileBuffer.WriteBinary(const Value: my_char; const Length: Integer);
+procedure TTool.TDataFileBuffer.WriteBinary(const Value: my_char; const ValueLen: Integer);
 label
   StringL;
 var
+  Len: Integer;
   Size: Integer;
-  Write: Pointer;
+  Write: PChar;
+  Read: PAnsiChar;
 begin
-  if (Length = 0) then
+  if (ValueLen = 0) then
   begin
     Reallocate(2);
-    Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
-    Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
+    Buffer.Write[0] := ''''; Inc(Buffer.Write);
+    Buffer.Write[0] := ''''; Inc(Buffer.Write);
   end
   else
   begin
-    Size := Length * SizeOf(Char);
+    Size := ValueLen * SizeOf(Char);
     if (Size > Temp2.Size) then
     begin
       Temp2.Size := Size;
       ReallocMem(Temp2.Mem, Temp2.Size);
     end;
 
+    Read := Value;
     Write := Temp2.Mem;
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Value                    // Copy characters from Value
-        MOV EDI,Write                    //   to Temp2.Mem
-        MOV ECX,Length                   // Character count
-
-        MOV AH,0                         // High-byte for STOSW
-      StringL:
-        LODSB                            // Load AnsiChar
-        STOSW                            // Store WideChar
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
+    Len := ValueLen;
+    while (Len > 0) do
+    begin
+      Write^ := Char(Read^); Inc(Read); Inc(Write); Dec(Len);
     end;
 
-    WriteBinary(PChar(Temp2.Mem), Length);
+    WriteBinary(PChar(Temp2.Mem), ValueLen);
   end;
 end;
 
@@ -5623,210 +5608,133 @@ end;
 
 { TTExportXML *****************************************************************}
 
-function XMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
-label
-  StringL, String2, String3, String4, String5, String6, String7, String8, StringLE,
-  Error,
-  Finish;
-asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Value                    // Copy characters from Value
-        MOV EDI,Escaped                  //   to Escaped
-        MOV ECX,ValueLen                 // Length of Value string
-        MOV EDX,EscapedLen               // Length of Escaped
-
-        MOV EBX,0
-        CMP ECX,0                        // Empty string?
-        JE Error                         // Yes!
-
-      StringL:
-        LODSW                            // Character from Value
-
-        CMP AX,9                         // #9 ?
-        JE String8                       // Yes!
-        CMP AX,10                        // #10 ?
-        JE String8                       // Yes!
-        CMP AX,13                        // #13 ?
-        JE String8                       // Yes!
-
-        CMP AX,9                         // <= #9 ?
-        JA String2                       // No!
-        ADD EBX,4                        // 4 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,4                        // 4 characters left in Escaped?
-        JC Error                         // No!
-        PUSH EAX
-        MOV AX,'&'
-        STOSW
-        MOV AX,'#'
-        STOSW
-        POP EAX
-        ADD AX,'0'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String2:
-        CMP AX,31                        // <= #31 ?
-        JA String3                       // No!
-        ADD EBX,5                        // 5 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,5                        // 5 characters left in Escaped?
-        JC Error                         // No!
-        PUSH EAX
-        MOV AX,'&'
-        STOSW
-        MOV AX,'#'
-        STOSW
-        POP EAX
-        PUSH EDX
-        MOV EDX,00
-        MOV EBX,10
-        DIV BX
-        ADD AX,'0'
-        STOSW
-        MOV AX,DX
-        POP EDX
-        ADD AX,'0'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String3:
-        CMP AX,'"'                       // '"' ?
-        JNE String4                      // No!
-        ADD EBX,6                        // 6 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,6                        // 6 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'q'
-        STOSW
-        MOV AX,'u'
-        STOSW
-        MOV AX,'o'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String4:                           // "normal" character
-        CMP AX,'&'                       // "&" ?
-        JNE String5                      // No!
-        ADD EBX,5                        // 5 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,5                        // 5 characters left in Escaped?
-        JC Error                         // No!
-        STOSW
-        MOV AX,'a'
-        STOSW
-        MOV AX,'m'
-        STOSW
-        MOV AX,'p'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String5:
-        CMP AX,''''                      // "'" ?
-        JNE String6                      // No!
-        ADD EBX,6                        // 6 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,6                        // 6 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'a'
-        STOSW
-        MOV AX,'p'
-        STOSW
-        MOV AX,'o'
-        STOSW
-        MOV AX,'s'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String6:
-        CMP AX,'<'                       // "<" ?
-        JNE String7                      // No!
-        ADD EBX,4                        // 4 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,4                        // 4 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'l'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String7:
-        CMP AX,'>'                       // ">" ?
-        JNE String8                      // No!
-        ADD EBX,4                        // 4 characters needed in Escaped
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        SUB EDX,4                        // 4 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'&'
-        STOSW
-        MOV AX,'g'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        MOV AX,';'
-        STOSW
-        JMP StringLE
-
-      String8:                           // "normal" character
-        INC EBX                          // One character needed
-        CMP EDI,0                        // Calculate length only?
-        JE StringLE                      // Yes!
-        DEC EDX                          // One character left in Escaped?
-        JC Error                         // No!
-        STOSW
-
-      StringLE:
-        DEC ECX
-        JNZ StringL
-        MOV @Result,EBX
-        JMP Finish
-
-      // -------------------
-
-      Error:
-        MOV @Result,0                    // Too few space in Escaped
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+function XMLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer): Integer; overload;
+var
+  S: string;
+begin
+  Result := 0;
+  while (ValueLen > 0) do
+  begin
+    if ((Value^ = #9) or (Value^=#10) or (Value^=#13)) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result);
+    end
+    else if (Value^ < #9) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 4) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '#'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := Char(Ord('0') + Ord(Value^)); Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 4);
+    end
+    else if (Value^ < #31) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 5) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '#'; Inc(Escaped); Dec(EscapedLen);
+        S := IntToStr(Ord(Value^));
+        Escaped^ := Char(Ord('0') + Ord(S[1])); Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := Char(Ord('0') + Ord(S[2])); Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 5);
+    end
+    else if (Value^ = '"') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 6) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'q'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'u'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'o'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 't'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 6);
+    end
+    else if (Value^ = '&') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 5) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'a'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'm'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'p'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 5);
+    end
+    else if (Value^ = '''') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 6) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'a'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'p'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'o'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 's'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 6);
+    end
+    else if (Value^ = '<') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 4) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'l'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 't'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 4);
+    end
+    else if (Value^ = '>') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 4) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := '&'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'g'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 't'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ';'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result, 4);
+    end
+    else
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space left in Escaped
+        Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Result);
+    end;
+    Inc(Value); Dec(ValueLen);
+  end;
 end;
 
 function XMLEscape(const Value: string): string; overload;

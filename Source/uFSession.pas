@@ -12875,7 +12875,7 @@ begin
     aDDelete.Enabled := False;
     mlEProperties.Action := nil;
 
-    if (Assigned(Item)) then
+    if (Assigned(Item) and Selected) then
     begin
       aFImportSQL.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
       aFImportText.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);

@@ -317,6 +317,7 @@ type
         ntShowCreateEventStmt,
         ntShowCreateFunctionStmt,
         ntShowCreateProcedureStmt,
+        ntShowCreateSequenceStmt,
         ntShowCreateTableStmt,
         ntShowCreateTriggerStmt,
         ntShowCreateUserStmt,
@@ -473,6 +474,7 @@ type
         stShowCreateEvent,
         stShowCreateFunction,
         stShowCreateProcedure,
+        stShowCreateSequence,
         stShowCreateTable,
         stShowCreateTrigger,
         stShowCreateUser,
@@ -849,6 +851,7 @@ type
         'ntShowCreateEventStmt',
         'ntShowCreateFunctionStmt',
         'ntShowCreateProcedureStmt',
+        'ntShowCreateSequenceStmt',
         'ntShowCreateTableStmt',
         'ntShowCreateTriggerStmt',
         'ntShowCreateUserStmt',
@@ -1005,6 +1008,7 @@ type
         'stShowCreateEvent',
         'stShowCreateFunction',
         'stShowCreateProcedure',
+        'stShowCreateSequence',
         'stShowCreateTable',
         'stShowCreateTrigger',
         'stShowCreateUser',
@@ -1305,6 +1309,7 @@ type
         ntShowCreateEventStmt,
         ntShowCreateFunctionStmt,
         ntShowCreateProcedureStmt,
+        ntShowCreateSequenceStmt,
         ntShowCreateTableStmt,
         ntShowCreateTriggerStmt,
         ntShowCreateUserStmt,
@@ -1530,6 +1535,7 @@ type
         ntShowCreateEventStmt,
         ntShowCreateFunctionStmt,
         ntShowCreateProcedureStmt,
+        ntShowCreateSequenceStmt,
         ntShowCreateTableStmt,
         ntShowCreateTriggerStmt,
         ntShowCreateUserStmt,
@@ -5185,6 +5191,22 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
+      PShowCreateSequenceStmt = ^TShowCreateSequenceStmt;
+      TShowCreateSequenceStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          Ident: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PShowCreateTableStmt = ^TShowCreateTableStmt;
       TShowCreateTableStmt = packed record
       private type
@@ -7220,6 +7242,7 @@ type
     function ParseShowCreateEventStmt(): TOffset;
     function ParseShowCreateFunctionStmt(): TOffset;
     function ParseShowCreateProcedureStmt(): TOffset;
+    function ParseShowCreateSequenceStmt(): TOffset;
     function ParseShowCreateTableStmt(): TOffset;
     function ParseShowCreateTriggerStmt(): TOffset;
     function ParseShowCreateUserStmt(): TOffset;
@@ -11257,6 +11280,20 @@ begin
   end;
 end;
 
+{ TSQLParser.TShowCreateSequenceStmt ******************************************}
+
+class function TSQLParser.TShowCreateSequenceStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stShowCreateSequence);
+
+  with PShowCreateSequenceStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
 { TSQLParser.TShowCreateTableStmt *********************************************}
 
 class function TSQLParser.TShowCreateTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -13818,6 +13855,7 @@ begin
       ntShowCreateEventStmt: DefaultFormatNode(@PShowCreateEventStmt(Node)^.Nodes, SizeOf(TShowCreateEventStmt.TNodes));
       ntShowCreateFunctionStmt: DefaultFormatNode(@PShowCreateFunctionStmt(Node)^.Nodes, SizeOf(TShowCreateFunctionStmt.TNodes));
       ntShowCreateProcedureStmt: DefaultFormatNode(@PShowCreateProcedureStmt(Node)^.Nodes, SizeOf(TShowCreateProcedureStmt.TNodes));
+      ntShowCreateSequenceStmt: DefaultFormatNode(@PShowCreateSequenceStmt(Node)^.Nodes, SizeOf(TShowCreateSequenceStmt.TNodes));
       ntShowCreateTableStmt: DefaultFormatNode(@PShowCreateTableStmt(Node)^.Nodes, SizeOf(TShowCreateTableStmt.TNodes));
       ntShowCreateTriggerStmt: DefaultFormatNode(@PShowCreateTriggerStmt(Node)^.Nodes, SizeOf(TShowCreateTriggerStmt.TNodes));
       ntShowCreateUserStmt: DefaultFormatNode(@PShowCreateUserStmt(Node)^.Nodes, SizeOf(TShowCreateUserStmt.TNodes));
@@ -14444,6 +14482,7 @@ label
 var
   Dest: PChar;
   Keyword: array [0 .. 255] of Char;
+  I: Integer;
   Index: Integer;
   Length: Integer;
   S: string;
@@ -14461,34 +14500,8 @@ begin
     begin
       Dest := @Keyword[0];
 
-      asm // Convert SQL to upper case
-          PUSH ES
-          PUSH ESI
-          PUSH EDI
-
-          PUSH DS                          // string operations uses ES
-          POP ES
-          CLD                              // string operations uses forward direction
-
-          MOV ESI,Text
-          MOV ECX,Length
-          MOV EDI,Dest
-
-        UpcaseL:
-          LODSW                            // Get character to AX
-          CMP AX,'a'                       // Small character?
-          JB UpcaseLE                      // No!
-          CMP AX,'z'                       // Small character?
-          JA UpcaseLE                      // No!
-          AND AX,$FF - $20                 // Upcase character
-        UpcaseLE:
-          STOSW                            // Put character from AX
-          LOOP UpcaseL                     // Further characters!
-
-          POP EDI
-          POP ESI
-          POP ES
-      end;
+      for I := 0 to Length - 1 do
+        Dest[I] := Char(Byte(Text[I]) and not $20);
 
       Commands.Write(@Keyword[0], Token.Length);
     end;
@@ -14501,34 +14514,8 @@ begin
     begin
       Dest := @Keyword[0];
 
-      asm // Convert SQL to upper case
-          PUSH ES
-          PUSH ESI
-          PUSH EDI
-
-          PUSH DS                          // string operations uses ES
-          POP ES
-          CLD                              // string operations uses forward direction
-
-          MOV ESI,Text
-          MOV ECX,Length
-          MOV EDI,Dest
-
-        LowcaseL:
-          LODSW                            // Get character to AX
-          CMP AX,'A'                       // Small character?
-          JB LowcaseLE                     // No!
-          CMP AX,'Z'                       // Small character?
-          JA LowcaseLE                     // No!
-          OR AX,$20                        // Locase character
-        LowcaseLE:
-          STOSW                            // Put character from AX
-          LOOP LowcaseL                    // Further characters!
-
-          POP EDI
-          POP ESI
-          POP ES
-      end;
+      for I := 0 to Length - 1 do
+        Dest[I] := Char(Byte(Text[I]) or $20);
 
       Commands.Write(@Keyword[0], Token.Length);
     end;
@@ -15316,6 +15303,7 @@ begin
     ntShowCreateEventStmt: Result := SizeOf(TShowCreateEventStmt);
     ntShowCreateFunctionStmt: Result := SizeOf(TShowCreateFunctionStmt);
     ntShowCreateProcedureStmt: Result := SizeOf(TShowCreateProcedureStmt);
+    ntShowCreateSequenceStmt: Result := SizeOf(TShowCreateSequenceStmt);
     ntShowCreateTableStmt: Result := SizeOf(TShowCreateTableStmt);
     ntShowCreateTriggerStmt: Result := SizeOf(TShowCreateTriggerStmt);
     ntShowCreateUserStmt: Result := SizeOf(TShowCreateUserStmt);
@@ -24110,6 +24098,20 @@ begin
   Result := TShowCreateProcedureStmt.Create(Self, Nodes);
 end;
 
+function TSQLParser.ParseShowCreateSequenceStmt(): TOffset;
+var
+  Nodes: TShowCreateSequenceStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiSHOW, kiCREATE, kiSEQUENCE);
+
+  if (not ErrorFound) then
+    Nodes.Ident := ParseSequenceIdent();
+
+  Result := TShowCreateSequenceStmt.Create(Self, Nodes);
+end;
+
 function TSQLParser.ParseShowCreateTableStmt(): TOffset;
 var
   Nodes: TShowCreateTableStmt.TNodes;
@@ -25127,8 +25129,8 @@ begin
     Result := ParseShowCreateProcedureStmt()
   else if (IsTag(kiSHOW, kiCREATE, kiSCHEMA)) then
     Result := ParseShowCreateDatabaseStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
-    Result := ParseShowCreateProcedureStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiSEQUENCE)) then
+    Result := ParseShowCreateSequenceStmt()
   else if (IsTag(kiSHOW, kiCREATE, kiTABLE)) then
     Result := ParseShowCreateTableStmt()
   else if (IsTag(kiSHOW, kiCREATE, kiTRIGGER)) then

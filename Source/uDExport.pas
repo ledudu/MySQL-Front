@@ -1358,7 +1358,7 @@ begin
   else
   begin
     SetControlCursor(GFields, crDefault);
-    TSExecute.Enabled := not FLDestinationFields.Visible;
+    TSExecute.Enabled := True;
   end;
 
   CheckActivePageChange(TSFields);

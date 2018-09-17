@@ -14535,7 +14535,7 @@ begin
   end;
 
   if (not Assigned(User) and (NewUser.NewPassword <> '') or Assigned(User) and (NewUser.NewPassword <> User.RawPassword) and (NewUser.RightCount > 0)) then
-    if (Connection.MySQLVersion < 80011) then
+    if (Connection.MySQLVersion < 50706) then
       SQL := SQL + 'SET PASSWORD FOR ' + EscapeUser(NewUser.Name) + '=PASSWORD(' + SQLEscape(NewUser.NewPassword) + ');' + #13#10
     else
       SQL := SQL + 'ALTER USER ' + EscapeUser(NewUser.Name) + ' IDENTIFIED BY ' + SQLEscape(NewUser.NewPassword) + ';' + #13#10;
