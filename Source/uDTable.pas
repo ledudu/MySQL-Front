@@ -1005,7 +1005,7 @@ begin
     NewTable.Name := Trim(FName.Text);
     NewTable.Charset := FCharset.Text;
     NewTable.Collation := FCollation.Text;
-    if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.MySQLVersion))) then
+    if (not Assigned(Table) or (Trim(FComment.Text) <> NewTable.Comment)) then
       NewTable.Comment := Trim(FComment.Text);
 
     if (GRecords.Visible) then

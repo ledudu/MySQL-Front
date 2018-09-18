@@ -219,7 +219,7 @@ begin
     if (FInsert.Checked) then NewTrigger.Event := teInsert;
     if (FUpdate.Checked) then NewTrigger.Event := teUpdate;
     if (FDelete.Checked) then NewTrigger.Event := teDelete;
-    NewTrigger.Stmt := SQLTrimStmt(PChar(FStatement.Text));
+    NewTrigger.Stmt := Trim(FStatement.Text);
 
     SessionState := ssAlter;
     if (not Assigned(Trigger)) then

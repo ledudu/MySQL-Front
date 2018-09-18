@@ -351,14 +351,12 @@ end;
 
 function MYSQL.ExecuteCommand(const Command: enum_server_command; const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int;
 var
-  EndingCommentLength: Integer;
   Packet: my_char;
   PacketLen: Integer;
   SQL: string;
   SQLIndex: Integer;
   SQLLen: Integer;
   SQLStmtLen: Integer;
-  StartingCommentLength: Integer;
   StmtLen: Integer;
 begin
   SendBuffer.Offset := 0;
@@ -380,16 +378,11 @@ begin
     begin
       SQLStmtLen := SQLStmtLength(@PChar(SQL)[SQLIndex], SQLLen - SQLIndex);
 
-      StmtLen := SQLTrimStmt(@PChar(SQL)[SQLIndex], SQLStmtLen, StartingCommentLength, EndingCommentLength);
-      if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1 - 1] = ';')) then
-      begin
-        Inc(EndingCommentLength);
-        Dec(StmtLen);
-      end;
+      StmtLen := SQLStmtLength(@PChar(SQL)[SQLIndex], SQLStmtLen);
 
       if (StmtLen > 0) then
       begin
-        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@PChar(SQL)[SQLIndex + StartingCommentLength]), StmtLen, Packet, Size, nil, nil);
+        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@PChar(SQL)[SQLIndex]), StmtLen, Packet, Size, nil, nil);
 
         if (GetPacketSize() > 0) then
           SetPacketPointer(1, PACKET_CURRENT);

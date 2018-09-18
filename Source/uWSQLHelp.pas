@@ -181,7 +181,7 @@ function TWSQLHelp.Execute(): Boolean;
 begin
   Show();
 
-  Keyword := Trim(SQLUnwrapStmt(Keyword, Session.Connection.MySQLVersion));
+  Keyword := Trim(Keyword);
   if (Keyword = '') then
     Keyword := 'Contents';
   Perform(UM_SEND_SQL, 0, 0);

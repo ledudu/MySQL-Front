@@ -335,7 +335,7 @@ begin
     end;
     NewEvent.Enabled := FEnabled.Checked;
     NewEvent.Preserve := FPreserve.Checked;
-    if (not Assigned(Event) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewEvent.Comment, Database.Session.Connection.MySQLVersion))) then
+    if (not Assigned(Event) or (Trim(FComment.Text) <> NewEvent.Comment)) then
       NewEvent.Comment := Trim(FComment.Text);
     NewEvent.Stmt := FStatement.Text;
 

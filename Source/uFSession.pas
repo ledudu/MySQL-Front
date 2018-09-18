@@ -1460,13 +1460,11 @@ end;
 function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
-  EndingCommentLength: Integer;
   Item: ^TResult;
   Len: Integer;
   Msg: string;
   Parse: TSQLParse;
   SQL: string;
-  StartingCommentLength: Integer;
   URI: TUURI;
   XML: IXMLNode;
 begin
@@ -1511,9 +1509,8 @@ begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       if ((0 < Len) and (Len <= Length(SQL)) and (SQL[Len] = ';')) then Dec(Len);
-      SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
-      FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength;
+      FSynMemo.SelLength := Len;
     end;
   end
   else
@@ -9883,22 +9880,19 @@ end;
 
 procedure TFSession.FreeDBGrid(var DBGrid: TMySQLDBGrid);
 begin
-  // Debug 2017-06-01
-  Assert(Assigned(DBGrid));
+  if (Assigned(DBGrid)) then
+  begin
+    FText.OnChange := nil;
+    PBlob.Parent := PContent;
+    PBlob.Visible := False;
+    FText.OnChange := FTextChange;
 
-  FText.OnChange := nil;
-  PBlob.Parent := PContent;
-  PBlob.Visible := False;
-  FText.OnChange := FTextChange;
+    if (DBGrid = ActiveDBGrid) then
+      ActiveDBGrid := nil;
 
-  if (DBGrid = ActiveDBGrid) then
-    ActiveDBGrid := nil;
-
-  // Debug 2018-09-05
-  Assert(Assigned(DBGrid));
-
-  DBGrid.Free();
-  DBGrid := nil;
+    DBGrid.Free();
+    DBGrid := nil;
+  end;
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);

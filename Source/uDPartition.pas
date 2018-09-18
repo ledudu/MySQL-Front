@@ -99,7 +99,7 @@ begin
       NewPartition.MaxRows := -1
     else
       NewPartition.MaxRows := FUDMaxRows.Position;
-    if (not Assigned(Partition) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewPartition.Comment, Table.Session.Connection.MySQLVersion))) then
+    if (not Assigned(Partition) or (Trim(FComment.Text) <> NewPartition.Comment)) then
       NewPartition.Comment := Trim(FComment.Text);
 
     if (not Assigned(Partition)) then

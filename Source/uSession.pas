@@ -5543,7 +5543,7 @@ begin
       vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
     end;
     SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Name);
-    SQL := SQL + ' AS ' + SQLTrimStmt(Stmt);
+    SQL := SQL + ' AS ' + Trim(Stmt);
     if (SQL[Length(SQL)] = ';') then
       Delete(SQL, Length(SQL), 1);
     case (CheckOption) of
@@ -5584,10 +5584,8 @@ function TSView.ParseCreateView(const SQL: string): string;
 var
   DatabaseCount: Integer;
   DatabaseName: string;
-  EndingCommentLen: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  StartingCommentLen: Integer;
   TableCount: Integer;
   TableName: string;
   Token: TSQLParser.PToken;
@@ -5642,27 +5640,22 @@ begin
   
     if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
-    if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
-    begin
-      Dec(Len);
-      Inc(EndingCommentLen);
-    end;
+    Len := Length(SQL);
 
     if (StrIComp(PChar(RightStr(SQL, 18)), ' WITH CHECK OPTION') = 0) then
     begin
       FCheckOption := voDefault;
-      Dec(Len, 18); Inc(EndingCommentLen, 18);
+      Dec(Len, 18);
     end
     else if (StrIComp(PChar(RightStr(SQL, 27)), ' WITH CASCADED CHECK OPTION') = 0) then
     begin
       FCheckOption := voCascaded;
-      Dec(Len, 27); Inc(EndingCommentLen, 27);
+      Dec(Len, 27);
     end
     else if (StrIComp(PChar(RightStr(SQL, 24)), ' WITH LOCAL CHECK OPTION') = 0) then
     begin
       FCheckOption := voLocal;
-      Dec(Len, 24); Inc(EndingCommentLen, 24);
+      Dec(Len, 24);
     end
     else
       FCheckOption := voNone;
@@ -9168,10 +9161,10 @@ begin
   if (not Assigned(Event) and (NewEvent.Comment <> '') or Assigned(Event) and (NewEvent.Comment <> Event.Comment))then
     SQL := SQL + '  COMMENT ' + SQLEscape(NewEvent.Comment) + #13#10;
 
-  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt) <> SQLTrimStmt(Event.Stmt)))then
+  if (not Assigned(Event) and (Trim(NewEvent.Stmt) <> '') or Assigned(Event) and (Trim(NewEvent.Stmt) <> Trim(Event.Stmt)))then
   begin
     SQL := SQL + '  DO' + #13#10
-      + SQLTrimStmt(NewEvent.Stmt);
+      + Trim(NewEvent.Stmt);
     if (SQL[Length(SQL)] = ';') then Delete(SQL, Length(SQL), 1);
   end;
 
@@ -9320,7 +9313,7 @@ begin
       end;
   end;
   SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(NewView.Database.Name) + '.' + Session.Connection.EscapeIdentifier(NewView.Name);
-  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt);
+  SQL := SQL + ' AS ' + Trim(NewView.Stmt);
   if (SQL[Length(SQL)] = ';') then
     Delete(SQL, Length(SQL), 1);
   case (NewView.CheckOption) of
@@ -13104,7 +13097,7 @@ var
 begin
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
-    SQL := SQLTrimStmt(Text, Len);
+    SQL := Trim(Text);
     if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
     begin
       // Debug 2017-05-01

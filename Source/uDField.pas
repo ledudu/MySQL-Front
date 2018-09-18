@@ -776,7 +776,7 @@ begin
           NewField.Collation := FCollation.Text
         else
           NewField.Collation := '';
-        if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.MySQLVersion))) then
+        if (not Assigned(Field) or (Trim(FComment.Text) <> NewField.Comment)) then
           NewField.Comment := Trim(FComment.Text);
 
         if (not Assigned(Field)) then

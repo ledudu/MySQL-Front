@@ -2216,20 +2216,11 @@ begin
 end;
 
 function TMySQLConnection.TSyncThread.GetNextCommandText(): string;
-var
-  EndingCommentLength: Integer;
-  Len: Integer;
-  StartingCommentLength: Integer;
-  StmtLength: Integer;
 begin
   if (StmtIndex + 1 = StmtLengths.Count) then
     Result := ''
   else
-  begin
-    StmtLength := StmtLengths[StmtIndex + 1];
-    Len := SQLTrimStmt(SQL, SQLIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    Result := Copy(SQL, SQLIndex + StmtLengths[StmtIndex] + StartingCommentLength, Len);
-  end;
+    Result := Copy(SQL, SQLIndex + StmtLengths[StmtIndex], StmtLengths[StmtIndex + 1] - StmtLengths[StmtIndex]);
 end;
 
 { TMySQLConnection ************************************************************}
@@ -5905,8 +5896,6 @@ end;
 
 procedure TMySQLQuery.Open(const DataHandle: TMySQLConnection.TDataHandle);
 var
-  EndingCommentLength: Integer;
-  StartingCommentLength: Integer;
   StmtLength: Integer;
 begin
   if (Assigned(DataHandle)) then
@@ -5917,13 +5906,13 @@ begin
     begin
       FDatabaseName := Connection.DatabaseName;
       FCommandText := DataHandle.CommandText;
-      StmtLength := SQLTrimStmt(PChar(FCommandText), Integer(Length(FCommandText)), StartingCommentLength, EndingCommentLength);
-      if ((StmtLength > 0) and (FCommandText[1 + StartingCommentLength + StmtLength - 1] = ';')) then
+      StmtLength := SQLStmtLength(PChar(FCommandText), Integer(Length(FCommandText)));
+      if ((StmtLength > 0) and (FCommandText[1 + StmtLength - 1] = ';')) then
         Dec(StmtLength);
       if (StmtLength = 0) then
         FCommandText := ''
       else
-        SetString(FCommandText, PChar(@FCommandText[1 + StartingCommentLength]), StmtLength);
+        SetString(FCommandText, PChar(@FCommandText[1]), StmtLength);
     end;
 
     SetActiveEvent(DataHandle.ErrorCode, DataHandle.ErrorMessage, DataHandle.WarningCount,

@@ -287,7 +287,7 @@ begin
         NewRoutine.Security := seDefiner
       else if (FSecurityInvoker.Checked) then
         NewRoutine.Security := seInvoker;
-      if (not Assigned(Routine) or (Trim(FComment.Text) <> SQLUnwrapStmt(Routine.Comment, Database.Session.Connection.MySQLVersion))) then
+      if (not Assigned(Routine) or (Trim(FComment.Text) <> Routine.Comment)) then
         NewRoutine.Comment := Trim(FComment.Text);
 
       SessionState := ssAlter;
