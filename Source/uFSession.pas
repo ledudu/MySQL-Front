@@ -10,12 +10,11 @@ uses
   ShDocVw,
   Graphics, Controls, Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls,
   DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
-  PNGImage, GIFImg, Jpeg, ToolWin,
+  PNGImage, GIFImg, Jpeg, ToolWin, Vcl.Shell.ShellCtrls,
   BCHexEditor, BCHexEditorEx,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
   SynEditSearch, SynCompletionProposal,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
-  ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid, SQLParser,
   uSession, uPreferences, uTools,
@@ -892,8 +891,9 @@ type
     CloseButtonNormal: TPicture;
     CloseButtonPushed: TPicture;
     FCurrentAddress: string;
-    FFiles: TJamShellList;
-    FFolders: TJamShellTree;
+    FFiles: TShellListView;
+    FFilesFilter: string;
+    FFolders: TShellTreeView;
     FHTML: TWebBrowser;
     FHTMLFiles: array of TFileName;
     FilterMRU: TPPreferences.TMRUList;
@@ -939,7 +939,6 @@ type
     SBlobDebug: TSplitter_Ext;
     SBlob2Debug: TSplitter_Ext;
     ServerListView: TListView;
-    ShellLink: TJamShellLink;
     SplitColor: TColor;
     SQLEditor: TSQLEditor;
     SQLEditor2: TSQLEditor;
@@ -1026,8 +1025,10 @@ type
     procedure EndEditLabel(Sender: TObject);
     procedure FavoritesAdd(const Objects: TList);
     procedure FavoritesEvent(const Favorites: TPAccount.TFavorites);
+    procedure FFilesAddFolder(Sender: TObject; AFolder: TShellFolder; var CanAdd: Boolean);
     function FFilterDrop(const dataObj: IDataObject; grfKeyState: Longint;
       pt: TPoint; var dwEffect: Longint): HResult;
+    procedure FFoldersAddFolder(Sender: TObject; AFolder: TShellFolder; var CanAdd: Boolean);
     procedure FHexEditorShow(Sender: TObject);
     procedure FHTMLHide(Sender: TObject);
     procedure FHTMLShow(Sender: TObject);
@@ -1171,7 +1172,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  MMSystem, ShellAPI, UxTheme, RichEdit, ShLwApi,
+  MMSystem, ShellAPI, UxTheme, RichEdit, ShLwApi, ShlObj,
   Math, Variants, Types, StrUtils, SysConst, UITypes,
 DateUtils,
   System.Win.ComObj,
@@ -5704,13 +5705,9 @@ end;
 
 procedure TFSession.CreateExplorer();
 begin
-  if (not Assigned(ShellLink)) then
-    ShellLink := TJamShellLink.Create(Owner);
-
   if (not Assigned(FFolders)) then
   begin
-    FFolders := TJamShellTree.Create(Owner);
-    FFolders.Parent := PFolders;
+    FFolders := TShellTreeView.Create(Owner);
     FFolders.Visible := False;
     FFolders.Left := 0;
     FFolders.Top := 0;
@@ -5720,15 +5717,13 @@ begin
     FFolders.HelpType := htContext;
     FFolders.HelpContext := 1108;
     FFolders.HideSelection := False;
-    FFolders.HotTrack := True;
-    FFolders.ShellLink := ShellLink;
     FFolders.BorderStyle := bsNone;
     FFolders.ParentFont := True;
     FFolders.ShowLines := False;
-    FFolders.ShowNetHood := False;
-    FFolders.ShowRecycleBin := False;
     FFolders.Visible := True;
+    FFolders.OnAddFolder := FFoldersAddFolder;
     FFolders.OnChange := FFoldersChange;
+    FFolders.Parent := PFolders;
 
     SendMessage(FFolders.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CYEDGE), 0);
     if (CheckWin32Version(6)) then
@@ -5743,7 +5738,7 @@ begin
 
   if (not Assigned(FFiles)) then
   begin
-    FFiles := TJamShellList.Create(Owner);
+    FFiles := TShellListView.Create(Owner);
     FFiles.Parent := PFiles;
     FFiles.Left := 0;
     FFiles.Top := 0;
@@ -5751,22 +5746,22 @@ begin
     FFiles.Height := PFiles.Height;
     FFiles.Align := alClient;
     FFiles.BorderStyle := bsNone;
-    FFiles.Filter := Session.Account.Desktop.FilesFilter;
+//    FFiles.Filter := Session.Account.Desktop.FilesFilter;
     FFiles.HelpType := htContext;
     FFiles.HelpContext := 1108;
     FFiles.HideSelection := False;
     FFiles.IconOptions.AutoArrange := True;
     FFiles.PopupMenu := MFiles;
-    FFiles.BackgroundPopupMenu := MFiles;
     FFiles.ParentFont := True;
     FFiles.RowSelect := True;
-    FFiles.ShellContextMenu := False;
-    FFiles.ShowFolders := False;
-    FFiles.ShowRecycleBin := False;
-    FFiles.ShellLink := ShellLink;
+    FFiles.AutoContextMenus := False;
+    FFiles.ObjectTypes := [otNonFolders];
+    FFiles.ShellTreeView := FFolders;
+    FFiles.OnAddFolder := FFilesAddFolder;
     FFiles.OnDblClick := ListViewDblClick;
     FFiles.OnKeyDown := ListViewKeyDown;
     FFiles.OnEnter := FFilesEnter;
+    FFiles.ViewStyle := vsReport;
 
     if (CheckWin32Version(6,1)) then
       SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_JUSTIFYCOLUMNS, 0);
@@ -5774,11 +5769,7 @@ begin
     SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_COLUMNSNAPPOINTS, LVS_EX_COLUMNSNAPPOINTS);
   end;
 
-  try
-    FFolders.SelectedFolder := Path;
-  except
-    // In ShellBrowser 9.0.0 is sometimes a problem about no Parent
-  end;
+  FFolders.Path := Path;
 end;
 
 function TFSession.CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
@@ -7077,7 +7068,7 @@ begin
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
-    Session.Account.Desktop.FilesFilter := FFiles.Filter;
+    Session.Account.Desktop.FilesFilter := FFilesFilter;
   Session.Account.Desktop.NavigatorVisible := PNavigator.Visible;
   Session.Account.Desktop.ExplorerVisible := PExplorer.Visible;
   Session.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
@@ -7411,6 +7402,27 @@ begin
   FText.Repaint();
 end;
 
+procedure TFSession.FFilesAddFolder(Sender: TObject; AFolder: TShellFolder; var CanAdd: Boolean);
+var
+  FileExt: string;
+  Pos: Integer;
+begin
+  if (FFilesFilter = '') then
+    CanAdd := True
+  else
+  begin
+    CanAdd := False;
+    FileExt := ExtractFileExt(AFolder.PathName);
+    Pos := 1;
+    while (Pos <= Length(FFilesFilter)) do
+      if (ExtractFieldName(FFilesFilter, Pos) = FileExt) then
+      begin
+        CanAdd := True;
+        exit;
+      end;
+  end;
+end;
+
 procedure TFSession.FFilesEnter(Sender: TObject);
 begin
   miHOpen.ShortCut := VK_RETURN;
@@ -7533,16 +7545,15 @@ begin
   end;
 end;
 
+procedure TFSession.FFoldersAddFolder(Sender: TObject; AFolder: TShellFolder; var CanAdd: Boolean);
+begin
+{$MESSAGE 'ShellView'}
+  CanAdd := True;
+end;
+
 procedure TFSession.FFoldersChange(Sender: TObject; Node: TTreeNode);
 begin
-  if (not (fsLoading in FrameState) and PExplorer.Visible and Visible) then
-    if ((Sender is TJamShellTree) and not TJamShellTree(Sender).Visible) then
-    begin
-      TJamShellTree(Sender).Visible := True;
-      Window.ActiveControl := TJamShellTree(Sender);
-    end;
-
-  Path := FFolders.SelectedFolder;
+  Path := FFolders.Path;
 end;
 
 procedure TFSession.FHexEditorChange(Sender: TObject);
@@ -9732,8 +9743,8 @@ begin
     if (Assigned(FNavigatorNodeAfterActivate)) then
       FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
 
-    if (Assigned(FFolders) and (Path <> FFolders.SelectedFolder)) then
-      FFolders.SelectedFolder := Path;
+    if (Assigned(FFolders) and (Path <> FFolders.Path)) then
+      FFolders.Path := Path;
   end;
 
   if (Assigned(StatusBar)) then
@@ -11309,8 +11320,8 @@ begin
 
   if (Sender is TListView) then
     PopupMenu := TListView(Sender).PopupMenu
-  else if (Sender is TJamShellList) then
-    PopupMenu := TJamShellList(Sender).PopupMenu
+  else if (Sender is TShellListView) then
+    PopupMenu := TShellListView(Sender).PopupMenu
   else if (Sender is TWWorkbench) then
     PopupMenu := TWWorkbench(Sender).PopupMenu
   else
@@ -13069,55 +13080,61 @@ end;
 
 procedure TFSession.mfDeleteClick(Sender: TObject);
 begin
-  FFiles.InvokeCommandOnSelected('delete');
+//  FFiles.InvokeCommandOnSelected('delete');
 end;
 
 procedure TFSession.mfFilterAccessClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.mdb;*.accdb';
+  FFilesFilter := '.mdb;.accdb';
+  FFiles.Refresh();
 end;
 
 procedure TFSession.mfFilterClearClick(Sender: TObject);
 begin
-  FFiles.Filter := '*';
+  FFilesFilter := '';
   mfFilter.Checked := False;
   mfFilterText.Checked := False;
 end;
 
 procedure TFSession.mfFilterExcelClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.xls;*.xlsb';
+  FFilesFilter := '.xls;.xlsb';
+  FFiles.Refresh();
 end;
 
 procedure TFSession.mfFilterHTMLClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.html;*.htm';
+  FFilesFilter := '.html;.htm';
+  FFiles.Refresh();
 end;
 
 procedure TFSession.mfFilterSQLClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.sql';
+  FFilesFilter := '.sql';
+  FFiles.Refresh();
 end;
 
 procedure TFSession.mfFilterTextClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.txt;*.csv';
+  FFilesFilter := '.txt;.csv';
+  FFiles.Refresh();
 end;
 
 procedure TFSession.mfFilterXMLClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.xml';
+  FFilesFilter := '.xml';
+  FFiles.Refresh();
 end;
 
 procedure TFSession.MFilesPopup(Sender: TObject);
 begin
-  mfFilterClear.Checked := FFiles.Filter = '*';
-  mfFilterSQL.Checked := FFiles.Filter = '*.sql';
-  mfFilterText.Checked := FFiles.Filter = '*.txt;*.csv';
-  mfFilterAccess.Checked := FFiles.Filter = '*.mdb;*.accdb';
-  mfFilterExcel.Checked := FFiles.Filter = '*.xls;*.xlsb';
-  mfFilterHTML.Checked := FFiles.Filter = '*.html;*.htm';
-  mfFilterXML.Checked := FFiles.Filter = '*.xml';
+  mfFilterClear.Checked := FFilesFilter = '';
+  mfFilterSQL.Checked := FFilesFilter = '.sql';
+  mfFilterText.Checked := FFilesFilter = '.txt;.csv';
+  mfFilterAccess.Checked := FFilesFilter = '.mdb;.accdb';
+  mfFilterExcel.Checked := FFilesFilter = '.xls;.xlsb';
+  mfFilterHTML.Checked := FFilesFilter = '.html;.htm';
+  mfFilterXML.Checked := FFilesFilter = '.xml';
 
   mfOpen.Enabled := FFiles.SelCount = 1;
   mfFilter.Enabled := FFiles.SelCount = 0;
@@ -13132,7 +13149,7 @@ procedure TFSession.mfOpenClick(Sender: TObject);
 var
   CanClose: Boolean;
 begin
-  if (Assigned(FFiles.Selected) and (LowerCase(ExtractFileExt(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)) = '.sql')) then
+  if (Assigned(FFiles.Selected) and (LowerCase(ExtractFileExt(FFiles.SelectedFolder().PathName)) = '.sql')) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
@@ -13140,15 +13157,18 @@ begin
     CanClose := True;
     FrameCloseQuery(Sender, CanClose);
     if (CanClose) then
-      OpenSQLFile(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption);
+      OpenSQLFile(FFiles.SelectedFolder().PathName);
   end
   else
-    FFiles.InvokeCommandOnSelected('open');
+    FFiles.CommandCompleted('open', True);
 end;
 
 procedure TFSession.mfPropertiesClick(Sender: TObject);
+var
+  Handled: Boolean;
 begin
-  FFiles.InvokeCommandOnSelected('properties');
+  Handled := False;
+  FFiles.ExecuteCommand('properties', Handled);
 end;
 
 procedure TFSession.mfRenameClick(Sender: TObject);
@@ -15605,22 +15625,12 @@ end;
 
 procedure TFSession.SetListViewGroupHeader(const ListView: TListView;
   const GroupID: Integer; const NewHeader: string);
-  // In Delphi XE2 there is a flickering in the VScrollBar, while changing
-  // TListGroup.Header - also if Groups.BeginUpdate is used
 var
-//  LVGroup: TLVGroup;
   I: Integer;
 begin
   for I := 0 to ListView.Groups.Count - 1 do
     if (ListView.Groups[I].GroupID = GroupID) then
       ListView.Groups[I].Header := NewHeader;
-
-//  ZeroMemory(@LVGroup, SizeOf(LVGroup));
-//  LVGroup.cbSize := SizeOf(LVGroup);
-//  LVGroup.mask := LVGF_HEADER;
-//  LVGroup.pszHeader := PChar(NewHeader);
-//  LVGroup.cchHeader := Length(NewHeader);
-//  ListView_SetGroupInfo(ListView.Handle, GroupID, LVGroup);
 end;
 
 procedure TFSession.SetPath(const APath: TFileName);
@@ -15628,8 +15638,8 @@ begin
   if (APath <> Preferences.Path) then
   begin
     Preferences.Path := APath;
-    if (Assigned(FFolders) and (APath <> FFolders.SelectedFolder)) then
-      FFolders.SelectedFolder := APath;
+    if (Assigned(FFolders) and (APath <> FFolders.Path)) then
+      FFolders.Path := APath;
   end;
 end;
 
