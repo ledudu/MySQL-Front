@@ -4616,10 +4616,12 @@ begin
   if (DropBeforeCreate) then
     SQL := 'DROP TABLE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  if (FullQualifiedIdentifier) then
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
-    if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+    if (FullQualifiedIdentifier) then
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+    else
+      SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
 
@@ -5558,10 +5560,12 @@ begin
     if (DropBeforeCreate) then
       SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-    if (FullQualifiedIdentifier) then
+    if (Session.SQLParser.ParseSQL(SQL)) then
     begin
-      if (Session.SQLParser.ParseSQL(SQL)) then
-        SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+      if (FullQualifiedIdentifier) then
+        SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+      else
+        SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
       Session.SQLParser.Clear();
     end;
 
@@ -5825,11 +5829,19 @@ begin
   if (DropBeforeCreate) then
     SQL := 'DROP SEQUENCE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  if (FullQualifiedIdentifier) then
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
-    if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+    if (FullQualifiedIdentifier) then
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+    else
+      SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
+
+    if (Session.SQLParser.ParseSQL(SQL)) then
+    begin
+      SQL := Session.SQLParser.FormatSQL + #13#10;
+      Session.SQLParser.Clear();
+    end;
   end;
 
   Result := SQL;
@@ -6624,10 +6636,12 @@ begin
     else
       SQL := 'DROP FUNCTION IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  if (FullQualifiedIdentifier) then
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
-    if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+    if (FullQualifiedIdentifier) then
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+    else
+      SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
 
@@ -7098,10 +7112,12 @@ begin
   if (DropBeforeCreate) then
     SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  if (FullQualifiedIdentifier) then
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
-    if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+    if (FullQualifiedIdentifier) then
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+    else
+      SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
 
@@ -7485,10 +7501,12 @@ begin
   if (DropBeforeCreate) then
     SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  if (FullQualifiedIdentifier) then
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
-    if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
+    if (FullQualifiedIdentifier) then
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+    else
+      SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
 

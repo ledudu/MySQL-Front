@@ -1201,42 +1201,9 @@ begin
   WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), PAnsiChar(Result), Len);
 end;
 
-function LibPack(const Value: string): RawByteString;
-label
-  StringL;
-var
-  Len: Integer;
+function LibPack(const Value: string): RawByteString; inline;
 begin
-  if (Value = '') then
-    Result := ''
-  else
-  begin
-    Len := Length(Value);
-    SetLength(Result, Len);
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-
-        MOV ECX,Len
-      StringL:
-        LODSW                            // Load WideChar from Value
-        STOSB                            // Store AnsiChar into Result
-        LOOP StringL                     // Repeat for all characters
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-  end;
+  Result := RawByteString(Value);
 end;
 
 function LibUnpack(Value: my_char; Length: my_int = -1): string;

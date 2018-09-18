@@ -13,7 +13,6 @@ uses
   ODBCAPI,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
-  SQLParser,
   uSession, uPreferences;
 
 type
@@ -4696,7 +4695,6 @@ procedure TTExportSQL.ExecuteSequence(const Item: TTool.TDBObjectItem);
 var
   Content: string;
   Sequence: TSSequence;
-  SQL: string;
 begin
   Sequence := TSSequence(TDBObjectItem(Item).DBObject);
 
@@ -4705,13 +4703,7 @@ begin
   Content := Content + '# Sequence "' + Sequence.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  SQL := Sequence.GetSourceEx(DropStmts, CrossReferencedObjects);
-  if (Session.SQLParser.ParseSQL(SQL)) then
-  begin
-    SQL := Session.SQLParser.FormatSQL;
-    Session.SQLParser.Clear();
-  end;
-  Content := Content + SQL + #13#10;
+  Content := Content + Sequence.GetSourceEx(DropStmts, CrossReferencedObjects);
 
   WriteContent(Content);
 end;
@@ -4744,7 +4736,6 @@ var
   First: Boolean;
   I: Integer;
   ReadOnlyFields: Boolean;
-  SQL: string;
 begin
   Content := '';
 
@@ -4758,14 +4749,7 @@ begin
       Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
-
-    SQL := Table.GetSourceEx(DropStmts, CrossReferencedObjects);
-    if (Session.SQLParser.ParseSQL(SQL)) then
-    begin
-      SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Table.Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
-      Session.SQLParser.Clear();
-    end;
-    Content := Content + SQL;
+    Content := Content + Table.GetSourceEx(DropStmts, CrossReferencedObjects);
   end;
 
   if (Assigned(DataSet)) then

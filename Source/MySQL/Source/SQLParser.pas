@@ -238,6 +238,7 @@ type
         ntExplainStmt,
         ntExtractFunc,
         ntFetchStmt,
+        ntFlushQueryCacheStmt,
         ntFlushStmt,
         ntFlushStmtOption,
         ntFlushStmtOptionLogs,
@@ -433,6 +434,7 @@ type
         stExplain,
         stFetch,
         stFlush,
+        stFlushQueryCache,
         stGetDiagnostics,
         stGrant,
         stHelp,
@@ -772,6 +774,7 @@ type
         'ntExplainStmt',
         'ntExtractFunc',
         'ntFetchStmt',
+        'ntFlushQueryCacheStmt',
         'ntFlushStmt',
         'ntFlushStmtOption',
         'ntFlushStmtOptionLogs',
@@ -967,6 +970,7 @@ type
         'stExplain',
         'stFetch',
         'stFlush',
+        'stFlushQueryCache',
         'stGetDiagnostics',
         'stGrant',
         'stHelp',
@@ -1268,6 +1272,7 @@ type
         ntExplainStmt,
         ntFetchStmt,
         ntFlushStmt,
+        ntFlushQueryCacheStmt,
         ntGetDiagnosticsStmt,
         ntGrantStmt,
         ntHelpStmt,
@@ -1494,6 +1499,7 @@ type
         ntExplainStmt,
         ntFetchStmt,
         ntFlushStmt,
+        ntFlushQueryCacheStmt,
         ntGetDiagnosticsStmt,
         ntGrantStmt,
         ntHelpStmt,
@@ -3634,6 +3640,7 @@ type
             TNodes = packed record
               OptionTag: TOffset;
               TablesList: TOffset;
+              ForExportTag: TOffset;
             end;
           private
             Heritage: TRange;
@@ -3665,6 +3672,21 @@ type
           StmtTag: TOffset;
           NoWriteToBinLogTag: TOffset;
           OptionList: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PFlushQueryCacheStmt = ^TFlushQueryCacheStmt;
+      TFlushQueryCacheStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -7146,6 +7168,7 @@ type
     function ParseFlushStmt(): TOffset;
     function ParseFlushStmtOption(): TOffset;
     function ParseFlushStmtOptionLogs(): TOffset;
+    function ParseFlushQueryCacheStmt(): TOffset;
     function ParseFlushStmtTablesOption(): TOffset;
     function ParseForeignKeyIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseFunctionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -10024,6 +10047,20 @@ begin
   Result := TStmt.Create(AParser, stFlush);
 
   with PFlushStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TFlushQueryCacheStmt *******************************************************}
+
+class function TSQLParser.TFlushQueryCacheStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stFlushQueryCache);
+
+  with PFlushQueryCacheStmt(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -12974,11 +13011,11 @@ begin
   FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.FieldList, stSpaceBefore);
   FormatNode(Nodes.AsTag, stReturnBefore);
-  Commands.DecreaseIndent();
   FormatNode(Nodes.SelectStmt, stReturnBefore);
   Commands.IncreaseIndent();
   Commands.DecreaseIndent();
   FormatNode(Nodes.OptionTag, stReturnBefore);
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatComments(const Token: PToken; Start: Boolean = False);
@@ -13776,6 +13813,7 @@ begin
       ntExplainStmt: DefaultFormatNode(@PExplainStmt(Node)^.Nodes, SizeOf(TExplainStmt.TNodes));
       ntExtractFunc: FormatExtractFunc(PExtractFunc(Node)^.Nodes);
       ntFetchStmt: FormatFetchStmt(PFetchStmt(Node)^.Nodes);
+      ntFlushQueryCacheStmt: DefaultFormatNode(@PFlushQueryCacheStmt(Node)^.Nodes, SizeOf(TFlushQueryCacheStmt.TNodes));
       ntFlushStmt: DefaultFormatNode(@PFlushStmt(Node)^.Nodes, SizeOf(TFlushStmt.TNodes));
       ntFlushStmtOption: DefaultFormatNode(@TFlushStmt.POption(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TNodes));
       ntFlushStmtOptionLogs: DefaultFormatNode(@TFlushStmt.TOption.PLogs(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TLogs.TNodes));
@@ -15230,6 +15268,7 @@ begin
     ntExplainStmt: Result := SizeOf(TExplainStmt);
     ntExtractFunc: Result := SizeOf(TExtractFunc);
     ntFetchStmt: Result := SizeOf(TFetchStmt);
+    ntFlushQueryCacheStmt: Result := SizeOf(TFlushQueryCacheStmt);
     ntFlushStmt: Result := SizeOf(TFlushStmt);
     ntFlushStmtOption: Result := SizeOf(TFlushStmt.TOption);
     ntFlushStmtOptionLogs: Result := SizeOf(TFlushStmt.TOption.TLogs);
@@ -20873,8 +20912,12 @@ begin
   begin
     Nodes.OptionTag := ParseTag(kiTABLES);
 
-    if (not ErrorFound and not EndOfStmt(CurrentToken)) then
+    if (not ErrorFound) then
       Nodes.TablesList := ParseList(False, ParseTableIdent);
+
+    if (not ErrorFound) then
+      if (IsTag(kiFOR, kiEXPORT)) then
+        Nodes.ForExportTag := ParseTag(kiFOR, kiEXPORT);
   end
   else if (EndOfStmt(CurrentToken)) then
     SetError(PE_IncompleteStmt)
@@ -20882,6 +20925,17 @@ begin
     SetError(PE_UnexpectedToken);
 
   Result := TFlushStmt.TOption.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseFlushQueryCacheStmt(): TOffset;
+var
+  Nodes: TFlushQueryCacheStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiFLUSH, kiQUERY, kiCACHE);
+
+  Result := TFlushQueryCacheStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseFlushStmtTablesOption(): TOffset;
@@ -25028,6 +25082,8 @@ begin
     Result := ParseExplainStmt()
   else if (InPL_SQL and IsTag(kiFETCH)) then
     Result := ParseFetchStmt()
+  else if (IsTag(kiFLUSH, kiQUERY, kiCACHE)) then
+    Result := ParseFlushQueryCacheStmt()
   else if (IsTag(kiFLUSH)) then
     Result := ParseFlushStmt()
   else if (IsTag(kiGET, kiCURRENT, kiDIAGNOSTICS)
