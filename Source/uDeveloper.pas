@@ -24,12 +24,15 @@ type
     FHTTPStatus: Integer;
     FOnProgress: TProgressEvent;
     FURI: string;
+    Mail: string;
+    Name: string;
     SendStream: TStream;
     Subject: string;
     ReceiveStream: TStream;
   public
     constructor Create(const AURI: string;
-      const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
+      const ASendStream, AReceiveStream: TStream; const ASubject: string = '';
+      const AName: string = ''; const AMail: string = '');
     procedure Execute(); override;
     property OnProgress: TProgressEvent read FOnProgress write FOnProgress
       default nil;
@@ -379,7 +382,8 @@ end;
 { THTTPThread ***************************************************************** }
 
 constructor THTTPThread.Create(const AURI: string;
-  const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
+  const ASendStream, AReceiveStream: TStream; const ASubject: string = '';
+  const AName: string = ''; const AMail: string = '');
 begin
   inherited Create(True);
 
@@ -387,6 +391,8 @@ begin
   SendStream := ASendStream;
   ReceiveStream := AReceiveStream;
   Subject := ASubject;
+  Name := AName;
+  Mail := AMail;
 end;
 
 procedure THTTPThread.Execute();
@@ -483,6 +489,12 @@ begin
           if (Subject <> '') then
             Headers := Headers
               + 'Subject: ' + Subject + #10;
+          if (Name <> '') then
+            Headers := Headers
+              + 'Name: ' + Name + #10;
+          if (Mail <> '') then
+            Headers := Headers
+              + 'Mail: ' + Mail + #10;
           SetLength(Body, SendStream.Size);
           SendStream.Seek(0, soBeginning);
           SendStream.Read(PAnsiChar(Body)^, SendStream.Size);

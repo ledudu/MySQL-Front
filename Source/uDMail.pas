@@ -70,6 +70,9 @@ var
 begin
   if (ModalResult = mrOK) then
   begin
+    if (FName.Text = 'raise exception') then
+      raise Exception.Create('Error Message');
+
     if (Trim(FName.Text) = '') then
       begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FName; CanClose := False; end;
 
@@ -82,10 +85,7 @@ begin
 
     if (CanClose) then
     begin
-      Body := 'Name: ' + Trim(FName.Text) + #13#10
-        + 'Mail: ' + Trim(FMail.Text) + #13#10
-        + #13#10
-        + Trim(FBody.Text);
+      Body := Trim(FBody.Text);
 
       Stream := TMemoryStream.Create();
 
@@ -99,7 +99,7 @@ begin
       WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body),
         PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
-      Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, 'Support');
+      Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, 'Support', FName.Text, FMail.Text);
       Thread.Execute();
       if ((INTERNET_ERROR_BASE <= Thread.ErrorCode) and (Thread.ErrorCode <= INTERNET_ERROR_LAST)) then
       begin

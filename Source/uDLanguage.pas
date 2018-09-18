@@ -116,10 +116,7 @@ begin
       Strings := TStringList.Create();
       LanguageFile.GetStrings(Strings);
 
-      Body := 'Language: ' + LanguageFile.ReadString('Global', 'Name', 'Translation') + #13#10
-        + 'E-Mail: ' + Trim(FMail.Text) + #13#10
-        + #13#10
-        + Strings.Text;
+      Body := Strings.Text;
 
       Strings.Free();
 
@@ -135,7 +132,7 @@ begin
       WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body),
         PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
-      Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, 'Language Translation');
+      Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, LanguageFile.ReadString('Global', 'Name', 'Translation') + ' Translation', '', FMail.Text);
       Thread.Execute();
       if ((INTERNET_ERROR_BASE <= Thread.ErrorCode) and (Thread.ErrorCode <= INTERNET_ERROR_LAST)) then
         MsgBox(Thread.ErrorMessage + ' (#' + IntToStr(Thread.ErrorCode), Preferences.LoadStr(45), MB_OK or MB_ICONERROR)

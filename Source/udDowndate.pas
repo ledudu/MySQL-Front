@@ -111,7 +111,7 @@ begin
       WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body),
         PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
-      Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, 'Downdate');
+      Thread := THTTPThread.Create(LoadStr(1006), Stream, nil, 'Downdate', '', FMail.Text);
       Thread.Execute();
       if ((INTERNET_ERROR_BASE <= Thread.ErrorCode) and (Thread.ErrorCode <= INTERNET_ERROR_LAST)) then
       begin
