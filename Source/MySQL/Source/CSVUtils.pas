@@ -136,7 +136,8 @@ begin
             begin
               Inc(Value); Dec(TextLen); // Normal char
             end
-            else if ((Value[1] = Delimiter)
+            else if ((TextLen = 1)
+              or (Value[1] = Delimiter)
               or (Value[1] = #10)
               or (Value[1] = #13)
               or (Value[1] = #26)) then

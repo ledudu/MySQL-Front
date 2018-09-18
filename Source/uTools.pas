@@ -2540,7 +2540,8 @@ begin
   end;
 end;
 
-procedure TTImportText.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil);
+procedure TTImportText.GetValue(const Item: TTImport.TItem; const Index: Integer;
+  const Values: TSQLBuffer; const Values2: TSQLBuffer = nil);
 var
   Len: Integer;
 begin
@@ -2563,7 +2564,8 @@ begin
       Len := CSVUnescape(CSVValues[CSVColumns[Index]].Text, CSVValues[CSVColumns[Index]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
     end;
 
-    if (FieldMappings[Index].DestinationField.FieldType in BinaryFieldTypes) then
+    if ((FieldMappings[Index].DestinationField.FieldType in BinaryFieldTypes)
+      or (CSVValues[CSVColumns[Index]].Length = 0)) then
     begin
       Values.Write('NULL', 4);
       if (Assigned(Values2)) then Values2.Write('NULL', 4);

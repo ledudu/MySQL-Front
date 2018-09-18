@@ -4613,9 +4613,6 @@ var
 begin
   SQL := Trim(FSource) + #13#10;
 
-  if (DropBeforeCreate) then
-    SQL := 'DROP TABLE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-
   if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     if (FullQualifiedIdentifier) then
@@ -4624,6 +4621,9 @@ begin
       SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
+
+  if (DropBeforeCreate) then
+    SQL := 'DROP TABLE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
 end;
@@ -5557,9 +5557,6 @@ begin
       SQL := Session.SQLParser.FormatSQL() + #13#10;
     Session.SQLParser.Clear();
 
-    if (DropBeforeCreate) then
-      SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-
     if (Session.SQLParser.ParseSQL(SQL)) then
     begin
       if (FullQualifiedIdentifier) then
@@ -5568,6 +5565,9 @@ begin
         SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
       Session.SQLParser.Clear();
     end;
+
+    if (DropBeforeCreate) then
+      SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
     Result := SQL;
   end;
@@ -5826,9 +5826,6 @@ var
 begin
   SQL := Trim(FSource) + #13#10;
 
-  if (DropBeforeCreate) then
-    SQL := 'DROP SEQUENCE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-
   if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     if (FullQualifiedIdentifier) then
@@ -5843,6 +5840,9 @@ begin
       Session.SQLParser.Clear();
     end;
   end;
+
+  if (DropBeforeCreate) then
+    SQL := 'DROP SEQUENCE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
 end;
@@ -6630,12 +6630,6 @@ var
 begin
   SQL := FSourceEx;
 
-  if (DropBeforeCreate) then
-    if (RoutineType = rtProcedure) then
-      SQL := 'DROP PROCEDURE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL
-    else
-      SQL := 'DROP FUNCTION IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-
   if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     if (FullQualifiedIdentifier) then
@@ -6644,6 +6638,12 @@ begin
       SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
+
+  if (DropBeforeCreate) then
+    if (RoutineType = rtProcedure) then
+      SQL := 'DROP PROCEDURE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL
+    else
+      SQL := 'DROP FUNCTION IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
 end;
@@ -7109,9 +7109,6 @@ begin
   else
     SQL := FSourceEx;
 
-  if (DropBeforeCreate) then
-    SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-
   if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     if (FullQualifiedIdentifier) then
@@ -7120,6 +7117,9 @@ begin
       SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
+
+  if (DropBeforeCreate) then
+    SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
 end;
@@ -7498,9 +7498,6 @@ var
 begin
   SQL := FSourceEx;
 
-  if (DropBeforeCreate) then
-    SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-
   if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     if (FullQualifiedIdentifier) then
@@ -7509,6 +7506,9 @@ begin
       SQL := RemoveDatabaseName(Session.Connection.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
     Session.SQLParser.Clear();
   end;
+
+  if (DropBeforeCreate) then
+    SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
 end;
