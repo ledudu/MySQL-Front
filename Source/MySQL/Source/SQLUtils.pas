@@ -65,6 +65,10 @@ function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
+function SQLTrimStmt(const SQL: string): string; overload;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer): string; overload;
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer; overload;
 function SQLUnescape(const Value: string): string; overload;
 function StrToUInt64(const S: string): UInt64;
@@ -2682,6 +2686,174 @@ begin
     Result := SQL
   else
     Result := copy(SQL, 1, Len) + '...';
+end;
+
+function SQLTrimStmt(const SQL: string): string;
+var
+  EndingCommentLen: Integer;
+  Len: Integer;
+  StartingCommentLen: Integer;
+begin
+  Len := SQLTrimStmt(SQL, 1, Length(SQL), StartingCommentLen, EndingCommentLen);
+  Result := Copy(SQL, 1 + StartingCommentLen, Len);
+end;
+
+function SQLTrimStmt(const SQL: PChar; const Length: Integer): string;
+var
+  EndingCommentLen: Integer;
+  Len: Integer;
+  StartingCommentLen: Integer;
+begin
+  Len := SQLTrimStmt(SQL, Length, StartingCommentLen, EndingCommentLen);
+  Result := Copy(SQL, 1 + StartingCommentLen, Len);
+end;
+
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
+begin
+  if ((Index < 1) or (System.Length(SQL) < Index)) then
+    Result := 0
+  else
+    Result := SQLTrimStmt(PChar(@SQL[Index]), Length, StartingCommentLength, EndingCommentLength);
+end;
+
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+label
+  StartL, StartL2, StartSLC, StartMLC, StartLE, StartE,
+  EndL, EndLE, EndE,
+  Finish;
+var
+  ECL: Integer;
+  SCL: Integer;
+begin
+  if (not Assigned(SQL) or (Length = 0)) then
+  begin
+    StartingCommentLength := 0;
+    EndingCommentLength := 0;
+    Result := 0;
+  end
+  else
+  begin
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
+
+        MOV ESI,SQL                      // Read characters from SQL
+        MOV ECX,Length                   // Count of characters
+        MOV EDI,0                        // Do not copy characters in Trim
+
+      // -------------------
+
+      StartL:
+        MOV AX,[ESI]                     // Character in SQL
+        CMP AX,9                         // Tabulator?
+        JE StartLE                       // Yes!
+        CMP AX,10                        // New Line?
+        JE StartLE                       // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE StartLE                       // Yes!
+        CMP AX,' '                       // Space
+        JE StartLE                       // Yes!
+        CMP AX,'#'                       // "#"?
+        JE StartSLC                       // Yes!
+        CMP ECX,3                        // Three character in SQL?
+        JB StartLE                       // No!
+        MOV EAX,[ESI]                    // Two character in SQL
+        CMP EAX,$002D002D                // "--"?
+        JNE StartL2                      // No!
+        MOV AX,[ESI + 4]                 // Character after "--"
+        CMP AX,9                         // Tabulator?
+        JE StartSLC                      // Yes!
+        CMP AX,10                        // New Line?
+        JE StartSLC                      // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE StartSLC                      // Yes!
+        CMP AX,' '                       // Space
+        JE StartSLC                      // Yes!
+        JMP StartLE
+      StartL2:
+        CMP EAX,$002A002F                // "/*"?
+        JNE StartE                       // No!
+        MOV AX,[ESI + 4]                 // Character after "/*"
+        CMP AX,'!'                       // "!"?
+        JE StartE                        // Yes!
+      StartMLC:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ StartE                        // End of SQL!
+        CMP ECX,2                        // Two character left in SQL?
+        JB StartMLC                      // No!
+        MOV EAX,[ESI]                    // Two character in SQL
+        CMP EAX,$002F002A                // "*/"?
+        JNE StartMLC                     // No!
+        ADD ESI,2                        // Step over "*" in SQL
+        DEC ECX                          // One character handled
+        JNZ StartLE                      // Further character in SQL!
+        JMP StartE                       // End of SQL!
+      StartSLC:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ StartE                        // End of SQL!
+        MOV AX,[ESI]                     // Character in SQL
+        CMP AX,10                        // New Line?
+        JE StartLE                       // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE StartLE                       // Yes!
+        JMP StartSLC
+      StartLE:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JNZ StartL                       // Further characters in SQL!
+        JMP StartE                       // End of SQL!
+      StartE:
+        MOV EBX,Length
+        SUB EBX,ECX
+        MOV SCL,EBX
+
+        MOV ESI,SQL                      // Go to the end of SQL:
+        MOV EAX,Length                   // ESI := SQL[Length - 1]
+        DEC EAX                          // Last character in SQL
+        SHL EAX,1                        // 1 character = 2 bytes
+        ADD ESI,EAX
+        MOV ECX,Length
+        SUB ECX,EBX                      // Length of SQL - StartingCommentLength
+        JZ Finish                        // The whole Stmt is a comment!
+
+      EndL:
+        MOV AX,[ESI]                     // Character in SQL
+        CMP AX,9                         // Tabulator?
+        JE EndLE                         // Yes!
+        CMP AX,10                        // New Line?
+        JE EndLE                         // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE EndLE                         // Yes!
+        CMP AX,' '                       // Space
+        JE EndLE                         // Yes!
+        JMP Finish
+      EndLE:
+        SUB ESI,2                        // Previous character
+        DEC ECX                          // One character handled
+      EndE:
+        CMP ECX,0                        // All characters handled?
+        JNE EndL
+
+      Finish:
+        MOV EAX,Length                   // Calc EndingCommentLength
+        SUB EAX,SCL
+        SUB EAX,ECX
+        MOV ECL,EAX
+
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+    StartingCommentLength := SCL;
+    EndingCommentLength := ECL;
+    Result := Length - StartingCommentLength - EndingCommentLength;
+  end;
 end;
 
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer;

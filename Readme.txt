@@ -17,9 +17,6 @@ http://www.axialis.com/stock-icons/pure-flat-2013-toolbar.html
 FastMM:
 https://github.com/pleriche/FastMM4/
 
-ShellBrowser:
-http://www.jam-software.de/shellbrowser_delphi/
-
 Synopse PDF:
 https://github.com/synopse/SynPDF/
 

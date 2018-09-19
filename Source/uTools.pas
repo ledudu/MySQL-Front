@@ -2565,7 +2565,7 @@ begin
     end;
 
     if ((FieldMappings[Index].DestinationField.FieldType in BinaryFieldTypes)
-      or (CSVValues[CSVColumns[Index]].Length = 0)) then
+      or (CSVValues[CSVColumns[Index]].Length = 0) and (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes)) then
     begin
       Values.Write('NULL', 4);
       if (Assigned(Values2)) then Values2.Write('NULL', 4);
@@ -2587,14 +2587,13 @@ procedure TTImportText.GetValues(const Item: TTImport.TItem; const Values: TTool
 var
   I: Integer;
   Len: Integer;
-  L: Integer; // Debug 2017-01-17
   S: string;
-  Text: PChar; // Debug 2017-01-17
 begin
   for I := 0 to Length(FieldMappings) - 1 do
   begin
     if (I > 0) then Values.WriteChar(',');
-    if ((CSVColumns[I] >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
+    if ((CSVColumns[I] >= Length(CSVValues))
+      or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
       Values.Write(PAnsiChar('NULL'), 4)
     else
     begin
@@ -2607,22 +2606,7 @@ begin
           UnescapeBuffer.Length := CSVValues[CSVColumns[I]].Length;
           ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
         end;
-
-        // Debug 2017-01-17
-        // There was a crash in the CSVUnescape call ... but try ... except didn't work :-(
-        Text := CSVValues[CSVColumns[I]].Text;
-        L := CSVValues[CSVColumns[I]].Length;
-        S := '';
-        try
-          SetString(S, Text, L);
-        except
-          on E: Exception do
-            raise EAssertionFailed.Create(E.Message + #13#10
-              + 'L: ' + IntToStr(L) + #13#10
-              + 'EOF: ' + BoolToStr(EOF, True) + #13#10
-              + 'Text: ' + BoolToStr((@FileContent.Str[1] <= Text) and (Text <= @FileContent.Str[Length(FileContent.Str)]), True));
-        end;
-        Len := CSVUnescape(Text, L, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
+        Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
       end;
 
       if (FieldMappings[I].DestinationField.FieldType = mfBit) then

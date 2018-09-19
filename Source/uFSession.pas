@@ -5723,7 +5723,9 @@ begin
     FFolders.Visible := True;
     FFolders.OnAddFolder := FFoldersAddFolder;
     FFolders.OnChange := FFoldersChange;
+
     FFolders.Parent := PFolders;
+    FFolders.AutoRefresh := True;
 
     SendMessage(FFolders.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CYEDGE), 0);
     if (CheckWin32Version(6)) then
@@ -5739,14 +5741,13 @@ begin
   if (not Assigned(FFiles)) then
   begin
     FFiles := TShellListView.Create(Owner);
-    FFiles.Parent := PFiles;
     FFiles.Left := 0;
     FFiles.Top := 0;
     FFiles.Width := PFiles.Width;
     FFiles.Height := PFiles.Height;
     FFiles.Align := alClient;
     FFiles.BorderStyle := bsNone;
-//    FFiles.Filter := Session.Account.Desktop.FilesFilter;
+    FFilesFilter := Session.Account.Desktop.FilesFilter;
     FFiles.HelpType := htContext;
     FFiles.HelpContext := 1108;
     FFiles.HideSelection := False;
@@ -5755,13 +5756,16 @@ begin
     FFiles.ParentFont := True;
     FFiles.RowSelect := True;
     FFiles.AutoContextMenus := False;
-    FFiles.ObjectTypes := [otNonFolders];
     FFiles.ShellTreeView := FFolders;
     FFiles.OnAddFolder := FFilesAddFolder;
     FFiles.OnDblClick := ListViewDblClick;
     FFiles.OnKeyDown := ListViewKeyDown;
     FFiles.OnEnter := FFilesEnter;
     FFiles.ViewStyle := vsReport;
+
+    FFiles.Parent := PFiles;
+    FFiles.AutoRefresh := True;
+    FFiles.ObjectTypes := [otNonFolders];
 
     if (CheckWin32Version(6,1)) then
       SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_JUSTIFYCOLUMNS, 0);
@@ -7547,7 +7551,6 @@ end;
 
 procedure TFSession.FFoldersAddFolder(Sender: TObject; AFolder: TShellFolder; var CanAdd: Boolean);
 begin
-{$MESSAGE 'ShellView'}
   CanAdd := True;
 end;
 
@@ -13138,9 +13141,9 @@ begin
 
   mfOpen.Enabled := FFiles.SelCount = 1;
   mfFilter.Enabled := FFiles.SelCount = 0;
-  mfDelete.Enabled := FFiles.SelCount = 1;
-  mfRename.Enabled := FFiles.SelCount = 1;
-  mfProperties.Enabled := FFiles.SelCount = 1;
+  mfDelete.Enabled := False; // FFiles.SelCount = 1;
+  mfRename.Enabled := False; // FFiles.SelCount = 1;
+  mfProperties.Enabled := False; // FFiles.SelCount = 1;
 
   ShowEnabledItems(MFiles.Items);
 end;
@@ -13149,7 +13152,7 @@ procedure TFSession.mfOpenClick(Sender: TObject);
 var
   CanClose: Boolean;
 begin
-  if (Assigned(FFiles.Selected) and (LowerCase(ExtractFileExt(FFiles.SelectedFolder().PathName)) = '.sql')) then
+  if (Assigned(FFiles.Selected)) then // and (LowerCase(ExtractFileExt(FFiles.SelectedFolder().PathName)) = '.sql')) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
