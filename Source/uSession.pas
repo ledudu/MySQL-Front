@@ -13102,7 +13102,7 @@ var
 begin
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
-    SQL := Trim(Text);
+    SetString(SQL, Text, Len);
     if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
     begin
       // Debug 2017-05-01
@@ -13121,7 +13121,7 @@ begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10
           + '# Error: ' + SQLParser.ErrorMessage + #13#10
-          + Trim(SQL) + #13#10 + #13#10 + #13#10;
+          + SQL + #13#10 + #13#10 + #13#10;
       end;
       SQLParser.Clear();
     end;
