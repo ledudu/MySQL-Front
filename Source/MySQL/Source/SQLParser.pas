@@ -1763,7 +1763,7 @@ type
       private
         Error: TError;
         class function Create(const AParser: TSQLParser; const AStmtType: TStmtType): TOffset; static;
-        function GetDelimiter(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetDelimiter(): PToken;
         function GetErrorMessage(): string; {$IFNDEF Debug} inline; {$ENDIF}
         function GetErrorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
