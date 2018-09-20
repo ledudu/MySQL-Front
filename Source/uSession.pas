@@ -13116,7 +13116,7 @@ begin
 //          + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end
       else if ((Connection.ErrorCode = 0)
-        and not SQLParser.ParseSQL(SQL) or Assigned(SQLParser.FirstStmt.NextStmt)) then
+        and not SQLParser.ParseSQL(SQL)) then
       begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10
