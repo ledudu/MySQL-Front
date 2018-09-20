@@ -26,13 +26,13 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <VerInfo_Locale>1031</VerInfo_Locale>
         <SanitizedProjectName>acQueryBuilderDsgn_18</SanitizedProjectName>
         <DCC_UsePackage>rtl;dbrtl;$(DCC_UsePackage)</DCC_UsePackage>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
-        <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
         <Manifest_File>None</Manifest_File>
-        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;Bde;System.Win;Vcl;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;Bde;System.Win;Vcl;Vcl.Samples;$(DCC_Namespace)</DCC_Namespace>
         <DCC_RangeChecking>true</DCC_RangeChecking>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_DependencyCheckOutputName>c:\program files (x86)\embarcadero\rad studio\7.0\Projects\Bpl\acQueryBuilderDsgn_D2010.bpl</DCC_DependencyCheckOutputName>
@@ -43,16 +43,17 @@
         <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
         <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
         <DCC_Description>Active Query Builder Core</DCC_Description>
-        <DCC_DebugInformation>0</DCC_DebugInformation>
+        <DCC_DebugInformation>false</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
         <DCC_IOChecking>false</DCC_IOChecking>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>vclx;vcl;$(DCC_UsePackage)</DCC_UsePackage>
+        <VerInfo_Locale>1031</VerInfo_Locale>
+        <DCC_UsePackage>vclx;vcl;VclSmp;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>vclx;vcl;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>vclx;vcl;VclSmp;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -63,6 +64,7 @@
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="vclx.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
+        <DCCReference Include="VclSmp.dcp"/>
         <DCCReference Include="..\Source\acQBRegister.pas"/>
         <DCCReference Include="..\Source\acQBLocalForm.pas">
             <Form>fAcFormLocalEditor</Form>
@@ -77,7 +79,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <VersionInfo>
-                    <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
+                    <VersionInfo Name="IncludeVerInfo">True</VersionInfo>
                     <VersionInfo Name="AutoIncBuild">False</VersionInfo>
                     <VersionInfo Name="MajorVer">1</VersionInfo>
                     <VersionInfo Name="MinorVer">0</VersionInfo>

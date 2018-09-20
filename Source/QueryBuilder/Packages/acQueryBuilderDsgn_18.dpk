@@ -29,7 +29,8 @@ requires
   designide,
   vcl,
   vclx,
-  dbrtl;
+  dbrtl,
+  VclSmp;
 
 contains
   acQBRegister in '..\Source\acQBRegister.pas',

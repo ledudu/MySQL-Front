@@ -5551,20 +5551,23 @@ begin
       voCascaded: SQL := SQL + ' WITH CASCADED CHECK OPTION';
       voLocal: SQL := SQL + ' WITH LOCAL CHECK OPTION';
     end;
-    SQL := SQL + ';' + #13#10;
 
     if (Session.SQLParser.ParseSQL(SQL)) then
+    begin
       SQL := Session.SQLParser.FormatSQL() + #13#10;
-    Session.SQLParser.Clear();
+      Session.SQLParser.Clear();
+    end;
 
     if (Session.SQLParser.ParseSQL(SQL)) then
     begin
       if (FullQualifiedIdentifier) then
-        SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name) + ';' + #13#10
+        SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name)
       else
-        SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0) + ';' + #13#10;
+        SQL := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0);
       Session.SQLParser.Clear();
     end;
+
+    SQL := SQL + ';' + #13#10;
 
     if (DropBeforeCreate) then
       SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -5660,7 +5663,8 @@ begin
     else
       FCheckOption := voNone;
 
-    FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
+    FStmt := Trim(Copy(SQL, SQLParseGetIndex(Parse), Len));
+    if (FStmt[Length(FStmt)] = ';') then System.Delete(FStmt, Length(FStmt), 1);
 
 
     if (Session.SQLParser.ParseSQL(FStmt) and Assigned(Session.SQLParser.FirstStmt)) then
@@ -7148,6 +7152,7 @@ var
   Parse: TSQLParse;
   RemovedLength: Integer;
   S: string;
+  S2: string;
 begin
   S := SQL; RemovedLength := 0;
 
@@ -7172,10 +7177,10 @@ begin
     if (not SQLParseKeyword(Parse, 'TRIGGER')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
-    S := Database.Name;
-    if (not SQLParseObjectName(Parse, S, FName)) then
+    S2 := Database.Name;
+    if (not SQLParseObjectName(Parse, S2, FName)) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
-    if (S <> Database.Name) then
+    if (S2 <> Database.Name) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (SQLParseKeyword(Parse, 'BEFORE')) then
@@ -13111,8 +13116,7 @@ begin
 //          + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end
       else if ((Connection.ErrorCode = 0)
-        and not SQLParser.ParseSQL(SQL)
-        and not (SQLParser.ErrorCode in [PE_IncompleteStmt, PE_IncompleteToken])) then
+        and not SQLParser.ParseSQL(SQL) or Assigned(SQLParser.FirstStmt.NextStmt)) then
       begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10

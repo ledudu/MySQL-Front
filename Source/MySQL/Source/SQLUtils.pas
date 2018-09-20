@@ -63,12 +63,8 @@ function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = Tr
 function SQLParseValue(var Handle: TSQLParse; const Value: PChar; const TrimAfterValue: Boolean = True): Boolean; overload;
 function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
-function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
+function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
-function SQLTrimStmt(const SQL: string): string; overload;
-function SQLTrimStmt(const SQL: PChar; const Length: Integer): string; overload;
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer; overload;
 function SQLUnescape(const Value: string): string; overload;
 function StrToUInt64(const S: string): UInt64;
@@ -2266,418 +2262,336 @@ begin
   end;
 end;
 
-function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
-label
-  Start, StartCase, StartIf, StartLoop, StartRepeat, StartWhile, StartCompound,
-  SimpelStmtL, SimpelStmtLE,
-  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyIfFunc, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
-  BodyChar, BodyCharTL, BodyCharE,
-  BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyEndCaseOp, BodyLE,
-  BodyBracket,
-  BracketArea, BracketAreaL, BracketAreaE,
-  Complete, Complete2, Complete3, Complete4, CompleteE,
-  Finish;
-const
-  Terminators: PChar = #9#10#13#32'"''(),.:;=`'; // Characters terminating the identifier
+function LeftTrimNew(var SQL: PChar; var Len: Integer; const Version: Integer; var CondVersion: Integer): Boolean;
 var
-  BracketDeep: Integer;
-  CaseDeep: Integer;
-  CompoundDeep: Integer;
-  IfDeep: Integer;
-  LoopDeep: Integer;
-  Pos: PChar;
-  RepeatDeep: Integer;
-  WhileDeep: Integer;
-S: string;
+  Found: Boolean;
+  OldLen: Integer;
+  Ver: Integer;
 begin
-  // Debug 2018-09-14
-  try
+  OldLen := Len;
 
-  if (not Assigned(SQL) or (Length = 0)) then
+  Found := True;
+  while (Found) do
   begin
-    Result := 0;
-    if (Assigned(Delimited)) then
-      Delimited^ := False;
-  end
-  else
-    asm
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,SQL                      // ESI := SQL
-        MOV ECX,Length
-
-        MOV EDI,0                        // Don't copy inside MoveString
-        MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
-
-        CMP Delimited,0                  // Assigned(CompleteStmt)?
-        JE Start                         // No!
-        MOV EAX,[Delimited]
-        MOV BYTE PTR [EAX],False         // Uncomplete Statement!
-
-      // -------------------
-
-      Start:
-        MOV BracketDeep,0
-        MOV CaseDeep,0
-        MOV CompoundDeep,0
-        MOV IfDeep,0
-        MOV LoopDeep,0
-        MOV RepeatDeep,0
-        MOV WhileDeep,0
-
-        MOV Pos,ESI
-        CALL Trim                        // Ignore empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KAlter]
-        CALL CompareKeyword              // 'ALTER' in SQL?
-        JE Body
-        MOV EAX,[KCreate]
-        CALL CompareKeyword              // 'CREATE' in SQL?
-        JE Body
-
-        MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN' in SQL?
-        JNE StartCase                    // No!
-        MOV CompoundDeep,1
-        JMP BodyL
-      StartCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE' in SQL?
-        JNE StartIf                      // No!
-        MOV CaseDeep,1
-        JMP BodyL
-      StartIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF' in SQL?
-        JNE StartLoop                    // No!
-        MOV IfDeep,1
-        JMP BodyL
-      StartLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP' in SQL?
-        JNE StartRepeat                  // No!
-        MOV LoopDeep,1
-        JMP BodyL
-      StartRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT' in SQL?
-        JNE StartWhile                   // No!
-        MOV RepeatDeep,1
-        JMP BodyL
-      StartWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE' in SQL?
-        JNE SimpelStmtL                  // No!
-        MOV WhileDeep,1
-        JMP BodyL
-
-      // -------------------
-
-      SimpelStmtL:
-        MOV Pos,ESI
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE SimpelStmtLE                  // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,';'                       // SQL Delimiter?
-        JE Complete                      // Yes!
-      SimpelStmtLE:
-        JMP SimpelStmtL
-
-      // -------------------
-
-      Body:
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KTable]
-        CALL CompareKeyword              // 'TABLE'?
-        JE SimpelStmtL                   // Yes!
-        MOV EAX,[KDatabase]
-        CALL CompareKeyword              // 'DATABASE'?
-        JE SimpelStmtL                   // Yes!
-
-      BodyL:
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE BodyLE                        // Yes!
-        MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN'?
-        JNE BodyCase                     // No!
-        INC CompoundDeep
-        JMP BodyLE
-      BodyCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE'?
-        JNE BodyIf                       // No!
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CMP WORD PTR [ESI],'('           // CASE as function?
-        JE BodyLE                        // Yes!
-        INC CaseDeep
-        JMP BodyLE
-      BodyIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF'?
-        JNE BodyLoop                     // No!
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CMP WORD PTR [ESI],'('           // IF as function?
-        JE BodyIfFunc                    // Yes!
-        PUSH ESI
-        PUSH ECX
-        MOV EAX,[KNot]
-        CALL CompareKeyword              // Step over possible 'NOT'
-        CMP ECX,0                        // All characters handled?
-        JZ BodyIf2                       // Yes!
-        CALL Trim                        // Step over spaces
-        CMP ECX,0                        // All characters handled?
-        JZ BodyIf2                       // Yes!
-        MOV EAX,[KExists]
-        CALL CompareKeyword              // Step over possible 'EXISTS'
-        JE BodyIf3
-      BodyIf2:
-        CMP EAX,0                        // Clear ZF
-      BodyIf3:
-        POP ECX
-        POP ESI
-        JE BodyLE
-        INC IfDeep
-        JMP BodyLE
-      BodyIfFunc:
-        LODSW                            // Character -> AX
-        CALL BracketArea
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KThen]
-        CALL CompareKeyword              // 'THEN'?
-        JNE BodyLE                       // No!
-        INC IfDeep
-        JMP BodyLE
-      BodyLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP'?
-        JNE BodyRepeat                   // No!
-        INC LoopDeep
-        JMP BodyLE
-      BodyRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT'?
-        JNE BodyWhile                    // No!
-        INC RepeatDeep
-        JMP BodyLE
-      BodyWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE'?
-        JNE BodyEnd                      // No!
-        INC WhileDeep
-        JMP BodyLE
-      BodyEnd:
-        MOV EAX,[KEnd]
-        CALL CompareKeyword              // 'END'?
-        JNE BodyChar                     // No!
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-      BodyEndCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'END CASE'?
-        JNE BodyEndIf                    // No!
-        CMP CaseDeep,0
-        JE BodyLE
-        DEC CaseDeep
-        JMP BodyLE
-      BodyEndIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'END IF'?
-        JNE BodyEndLoop                  // No!
-        CMP IfDeep,0
-        JE BodyLE
-        DEC IfDeep
-        JMP BodyLE
-      BodyEndLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'END LOOP'?
-        JNE BodyEndRepeat                // No!
-        CMP LoopDeep,0
-        JE BodyLE
-        DEC LoopDeep
-        JMP BodyLE
-      BodyEndRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'END REPEAT'?
-        JNE BodyEndWhile                 // No!
-        CMP RepeatDeep,0
-        JE BodyLE
-        DEC RepeatDeep
-        JMP BodyLE
-      BodyEndWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'END WHILE'?
-        JNE BodyEndCompound              // No!
-        CMP WhileDeep,0
-        JE BodyLE
-        DEC WhileDeep
-        JMP BodyLE
-      BodyEndCompound:                   // 'END'?
-        CMP CompoundDeep,0               // No!
-        JE BodyEndCaseOp
-        DEC CompoundDeep
-        JMP BodyLE
-      BodyEndCaseOp:
-        CMP CaseDeep,0                   // 'END' inside a CASE Op?
-        JE BodyLE                        // No!
-        DEC CaseDeep
-        JMP BodyLE
-
-      BodyChar:
-        MOV Pos,ESI
-        CALL Trim                        // Empty characters?
-        JE BodyCharE                     // Yes!
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE BodyLE                        // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,'('                       // Bracket in SQL?
-        JE BodyBracket                   // Yes!
-        MOV EBX,[Terminators]            // Terminating characters
-      BodyCharTL:
-        CMP WORD PTR [EBX],0             // All terminators checked?
-        JE BodyChar                      // Yes!
-        CMP AX,[EBX]                     // Charcter in SQL = Terminator?
-        JE BodyCharE                     // Yes!
-        ADD EBX,2                        // Next terminator
-        JMP BodyCharTL
-      BodyCharE:
-        CMP AX,';'                       // SQL Delimiter?
-        JNE BodyLE                       // No!
-        CMP CaseDeep,0                   // Still inside CASE?
-        JNE BodyLE                       // Yes!
-        CMP CompoundDeep,0               // Still inside BEGIN END?
-        JNE BodyLE                       // Yes!
-        CMP IfDeep,0                     // Still inside IF?
-        JNE BodyLE                       // Yes!
-        CMP LoopDeep,0                   // Still inside LOOP?
-        JNE BodyLE                       // Yes!
-        CMP RepeatDeep,0                 // Still inside REPEAT?
-        JNE BodyLE                       // Yes!
-        CMP WhileDeep,0                  // Still inside WHILE?
-        JNE BodyLE                       // Yes!
-        JMP Complete
-
-      BodyBracket:
-        CALL BracketArea
-
-      BodyLE:
-        CMP ECX,0                        // All characters handled?
-        JE Finish                        // Yes!
-        JMP BodyL
-
-      // -------------------
-
-      BracketArea:
-        INC BracketDeep                  // One open bracket found
-      BracketAreaL:
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // All characters handled?
-        JZ BodyLE                        // Yes!
-        CALL MoveString                  // Step over quoted string
-        CMP ECX,0                        // All characters handled?
-        JZ BracketAreaE                  // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,'('                       // Another open bracket?
-        JE BracketArea                   // Yes!
-        CMP AX,')'                       // Closing bracket?
-        JNE BracketAreaL                 // No!
-        DEC BracketDeep                  // One bracket closed
-        JNZ BracketAreaL                 // Furhter brackets open!
-      BracketAreaE:
-        RET
-
-      // -------------------
-
-      Complete:
-        CMP Delimited,0                  // Assigned(Delimited)?
-        JE Complete2                     // No!
-        MOV EAX,[Delimited]
-        MOV BYTE PTR [EAX],True          // Complete statement!
-
-      Complete2:
-        CMP ECX,2                        // Are there two characters left in SQL?
-        JL Complete3                     // No!
-        MOV EAX,[ESI]
-        CMP EAX,$000A000D                // CarriageReturn + LineFeed?
-        JNE Complete3                    // No!
-        ADD ESI,4                        // Step over CarriageReturn + LineFeed
-        SUB ECX,2                        // Ignore CarriageReturn + LineFeed
-        JMP CompleteE
-
-      Complete3:
-        CMP ECX,1                        // Is there one characters left in SQL?
-        JL CompleteE                     // No!
-        MOV AX,[ESI]
-        CMP AX,13                        // Ending CarriageReturn?
-        JE Complete4                     // Yes!
-        CMP AX,10                        // Ending LineFeed?
-        JE Complete4                     // Yes!
-        JMP CompleteE
-
-      Complete4:
-        ADD ESI,2                        // Step over CarriageReturn / LineFeed
-        DEC ECX                          // Ignore CarriageReturn / LineFeed
-        JMP CompleteE
-
-      CompleteE:
-        MOV Pos,ESI
-
-      // -------------------
-
-      Finish:
-        MOV EAX,Pos                      // Result := (Pos - SQL) div SizeOf(Char)
-        SUB EAX,SQL
-        SHR EAX,1                        // 2 bytes = 1 character
-        MOV @Result,EAX
-
-        POP EBX
-        POP EDI
-        POP ESI
-    end;
-
-  except
-    on E: Exception do
+    Found := False;
+    if (Len >= 1) then
+      if ((SQL[0] = #9) or (SQL[0] = #10) or (SQL[0] = #13) or (SQL[0] = ' ')) then
       begin
-        SetString(S, SQL, Length);
-        E.RaiseOuterException(EAssertionFailed.Create(
-          E.ClassName + #13#10
-          + E.Message + #13#10
-          + 'SQL:' + #13#10
-          + S));
+        Found := True;
+        Inc(SQL); Dec(Len);
+      end
+      else if ((SQL[0] = '#')
+        or ((Len >= 3) and (SQL[0] = '-') and (SQL[1] = '-') and ((SQL[2] = #9) or (SQL[2] = #10) or (SQL[2] = #13) or (SQL[2] = ' ')))) then
+      begin
+        Found := True;
+        while (Len > 0) do
+          if ((SQL[0] = #10) or (SQL[0] = #13)) then
+            break
+          else
+          begin
+            Inc(SQL); Dec(Len);
+          end;
+      end
+      else if ((Len >= 2) and (SQL[0] = '/') and (SQL[1] = '*')) then
+      begin
+        Found := True;
+        Inc(SQL); Dec(Len);
+        Inc(SQL); Dec(Len);
+        if ((Len >= 1) and (SQL[0] = '!')) then
+        begin
+          Inc(SQL); Dec(Len);
+          Ver := 0;
+          while ((Len >= 1) and ('0' <= SQL[0]) and (SQL[0] <= '9')) do
+          begin
+            Ver := Ver * 10 + Byte(SQL[0]) - Byte('0');
+            Inc(SQL); Dec(Len);
+          end;
+          if (Version < Ver) then
+          begin
+            while ((Len >= 2) and (SQL[0] <> '*') or (SQL[1] <> '/')) do
+            begin
+              Inc(SQL); Dec(Len);
+            end;
+            if ((Len >= 2) and (SQL[0] = '*') and (SQL[1] = '/')) then
+            begin
+              Inc(SQL); Dec(Len);
+              Inc(SQL); Dec(Len);
+            end;
+          end;
+        end
+        else
+        begin
+          while ((Len >= 2) and (SQL[0] <> '*') or (SQL[1] <> '/')) do
+          begin
+            Inc(SQL); Dec(Len);
+          end;
+          if ((Len >= 2) and (SQL[0] = '*') and (SQL[1] = '/')) then
+          begin
+            Inc(SQL); Dec(Len);
+            Inc(SQL); Dec(Len);
+          end;
+        end;
+      end
+      else if ((Len >= 2) and (SQL[0] = '*') and (SQL[1] = '/')) then
+      begin
+        Found := True;
+        Inc(SQL); Dec(Len);
+        Inc(SQL); Dec(Len);
       end;
   end;
+
+  Result := Len < OldLen;
+end;
+
+function CompareKeywordNew(var SQL: PChar; var Len: Integer; const Keyword: PChar): Boolean;
+var
+  I: Integer;
+begin
+  I := 0;
+  while ((Len - I >= 1) and (Char(Byte(SQL[I]) and not $20) = Keyword[I]) and (Keyword[I] <> #0)) do
+    Inc(I);
+  Result := Keyword[I] = #0;
+  Result := Result and ((Len = 0) or not (('A' <= SQL[I]) and (SQL[I] <= 'Z')) and not (('a' <= SQL[I]) and (SQL[I] <= 'z')));
+  if (Result) then
+  begin
+    Inc(SQL, I); Dec(Len, I);
+  end;
+end;
+
+function CopyStringNew(var SQL: PChar; var Len: Integer): Boolean;
+var
+  Quoter: Char;
+begin
+  Result := False;
+  while ((Len >= 1) and ((SQL[0] = '"') or (SQL[0] = '''') or (SQL[0] = '`'))) do
+  begin
+    Result := True;
+    Quoter := SQL[0];
+    Inc(SQL); Dec(Len);
+    while ((Len >= 1) and (SQL[0] <> Quoter)) do
+    begin
+      if (SQL[0] = '\') then
+      begin
+        Inc(SQL); Dec(Len);
+      end;
+      if (Len >= 1) then
+      begin
+        Inc(SQL); Dec(Len);
+      end;
+    end;
+    if ((Len >= 1) and (SQL[0] = Quoter)) then
+    begin
+      Inc(SQL); Dec(Len);
+    end;
+  end;
+end;
+
+function BracketAreaNew(var SQL: PChar; var Len: Integer; const Version: Integer; var CondVersion: Integer): Boolean;
+var
+  Deep: Integer;
+begin
+  Result := (Len >= 0) and (SQL[0] = '(');
+  if (Result) then
+  begin
+    Deep := 1;
+    Inc(SQL); Dec(Len);
+    while ((Len >= 1) and ((SQL[0] <> ')') or (Deep > 1))) do
+    begin
+      if (SQL[0] = '(') then
+      begin
+        Inc(Deep);
+        Inc(SQL); Dec(Len);
+      end
+      else if (SQL[0] = ')') then
+      begin
+        Dec(Deep);
+        Inc(SQL); Dec(Len);
+      end
+      else if (not LeftTrimNew(SQL, Len, Version, CondVersion)
+        and not CopyStringNew(SQL, Len)) then
+      begin
+        Inc(SQL); Dec(Len);
+      end;
+    end;
+    if ((Len >= 1) and (SQL[0] = ')')) then
+    begin
+      Inc(SQL); Dec(Len);
+    end;
+  end;
+end;
+
+function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer; overload;
+const
+  Version = $7FFFFFFF;
+var
+  CaseDeep: Integer;
+  CompoundDeep: Integer;
+  CondVersion: Integer;
+  IfDeep: Integer;
+  LoopDeep: Integer;
+  OldLen: Integer;
+  RepeatDeep: Integer;
+  SimpleBody: Boolean;
+  WhileDeep: Integer;
+begin
+  OldLen := Len;
+
+  CondVersion := 0;
+
+  CaseDeep := 0;
+  CompoundDeep := 0;
+  IfDeep := 0;
+  LoopDeep := 0;
+  RepeatDeep := 0;
+  WhileDeep := 0;
+
+  LeftTrimNew(SQL, Len, Version, CondVersion);
+
+  SimpleBody := False;
+  if (CompareKeywordNew(SQL, Len, KAlter)
+    or CompareKeywordNew(SQL, Len, KCreate)) then
+  begin
+    LeftTrimNew(SQL, Len, Version, CondVersion);
+    if (CompareKeywordNew(SQL, Len, KDatabase)
+      or CompareKeywordNew(SQL, Len, KTable)) then
+      SimpleBody := True;
+  end
+  else if (CompareKeywordNew(SQL, Len, KBegin)) then
+    Inc(CompoundDeep)
+  else if (CompareKeywordNew(SQL, Len, KCase)) then
+    Inc(CaseDeep)
+  else if (CompareKeywordNew(SQL, Len, KIf)) then
+    Inc(IfDeep)
+  else if (CompareKeywordNew(SQL, Len, KLoop)) then
+    Inc(LoopDeep)
+  else if (CompareKeywordNew(SQL, Len, KRepeat)) then
+    Inc(RepeatDeep)
+  else if (CompareKeywordNew(SQL, Len, KWhile)) then
+    Inc(WhileDeep)
+  else
+    SimpleBody := True;
+
+  if (SimpleBody) then
+  begin
+    while (Len > 0) do
+      if (not LeftTrimNew(SQL, Len, Version, CondVersion)
+        and not CopyStringNew(SQL, Len)) then
+        if (SQL[0] = ';') then
+          break
+        else
+        begin
+          Inc(SQL); Dec(Len);
+        end;
+  end
+  else
+  begin
+    repeat
+      if (not LeftTrimNew(SQL, Len, Version, CondVersion)
+        and not CopyStringNew(SQL, Len)
+        and not BracketAreaNew(SQL, Len, Version, CondVersion)) then
+        if (CompareKeywordNew(SQL, Len, KBegin)) then
+          Inc(CompoundDeep)
+        else if (CompareKeywordNew(SQL, Len, KCase)) then
+        begin
+          LeftTrimNew(SQL, Len, Version, CondVersion);
+          if ((Len >= 0) and (SQL[0] = '(')) then
+            BracketAreaNew(SQL, Len, Version, CondVersion)
+          else
+            Inc(CaseDeep);
+        end
+        else if (CompareKeywordNew(SQL, Len, KIf)) then
+        begin
+          LeftTrimNew(SQL, Len, Version, CondVersion);
+          if ((Len >= 0) and (SQL[0] = '(')) then
+          begin
+            BracketAreaNew(SQL, Len, Version, CondVersion);
+            if (CompareKeywordNew(SQL, Len, KThen)) then
+              Inc(IfDeep);
+          end
+          else if (not CompareKeywordNew(SQL, Len, KNot)
+            and not CompareKeywordNew(SQL, Len, KExists)) then
+            Inc(IfDeep);
+        end
+        else if (CompareKeywordNew(SQL, Len, KLoop)) then
+          Inc(LoopDeep)
+        else if (CompareKeywordNew(SQL, Len, KRepeat)) then
+          Inc(RepeatDeep)
+        else if (CompareKeywordNew(SQL, Len, KWhile)) then
+          Inc(WhileDeep)
+        else if (BracketAreaNew(SQL, Len, Version, CondVersion)) then
+          // Do nothing
+        else if (CompareKeywordNew(SQL, Len, KEnd)) then
+        begin
+          LeftTrimNew(SQL, Len, Version, CondVersion);
+          if (CompareKeywordNew(SQL, Len, KCase)) then
+          begin
+            if (CaseDeep > 0) then Dec(CaseDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KIf)) then
+          begin
+            if (IfDeep > 0) then Dec(IfDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KLoop)) then
+          begin
+            if (LoopDeep > 0) then Dec(LoopDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KRepeat)) then
+          begin
+            if (RepeatDeep > 0) then Dec(RepeatDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KWhile)) then
+          begin
+            if (WhileDeep > 0) then Dec(WhileDeep);
+          end
+          else
+          begin
+            if (CompoundDeep > 0) then Dec(CompoundDeep);
+          end;
+        end
+        else if (Len >= 1) then
+        begin
+          if (not ('A' <= SQL[0]) and (SQL[0] <= 'Z'))
+            and not (('a' <= SQL[0]) and (SQL[0] <= 'z')
+            and not (SQL[0] = '_')) then
+          begin
+            Inc(SQL); Dec(Len);
+          end
+          else
+            repeat
+              Inc(SQL); Dec(Len);
+            until ((Len = 0)
+              or not (('A' <= SQL[0]) and (SQL[0] <= 'Z'))
+                and not (('a' <= SQL[0]) and (SQL[0] <= 'z'))
+                and not (SQL[0] = '_'));
+        end;
+    until ((Len = 0)
+      or (SQL[0] = ';')
+        and (CompoundDeep = 0)
+        and (CaseDeep = 0)
+        and (IfDeep = 0)
+        and (LoopDeep = 0)
+        and (RepeatDeep = 0)
+        and (WhileDeep = 0));
+  end;
+
+
+  if (Assigned(Delimited)) then
+    Delimited^ := SQL[0] = ';';
+
+  if ((Len >= 1) and (SQL[0] = ';')) then
+  begin
+    Inc(SQL); Dec(Len);
+  end;
+  if ((Len >= 1) and (SQL[0] = #13)) then
+  begin
+    Inc(SQL); Dec(Len);
+  end;
+  if ((Len >= 1) and (SQL[0] = #10)) then
+  begin
+    Inc(SQL); Dec(Len);
+  end;
+
+  Result := OldLen - Len;
 end;
 
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
@@ -2686,174 +2600,6 @@ begin
     Result := SQL
   else
     Result := copy(SQL, 1, Len) + '...';
-end;
-
-function SQLTrimStmt(const SQL: string): string;
-var
-  EndingCommentLen: Integer;
-  Len: Integer;
-  StartingCommentLen: Integer;
-begin
-  Len := SQLTrimStmt(SQL, 1, Length(SQL), StartingCommentLen, EndingCommentLen);
-  Result := Copy(SQL, 1 + StartingCommentLen, Len);
-end;
-
-function SQLTrimStmt(const SQL: PChar; const Length: Integer): string;
-var
-  EndingCommentLen: Integer;
-  Len: Integer;
-  StartingCommentLen: Integer;
-begin
-  Len := SQLTrimStmt(SQL, Length, StartingCommentLen, EndingCommentLen);
-  Result := Copy(SQL, 1 + StartingCommentLen, Len);
-end;
-
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
-begin
-  if ((Index < 1) or (System.Length(SQL) < Index)) then
-    Result := 0
-  else
-    Result := SQLTrimStmt(PChar(@SQL[Index]), Length, StartingCommentLength, EndingCommentLength);
-end;
-
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
-label
-  StartL, StartL2, StartSLC, StartMLC, StartLE, StartE,
-  EndL, EndLE, EndE,
-  Finish;
-var
-  ECL: Integer;
-  SCL: Integer;
-begin
-  if (not Assigned(SQL) or (Length = 0)) then
-  begin
-    StartingCommentLength := 0;
-    EndingCommentLength := 0;
-    Result := 0;
-  end
-  else
-  begin
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        MOV ESI,SQL                      // Read characters from SQL
-        MOV ECX,Length                   // Count of characters
-        MOV EDI,0                        // Do not copy characters in Trim
-
-      // -------------------
-
-      StartL:
-        MOV AX,[ESI]                     // Character in SQL
-        CMP AX,9                         // Tabulator?
-        JE StartLE                       // Yes!
-        CMP AX,10                        // New Line?
-        JE StartLE                       // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE StartLE                       // Yes!
-        CMP AX,' '                       // Space
-        JE StartLE                       // Yes!
-        CMP AX,'#'                       // "#"?
-        JE StartSLC                       // Yes!
-        CMP ECX,3                        // Three character in SQL?
-        JB StartLE                       // No!
-        MOV EAX,[ESI]                    // Two character in SQL
-        CMP EAX,$002D002D                // "--"?
-        JNE StartL2                      // No!
-        MOV AX,[ESI + 4]                 // Character after "--"
-        CMP AX,9                         // Tabulator?
-        JE StartSLC                      // Yes!
-        CMP AX,10                        // New Line?
-        JE StartSLC                      // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE StartSLC                      // Yes!
-        CMP AX,' '                       // Space
-        JE StartSLC                      // Yes!
-        JMP StartLE
-      StartL2:
-        CMP EAX,$002A002F                // "/*"?
-        JNE StartE                       // No!
-        MOV AX,[ESI + 4]                 // Character after "/*"
-        CMP AX,'!'                       // "!"?
-        JE StartE                        // Yes!
-      StartMLC:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JZ StartE                        // End of SQL!
-        CMP ECX,2                        // Two character left in SQL?
-        JB StartMLC                      // No!
-        MOV EAX,[ESI]                    // Two character in SQL
-        CMP EAX,$002F002A                // "*/"?
-        JNE StartMLC                     // No!
-        ADD ESI,2                        // Step over "*" in SQL
-        DEC ECX                          // One character handled
-        JNZ StartLE                      // Further character in SQL!
-        JMP StartE                       // End of SQL!
-      StartSLC:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JZ StartE                        // End of SQL!
-        MOV AX,[ESI]                     // Character in SQL
-        CMP AX,10                        // New Line?
-        JE StartLE                       // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE StartLE                       // Yes!
-        JMP StartSLC
-      StartLE:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JNZ StartL                       // Further characters in SQL!
-        JMP StartE                       // End of SQL!
-      StartE:
-        MOV EBX,Length
-        SUB EBX,ECX
-        MOV SCL,EBX
-
-        MOV ESI,SQL                      // Go to the end of SQL:
-        MOV EAX,Length                   // ESI := SQL[Length - 1]
-        DEC EAX                          // Last character in SQL
-        SHL EAX,1                        // 1 character = 2 bytes
-        ADD ESI,EAX
-        MOV ECX,Length
-        SUB ECX,EBX                      // Length of SQL - StartingCommentLength
-        JZ Finish                        // The whole Stmt is a comment!
-
-      EndL:
-        MOV AX,[ESI]                     // Character in SQL
-        CMP AX,9                         // Tabulator?
-        JE EndLE                         // Yes!
-        CMP AX,10                        // New Line?
-        JE EndLE                         // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE EndLE                         // Yes!
-        CMP AX,' '                       // Space
-        JE EndLE                         // Yes!
-        JMP Finish
-      EndLE:
-        SUB ESI,2                        // Previous character
-        DEC ECX                          // One character handled
-      EndE:
-        CMP ECX,0                        // All characters handled?
-        JNE EndL
-
-      Finish:
-        MOV EAX,Length                   // Calc EndingCommentLength
-        SUB EAX,SCL
-        SUB EAX,ECX
-        MOV ECL,EAX
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-    StartingCommentLength := SCL;
-    EndingCommentLength := ECL;
-    Result := Length - StartingCommentLength - EndingCommentLength;
-  end;
 end;
 
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer;

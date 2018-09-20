@@ -1618,6 +1618,7 @@ var
   I: Integer;
   Table: TSTable;
 begin
+  NameThreadForDebugging('Import');
   {$IFDEF EurekaLog}
   try
     SetEurekaLogStateInThread(0, True);
@@ -2287,6 +2288,7 @@ var
   SQL: string;
   SQLFilePos: TLargeInteger;
 begin
+  NameThreadForDebugging('ImportSQL');
   {$IFDEF EurekaLog}
   try
     SetEurekaLogStateInThread(0, True);
@@ -3923,6 +3925,7 @@ var
   Table: TSTable;
   Process: string;
 begin
+  NameThreadForDebugging('Export');
   {$IFDEF EurekaLog}
   try
     SetEurekaLogStateInThread(0, True);
@@ -8277,6 +8280,7 @@ var
   SQL: string;
   Table: TSTable;
 begin
+  NameThreadForDebugging('Search');
   {$IFDEF EurekaLog}
   try
     SetEurekaLogStateInThread(0, True);

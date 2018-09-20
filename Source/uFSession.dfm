@@ -706,7 +706,6 @@ object FSession: TFSession
           0000FF8080FF8080FF8080FF8080A1CEED6FC9ECC9F3FB62BEE8FF8080FF8080
           0000FF8080FF8080FF8080FF8080FF808090C8EB6BBCE7FF8080FF8080FF8080
           0000}
-        FieldsListOptions.TypeColumnOptions.FontColor = clGrayText
         FieldsListOptions.DescriptionColumnOptions.FontColor = clGrayText
         Align = alClient
         Constraints.MinHeight = 96
@@ -1290,7 +1289,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 32752
+      Left = 40682
       Top = 0
       Width = 140
       Height = 22
@@ -1302,9 +1301,10 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
+      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 32752
+      Left = 40667
       Top = 0
       Width = 23
       Height = 22
@@ -1313,6 +1313,7 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
+      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
