@@ -1134,7 +1134,7 @@ begin
 
   while (ValueLen > 0) do
   begin
-    Buffer.Write^ := AnsiChar(Value^); Inc(Buffer.Write); Dec(ValueLen);
+    Buffer.Write^ := AnsiChar(Value^); Inc(Buffer.Write); Dec(ValueLen); Inc(Value);
   end;
 
   if (Quote) then

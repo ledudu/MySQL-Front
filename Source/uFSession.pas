@@ -2941,7 +2941,7 @@ begin
           ciView,
           ciSystemView:
             Table := TSTable(CurrentData);
-          else raise ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex))
+          else raise ERangeError.Create('CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
             + 'CurrentAddress: ' + CurrentAddress);
         end;
 
@@ -5209,6 +5209,8 @@ constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinContro
 var
   Kind: TPAccount.TDesktop.TListViewKind;
 begin
+  Assert(Assigned(AParent));
+
   FQueryBuilderSynMemo := nil; // TacBaseSQLBuilder.SQLUpdate calls FQueryBuilderSQLUpdated
 
   inherited Create(AOwner);
@@ -9816,7 +9818,8 @@ begin
           IDYES:
             begin
               Assert(Self.View in [vEditor, vEditor2, vEditor3],
-                'Self.View: ' + IntToStr(Ord(Self.View)));
+                'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
+                + 'View: ' + IntToStr(Ord(View)));
               SaveSQLFile(aFSave);
             end;
           IDCANCEL: CanClose := False;
@@ -17086,6 +17089,11 @@ begin
         ciSystemDatabase:
           begin
             Database := TSDatabase(CurrentData);
+
+            // Debug 2018-09-20
+            Assert(Assigned(Database),
+              'CurrentAddress: ' + CurrentAddress);
+
             if (not Database.Tables.Update(True)) then
               Wanted.Update := UpdateAfterAddressChanged
             else if (Session.Connection.MySQLVersion < 50002) then

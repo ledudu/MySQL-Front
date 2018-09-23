@@ -1350,10 +1350,11 @@ type
     FCommand: string;
     FDatabaseName: string;
     FHost: string;
-    FUserName: string;
-    FTime: TDateTime;
+    FName2: string;
     FState: string;
     FSQL: string;
+    FTime: TDateTime;
+    FUserName: string;
     function GetThreadId(): Longword;
     procedure SetThreadId(AThreadId: Longword);
   public
@@ -10419,7 +10420,8 @@ begin
   Assert(Assigned(Self));
   Assert(Self is TSProcess,
     'ClassType: ' + TObject(Self).ClassName);
-  Assert(Name <> '');
+  Assert(Name <> '',
+    'Name2: ' + FName2);
 
   Result := StrToUInt64(Name);
 end;
@@ -10512,6 +10514,8 @@ begin
         Process[Index].FState := DataSet.FieldByName('STATE').AsString;
         Process[Index].FSQL := DataSet.FieldByName('INFO').AsString;
       end;
+
+      Process[Index].FName2 := Name;
 
       Item := Process[Index];
 

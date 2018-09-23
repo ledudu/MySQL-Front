@@ -8330,6 +8330,7 @@ end;
 function TMySQLDataSet.SQLDelete(): string;
 var
   I: Integer;
+  Index: Integer;
   InternRecordBuffer: PInternRecordBuffer;
   J: Integer;
   NullValue: Boolean;
@@ -8374,13 +8375,17 @@ begin
       Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
-        InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks^[I])];
-        if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
-          NullValue := True
-        else
+        Index := InternRecordBuffers.IndexOf(DeleteBookmarks^[I]);
+        if (Index >= 0) then
         begin
-          if (Values <> '') then Values := Values + ',';
-          Values := Values + SQLFieldValue(WhereField, InternRecordBuffer^.OldData);
+          InternRecordBuffer := InternRecordBuffers[Index];
+          if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
+            NullValue := True
+          else
+          begin
+            if (Values <> '') then Values := Values + ',';
+            Values := Values + SQLFieldValue(WhereField, InternRecordBuffer^.OldData);
+          end;
         end;
       end;
 
