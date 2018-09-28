@@ -4,12 +4,12 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, ActiveX, CommCtrl,
-  Forms, SysUtils, Classes,
+  SysUtils, Classes, Generics.Collections,
   DB,
   XMLIntf,
   ShDocVw,
   Graphics, Controls, Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls,
-  DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
+  Forms, DBGrids, Grids,   DBCtrls, DBActns, StdActns, ImgList, Actions,
   PNGImage, GIFImg, Jpeg, ToolWin, Vcl.Shell.ShellCtrls,
   BCHexEditor, BCHexEditorEx,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
@@ -2644,7 +2644,7 @@ end;
 procedure TFSession.aDDeleteExecute(Sender: TObject);
 var
   I: Integer;
-  Items: TList;
+  Items: TList<TSItem>;
   J: Integer;
   List: TList;
   Msg: string;
@@ -2654,7 +2654,7 @@ var
 begin
   Wanted.Clear();
 
-  Items := TList.Create();
+  Items := TList<TSItem>.Create();
 
   if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 1)) then
   begin
@@ -2677,19 +2677,19 @@ begin
     Msg := Preferences.LoadStr(413)
   else if (Items.Count = 1) then
   begin
-    if (TSItem(Items[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSSequence) then Msg := Preferences.LoadStr(950, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSTrigger) then Msg := Preferences.LoadStr(787, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSKey) then Msg := Preferences.LoadStr(162, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSField) then Msg := Preferences.LoadStr(100, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSForeignKey) then Msg := Preferences.LoadStr(692, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSUser) then Msg := Preferences.LoadStr(428, TSItem(Items[0]).Caption)
-    else if (TSItem(Items[0]) is TSProcess) then Msg := Preferences.LoadStr(534, TSItem(Items[0]).Caption);
+    if (Items[0] is TSDatabase) then Msg := Preferences.LoadStr(146, Items[0].Caption)
+    else if (Items[0] is TSBaseTable) then Msg := Preferences.LoadStr(113, Items[0].Caption)
+    else if (Items[0] is TSView) then Msg := Preferences.LoadStr(748, Items[0].Caption)
+    else if (Items[0] is TSSequence) then Msg := Preferences.LoadStr(950, Items[0].Caption)
+    else if (Items[0] is TSProcedure) then Msg := Preferences.LoadStr(772, Items[0].Caption)
+    else if (Items[0] is TSFunction) then Msg := Preferences.LoadStr(773, Items[0].Caption)
+    else if (Items[0] is TSEvent) then Msg := Preferences.LoadStr(813, Items[0].Caption)
+    else if (Items[0] is TSTrigger) then Msg := Preferences.LoadStr(787, Items[0].Caption)
+    else if (Items[0] is TSKey) then Msg := Preferences.LoadStr(162, Items[0].Caption)
+    else if (Items[0] is TSField) then Msg := Preferences.LoadStr(100, Items[0].Caption)
+    else if (Items[0] is TSForeignKey) then Msg := Preferences.LoadStr(692, Items[0].Caption)
+    else if (Items[0] is TSUser) then Msg := Preferences.LoadStr(428, Items[0].Caption)
+    else if (Items[0] is TSProcess) then Msg := Preferences.LoadStr(534, Items[0].Caption);
   end
   else
     Msg := '';
@@ -2701,10 +2701,10 @@ begin
     Success := True;
 
     for I := 0 to Items.Count - 1 do
-      if ((TSItem(Items[I]) is TSDatabase) or (TSItem(Items[I]) is TSDBObject) or (TSItem(Items[I]) is TSProcess)) then
+      if ((Items[I] is TSDatabase) or (Items[I] is TSDBObject) or (Items[I] is TSProcess)) then
       begin
         List.Add(TSEntity(Items[I]));
-        if (TSItem(Items[I]) is TSBaseTable) then
+        if (Items[I] is TSBaseTable) then
           for J := 0 to TSBaseTable(Items[I]).TriggerCount - 1 do
             List.Add(TSBaseTable(Items[I]).Triggers[J]);
         Items[I] := nil;
@@ -2714,11 +2714,11 @@ begin
 
     Table := nil;
     for I := 0 to Items.Count - 1 do
-      if (TSItem(Items[I]) is TSKey) then
+      if (Items[I] is TSKey) then
         Table := TSKey(Items[I]).Table
-      else if (TSItem(Items[I]) is TSBaseField) then
+      else if (Items[I] is TSBaseField) then
         Table := TSBaseField(Items[I]).Table
-      else if (TSItem(Items[I]) is TSForeignKey) then
+      else if (Items[I] is TSForeignKey) then
         Table := TSForeignKey(Items[I]).Table;
     if (Success and Assigned(Table)) then
     begin
@@ -2726,7 +2726,7 @@ begin
       NewTable.Assign(Table);
 
       for I := Items.Count - 1 downto 0 do
-        if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
+        if ((Items[I] is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
           // Debug 2017-03-31
           Assert(Assigned(NewTable.KeyByName(TSKey(Items[I]).Name)),
@@ -2739,12 +2739,12 @@ begin
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end
-        else if ((TSItem(Items[I]) is TSTableField) and (TSTableField(Items[I]).Table = Table)) then
+        else if ((Items[I] is TSTableField) and (TSTableField(Items[I]).Table = Table)) then
         begin
           NewTable.Fields.Delete(NewTable.FieldByName(TSTableField(Items[I]).Name));
           Items[I] := nil;
         end
-        else if ((TSItem(Items[I]) is TSForeignKey) and (TSForeignKey(Items[I]).Table = Table)) then
+        else if ((Items[I] is TSForeignKey) and (TSForeignKey(Items[I]).Table = Table)) then
         begin
           NewTable.ForeignKeys.Delete(NewTable.ForeignKeyByName(TSForeignKey(Items[I]).Name));
           Items[I] := nil;
@@ -2759,7 +2759,7 @@ begin
     end;
 
     for I := 0 to Items.Count - 1 do
-      if (TSItem(Items[I]) is TSUser) then
+      if (Items[I] is TSUser) then
       begin
         List.Add(TSUser(Items[I]));
         Items[I] := nil;
@@ -4650,7 +4650,6 @@ procedure TFSession.aVRefreshExecute(Sender: TObject);
 var
   AllowRefresh: Boolean;
   List: TList;
-  Progress: string;
 begin
   if (GetKeyState(VK_SHIFT) < 0) then
     aVRefreshAllExecute(Sender)
@@ -4717,27 +4716,7 @@ begin
 
               if (AllowRefresh) then
               begin
-                // Debug 2017-03-30
-                Assert(ActiveDBGrid.DataSource.DataSet.Active);
-                try
-                  ActiveDBGrid.DataSource.DataSet.Resync([]);
-                except
-                  on E: Exception do
-                    begin
-                      if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
-                        Progress := TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Progress;
-
-                      E.RaiseOuterException(EAssertionFailed.Create(
-                        'ActiveDBGrid: ' + BoolToStr(Assigned(ActiveDBGrid), True) + #13#10
-                        + 'DataSource: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource), True) + #13#10
-                        + 'DataSet: ' + BoolToStr(Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource) and Assigned(ActiveDBGrid.DataSource.DataSet), True) + #13#10
-                        + 'CommandText: ' + LeftStr(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText, 100) + #13#10
-                        + 'Progress: ' + Progress + #13#10
-                        + E.ClassName + ':' + #13#10
-                        + E.Message));
-                    end;
-                end;
-
+                ActiveDBGrid.DataSource.DataSet.Resync([]);
                 ActiveDBGrid.DataSource.DataSet.Refresh();
               end
               else
@@ -6616,7 +6595,9 @@ procedure TFSession.DBGridEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
-  if ((Sender is TMySQLDBGrid) and Assigned(TMySQLDBGrid(Sender).DataSource.DataSet)) then
+  if ((Sender is TMySQLDBGrid)
+    and Assigned(TMySQLDBGrid(Sender).DataSource)
+    and Assigned(TMySQLDBGrid(Sender).DataSource.DataSet)) then
   begin
     DBGrid := TMySQLDBGrid(Sender);
 
@@ -7206,51 +7187,56 @@ var
   SynMemo: TSynMemo;
 begin
   Control := FindDragTarget(pt, False);
-  ClientCoord := Control.ScreenToClient(Point(pt.X, pt.Y));
-
-  if (Control is TSynMemo) then
-  begin
-    SynMemo := TSynMemo(Control);
-
-    if (not SynMemo.AlwaysShowCaret) then
-    begin
-      SynMemoBeforeDrag.SelStart := ActiveSynMemo.SelStart;
-      SynMemoBeforeDrag.SelLength := ActiveSynMemo.SelLength;
-      SynMemo.AlwaysShowCaret := True;
-    end;
-
-    if (not SynMemo.Gutter.Visible) then
-      SynMemo.CaretX := (ClientCoord.X) div SynMemo.CharWidth + 1
-    else
-      SynMemo.CaretX := (ClientCoord.X - SynMemo.Gutter.RealGutterWidth(SynMemo.CharWidth)) div SynMemo.CharWidth + 1;
-    SynMemo.CaretY := (ClientCoord.Y div SynMemo.LineHeight) + 1;
-    Result := S_OK;
-  end
-  else if (Control is TMySQLDBGrid) then
-  begin
-    DBGrid := TMySQLDBGrid(Control);
-
-    GridCoord := DBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
-
-    if ((GridCoord.X >= 0)
-      and DBGrid.DataSource.DataSet.CanModify
-      and not DBGrid.Columns[GridCoord.X].ReadOnly) then
-      dwEffect := DROPEFFECT_COPY
-    else
-      dwEffect := DROPEFFECT_NONE;
-    Result := S_OK;
-  end
-  else if ((Control = FFilter)
-    or (Control = FObjectSearch)
-    or (Control = FQuickSearch)) then
-  begin
-    dwEffect := DROPEFFECT_COPY;
-    Result := S_OK;
-  end
+  if (not Assigned(Control)) then
+    Result := E_UNEXPECTED
   else
   begin
-    dwEffect := DROPEFFECT_NONE;
-    Result := DragLeave();
+    ClientCoord := Control.ScreenToClient(Point(pt.X, pt.Y));
+
+    if (Control is TSynMemo) then
+    begin
+      SynMemo := TSynMemo(Control);
+
+      if (not SynMemo.AlwaysShowCaret) then
+      begin
+        SynMemoBeforeDrag.SelStart := ActiveSynMemo.SelStart;
+        SynMemoBeforeDrag.SelLength := ActiveSynMemo.SelLength;
+        SynMemo.AlwaysShowCaret := True;
+      end;
+
+      if (not SynMemo.Gutter.Visible) then
+        SynMemo.CaretX := (ClientCoord.X) div SynMemo.CharWidth + 1
+      else
+        SynMemo.CaretX := (ClientCoord.X - SynMemo.Gutter.RealGutterWidth(SynMemo.CharWidth)) div SynMemo.CharWidth + 1;
+      SynMemo.CaretY := (ClientCoord.Y div SynMemo.LineHeight) + 1;
+      Result := S_OK;
+    end
+    else if (Control is TMySQLDBGrid) then
+    begin
+      DBGrid := TMySQLDBGrid(Control);
+
+      GridCoord := DBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
+
+      if ((GridCoord.X >= 0)
+        and DBGrid.DataSource.DataSet.CanModify
+        and not DBGrid.Columns[GridCoord.X].ReadOnly) then
+        dwEffect := DROPEFFECT_COPY
+      else
+        dwEffect := DROPEFFECT_NONE;
+      Result := S_OK;
+    end
+    else if ((Control = FFilter)
+      or (Control = FObjectSearch)
+      or (Control = FQuickSearch)) then
+    begin
+      dwEffect := DROPEFFECT_COPY;
+      Result := S_OK;
+    end
+    else
+    begin
+      dwEffect := DROPEFFECT_NONE;
+      Result := DragLeave();
+    end;
   end;
 end;
 
@@ -9803,7 +9789,7 @@ begin
       begin
         OldAddress := CurrentAddress;
         OldView := Self.View;
-        Self.View := View;
+        SetView(View);
         // Debug 2017-04-26
         Assert((Self.View = View) and (View in [vEditor, vEditor2, vEditor3]),
           'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
@@ -11321,6 +11307,10 @@ begin
 
   MenuItem := nil;
 
+  // Why is this sometimes needed? Without this, sometimes mlOpenClick crashes
+  if (Sender is TListView) then
+    ActiveListView := TListView(Sender);
+
   if ((Sender is TListView) and Assigned(TListView(Sender).OnSelectItem)) then
     TListView(Sender).OnSelectItem(Sender, TListView(Sender).Selected, Assigned(TListView(Sender).Selected));
 
@@ -12287,7 +12277,7 @@ var
       end
       else if (Data is TSProcess) then
       begin
-        Item.Caption := IntToStr(TSProcess(Data).ThreadId);
+        Item.Caption := TSProcess(Data).Name;
         Item.SubItems.Add(TSProcess(Data).UserName);
         Item.SubItems.Add(TSProcess(Data).Host);
         Item.SubItems.Add(TSProcess(Data).DatabaseName);
@@ -12895,9 +12885,9 @@ begin
       aFImportODBC.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
       aFExportSQL.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFExportText.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView]);
-      aFExportExcel.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-      aFExportAccess.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
-      aFExportODBC.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      aFExportExcel.Enabled := Item.ImageIndex in [iiDatabase, iiBaseTable, iiView];
+      aFExportAccess.Enabled := Item.ImageIndex in [iiDatabase, iiBaseTable];
+      aFExportODBC.Enabled := Item.ImageIndex in [iiDatabase, iiBaseTable];
       aFExportXML.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
       aFExportHTML.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFExportPDF.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
@@ -15625,6 +15615,13 @@ begin
   SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
   SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
   LockWindowUpdate(0);
+
+  // Debug 2018-09-26
+  Assert(View = AView,
+    'View: ' + IntToStr(Ord(View)) + #13#10
+    + 'AView: ' + IntToStr(Ord(AView)) + #13#10
+    + 'CurrentAddress: ' + CurrentAddress + #13#10
+    + 'URI: ' + URI.Address);
 
   URI.Free();
 end;

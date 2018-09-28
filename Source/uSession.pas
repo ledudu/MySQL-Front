@@ -188,14 +188,13 @@ type
     property DBObjectName: string read FDBObjectName;
   end;
 
-  TSReferences = class(TList)
+  TSReferences = class(TObjectList<TSReference>)
   private
     FDBObject: TSDBObject;
     function GetReference(Index: Integer): TSReference;
     function GetSession(): TSSession; inline;
   public
     function Add(Item: Pointer): Integer;
-    procedure Clear(); override;
     constructor Create(const ADBObject: TSDBObject); virtual;
     property DBObject: TSDBObject read FDBObject;
     property References[Index: Integer]: TSReference read GetReference; default;
@@ -2449,17 +2448,7 @@ begin
   if (not Assigned(Reference)) then
     Result := -1
   else
-    Result := TList(Self).Add(Reference);
-end;
-
-procedure TSReferences.Clear();
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    TSReference(Items[I]).Free();
-
-  inherited;
+    Result := inherited Add(Reference);
 end;
 
 constructor TSReferences.Create(const ADBObject: TSDBObject);
@@ -8433,7 +8422,7 @@ begin
 
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATE') or SQLParseKeyword(Parse, 'COLLATE')) then
       FCollation := SQLParseValue(Parse)
-    else if (Assigned(Session.CharsetByName(FCharset))) then
+    else if (Assigned(Session.CharsetByName(FCharset)) and Assigned(Session.CharsetByName(FCharset).DefaultCollation)) then
       FCollation := Session.CharsetByName(FCharset).DefaultCollation.Name
     else
       FCollation := '';
@@ -10420,6 +10409,7 @@ begin
   Assert(Assigned(Self));
   Assert(Self is TSProcess,
     'ClassType: ' + TObject(Self).ClassName);
+  Assert(Items.IndexOf(Self) >= 1);
   Assert(Name <> '',
     'Name2: ' + FName2);
 
@@ -13818,7 +13808,11 @@ begin
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'user') = 0) then
+          begin
+            // Debug 2018-09-26
+            Assert(Assigned(Users));
             Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
+          end;
         end;
       end;
     end

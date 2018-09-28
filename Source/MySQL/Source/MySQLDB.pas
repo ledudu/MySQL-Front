@@ -649,7 +649,6 @@ type
     property DataSize: UInt64 read FDataSize;
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
   public
-    Progress: string;
     function BookmarkValid(Bookmark: TBookmark): Boolean; override;
     function CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer; override;
     constructor Create(AOwner: TComponent); override;
@@ -5219,7 +5218,7 @@ begin
   Connection := nil; // UnRegister Connection
 
   FIndexDefs.Free();
-  FInternRecordBuffers.Free();
+  FInternRecordBuffers.Free(); FInternRecordBuffers := nil;
   FInternRecordBuffersCS.Free();
   FRecordReceived.Free();
   FRecordsReceived.Free();
@@ -6043,9 +6042,6 @@ begin
       Connection.BeginSynchron(3);
       Connection.InternExecuteSQL(smDataSet, SQL, SetActiveEvent);
       Connection.EndSynchron(3);
-
-      if (Self is TMySQLDataSet) then
-        TMySQLDataSet(Self).Progress := TMySQLDataSet(Self).Progress + 'A';
     end;
 end;
 
@@ -6301,7 +6297,10 @@ begin
       else
         Dec(Mid);
 
-    Comp := DataSet.RecordCompare(CompareDefs, Items[Mid]^.NewData, @Data);
+    if (Assigned(Items[Mid]^.NewData)) then
+      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid]^.NewData, @Data)
+    else
+      Comp := DataSet.RecordCompare(CompareDefs, Items[Mid]^.OldData, @Data);
     case (Comp) of
       -1: Left := Mid + 1;
       0: begin Result := Mid; break; end;
@@ -6557,10 +6556,14 @@ begin
 end;
 
 procedure TMySQLDataSet.DeletePendingRecords();
+var
+  Index: Integer;
 begin
   while (PendingBuffers.Count > 0) do
   begin
-    InternRecordBuffers.Delete(InternRecordBuffers.IndexOf(PendingBuffers[0]));
+    Index := InternRecordBuffers.IndexOf(PendingBuffers[0]);
+    if (Index >= 0) then
+      InternRecordBuffers.Delete(Index);
     PendingBuffers.Delete(0);
   end;
   Resync([]);
@@ -7616,8 +7619,6 @@ var
   I: Integer;
   SQL: string;
 begin
-  Progress := Progress + 'R';
-
   Connection.Terminate();
 
   InternRecordBuffers.Clear();
@@ -8375,10 +8376,15 @@ begin
       Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
+        // Debug 2018-09-27
+        Assert(Assigned(InternRecordBuffers));
         Index := InternRecordBuffers.IndexOf(DeleteBookmarks^[I]);
         if (Index >= 0) then
         begin
           InternRecordBuffer := InternRecordBuffers[Index];
+          // Debug 2018-09-26
+          Assert(Assigned(InternRecordBuffer^.OldData));
+          Assert(Assigned(WhereField));
           if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
             NullValue := True
           else
@@ -9154,8 +9160,6 @@ end;
 
 function TMySQLTable.LoadNextRecords(const AllRecords: Boolean = False): Boolean;
 begin
-  Progress := Progress + 'N';
-
   RecordsReceived.ResetEvent();
 
   Connection.BeginSynchron(5);

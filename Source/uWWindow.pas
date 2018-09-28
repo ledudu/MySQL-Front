@@ -1088,12 +1088,17 @@ begin
 end;
 
 destructor TWWindow.Destroy();
+var
+  I: Integer;
 begin
-  inherited;
+  // Why do we have sometimes frames here???
+  for I := 0 to FSessions.Count - 1 do
+    FSessions[I].Free();
 
-  // Sometimes, inherited frees a FSession frame. So we still need Accounts.
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
+
+  inherited;
 end;
 
 procedure TWWindow.EmptyWorkingMem();
@@ -1727,8 +1732,11 @@ var
 begin
   if (not (csDestroying in ComponentState)) then
   begin
-    for I := 0 to FSessions.Count - 1 do
-      try FSessions[I].CrashRescue(); except end;
+    try
+      for I := 0 to FSessions.Count - 1 do
+        try FSessions[I].CrashRescue(); except end;
+    except
+    end;
 
     try Accounts.Save(); except; end;
     try Preferences.Save(); except; end;

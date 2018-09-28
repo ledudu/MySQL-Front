@@ -931,7 +931,9 @@ var
   Success: Boolean;
 begin
   // Debug 2018-09-15
-  Assert((ImportType = itSQLFile) or Assigned(Database));
+  Assert((ImportType = itSQLFile) or Assigned(Database),
+    'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
+    + 'Database: ' + BoolToStr(Assigned(Database), True));
 
   FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile];
   FEntieredObjects.Visible := FLProgressObjects.Visible;

@@ -45,6 +45,7 @@ type
     procedure FParentDatabaseChange(Sender: TObject);
     procedure FParentTableChange(Sender: TObject);
   private
+    Session: TSSession;
     SessionState: (ssTable, ssCreate, ssInit, ssValid, ssAlter, ssParentDatabase, ssParentTable);
     Wanted: record
       ComboBox: TComboBox;
@@ -138,8 +139,8 @@ end;
 
 function TDForeignKey.Execute(): Boolean;
 begin
-  // Debug 2018-09-05
-  Assert(Assigned(Table.Database.Session));
+  // Sometimes, Table.Database.Session is setted to nil. Why???
+  Session := Table.Database.Session;
 
   Result := ShowModal() = mrOk;
 end;
@@ -508,16 +509,7 @@ end;
 
 function TDForeignKey.GetParentDatabase(): TSDatabase;
 begin
-  // Debug 2017-05-10
-  Assert(Assigned(Table));
-  Assert(Assigned(Table.Database));
-
-  Assert(Assigned(Table.Database.Session));
-  // 2018-09-22
-
-  Assert(Assigned(FParentDatabase));
-
-  Result := Table.Database.Session.DatabaseByName(FParentDatabase.Text);
+  Result := Session.DatabaseByName(FParentDatabase.Text);
 end;
 
 function TDForeignKey.GetParentTable(): TSBaseTable;

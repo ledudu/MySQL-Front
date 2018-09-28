@@ -2,8 +2,6 @@
 
 interface {********************************************************************}
 
-// SQL Syntax updated through MySQL 5.7.15
-
 type
   TSQLParser = class
   protected
@@ -308,11 +306,13 @@ type
         ntSetStmtAssignment,
         ntSetTransactionStmt,
         ntSetTransactionStmtCharacteristic,
+        ntShowAuthorsStmt,
         ntShowBinaryLogsStmt,
         ntShowBinlogEventsStmt,
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
+        ntShowContributorsStmt,
         ntShowCountStmt,
         ntShowCreateDatabaseStmt,
         ntShowCreateEventStmt,
@@ -466,11 +466,13 @@ type
         stSetPassword,
         stSet,
         stSetTransaction,
+        stShowAuthors,
         stShowBinaryLogs,
         stShowBinlogEvents,
         stShowCharacterSet,
         stShowCollation,
         stShowColumns,
+        stShowContributors,
         stShowCount,
         stShowCreateDatabase,
         stShowCreateEvent,
@@ -844,11 +846,13 @@ type
         'ntSetStmtAssignment',
         'ntSetTransactionStmt',
         'ntSetTransactionStmtCharacteristic',
+        'ntShowAuthorsStmt',
         'ntShowBinaryLogsStmt',
         'ntShowBinlogEventsStmt',
         'ntShowCharacterSetStmt',
         'ntShowCollationStmt',
         'ntShowColumnsStmt',
+        'ntShowContributorsStmt',
         'ntShowCountStmt',
         'ntShowCreateDatabaseStmt',
         'ntShowCreateEventStmt',
@@ -1002,11 +1006,13 @@ type
         'stSetPassword',
         'stSet',
         'stSetTransaction',
+        'stShowAuthors',
         'stShowBinaryLogs',
         'stShowBinlogEvents',
         'stShowCharacterSet',
         'stShowCollation',
         'stShowColumns',
+        'stShowContributors',
         'stShowCount',
         'stShowCreateDatabase',
         'stShowCreateEvent',
@@ -1304,11 +1310,13 @@ type
         ntSetPasswordStmt,
         ntSetStmt,
         ntSetTransactionStmt,
+        ntShowAuthorsStmt,
         ntShowBinaryLogsStmt,
         ntShowBinlogEventsStmt,
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
+        ntShowContributorsStmt,
         ntShowCountStmt,
         ntShowCreateDatabaseStmt,
         ntShowCreateEventStmt,
@@ -1531,11 +1539,13 @@ type
         ntSetPasswordStmt,
         ntSetStmt,
         ntSetTransactionStmt,
+        ntShowAuthorsStmt,
         ntShowBinaryLogsStmt,
         ntShowBinlogEventsStmt,
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
+        ntShowContributorsStmt,
         ntShowCountStmt,
         ntShowCreateDatabaseStmt,
         ntShowCreateEventStmt,
@@ -5037,6 +5047,21 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
+      PShowAuthorsStmt = ^TShowAuthorsStmt;
+      TShowAuthorsStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PShowBinaryLogsStmt = ^TShowBinaryLogsStmt;
       TShowBinaryLogsStmt = packed record
       private type
@@ -5121,6 +5146,21 @@ type
           FromDatabaseValue: TOffset;
           LikeValue: TOffset;
           WhereValue: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PShowContributorsStmt = ^TShowContributorsStmt;
+      TShowContributorsStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -6383,6 +6423,7 @@ type
     kiASC,
     kiASCII,
     kiAT,
+    kiAUTHORS,
     kiAUTO_INCREMENT,
     kiAVG_ROW_LENGTH,
     kiBEFORE,
@@ -6437,6 +6478,7 @@ type
     kiCONTAINS,
     kiCONTEXT,
     kiCONTINUE,
+    kiCONTRIBUTORS,
     kiCONVERT,
     kiCOPY,
     kiCPU,
@@ -7255,11 +7297,13 @@ type
     function ParseSetTransactionStmt(): TOffset;
     function ParseSetTransactionStmtCharacterisic(): TOffset;
     function ParseSetValFunc(): TOffset;
+    function ParseShowAuthorsStmt(): TOffset;
     function ParseShowBinaryLogsStmt(): TOffset;
     function ParseShowBinlogEventsStmt(): TOffset;
     function ParseShowCharacterSetStmt(): TOffset;
     function ParseShowCollationStmt(): TOffset;
     function ParseShowColumnsStmt(): TOffset;
+    function ParseShowContributorsStmt(): TOffset;
     function ParseShowCountStmt(): TOffset;
     function ParseShowCreateDatabaseStmt(): TOffset;
     function ParseShowCreateEventStmt(): TOffset;
@@ -7562,13 +7606,13 @@ const
     'USER,WHEN,WHILE,WEEK,YEAR,ZEROFILL,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ANY,ALWAYS,ANALYZE,' +
-    'AND,AS,ASC,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,BETWEEN,BINLOG,' +
+    'AND,AS,ASC,AT,AUTHORS,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,BETWEEN,BINLOG,' +
     'BLOCK,BOTH,BY,CACHE,CALL,CASCADE,CASCADED,CATALOG_NAME,CHANGE,CHANGED,' +
     'CHANNEL,CHAIN,CHARACTER,CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,CODE,' +
     'COLLATE,COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,COLUMNS,COMMENT,' +
     'COMMIT,COMMITTED,COMPLETION,CONCURRENT,CONDITION,CONNECTION,CONSISTENT,' +
     'CONSTRAINT,CONSTRAINT_CATALOG,CONSTRAINT_NAME,CONSTRAINT_SCHEMA,' +
-    'CONTAINS,CONTEXT,CONTINUE,CONVERT,COPY,CPU,CREATE,CROSS,CURRENT,CURSOR,' +
+    'CONTAINS,CONTEXT,CONTINUE,CONTRIBUTORS,CONVERT,COPY,CPU,CREATE,CROSS,CURRENT,CURSOR,' +
     'CURSOR_NAME,CYCLE,DATA,DATABASE,DATABASES,DATAFILE,DAY_HOUR,' +
     'DAY_MICROSECOND,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DECLARE,DEFAULT,' +
     'DEFINER,DELAY_KEY_WRITE,DELAYED,DELETE,DESC,DESCRIBE,DETERMINISTIC,' +
@@ -11177,6 +11221,20 @@ begin
   end;
 end;
 
+{ TSQLParser.TShowAuthorsStmt *************************************************}
+
+class function TSQLParser.TShowAuthorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stShowAuthors);
+
+  with PShowAuthorsStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
 { TSQLParser.TShowBinaryLogsStmt **********************************************}
 
 class function TSQLParser.TShowBinaryLogsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -11240,6 +11298,20 @@ begin
   Result := TStmt.Create(AParser, stShowColumns);
 
   with PShowColumnsStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TShowContributorsStmt ********************************************}
+
+class function TSQLParser.TShowContributorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stShowContributors);
+
+  with PShowContributorsStmt(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -13883,11 +13955,13 @@ begin
       ntSetStmtAssignment: DefaultFormatNode(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
       ntSetTransactionStmt: DefaultFormatNode(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
       ntSetTransactionStmtCharacteristic: DefaultFormatNode(@TSetTransactionStmt.PCharacteristic(Node)^.Nodes, SizeOf(TSetTransactionStmt.TCharacteristic.TNodes));
+      ntShowAuthorsStmt: DefaultFormatNode(@PShowAuthorsStmt(Node)^.Nodes, SizeOf(TShowAuthorsStmt.TNodes));
       ntShowBinaryLogsStmt: DefaultFormatNode(@PShowBinaryLogsStmt(Node)^.Nodes, SizeOf(TShowBinaryLogsStmt.TNodes));
       ntShowBinlogEventsStmt: FormatShowBinlogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
       ntShowCharacterSetStmt: DefaultFormatNode(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
       ntShowCollationStmt: DefaultFormatNode(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
       ntShowColumnsStmt: DefaultFormatNode(@PShowColumnsStmt(Node)^.Nodes, SizeOf(TShowColumnsStmt.TNodes));
+      ntShowContributorsStmt: DefaultFormatNode(@PShowContributorsStmt(Node)^.Nodes, SizeOf(TShowContributorsStmt.TNodes));
       ntShowCountStmt: DefaultFormatNode(@PShowCountStmt(Node)^.Nodes, SizeOf(TShowCountStmt.TNodes));
       ntShowCreateDatabaseStmt: DefaultFormatNode(@PShowCreateDatabaseStmt(Node)^.Nodes, SizeOf(TShowCreateDatabaseStmt.TNodes));
       ntShowCreateEventStmt: DefaultFormatNode(@PShowCreateEventStmt(Node)^.Nodes, SizeOf(TShowCreateEventStmt.TNodes));
@@ -15338,11 +15412,13 @@ begin
     ntSetStmtAssignment: Result := SizeOf(TSetStmt.TAssignment);
     ntSetTransactionStmt: Result := SizeOf(TSetTransactionStmt);
     ntSetTransactionStmtCharacteristic: Result := SizeOf(TSetTransactionStmt.TCharacteristic);
+    ntShowAuthorsStmt: Result := SizeOf(TShowAuthorsStmt);
     ntShowBinaryLogsStmt: Result := SizeOf(TShowBinaryLogsStmt);
     ntShowBinlogEventsStmt: Result := SizeOf(TShowBinlogEventsStmt);
     ntShowCharacterSetStmt: Result := SizeOf(TShowCharacterSetStmt);
     ntShowCollationStmt: Result := SizeOf(TShowCollationStmt);
     ntShowColumnsStmt: Result := SizeOf(TShowColumnsStmt);
+    ntShowContributorsStmt: Result := SizeOf(TShowContributorsStmt);
     ntShowCountStmt: Result := SizeOf(TShowCountStmt);
     ntShowCreateDatabaseStmt: Result := SizeOf(TShowCreateDatabaseStmt);
     ntShowCreateEventStmt: Result := SizeOf(TShowCreateEventStmt);
@@ -23946,6 +24022,17 @@ begin
   Result := TDefaultFunc.Create(Self, Ident, TList.Create(Self, ListNodes, ttComma, @Options));
 end;
 
+function TSQLParser.ParseShowAuthorsStmt(): TOffset;
+var
+  Nodes: TShowAuthorsStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiSHOW, kiAUTHORS);
+
+  Result := TShowAuthorsStmt.Create(Self, Nodes);
+end;
+
 function TSQLParser.ParseShowBinaryLogsStmt(): TOffset;
 var
   Nodes: TShowBinaryLogsStmt.TNodes;
@@ -24073,6 +24160,17 @@ begin
       Nodes.WhereValue := ParseValue(kiWHERE, vaNo, ParseExpr);
 
   Result := TShowColumnsStmt.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseShowContributorsStmt(): TOffset;
+var
+  Nodes: TShowContributorsStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiSHOW, kiCONTRIBUTORS);
+
+  Result := TShowContributorsStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseShowCountStmt(): TOffset;
@@ -25165,6 +25263,8 @@ begin
     Continue := True;     // This "Hack" is needed to use <Ctrl+LeftClick>
   if (not Continue) then  // the Delphi XE4 IDE. But why???
   {$ENDIF}
+  else if (IsTag(kiSHOW, kiAUTHORS)) then
+    Result := ParseShowAuthorsStmt()
   else if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
   else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
@@ -25177,6 +25277,8 @@ begin
     Result := ParseShowCollationStmt()
   else if (IsTag(kiSHOW, kiCOLUMNS)) then
     Result := ParseShowColumnsStmt()
+  else if (IsTag(kiSHOW, kiCONTRIBUTORS)) then
+    Result := ParseShowContributorsStmt()
   else if (IsTag(kiSHOW) and not EndOfStmt(NextToken[1]) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
     Result := ParseShowCountStmt()
   else if (IsTag(kiSHOW, kiFIELDS)) then
@@ -28086,6 +28188,7 @@ begin
     kiASC                           := IndexOf('ASC');
     kiASCII                         := IndexOf('ASCII');
     kiAT                            := IndexOf('AT');
+    kiAUTHORS                       := IndexOf('AUTHORS');
     kiAUTO_INCREMENT                := IndexOf('AUTO_INCREMENT');
     kiAVG_ROW_LENGTH                := IndexOf('AVG_ROW_LENGTH');
     kiBEFORE                        := IndexOf('BEFORE');
@@ -28140,6 +28243,7 @@ begin
     kiCONTAINS                      := IndexOf('CONTAINS');
     kiCONTEXT                       := IndexOf('CONTEXT');
     kiCONTINUE                      := IndexOf('CONTINUE');
+    kiCONTRIBUTORS                  := IndexOf('CONTRIBUTORS');
     kiCONVERT                       := IndexOf('CONVERT');
     kiCOPY                          := IndexOf('COPY');
     kiCPU                           := IndexOf('CPU');

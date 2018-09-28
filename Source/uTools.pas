@@ -3816,7 +3816,7 @@ begin
       if (Items[I] is TDBObjectItem) then
       begin
         J := 0;
-        while (J < TDBObjectItem(Items[I]).DBObject.References.Count) do
+        while ((I >= 0) and (J < TDBObjectItem(Items[I]).DBObject.References.Count)) do
         begin
           K := I + 1;
           while (K < Items.Count) do
@@ -3825,7 +3825,7 @@ begin
               and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
             begin
               Items.Move(I, K);
-              if (I > 0) then Dec(I);
+              Dec(I);
               J := Items.Count - 1;
               K := Items.Count - 1;
             end;

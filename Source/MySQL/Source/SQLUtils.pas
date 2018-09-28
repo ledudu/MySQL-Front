@@ -2351,7 +2351,7 @@ begin
   while ((Len - I >= 1) and (Char(Byte(SQL[I]) and not $20) = Keyword[I]) and (Keyword[I] <> #0)) do
     Inc(I);
   Result := Keyword[I] = #0;
-  Result := Result and ((Len = 0) or not (('A' <= SQL[I]) and (SQL[I] <= 'Z')) and not (('a' <= SQL[I]) and (SQL[I] <= 'z')));
+  Result := Result and ((Len = 0) or not (('A' <= SQL[I]) and (SQL[I] <= 'Z')) and not (('a' <= SQL[I]) and (SQL[I] <= 'z')) and not (SQL[I] = '_'));
   if (Result) then
   begin
     Inc(SQL, I); Dec(Len, I);
@@ -2420,7 +2420,7 @@ begin
   end;
 end;
 
-function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer; overload;
+function SQLStmtLengthNew(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
 const
   Version = $7FFFFFFF;
 var
@@ -2594,6 +2594,25 @@ begin
   Result := OldLen - Len;
 end;
 
+function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
+var
+  S: string;
+begin
+  Result := 0;
+  try
+    Result := SQLStmtLengthNew(SQL, Len, Delimited);
+  except
+    on E: Exception do
+      begin
+        SetString(S, SQL, Len);
+        E.RaiseOuterException(EAssertionFailed.Create(E.ClassName + #13#10
+          + E.Message + #13#10
+          + 'SQL: ' + #13#10
+          + S));
+      end;
+  end;
+end;
+
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
 begin
   if (Length(SQL) <= Len) then
@@ -2602,95 +2621,149 @@ begin
     Result := copy(SQL, 1, Len) + '...';
 end;
 
-function UnescapeStringNew(var SQL: PChar; var Len: Integer; Unescaped: PChar; UnescapedLen: Integer): Integer;
+function UnescapeStringNew(var SQL: PChar; var Len: Integer; var Unescaped: PChar; var UnescapedLen: Integer): Integer;
 var
   Quoter: Char;
 begin
-  if ((Len >= 1) and (SQL[0] = '"') or (SQL[0] = '''') or (SQL[0] = '`')) then
+  Result := 0;
+  Quoter := SQL[0];
+  Inc(SQL); Dec(Len); // Opening quoter
+  while ((Len >= 1) and (SQL[0] <> Quoter)) do
   begin
-    Quoter := SQL[0];
-    Inc(SQL); Dec(Len);
-    while ((Len >= 1) and (SQL[0] <> Quoter)) do
+    if ((SQL[0] <> '\') or (Len < 2)) then
     begin
-      if ((SQL[0] <> '\') or (Len < 2)) then
+      if (Assigned(Unescaped)) then
       begin
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := SQL^; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if ((SQL[1] = '"') or (SQL[1] = '''') or (SQL[1] = '`')) then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := SQL^; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if (SQL[1] = '0') then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := #0; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if ((SQL[1] = 'B') or (SQL[1] = 'b')) then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := #8; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if ((SQL[1] = 'N') or (SQL[1] = 'n')) then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := #10; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if ((SQL[1] = 'R') or (SQL[1] = 'r')) then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := #8; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if ((SQL[1] = 'T') or (SQL[1] = 't')) then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := #8; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
-      end
-      else if ((SQL[1] = 'Z') or (SQL[1] = 'z')) then
-      begin
-        Inc(SQL); Dec(Len); // Escaper
-        if (Assigned(Unescaped)) then
-        begin
-          Unescaped^ := #26; Inc(Unescaped); Inc(SQL); Dec(UNescapedLen); Dec(Len);
-        end;
-        Inc(SQL); Dec(Len);
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
       end;
-      if (Len = 0) then
-        break;
-    end;
-    if ((Len >= 1) and (SQL[0] = Quoter)) then
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = '"') or (SQL[1] = '''') or (SQL[1] = '`')) then
     begin
-      Inc(SQL); Dec(Len);
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if (SQL[1] = '0') then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #0; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'B') or (SQL[1] = 'b')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #8; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'N') or (SQL[1] = 'n')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #10; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'R') or (SQL[1] = 'r')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #13; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'T') or (SQL[1] = 't')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #9; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'Z') or (SQL[1] = 'z')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #26; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
     end;
   end;
+  if ((Len >= 1) and (SQL[0] = Quoter)) then
+  begin
+    Inc(SQL); Dec(Len); // Closing quoter
+  end;
+end;
+
+function SQLUnescapeNew(SQL: PChar; SQLLen: Integer; Unescaped: PChar; UnescapedLen: Integer): Integer; overload;
+var
+  Len: Integer;
+begin
+  Result := 0;
+  while (SQLLen >= 1) do
+    if ((SQL^ <> '"') and (SQL^ <> '''') and (SQL^ <> '`')) then
+    begin
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen < 1) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(SQLLen); Inc(Result);
+    end
+    else
+    begin
+      Len := UnescapeStringNew(SQL, SQLLen, Unescaped, UnescapedLen);
+      if (Len = 0) then
+        Exit(0); // Unescaped too small
+      Inc(Result, Len);
+      if (SQLLen = 0) then
+        Exit;
+      while ((SQLLen >= 1) and ((SQL^ = #9) or (SQL^ = #10) or (SQL^ = #13) or (SQL^ = ' '))) do
+      begin
+        Inc(SQL); Dec(SQLLen);
+      end;
+    end;
 end;
 
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer;
@@ -2779,6 +2852,20 @@ begin
         POP EDI
         POP ESI
         POP ES
+  end;
+end;
+
+function SQLUnescapeNew(const Value: string): string; overload;
+var
+  Len: Integer;
+begin
+  if (Value = '') then
+    Result := ''
+  else
+  begin
+    Len := SQLUnescapeNew(PChar(Value), Length(Value), nil, 0);
+    SetLength(Result, Len);
+    SQLUnescapeNew(PChar(Value), Length(Value), PChar(Result), Length(Result));
   end;
 end;
 
@@ -2977,7 +3064,7 @@ end;
 
 begin
   {$IFDEF Debug}
-  SQLUnescape('H"a"llo');
+  SQLUnescapeNew('H"a\r\n"123');
   {$ENDIF}
 end.
 
