@@ -20354,7 +20354,7 @@ begin
           Nodes.Add(ApplyCurrentToken(utString))
         else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
           Nodes.Add(ParseVariableIdent())
-        else if (IsSelectStmt()) then
+        else if (IsTag(kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
         else if (IsSymbol(ttOpenBracket)) then
           Nodes.Add(ParseList(True, ParseExpr, ttComma, False))

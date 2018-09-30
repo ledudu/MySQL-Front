@@ -12885,9 +12885,9 @@ begin
       aFImportODBC.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
       aFExportSQL.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFExportText.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView]);
-      aFExportExcel.Enabled := Item.ImageIndex in [iiDatabase, iiBaseTable, iiView];
-      aFExportAccess.Enabled := Item.ImageIndex in [iiDatabase, iiBaseTable];
-      aFExportODBC.Enabled := Item.ImageIndex in [iiDatabase, iiBaseTable];
+      aFExportExcel.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) or (Item.ImageIndex in [iiBaseTable, iiView]);
+      aFExportAccess.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) or (Item.ImageIndex in [iiBaseTable]);
+      aFExportODBC.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) or (Item.ImageIndex in [iiBaseTable]);
       aFExportXML.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
       aFExportHTML.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       aFExportPDF.Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
