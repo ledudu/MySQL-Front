@@ -6875,6 +6875,7 @@ type
     kiTERMINATED,
     kiTHAN,
     kiTHEN,
+    kiTIMESTAMP,
     kiTO,
     kiTRADITIONAL,
     kiTRAILING,
@@ -7602,7 +7603,7 @@ const
     'DAY,DISK,DYNAMIC,EXIT,FETCH,FIXED,FORMAT,HANDLER,HASH,HOUR,IF,INNODB,' +
     'ITERATE,INTERVAL,LEAVE,LEFT,LOOP,MEMORY,MERGE,MICROSECOND,MINUTE,MONTH,' +
     'NATIONAL,PASSWORD,QUARTER,REDUNDANT,REPEAT,REVERSE,RIGHT,ROW_COUNT,' +
-    'SECOND,SIGNED,TEMPTABLE,THEN,TRUNCATE,UNDEFINED,UNICODE,UNSIGNED,UNTIL,' +
+    'SECOND,SIGNED,TEMPTABLE,THEN,TIMESTAMP,TRUNCATE,UNDEFINED,UNICODE,UNSIGNED,UNTIL,' +
     'USER,WHEN,WHILE,WEEK,YEAR,ZEROFILL,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ANY,ALWAYS,ANALYZE,' +
@@ -22884,11 +22885,15 @@ begin
       Nodes.UnitTag := ParseIntervalUnitTag();
 
     if (not ErrorFound) then
-      if (IsTag(kiSTARTS)) then
+      if (IsTag(kiSTARTS, kiTIMESTAMP)) then
+        Nodes.StartsValue := ParseValue(WordIndices(kiSTARTS, kiTIMESTAMP), vaNo, ParseExpr)
+      else if (IsTag(kiSTARTS)) then
         Nodes.StartsValue := ParseValue(kiSTARTS, vaNo, ParseExpr);
 
     if (not ErrorFound) then
-      if (IsTag(kiENDS)) then
+      if (IsTag(kiENDS, kiTIMESTAMP)) then
+        Nodes.EndsValue := ParseValue(WordIndices(kiENDS, kiTIMESTAMP), vaNo, ParseExpr)
+      else if (IsTag(kiENDS)) then
         Nodes.EndsValue := ParseValue(kiENDS, vaNo, ParseExpr);
   end
   else if (EndOfStmt(CurrentToken)) then
@@ -28642,6 +28647,7 @@ begin
     kiTERMINATED                    := IndexOf('TERMINATED');
     kiTHAN                          := IndexOf('THAN');
     kiTHEN                          := IndexOf('THEN');
+    kiTIMESTAMP                     := IndexOf('TIMESTAMP');
     kiTO                            := IndexOf('TO');
     kiTRAILING                      := IndexOf('TRAILING');
     kiTRADITIONAL                   := IndexOf('TRADITIONAL');

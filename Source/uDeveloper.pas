@@ -65,7 +65,7 @@ function GetUTCTime(): TDateTime;
 function LocationToStr(Location: TELLocationInfo): string;
 {$ENDIF}
 function ProcAddrToStr(const Proc: Pointer): string;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 5;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 function VersionString(const Version: Integer): string;
 
@@ -339,7 +339,7 @@ begin
   {$ENDIF}
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 5;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 {$IFNDEF Debug}
 var
@@ -1164,14 +1164,14 @@ begin
     ShowDialog := False;
 
     if (EFrozenApplicationSent < 5) then
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 5, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
 
     Inc(EFrozenApplicationSent);
   end
   else if (ExceptionInfo.ExceptionClass = 'EMySQLEncodingError') then
   begin
     ShowDialog := False;
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 5, True);
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
 
     MessageBox(0, PChar('Error while decoding data sent by the database server:' + #10
       + ExceptionInfo.ExceptionMessage + #10#10
@@ -1197,7 +1197,7 @@ begin
     end
     else
     begin
-      SendToDeveloper(BuildBugReport(ExceptionInfo), 5, True);
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 2, True);
 
       ExceptionInfo.Options.SendShellSubject := SysUtils.LoadStr(1000) + ' ' +
         IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +

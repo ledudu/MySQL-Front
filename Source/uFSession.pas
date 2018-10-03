@@ -15616,13 +15616,6 @@ begin
   SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
   LockWindowUpdate(0);
 
-  // Debug 2018-09-26
-  Assert(View = AView,
-    'View: ' + IntToStr(Ord(View)) + #13#10
-    + 'AView: ' + IntToStr(Ord(AView)) + #13#10
-    + 'CurrentAddress: ' + CurrentAddress + #13#10
-    + 'URI: ' + URI.Address);
-
   URI.Free();
 end;
 
