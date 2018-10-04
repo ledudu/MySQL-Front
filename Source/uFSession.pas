@@ -15603,11 +15603,6 @@ begin
     URI.Param['comment'] := Null;
   end;
 
-  // Debug 2017-05-17
-  Assert(URI.Address <> '');
-
-  Assert((AView <> vEditor) or (URI.Param['view'] = 'editor'));
-
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
