@@ -749,6 +749,8 @@ begin
       Result := Result + '1'
     else if (Result <> '') then
       Result := Result + '0';
+  if (Result = '') then
+    Result := '0';
 end;
 
 function RemoveDatabaseNameFromStmt(const Stmt: string; const DatabaseName: string; const NameQuoter: Char): string;

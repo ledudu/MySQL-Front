@@ -314,6 +314,9 @@ procedure TDTables.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  // Debug 2018-10-05
+  Assert(Tables.Count >= 0);
+
   Database := TSTable(Tables[0]).Database;
 
   Database.Session.RegisterEventProc(FormSessionEvent);

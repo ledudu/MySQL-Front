@@ -18,7 +18,7 @@ uses
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid, SQLParser,
   uSession, uPreferences, uTools,
-  uBase, uDExport, uDImport, uCWorkbench, uPObjectSearch, uPDBGridFilter;
+  uBase, uDExport, uDImport, uCWorkbench, uPObjectSearch;
 
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -439,9 +439,6 @@ type
     procedure DBGridEmptyExecute(Sender: TObject);
     procedure DBGridEnter(Sender: TObject);
     procedure DBGridExit(Sender: TObject);
-    procedure DBGridFilterHide(Sender: TObject);
-    procedure DBGridFilterShow(Sender: TObject);
-    procedure DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
     procedure DBGridKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure DBGridKeyUp(Sender: TObject; var Key: Word;
@@ -929,7 +926,6 @@ type
     PanelMouseDownPoint: TPoint;
     Param: string;
     PasteMode: Boolean;
-    PDBGridFilter: TPDBGridFilter;
     PNGImage: TPNGImage;
     PObjectSearch: TPObjectSearch;
     PResultHeight: Integer;
@@ -1785,7 +1781,6 @@ begin
     end;
     FDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := Table.DataSet;
-    FDBGrid.OnHeaderSplitButton := FSession.DBGridHeaderSplitButton;
   end;
 
   Result := FDBGrid;
@@ -5706,7 +5701,11 @@ begin
     FFolders.OnChange := FFoldersChange;
 
     FFolders.Parent := PFolders;
-    FFolders.AutoRefresh := True;
+    try
+      FFolders.AutoRefresh := True;
+    except
+      // In Delphi XE4 sometimes this fails with an AV in TShellFolder.PathName
+    end;
 
     SendMessage(FFolders.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CYEDGE), 0);
     if (CheckWin32Version(6)) then
@@ -6673,88 +6672,6 @@ begin
   end;
 end;
 
-procedure TFSession.DBGridFilterHide(Sender: TObject);
-var
-  DataSet: TSTable.TDataSet;
-  I: Integer;
-  Item: TSTable.TDataSet.TFilter;
-begin
-  Assert(ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet);
-  DataSet := TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet);
-  if (DataSet.Filters.Count = 0) then
-    for I := 0 to DataSet.FieldCount - 1 do
-      DataSet.Filters.Add(TSTable.TDataSet.TFilters.Create());
-  DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1].Clear();
-  if (PDBGridFilter.Actives[0]) then
-    for I := 0 to Length(PDBGridFilter.Operators) - 1 do
-    begin
-      Item.Enabled := PDBGridFilter.Actives[I];
-      Item.Operator := PDBGridFilter.Operators[I];
-      Item.Value := PDBGridFilter.Values[I];
-      DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1].Add(Item);
-    end;
-  TableOpen(Sender);
-end;
-
-procedure TFSession.DBGridFilterShow(Sender: TObject);
-var
-  DataSet: TSTable.TDataSet;
-begin
-  SetLength(PDBGridFilter.Actives, 1);
-  SetLength(PDBGridFilter.Operators, 1);
-  SetLength(PDBGridFilter.Values, 1);
-  Assert(ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet);
-  DataSet := TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet);
-  if ((DataSet.Filters.Count = 0) or (DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1].Count < 1)) then
-  begin
-    PDBGridFilter.Actives[0] := False;
-    PDBGridFilter.Operators[0] := '=';
-    PDBGridFilter.Values[0] := PDBGridFilter.Column.Field.AsString;
-  end
-  else
-  begin
-    PDBGridFilter.Actives[0] := DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1][0].Enabled;
-    PDBGridFilter.Operators[0] := DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1][0].Operator;
-    PDBGridFilter.Values[0] := DataSet.Filters[PDBGridFilter.Column.Field.FieldNo - 1][0].Value;
-  end;
-end;
-
-procedure TFSession.DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
-var
-  Rect: TRect;
-begin
-  if (Shift = [ssLeft]) then
-  begin
-    if (not Assigned(PDBGridFilter)) then
-    begin
-      PDBGridFilter := TPDBGridFilter.Create(nil);
-      PDBGridFilter.Color := DBGrid.Color;
-      PDBGridFilter.Perform(CM_SYSFONTCHANGED, 0, 0);
-      PDBGridFilter.Perform(UM_PREFERENCES_CHANGED, 0, 0);
-      PDBGridFilter.PopupParent := Window;
-    end;
-
-    if (Assigned(PDBGridFilter)) then
-      if (PDBGridFilter.Visible and (PDBGridFilter.Column = Column)) then
-        PDBGridFilter.Hide()
-      else if (Header_GetItemDropDownRect(DBGrid.Header.Handle, Column.Index - DBGrid.LeftCol, Rect)) then
-      begin
-        if (PDBGridFilter.Visible) then
-          PDBGridFilter.Hide();
-
-        PDBGridFilter.Column := Column;
-        PDBGridFilter.OnHide := DBGridFilterHide;
-        PDBGridFilter.OnShow := DBGridFilterShow;
-        PDBGridFilter.Left := DBGrid.ClientToScreen(Point(Rect.Left, 0)).X;
-        PDBGridFilter.Top := DBGrid.ClientToScreen(Point(0, DBGrid.DefaultRowHeight)).Y;
-        if (PDBGridFilter.Left + PDBGridFilter.Width > Screen.Width) then
-          PDBGridFilter.Left := Screen.Width - PDBGridFilter.Width;
-        PDBGridFilter.Visible := True;
-        Header_SetFocusedItem(DBGrid.Header.Handle, Column.Index - DBGrid.LeftCol);
-      end;
-  end;
-end;
-
 procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
@@ -7035,7 +6952,6 @@ begin
   FNavigatorChanging(nil, nil, TempB);
 
   if (Assigned(PObjectSearch)) then PObjectSearch.Free();
-  if (Assigned(PDBGridFilter)) then PDBGridFilter.Free();
 
   Window.ActiveControl := nil;
   OnResize := nil;
@@ -13213,8 +13129,7 @@ begin
   begin
     gmFilter.Clear(); gmFilter.Enabled := False;
 
-    if ((View <> vBrowser)
-      and Assigned(ActiveDBGrid.SelectedField)
+    if (Assigned(ActiveDBGrid.SelectedField)
       and not ActiveDBGrid.EditorMode
       and not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     begin
@@ -14658,8 +14573,6 @@ procedure TFSession.PDBGridResize(Sender: TObject);
 begin
   if (Assigned(ActiveDBGrid)) then
     ActiveDBGrid.Invalidate();
-  if (Assigned(PDBGridFilter)) then
-    PDBGridFilter.Hide();
 end;
 
 procedure TFSession.PHeaderCheckElements(Sender: TObject);

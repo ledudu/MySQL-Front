@@ -52,7 +52,6 @@ type
     FOnCanEditShowExecuted: Boolean;
     FOnOverflow: TOverflowEvent;
     FOnSelect: TNotifyEvent;
-    FOnHeaderSplitButton: THeaderSplitBottonEvent;
     FOnUpdateAction: TUpdateActionEvent;
     FOverflow: Boolean;
     FSelectedFields: TFieldList;
@@ -134,7 +133,6 @@ type
     property CurrentRow: Boolean read GetCurrentRow;
     property Header: THeaderControl read GetHeaderControl;
     property MouseDownShiftState: TShiftState read LeftClickAnchor.Shift;
-    property OnHeaderSplitButton: THeaderSplitBottonEvent read FOnHeaderSplitButton write FOnHeaderSplitButton;
     property SelectedFields: TFieldList read FSelectedFields;
     property SelSQLData: string read GetSelSQLData;
     property SelText: string read GetSelText;
@@ -605,7 +603,6 @@ constructor TMySQLDBGrid.Create(AOwner: TComponent);
 begin
   AltDownAnchor.Col := -1;
   FHeaderControl := nil;
-  FOnHeaderSplitButton := nil;
   FIgnoreKeyPress := False;
   FListView := 0;
   FOnCanEditShow := nil;
@@ -1635,8 +1632,6 @@ begin
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN;
-        if (Assigned(FOnHeaderSplitButton)) then
-          HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
         SendMessage(Header.Handle, HDM_SETITEM, Index, LPARAM(@HDItem));
         Inc(Index);
       end;
@@ -1713,7 +1708,6 @@ var
   HDCustomDraw: PNMCustomDraw;
   LogFont: TLogFont;
   NewWidth: Integer;
-  Shift: TShiftState;
 begin
   HDNotify := PHDNotify(Msg.NMHdr);
 
@@ -1789,20 +1783,6 @@ begin
             else
               inherited;
           end;
-        end;
-      HDN_DROPDOWN:
-        if (Assigned(FOnHeaderSplitButton)) then
-        begin
-          case (HDNotify^.Button) of
-            0: Shift := [ssLeft];
-            1: Shift := [ssRight];
-            2: Shift := [ssMiddle];
-            else Shift := [];
-          end;
-          if (GetKeyState(VK_SHIFT) < 0) then Shift := Shift + [ssShift];
-          if (GetKeyState(VK_CONTROL) < 0) then Shift := Shift + [ssCtrl];
-          if (GetKeyState(VK_MENU) < 0) then Shift := Shift + [ssAlt];
-          FOnHeaderSplitButton(Self, Columns[LeftCol + HDNotify^.Item], Shift);
         end;
       HDN_OVERFLOWCLICK:
         if (Assigned(FOnOverflow)) then
