@@ -3923,7 +3923,8 @@ begin
   if ((FilterSQL <> '') or (QuickSearch <> '')) then
   begin
     Result := Result + ' WHERE ';
-    Result := Result + '(';
+    if ((FilterSQL <> '') and (QuickSearch <> '')) then
+      Result := Result + '(';
     if (FilterSQL <> '') then
       Result := Result + FilterSQL;
     if ((FilterSQL <> '') and (QuickSearch <> '')) then
@@ -3934,7 +3935,8 @@ begin
         if (I > 0) then Result := Result + ' OR ';
         Result := Result + Connection.EscapeIdentifier(Table.Fields[I].Name) + ' LIKE ' + SQLEscape('%' + QuickSearch + '%');
       end;
-    Result := Result + ')';
+    if ((FilterSQL <> '') and (QuickSearch <> '')) then
+      Result := Result + ')';
   end;
   if (SortDef.Fields <> '') then
   begin
