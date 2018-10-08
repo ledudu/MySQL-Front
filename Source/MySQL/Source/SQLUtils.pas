@@ -3067,7 +3067,6 @@ end;
 begin
   {$IFDEF Debug}
   SQLUnescapeNew('H"a\r\n"123');
-  IntToBitString(123);
   {$ENDIF}
 end.
 
