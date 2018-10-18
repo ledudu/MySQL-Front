@@ -3460,7 +3460,9 @@ end;
 procedure TFSession.aDPropertiesServerExecute(Sender: TObject);
 begin
   // Debug 2017-04-30
-  Assert(not (csDestroying in ComponentState)); // Occurred on 2017-05-10 and 2017-05-15. ... without a call stack
+  Assert(not (csDestroying in ComponentState));
+  // Occurred on 2017-05-10, 2017-05-15 and 2018-10-10. ... without a call stack
+
   Assert(Assigned(Wanted));
 
   Wanted.Clear();
@@ -5744,7 +5746,11 @@ begin
     FFiles.ViewStyle := vsReport;
 
     FFiles.Parent := PFiles;
-    FFiles.AutoRefresh := True;
+    try
+      FFiles.AutoRefresh := True;
+    except
+      // In Delphi XE4 sometimes this fails with an AV in TShellFolder.PathName
+    end;
     FFiles.ObjectTypes := [otNonFolders];
 
     if (CheckWin32Version(6,1)) then

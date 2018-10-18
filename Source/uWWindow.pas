@@ -873,29 +873,17 @@ function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
 begin
-  // 2017-05-13
-  // Why is it needed to check the ComponentState???
-  // Without this, sometimes this method will be called by FormCloseQuery
-  // while csDestroying is set. :-/
+  Result := True;
+  for I := FSessions.Count - 1 downto 0 do
+    if (Result) then
+    begin
+      // Debug 2017-04-26
+      Assert(Assigned(FSessions[I]));
 
-  if (not (csDestroying in ComponentState)) then
-  begin
-    Result := True;
-    for I := FSessions.Count - 1 downto 0 do
+      TFSession(FSessions[I]).FrameCloseQuery(Self, Result);
       if (Result) then
-      begin
-        // Debug 2017-04-26
-        Assert(Assigned(FSessions[I]));
-
-        TFSession(FSessions[I]).FrameCloseQuery(Self, Result);
-        if (Result) then
-          CloseTab(TFSession(FSessions[I]));
-      end;
-  end;
-
-  // Debug 2017-05-20
-  Assert(not Result or (FSessions.Count = 0),
-    'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+        CloseTab(TFSession(FSessions[I]));
+    end;
 end;
 
 procedure TWWindow.CloseTab(const Tab: TFSession);
@@ -1095,10 +1083,10 @@ begin
   for I := 0 to FSessions.Count - 1 do
     FSessions[I].Free();
 
+  inherited;
+
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
-
-  inherited;
 end;
 
 procedure TWWindow.EmptyWorkingMem();

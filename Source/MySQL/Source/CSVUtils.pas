@@ -9,8 +9,8 @@ type
     Length: Integer;
   end;
 
-function CSVEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = '"'; Quote: Boolean = True): Integer; overload;
-function CSVEscape(const Value: string; const Quoter: Char = '"'; const Quote: Boolean = True): string; overload;
+function CSVEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = '"'): Integer; overload;
+function CSVEscape(const Value: string; const Quoter: Char = '"'): string; overload;
 procedure CSVSplitValues(const TextLine: string; const Delimiter, Quoter: Char; var Values: TCSVStrings); overload;
 function CSVSplitValues(const Text: string; var TextIndex: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues; const TextComplete: Boolean = True): Boolean; overload;
 function CSVUnescape(const Text: string; const Quoter: Char = '"'): string; overload;
@@ -23,7 +23,7 @@ uses
   Windows,
   SysUtils, SysConst;
 
-function CSVEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = '"'; Quote: Boolean = True): Integer;
+function CSVEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = '"'): Integer;
 begin
   if (Assigned(Escaped)) then
   begin
@@ -65,13 +65,13 @@ begin
   Inc(Result);
 end;
 
-function CSVEscape(const Value: string; const Quoter: Char = '"'; const Quote: Boolean = True): string;
+function CSVEscape(const Value: string; const Quoter: Char = '"'): string;
 var
   Len: Integer;
 begin
-  Len := CSVEscape(PChar(Value), Length(Value), nil, 0, '"', Quote);
+  Len := CSVEscape(PChar(Value), Length(Value), nil, 0, '"');
   SetLength(Result, Len);
-  CSVEscape(PChar(Value), Length(Value), PChar(Result), Len, '"', Quote);
+  CSVEscape(PChar(Value), Length(Value), PChar(Result), Len, '"');
 end;
 
 procedure CSVSplitValues(const TextLine: string; const Delimiter, Quoter: Char; var Values: TCSVStrings);

@@ -5010,7 +5010,10 @@ begin
     if (Field.IsNull) then
       // NULL values are empty in MS Text files
     else if (BitField(Field)) then
-      Values.Write(CSVEscape(Field.AsString, Quoter, QuoteValues <> qtNone))
+      if (QuoteValues <> qtAll) then
+        Values.Write(Field.AsString)
+      else
+        Values.Write(CSVEscape(Field.AsString, Quoter))
     else if (Field.DataType = ftString) then
     else if (Field.DataType = ftBlob) then
     else if (Field.DataType in TextDataTypes) then
@@ -5023,8 +5026,13 @@ begin
       end;
       Len := AnsiCharToWideChar(FieldCodePage(Field), DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
-      LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, QuoteValues <> qtNone);
-      CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
+      if (QuoteValues = qtNone) then
+        Values.Write(ValueBuffer.Mem, Len)
+      else
+      begin
+        LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter);
+        CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter);
+      end;
     end
     else
       Values.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], QuoteValues = qtAll, Quoter);
@@ -7768,8 +7776,12 @@ begin
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
       begin
+        DestinationTable := DestinationDatabase.TableByName(Item.DBObject.Name);
+
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
+        NewTrigger.TableName := DestinationTable.Name;
+        NewTrigger.DatabaseName := DestinationDatabase.Name;
 
         while ((Success = daSuccess) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);

@@ -3552,8 +3552,21 @@ var
   I: Integer;
   Index: Integer;
   J: Integer;
+  S: string;
 begin
   Index := IndexOf(AField);
+
+  if (Index < 0) then
+  begin
+    for I := 0 to Count - 1 do
+    begin
+      if (I > 0) then S := S + ';';
+      S := S + Field[I].Name;
+    end;
+    Assert(False,
+      'FieldName: ' + AField.Name + #13#10
+      + 'FieldNames: ' + S)
+  end;
 
   if (Table is TSBaseTable) then
     for I := TSBaseTable(Table).Keys.Count - 1 downto 0 do
@@ -7023,7 +7036,8 @@ begin
   Result := FInputDataSet;
 end;
 
-function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
+function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False;
+  const FullQualifiedIdentifier: Boolean = False): string;
 var
   SQL: string;
 begin
@@ -7951,6 +7965,9 @@ var
 begin
   if (Table is TSBaseTable) then
   begin
+    // Debug 2018-10-09
+    Assert(NewTableName <> '');
+
     Session.Connection.BeginSynchron(8);
     Table.Update();
     Session.Connection.EndSynchron(8);
@@ -13763,8 +13780,7 @@ begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'user') = 0) then
           begin
-            // Debug 2018-09-26
-            Assert(Assigned(Users));
+            if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
             Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
           end;
         end;

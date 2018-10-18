@@ -377,6 +377,7 @@ type
         ntWeightStringFunc,
         ntWeightStringFuncLevel,
         ntWhileStmt,
+        ntWithStmt,
         ntXAStmt,
         ntXAStmtID
       );
@@ -521,6 +522,7 @@ type
         stUpdate,
         stUse,
         stWhile,
+        stWith,
         stXA
       );
 
@@ -917,6 +919,7 @@ type
         'ntWeightStringFunc',
         'ntWeightStringFuncLevel',
         'ntWhileStmt',
+        'ntWithStmt',
         'ntXAStmt',
         'ntXAStmtID'
       );
@@ -1061,6 +1064,7 @@ type
         'stUpdate',
         'stUse',
         'stWhile',
+        'stWith',
         'stXA'
       );
 
@@ -1365,6 +1369,7 @@ type
         ntUpdateStmt,
         ntUseStmt,
         ntWhileStmt,
+        ntWithStmt,
         ntXAStmt
       ];
 
@@ -1594,6 +1599,7 @@ type
         ntUpdateStmt,
         ntUseStmt,
         ntWhileStmt,
+        ntWithStmt,
         ntXAStmt
       );
 
@@ -6308,6 +6314,28 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
+      PWithStmt = ^TWithStmt;
+      TWithStmt = packed record
+      private type
+        TNodes = packed record
+          WithTag: TOffset;
+          RecursiveTag: TOffset;
+          Ident: TOffset;
+          AsTag: TOffset;
+          OpenBracket: TOffset;
+          SelectStmt: TOffset;
+          CloseBracket: TOffset;
+          Select2Stmt: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PXAStmt = ^TXAStmt;
       TXAStmt = packed record
       private type
@@ -6759,6 +6787,7 @@ type
     kiREAD,
     kiREADS,
     kiREBUILD,
+    kiRECURSIVE,
     kiRECOVER,
     kiREDUNDANT,
     kiREFERENCES,
@@ -7071,6 +7100,7 @@ type
     procedure FormatVariableIdent(const Nodes: TVariable.TNodes);
     procedure FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
     procedure FormatWhileStmt(const Nodes: TWhileStmt.TNodes);
+    procedure FormatWithStmt(const Nodes: TWithStmt.TNodes);
     procedure FormatXID(const Nodes: TXAStmt.TID.TNodes);
     function GetCharsets(): string;
     function GetDatatypes(): string;
@@ -7165,6 +7195,7 @@ type
     function ParseCreateTableStmtPartitionOptions(): TOffset;
     function ParseCreateTableStmtReference(): TOffset;
     function ParseCreateTableStmtUnion(): TOffset;
+    function ParseCreateTableStmtUnionItem(): TOffset;
     function ParseCreateTriggerStmt(const CreateTag, OrReplaceTag, DefinerValue: TOffset): TOffset;
     function ParseCreateUserStmt(const StmtTag: TOffset; const OrReplaceTag: TOffset = 0): TOffset;
     function ParseCreateViewStmt(const CreateTag, OrReplaceTag, AlgorithmValue, DefinerValue, SQLSecurityTag: TOffset): TOffset;
@@ -7384,6 +7415,7 @@ type
     function ParseWeightStringFunc(): TOffset;
     function ParseWeightStringFuncLevel(): TOffset;
     function ParseWhileStmt(const BeginLabel: TOffset = 0): TOffset;
+    function ParseWithStmt(): TOffset;
     function ParseXAStmt(): TOffset;
     procedure SaveToDebugHTMLFile(const Filename: string);
     procedure SaveToFormatedSQLFile(const Filename: string);
@@ -7646,7 +7678,7 @@ const
     'PARTIAL,PARTITION,PARTITIONING,PARTITIONS,PERSIST,PERSISTENT,PHASE,' +
     'PLUGINS,PLUGIN,PORT,PRECEDES,PREPARE,PRESERVE,PREVIOUS,PRIMARY,PRIVILEGES,' +
     'PROCEDURE,PROCESS,PROCESSLIST,PROFILE,PROFILES,PROXY,PURGE,QUERY,QUICK,' +
-    'RANGE,READ,READS,REBUILD,RECOVER,REFERENCES,REGEXP,RELAY,RELAYLOG,' +
+    'RANGE,READ,READS,REBUILD,RECURSIVE,RECOVER,REFERENCES,REGEXP,RELAY,RELAYLOG,' +
     'RELEASE,RELAY_LOG_FILE,RELAY_LOG_POS,RELOAD,REMOVE,RENAME,REORGANIZE,' +
     'REPAIR,REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,RESIGNAL,' +
     'RESTRICT,RESUME,RETURN,RETURNED_SQLSTATE,RETURNS,REVOKE,RLIKE,ROLLBACK,' +
@@ -12228,6 +12260,20 @@ begin
   end;
 end;
 
+{ TSQLParser.TWithStmt ********************************************************}
+
+class function TSQLParser.TWithStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stWith);
+
+  with PWithStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
 { TSQLParser.TXAStmt **********************************************************}
 
 class function TSQLParser.TXAStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -13785,7 +13831,8 @@ procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorTy
   end;
 
 begin
-  if (Assigned(Node)) then
+  if (Assigned(Node)
+    and ((Node^.NodeType <> ntList) or (PList(Node)^.ElementCount <> 0))) then
   begin
     case (Separator) of
       stReturnBefore: Commands.WriteReturn();
@@ -14027,6 +14074,7 @@ begin
       ntWeightStringFunc: FormatWeightStringFunc(PWeightStringFunc(Node)^.Nodes);
       ntWeightStringFuncLevel: DefaultFormatNode(@TWeightStringFunc.PLevel(Node)^.Nodes, SizeOf(TWeightStringFunc.TLevel.TNodes));
       ntWhileStmt: FormatWhileStmt(PWhileStmt(Node)^.Nodes);
+      ntWithStmt: FormatWithStmt(PWithStmt(Node)^.Nodes);
       ntXAStmt: DefaultFormatNode(@PXAStmt(Node)^.Nodes, SizeOf(TXAStmt.TNodes));
       ntXAStmtID: FormatXID(TXAStmt.PID(Node)^.Nodes);
       else raise ERangeError.Create(SRangeError);
@@ -14852,6 +14900,20 @@ begin
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
+procedure TSQLParser.FormatWithStmt(const Nodes: TWithStmt.TNodes);
+begin
+  FormatNode(Nodes.WithTag);
+  FormatNode(Nodes.RecursiveTag, stSpaceBefore);
+  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Nodes.AsTag, stSpaceBefore);
+  FormatNode(Nodes.OpenBracket, stSpaceBefore);
+  FormatNode(Nodes.SelectStmt);
+  FormatNode(Nodes.CloseBracket);
+  Commands.IncreaseIndent();
+  FormatNode(Nodes.Select2Stmt, stReturnBefore);
+  Commands.DecreaseIndent();
+end;
+
 procedure TSQLParser.FormatXID(const Nodes: TXAStmt.TID.TNodes);
 begin
   FormatNode(Nodes.GTrId);
@@ -15484,6 +15546,7 @@ begin
     ntWeightStringFunc: Result := SizeOf(TWeightStringFunc);
     ntWeightStringFuncLevel: Result := SizeOf(TWeightStringFunc.TLevel);
     ntWhileStmt: Result := SizeOf(TWhileStmt);
+    ntWithStmt: Result := SizeOf(TWithStmt);
     ntXAStmt: Result := SizeOf(TXAStmt);
     ntXAStmtID: Result := SizeOf(TXAStmt.TID);
     else raise ERangeError.Create(SRangeError);
@@ -18079,13 +18142,7 @@ begin
     end
     else if (IsSymbol(ttOpenBracket) and IsSelectStmt()) then
     begin
-      Nodes.Select.OpenBracket := ParseSymbol(ttOpenBracket);
-
-      if (not ErrorFound) then
-        Nodes.Select.Stmt := ParseSelectStmt([soSubSelect]);
-
-      if (not ErrorFound) then
-        Nodes.Select.CloseBracket := ParseSymbol(ttCloseBracket);
+      Nodes.Select.Stmt := ParseSelectStmt([]);
     end
     else if (IsSymbol(ttOpenBracket)) then
     begin
@@ -18935,9 +18992,17 @@ begin
       Nodes.AssignToken := ApplyCurrentToken(utOperator);
 
   if (not ErrorFound) then
-    Nodes.Expr := ParseList(True, ParseTableIdent);
+    Nodes.Expr := ParseList(True, ParseCreateTableStmtUnionItem);
 
   Result := TValue.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseCreateTableStmtUnionItem(): TOffset;
+begin
+  if (IsSelectStmt()) then
+    Result := ParseSelectStmt([])
+  else
+    Result := ParseTableIdent();
 end;
 
 function TSQLParser.ParseCreateTriggerStmt(const CreateTag, OrReplaceTag, DefinerValue: TOffset): TOffset;
@@ -20355,6 +20420,8 @@ begin
           Nodes.Add(ApplyCurrentToken(utString))
         else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
           Nodes.Add(ParseVariableIdent())
+        else if (IsTag(kiWITH)) then
+          Nodes.Add(ParseWithStmt())
         else if (IsTag(kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
         else if (IsSymbol(ttOpenBracket)) then
@@ -21941,17 +22008,22 @@ begin
       if (RootStmtList) then
         FillChar(Error, SizeOf(Error), 0);
 
-      Children.Add(ParseElement());
-
-      if (Children[Children.Count - 1] = 0) then
-        DelimiterFound := False
-      else
+      if (not CanEmpty
+        or not EndOfStmt(CurrentToken)) then
       begin
-        DelimiterFound := IsSymbol(DelimiterType);
-        if (DelimiterFound) then
-          Children.Add(ParseSymbol(DelimiterType));
+        Children.Add(ParseElement());
+
+        if (Children[Children.Count - 1] = 0) then
+          DelimiterFound := False
+        else
+        begin
+          DelimiterFound := IsSymbol(DelimiterType);
+          if (DelimiterFound) then
+            Children.Add(ParseSymbol(DelimiterType));
+        end;
       end;
     until (ErrorFound and not RootStmtList
+      or CanEmpty and EndOfStmt(CurrentToken)
       or (DelimiterType <> ttUnknown) and not DelimiterFound
       or (DelimiterType <> ttSemicolon) and (ErrorFound or (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttSemicolon))
       or (DelimiterType = ttSemicolon)
@@ -23044,7 +23116,7 @@ begin
   if (OpenBracketCount > 0) then
   begin
     FillChar(ListNodes, SizeOf(ListNodes), 0);
-    Nodes.OpenBrackets := TList.Create(Self, ListNodes, ttComma, @Elements);
+    Nodes.OpenBrackets := TList.Create(Self, ListNodes, ttUnknown, @Elements);
   end;
 
   if (not ErrorFound) then
@@ -25405,6 +25477,8 @@ begin
     Result := ParseUseStmt()
   else if (InPL_SQL and IsTag(kiWHILE)) then
     Result := ParseWhileStmt()
+  else if (IsTag(kiWITH)) then
+    Result := ParseWithStmt()
   else if (IsTag(kiXA)) then
     Result := ParseXAStmt()
   else if (EndOfStmt(CurrentToken)) then
@@ -27451,6 +27525,39 @@ begin
   Result := TWhileStmt.Create(Self, Nodes);
 end;
 
+function TSQLParser.ParseWithStmt(): TOffset;
+var
+  Nodes: TWithStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.WithTag := ParseTag(kiWITH);
+
+  if (not ErrorFound) then
+    if (IsTag(kiRECURSIVE)) then
+      Nodes.RecursiveTag := ParseTag(kiRECURSIVE);
+
+  if (not ErrorFound) then
+    Nodes.Ident := ParseDbIdent(ditTableAlias, False);
+
+  if (not ErrorFound) then
+    Nodes.AsTag := ParseTag(kiAS);
+
+  if (not ErrorFound) then
+    Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+  if (not ErrorFound) then
+    Nodes.SelectStmt := ParseSelectStmt([]);
+
+  if (not ErrorFound) then
+    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+  if (not ErrorFound) then
+    Nodes.Select2Stmt := ParseSelectStmt([]);
+
+  Result := TWithStmt.Create(Self, Nodes);
+end;
+
 function TSQLParser.ParseXAStmt(): TOffset;
 
   function ParseXID(): TOffset;
@@ -28533,6 +28640,7 @@ begin
     kiREAD                          := IndexOf('READ');
     kiREADS                         := IndexOf('READS');
     kiREBUILD                       := IndexOf('REBUILD');
+    kiRECURSIVE                     := IndexOf('RECURSIVE');
     kiREFERENCES                    := IndexOf('REFERENCES');
     kiREGEXP                        := IndexOf('REGEXP');
     kiRELAY_LOG_FILE                := IndexOf('RELAY_LOG_FILE');

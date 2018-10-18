@@ -119,12 +119,11 @@ procedure TDUpdate.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if (Assigned(HTTPThread)) then
   begin
-    HTTPThread.Terminate();
-    CanClose := False;
-    Canceled := True;
-  end
-  else
-    CanClose := True;
+    TerminateThread(HTTPThread.Handle, 0);
+    HTTPThread := nil;
+  end;
+
+  CanClose := True;
 
   FBCancel.Enabled := CanClose;
 end;

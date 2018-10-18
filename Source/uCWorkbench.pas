@@ -217,7 +217,7 @@ type
     FData: TCustomData;
     FilePosition: TPoint;
     FFocused: Boolean;
-    FLinkPoints: TObjectList<TWLinkPoint>;
+    FLinkPoints: TList<TWLinkPoint>;
     function GetCaption(): TCaption;
     function GetIndex(): Integer;
     function GetLinkPoint(AIndex: Integer): TWLinkPoint;
@@ -755,12 +755,6 @@ begin
 
   MouseCapture := False;
 
-  // Debug 2017-02-16
-  // Check, if Link is valid...
-  if (Self is TWTable) then
-    for I := 0 to TWTable(Self).LinkPointCount - 1 do
-      TWTable(Self).LinkPoints[I].Link;
-
   inherited;
 
   Workbench.CalcRange(True);
@@ -1187,11 +1181,7 @@ begin
   TableA := nil;
   TableB := nil;
 
-  // Debug 2017-01-05
-  if (Workbench.LinkPoints.IndexOf(Self) < 0) then
-    raise ERangeError.Create(SRangeError)
-  else
-    Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
+  Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
 
   inherited;
 end;
@@ -1236,15 +1226,7 @@ var
 begin
   Point := Self;
   while (Assigned(Point.LineA)) do
-  begin
     Point := Point.LineA.PointA;
-
-    // Debug 2017-01-05
-    if (not Assigned(Point)) then
-      raise Exception.Create('Point is not assigned')
-    else if (Workbench.LinkPoints.IndexOf(Point) < 0) then
-      raise ERangeError.Create(SRangeError);
-  end;
 
   if (not (Point is TWLink)) then
     raise Exception.CreateFmt('Point is not TWLink (%s)', [Point.ClassName])
@@ -1816,12 +1798,14 @@ end;
 
 procedure TWLinkPoint.SetTableA(ATableA: TWTable);
 begin
-  ControlA := ATableA;
+  if (ATableA <> TableA) then
+    ControlA := ATableA;
 end;
 
 procedure TWLinkPoint.SetTableB(ATableB: TWTable);
 begin
-  ControlB := ATableB;
+  if (ATableB <> TableB) then
+    ControlB := ATableB;
 end;
 
 { TWLinkLine ******************************************************************}
@@ -1858,8 +1842,8 @@ begin
   FPointA := APointA;
   FPointB := APointB;
 
-  FPointA.LineB := Self;
-  FPointB.LineA := Self;
+  FPointB.FControlA := Self;
+  FPointA.FControlB := Self;
 
   Canvas.Pen.Width := LineWidth;
 
@@ -1874,7 +1858,7 @@ begin
   if (Assigned(PointB)) then
     PointB.Free();
   if (Assigned(PointA)) then
-    PointA.ControlB := nil;
+    PointA.FControlB := nil;
 
   inherited;
 end;
@@ -2237,22 +2221,8 @@ end;
 
 destructor TWLink.Destroy();
 var
-  CT: TWTable; // Debug 2016-12-27
-  I: Integer; // Debug 2016-12-27
-  J: Integer; // Debug 2016-12-27
-  LinkPoints: TList; // Debug 2016-12-28
   Point: TWLinkPoint;
-  PT: TWTable; // Debug 2016-12-27
 begin
-  LinkPoints := TList.Create();
-  for I := 0 to Workbench.Tables.Count - 1 do
-    for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
-      if (Workbench.Tables[I].LinkPoints[J].Link = Self) then
-        LinkPoints.Add(Workbench.Tables[I].LinkPoints[J]);
-
-  CT := ChildTable;
-  PT := ParentTable;
-
   Point := LastPoint;
   while (Assigned(Point) and Assigned(Point.LineA)) do
   begin
@@ -2263,17 +2233,6 @@ begin
   Workbench.Links.Delete(Workbench.Links.IndexOf(Self));
 
   inherited;
-
-  // Debug 2016-12-28
-  for I := 0 to Workbench.Tables.Count - 1 do
-    for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
-      if (LinkPoints.IndexOf(Workbench.Tables[I].LinkPoints[J]) >= 0) then
-        raise ERangeError.Create('Link still exists!' + #13#10
-          + 'Table: ' + Workbench.Tables[I].Caption + #13#10
-          + 'ChildTable: ' + CT.Caption + #13#10
-          + 'ParentTable: ' + PT.Caption);
-
-  LinkPoints.Free();
 end;
 
 procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
@@ -2743,7 +2702,7 @@ begin
 
   FilePosition := Point(-1, -1);
   FDoubleBuffered := True;
-  FLinkPoints := TObjectList<TWLinkPoint>.Create();
+  FLinkPoints := TList<TWLinkPoint>.Create();
 
   Canvas.Font := Font;
   Canvas.Font.Color := Font.Color;
@@ -2758,19 +2717,10 @@ begin
 end;
 
 destructor TWTable.Destroy();
-var
-  I: Integer;
 begin
   while (FLinkPoints.Count > 0) do
     FLinkPoints[0].Link.Free();
   FLinkPoints.Free();
-
-  // Debug 2017-01-17
-  for I := 0 to Workbench.Links.Count - 1 do
-  begin
-    Assert(Assigned(Workbench.Links[I]));
-    Assert((Workbench.Links[I].ParentTable <> Self) and (Workbench.Links[I].ChildTable = Self));
-  end;
 
   Workbench.Tables.Delete(Workbench.Tables.IndexOf(Self));
 

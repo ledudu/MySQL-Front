@@ -2422,7 +2422,7 @@ begin
   end;
 end;
 
-function SQLStmtLengthNew(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
+function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
 const
   Version = $7FFFFFFF;
 var
@@ -2594,25 +2594,6 @@ begin
   end;
 
   Result := OldLen - Len;
-end;
-
-function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
-var
-  S: string;
-begin
-  Result := 0;
-  try
-    Result := SQLStmtLengthNew(SQL, Len, Delimited);
-  except
-    on E: Exception do
-      begin
-        SetString(S, SQL, Len);
-        E.RaiseOuterException(EAssertionFailed.Create(E.ClassName + #13#10
-          + E.Message + #13#10
-          + 'SQL: ' + #13#10
-          + S));
-      end;
-  end;
 end;
 
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
@@ -3018,11 +2999,11 @@ end;
 procedure TSQLBuffer.WriteData(Value: PAnsiChar; ValueLen: Integer; Quote: Boolean = False; Quoter: Char = '''');
 begin
   if (not Quote) then
-    Reallocate(Length)
+    Reallocate(ValueLen)
   else
-    Reallocate(1 + Length + 1);
+    Reallocate(1 + ValueLen + 1);
 
-  if (Length > 0) then
+  if (ValueLen > 0) then
   begin
     if (Quote) then
     begin
