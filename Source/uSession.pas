@@ -11024,7 +11024,9 @@ begin
           RawPassword := SQLParseValue(Parse)
         else if (SQLParseChar(Parse, '<', False)) then
           SQLParseValue(Parse);
-      end;
+      end
+      else if (SQLParseKeyword(Parse, 'IDENTIFIED VIA')) then
+        SQLParseValue(Parse);
 
       if (SQLParseKeyword(Parse, 'REQUIRE')) then
         repeat

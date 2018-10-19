@@ -6016,6 +6016,7 @@ begin
   Result.Height := PWorkbench.ClientHeight;
   Result.Align := alClient;
   Result.BorderStyle := bsNone;
+  Result.DoubleBuffered := True;
   Result.HelpType := htContext;
   Result.HelpContext := 1125;
   Result.HideSelection := True;

@@ -94,10 +94,7 @@ begin
       MsgBox('Invalid mail address.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
     else
     begin
-      if (Trim(FMail.Text) <> '') then
-        Body := 'Mail: ' + Trim(FMail.Text) + #13#10
-          + #13#10;
-      Body := Body + Trim(FDescription.Text);
+      Body := Trim(FDescription.Text);
 
       Stream := TMemoryStream.Create();
 

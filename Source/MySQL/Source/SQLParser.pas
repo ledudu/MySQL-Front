@@ -13831,13 +13831,13 @@ procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorTy
   end;
 
 begin
-  if (Assigned(Node)
-    and ((Node^.NodeType <> ntList) or (PList(Node)^.ElementCount <> 0))) then
+  if (Assigned(Node)) then
   begin
-    case (Separator) of
-      stReturnBefore: Commands.WriteReturn();
-      stSpaceBefore: Commands.WriteSpace();
-    end;
+    if ((Node^.NodeType <> ntList) or (PList(Node)^.ElementCount <> 0)) then
+      case (Separator) of
+        stReturnBefore: Commands.WriteReturn();
+        stSpaceBefore: Commands.WriteSpace();
+      end;
 
     CommentsWritten := False;
     case (Node^.NodeType) of
@@ -14080,7 +14080,8 @@ begin
       else raise ERangeError.Create(SRangeError);
     end;
 
-    if (not CommentsWritten) then
+    if (not CommentsWritten
+      and ((Node^.NodeType <> ntList) or (PList(Node)^.ElementCount <> 0))) then
       case (Separator) of
         stReturnAfter: Commands.WriteReturn();
         stSpaceAfter: Commands.WriteSpace();
