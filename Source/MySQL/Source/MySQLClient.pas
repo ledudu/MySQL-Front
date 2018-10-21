@@ -2438,15 +2438,14 @@ begin
           WritePacket(RawByteString(StringOfChar(#0, 22))); // unused space
         end;
         WritePacket(fuser);
-        if (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION = 0) then
-          WritePacket(EncodePassword(fpasswd, AuthPluginData, AuthPluginName, False))
+        if (fpasswd = '') then
+          WritePacket('')
+        else if (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION = 0) then
+          WritePacket(Scramble(my_char(fpasswd), my_char(AuthPluginData)))
+        else if (AuthPluginName <> 'caching_sha2_password') then
+          WritePacket(SecureScramble(my_char(fpasswd), my_char(AuthPluginData)), False)
         else
-          try
-            WritePacket(EncodePassword(fpasswd, AuthPluginData, AuthPluginName, True), False);
-          except
-            on E: Exception do
-              SetError(CR_UNKNOWN_ERROR, RawByteString(E.Message));
-          end;
+          Seterror(1999, '"chaching_sha2_password" passwords are not supported.');
         if (CAPABILITIES and CLIENT_CONNECT_WITH_DB <> 0) then
           WritePacket(fdb);
         if (CAPABILITIES and CLIENT_PLUGIN_AUTH <> 0) then
@@ -2461,7 +2460,7 @@ begin
           if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (GetPacketSize() < 9) and (SERVER_CAPABILITIES and CLIENT_SECURE_CONNECTION <> 0)) then
           begin
             Direction := idWrite;
-            WritePacket(EncodePassword(fpasswd, RawByteString(Copy(AuthPluginData, 1, SCRAMBLE_LENGTH_323)), AuthPluginName, False));
+						WritePacket(Scramble(my_char(fpasswd), my_char(RawByteString(Copy(AuthPluginName, 1, SCRAMBLE_LENGTH_323)))));
             if (not FlushPacketBuffers()) then
               Seterror(CR_SERVER_GONE_ERROR)
             else

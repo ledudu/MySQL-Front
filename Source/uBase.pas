@@ -82,7 +82,7 @@ function FilterDescription(const Ext: string): string;
 function FindMenuItemByName(const Item: TMenuItem; const Name: string): TMenuItem;
 function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT;
   Default: Integer; RegVal: PChar): Integer;
-function MsgBox(const Text: string; const Caption: string; const Flags: Longint): Integer;
+function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const HelpContext: Word = 0): Integer;
 procedure SetControlCursor(const Control: TControl; const Cursor: TCursor);
 procedure SetToolBarHints(const ToolBar: TToolBar);
 function ShowEnabledItems(const Item: TMenuItem): Boolean;
@@ -903,7 +903,13 @@ begin
     FreeLibrary(Handle);
 end;
 
-function MsgBox(const Text: string; const Caption: string; const Flags: Longint): Integer;
+
+procedure MsgBoxCallback(var lpHelpInfo: THelpInfo);
+begin
+  SendMessage(Application.MainForm.Handle, WM_HELP, 0, LParam(@lpHelpInfo));
+end;
+
+function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const HelpContext: Word = 0): Integer;
 var
   TopWindow: HWND;
   MsgBoxParams: TMsgBoxParams;
@@ -927,7 +933,8 @@ begin
     MsgBoxParams.lpszCaption := PChar(Caption);
     MsgBoxParams.dwStyle := Flags or MB_APPLMODAL;
     MsgBoxParams.lpszIcon := nil;
-    MsgBoxParams.lpfnMsgBoxCallback := nil;
+    MsgBoxParams.dwContextHelpId := HelpContext;
+    MsgBoxParams.lpfnMsgBoxCallback := MsgBoxCallback;
     MsgBoxParams.dwLanguageId := Preferences.Language.LanguageId;
 
     MessageBoxCentered := False;

@@ -1442,6 +1442,7 @@ begin
     ER_DBACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
     ER_ACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
     ER_CANT_OPEN_LIBRARY: Msg := Preferences.LoadStr(570, Connection.LibraryName, ExtractFilePath(Application.ExeName)) + #10#10 + '(' + ErrorMessage + ')';
+    1999: Msg := Preferences.LoadStr(963, LoadStr(1000));
     CR_COMMANDS_OUT_OF_SYNC: Msg := 'Internal Program Bug #' + IntToStr(ErrorCode) + ': ' + ErrorMessage;
     CR_CONN_HOST_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(495, Connection.Host) else Msg := Preferences.LoadStr(495, Connection.Host + ':' + IntToStr(Connection.Port));
     CR_SERVER_GONE_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(881, Connection.Host) else Msg := Preferences.LoadStr(881, Connection.Host + ':' + IntToStr(Connection.Port));
@@ -1471,6 +1472,7 @@ begin
     case (ErrorCode) of
       ER_DBACCESS_DENIED_ERROR,
       ER_ACCESS_DENIED_ERROR: MsgBoxHelpContext := 1145;
+      1999: MsgBoxHelpContext := 1161;
       CR_CONN_HOST_ERROR: MsgBoxHelpContext := 1146;
       CR_UNKNOWN_HOST: MsgBoxHelpContext := 1144;
       else MsgBoxHelpContext := 0;
@@ -1479,7 +1481,7 @@ begin
     if (MsgBoxHelpContext <> 0) then
       Flags := Flags or MB_HELP;
 
-    MsgBox(Msg, Preferences.LoadStr(45), Flags);
+    MsgBox(Msg, Preferences.LoadStr(45), Flags, MsgBoxHelpContext);
   end;
 end;
 
@@ -2076,8 +2078,8 @@ procedure TWWindow.WMHelp(var Message: TWMHelp);
 begin
   if (Message.HelpInfo.iContextType = HELPINFO_MENUITEM) then
     inherited
-  else if (MsgBoxHelpContext <> 0) then
-    Application.HelpCommand(HELP_CONTEXT, MsgBoxHelpContext);
+  else if (Message.HelpInfo.dwContextId <> 0) then
+    Application.HelpCommand(HELP_CONTEXT, Message.HelpInfo.dwContextId);
 end;
 
 procedure TWWindow.WMTimer(var Message: TWMTimer);

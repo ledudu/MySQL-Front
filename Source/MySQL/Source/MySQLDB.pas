@@ -7038,14 +7038,13 @@ begin
       for I := 0 to Length(DeleteBookmarks^) - 1 do
       begin
         Index := InternRecordBuffers.IndexOf(DeleteBookmarks^[I]);
-
-        // Debug 2017-05-25
-        Assert(Index >= 0);
-
-        FreeInternRecordBuffer(InternRecordBuffers[Index]);
-        InternRecordBuffers.Delete(Index);
-        if (Filtered) then
-          Dec(InternRecordBuffers.FilteredRecordCount);
+        if (Index >= 0) then
+        begin
+          FreeInternRecordBuffer(InternRecordBuffers[Index]);
+          InternRecordBuffers.Delete(Index);
+          if (Filtered) then
+            Dec(InternRecordBuffers.FilteredRecordCount);
+        end;
       end;
       if ((BufferCount > 0) and (ActiveBuffer() > 0)) then
         InternalInitRecord(ActiveBuffer());

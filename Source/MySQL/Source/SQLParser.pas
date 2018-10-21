@@ -12332,8 +12332,6 @@ end;
 
 function TSQLParser.ChildPtr(const Node: TOffset): PChild;
 begin
-  if not ((0 < Node) and (Node < Nodes.UsedSize) and IsChild(Node)) then
-    Write;
   Assert((0 < Node) and (Node < Nodes.UsedSize) and IsChild(Node));
 
   Result := @Nodes.Mem[Node];
@@ -14568,13 +14566,13 @@ begin
   FormatNode(Nodes.SubPartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.IndexDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.MaxRowsValue, stReturnBefore);
-  FormatNode(Nodes.MinRowsValue, stReturnBefore);
-  FormatNode(Nodes.TablespaceValue, stReturnBefore);
+  FormatNode(Nodes.EngineValue, stSpaceBefore);
+  FormatNode(Nodes.CommentValue, stSpaceBefore);
+  FormatNode(Nodes.DataDirectoryValue, stSpaceBefore);
+  FormatNode(Nodes.IndexDirectoryValue, stSpaceBefore);
+  FormatNode(Nodes.MaxRowsValue, stSpaceBefore);
+  FormatNode(Nodes.MinRowsValue, stSpaceBefore);
+  FormatNode(Nodes.TablespaceValue, stSpaceBefore);
   Commands.DecreaseIndent();
 end;
 
@@ -25548,6 +25546,8 @@ var
   Found: Boolean;
   Nodes: TSubPartition.TNodes;
 begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
   if (not ErrorFound) then
     Nodes.SubPartitionTag := ParseTag(kiSUBPARTITION);
 
