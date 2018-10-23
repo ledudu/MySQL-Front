@@ -1743,7 +1743,7 @@ uses
 
 const
   INFORMATION_SCHEMA = 'INFORMATION_SCHEMA';
-  PERFORMANCE_SCHEMA = 'PERFORMANCE_SCHEMA';
+  PERFORMANCE_SCHEMA = 'performance_schema';
   OutParameterCaption = '<OUT>';
   InParameterCaption = '<IN>';
 
@@ -9782,7 +9782,7 @@ begin
   end
   else
   begin
-    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(PERFORMANCE_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_VARIABLES');
+    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(PERFORMANCE_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('session_variables');
     if (Name <> '') then
       Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
@@ -13774,7 +13774,7 @@ begin
         else if (Databases.NameCmp(DatabaseName, PERFORMANCE_SCHEMA) = 0) then
         begin
           DataSet.Open(DataHandle);
-          if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
+          if (TableNameCmp(ObjectName, 'session_variables') = 0) then
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse));
         end
         else if (Databases.NameCmp(DatabaseName, 'mysql') = 0) then
