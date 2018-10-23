@@ -1231,6 +1231,7 @@ object WWindow: TWWindow
     object aHSupport: TAction
       Category = 'Help'
       Caption = 'aHSupport'
+      Visible = False
       OnExecute = aHSupportExecute
     end
     object aHInfo: TAction

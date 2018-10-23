@@ -45,8 +45,8 @@ function BitStringToInt(const BitString: PChar; const Length: Integer; const Err
 function IntToBitString(const Value: UInt64; const MinWidth: Integer = 1): string;
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
 function SQLEscape(const Value: string; const Quoter: Char = ''''): string; overload;
-function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
-function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer; overload;
+function SQLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = ''''): Integer; overload;
+function SQLEscapeBin(Value: PAnsiChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; ODBCEncoding: Boolean): Integer; overload;
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string; overload;
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string; overload;
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
@@ -63,19 +63,13 @@ function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = Tr
 function SQLParseValue(var Handle: TSQLParse; const Value: PChar; const TrimAfterValue: Boolean = True): Boolean; overload;
 function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
-function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
+function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
-function SQLTrimStmt(const SQL: string): string; overload;
-function SQLTrimStmt(const SQL: PChar; const Length: Integer): string; overload;
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
-function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer; overload;
 function SQLUnescape(const Value: string): string; overload;
-function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
 function StrToUInt64(const S: string): UInt64;
 function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
-function UInt64ToStr(const Value: UInt64): string;
+function UInt64ToStr(Value: UInt64): string;
 
 type
   TSQLBuffer = class
@@ -99,7 +93,7 @@ type
     procedure Write(const Text: PChar; const Length: Integer); overload;
     procedure Write(const Text: string); overload; inline;
     procedure WriteChar(const Char: Char);
-    procedure WriteData(const Data: PAnsiChar; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = ''''); overload;
+    procedure WriteData(Value: PAnsiChar; ValueLen: Integer; Quote: Boolean = False; Quoter: Char = ''''); overload;
     function WriteExternal(const Length: Integer): PChar;
     procedure WriteText(const Text: PChar; const Length: Integer);
     property Data: Pointer read GetData;
@@ -167,6 +161,7 @@ const
   KSetNames: PChar = 'SET NAMES';
   KSetCharacterSet: PChar = 'SET CHARACTER SET';
   KSetCharset: PChar = 'SET CHARSET';
+  KSequence: PChar = 'SEQUENCE';
   KShow: PChar = 'SHOW';
   KShutdown: PChar = 'SHUTDOWN';
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
@@ -728,163 +723,34 @@ end;
 {******************************************************************************}
 
 function BitStringToInt(const BitString: PChar; const Length: Integer; const Error: PBoolean = nil): UInt64;
-label
-  Init,
-  StringL, String1, StringLE, StringLE2,
-  Err, Finish;
 var
-  P: Pointer;
+  I: Integer;
 begin
-  P := @Result; // How can I get the address of Result into EDI???
-
-  asm
-        PUSH ES
-        PUSH EBX
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        STD                              // string operation uses backward direction
-
-        MOV EDI,Error                    // Error = nil?
-        TEST EDI,-1
-        JZ Init                          // Yes!
-        MOV BYTE PTR [EDI],False
-
-      Init:
-        MOV ESI,BitString
-        MOV EDI,P
-        MOV ECX,Length
-
-        ADD ESI,ECX                      // End of BitString
-        ADD ESI,ECX
-        SUB ESI,2
-
-        MOV LONGWORD PTR [EDI],0         // Clear Result
-        ADD EDI,4
-        MOV LONGWORD PTR [EDI],0
-        SUB EDI,4
-
-        MOV EDX,0                        // Bit
-      StringL:
-        LODSW                            // Character of BitString
-        CMP AX,'0'                       // '0' in BitString?
-        JE StringLE                      // Yes!
-        CMP AX,'1'                       // '1' in BitString?
-        JNE Err                          // No!
-        PUSH ECX
-        MOV ECX,EDX
-        MOV EBX,1
-        SHL EBX,CL                       // Result := Result or 1 shl Bit
-        POP ECX
-        OR LONGWORD PTR [EDI],EBX
-      StringLE:
-        INC DX                           // Inc(Bit)
-        CMP EDX,32                       // We're using 32 Bit compiler
-        JNE StringLE2
-        ADD EDI,4                        // Highter QWORD of Result
-        MOV EDX,0
-      StringLE2:
-        LOOP StringL
-        JMP Finish
-
-      Err:
-        MOV EDI,Error                    // Error = nil?
-        TEST EDI,-1
-        JZ Finish                        // Yes!
-        MOV BYTE PTR [EDI],True
-
-      Finish:
-        CLD                              // Why is this needed??? Without this, Delphi XE2 crash the program
-        POP EDI
-        POP ESI
-        POP EBX
-        POP ES
-  end;
+  Result := 0;
+  if (Assigned(Error)) then
+    Error^ := False;
+  for I := 0 to Length - 1 do
+    if (BitString[I] = '0') then
+      Result := Result shl 1
+    else
+    begin
+      Result := Result shl 1 + 1;
+      if (Assigned(Error) and (BitString[I] <> '1')) then
+        Error^ := True;
+    end;
 end;
 
 function IntToBitString(const Value: UInt64; const MinWidth: Integer = 1): string;
-label
-  ValueHiL, ValueHiL1, ValueHiL0, ValueHiLE,
-  ValueLoL, ValueLoL1, ValueLoL0, ValueLoLE,
-  Calc,
-  Finish;
 var
-  Hi: LONGWORD;
-  Lo: LONGWORD;
-  P: PChar;
-  Str: array [0..64] of Char;
+  I: Integer;
 begin
-  Hi := UInt64Rec(Value).Hi;
-  Lo := UInt64Rec(Value).Lo;
-
-  asm
-        PUSH ES
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        STD                              // string operations uses backward direction
-
-        LEA EDI,Str                      // Store into Str
-        ADD EDI,2 * 64                   // Last char in Str
-        PUSH EDI
-        MOV AX,0                         // Terminating #0
-        STOSW                            //   ... into Str
-        MOV P,EDI                        // P := Str[20]
-        MOV EBX,0                        // Length of used Str
-
-        MOV ECX,32                       // Handle 32 bit
-        MOV EDX,Lo                       // Handle lower 32 bit
-      ValueLoL:
-        MOV AX,'0'                       // '0' into Str
-        TEST EDX,1                       // Lowest bit set?
-        JZ ValueLoL0                     // No!
-        MOV AX,'1'                       // '1' into Str
-        MOV P,EDI                        // P := first '1' in Str
-      ValueLoL0:
-        STOSW                            // Char into Str
-        SHR EDX,1                        // Shift right 1 bit
-        LOOP ValueLoL                    // Handle all bits
-
-        MOV ECX,32                       // Handle 32 bit
-        MOV EDX,Hi                       // Handle lower 32 bit
-      ValueHiL:
-        MOV AX,'0'                       // '0' into Str
-        TEST EDX,1                       // Lowest bit set?
-        JZ ValueHiL0                     // No!
-        MOV AX,'1'                       // '1' into Str
-        MOV P,EDI                        // P := first '1' in Str
-      ValueHiL0:
-        STOSW                            // Char into Str
-        SHR EDX,1                        // Shift right 1 bit
-        LOOP ValueHiL                    // Handle all bits
-
-        POP EDI                          // Calculate used length
-        MOV EBX,Pointer(P)
-        SUB EDI,EBX
-        SHR EDI,1
-
-        CMP MinWidth,EDI                 // MinWidth < used length?
-        JB Finish                        // Yes!
-
-      Calc:
-        MOV EDX,MinWidth
-        SUB EDX,EDI
-        JBE Finish
-        SHL EDX,1
-        SUB P,EDX
-
-      Finish:
-        CLD                              // Why is this needed??? Without this, Delphi XE2 crash the program
-        POP EBX
-        POP EDI
-        POP ES
-  end;
-
-  Result := StrPas(P);
+  for I := 64 - 1 downto 0 do
+    if (Value shr I and $1 = 1) then
+      Result := Result + '1'
+    else if (Result <> '') then
+      Result := Result + '0';
+  if (Result = '') then
+    Result := '0';
 end;
 
 function RemoveDatabaseNameFromStmt(const Stmt: string; const DatabaseName: string; const NameQuoter: Char): string;
@@ -945,261 +811,172 @@ begin
   SQLEscape(PChar(Value), Length(Value), PChar(Result), Len, Quoter);
 end;
 
-function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
-label
-  Start, StartE,
-  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8,
-  ValueLE, ValueFinish,
-  Error,
-  Finish;
+function SQLEscape(Value: PChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; Quoter: Char = ''''): Integer; overload;
 begin
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV EBX,0                        // Result
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EDI,Escaped                  //   to Escaped
-        MOV EDX,EscapedLen               // Length of Escaped
-        MOV ECX,ValueLen                 // Length of Value string
-
-      Start:
-        INC EBX                          // 1 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE StartE                        // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,Quoter
-        STOSW
-
-      StartE:
-        CMP ECX,0                        // Empty string?
-        JE ValueFinish                   // Yes!
-
-      ValueL:
-        LODSW                            // Character from Value
-
-        CMP AX,0                         // #0 ?
-        JNE Value2                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'0'
-        STOSW
-        JMP ValueLE
-
-      Value2:
-        CMP AX,9                         // #9 ?
-        JNE Value3                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'t'
-        STOSW
-        JMP ValueLE
-
-      Value3:
-        CMP AX,10                        // #10 ?
-        JNE Value4                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'n'
-        STOSW
-        JMP ValueLE
-
-      Value4:
-        CMP AX,13                        // #13 ?
-        JNE Value5                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'r'
-        STOSW
-        JMP ValueLE
-
-      Value5:
-        CMP AX,'"'                       // '"' ?
-        JNE Value6                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'"'
-        STOSW
-        JMP ValueLE
-
-      Value6:
-        CMP AX,''''                      // "'" ?
-        JNE Value7                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,''''
-        STOSW
-        JMP ValueLE
-
-      Value7:
-        CMP AX,'\'                       // "\" ?
-        JNE Value8                       // No!
-        ADD EBX,2                        // 2 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        SUB EDX,2                        // 2 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,'\'
-        STOSW
-        MOV AX,'\'
-        STOSW
-        JMP ValueLE
-
-      Value8:                            // "normal" character
-        INC EBX                          // One character needed
-        CMP Escaped,0                    // Calculate length only?
-        JE ValueLE                       // Yes!
-        DEC EDX                          // One character left in Escaped?
-        JC Error                         // No!
-        STOSW
-
-      ValueLE:
-        DEC ECX
-        JNZ ValueL
-
-      ValueFinish:
-        INC EBX                          // 1 characters needed in Escaped
-        MOV @Result,EBX
-        CMP Escaped,0                    // Calculate length only?
-        JE Finish                        // Yes!
-        DEC EDX                          // 1 characters left in Escaped?
-        JC Error                         // No!
-        MOV AX,Quoter
-        STOSW
-        JMP Finish
-
-      // -------------------
-
-      Error:
-        MOV @Result,0                    // Too few space in Escaped
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+  if (Assigned(Escaped)) then
+  begin
+    if (EscapedLen < 1) then
+      Exit(0); // Too few space in Escaped
+    Escaped^ := Quoter;
+    Inc(Escaped); Dec(EscapedLen);
   end;
+  Result := 1;
+
+  while (ValueLen > 0) do
+  begin
+    if (Value^ = #0) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '0'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = #9) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 't'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = #10) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'n'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = #13) then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := 'r'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = '"') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '"'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = '''') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := ''''; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else if (Value^ = '\') then
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 2) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+        Escaped^ := '\'; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result, 2);
+    end
+    else
+    begin
+      if (Assigned(Escaped)) then
+      begin
+        if (EscapedLen < 1) then
+          Exit(0); // Too few space in Escaped
+        Escaped^ := Value^; Inc(Escaped); Dec(EscapedLen);
+      end;
+      Inc(Value);
+      Inc(Result);
+    end;
+    Dec(ValueLen);
+  end;
+
+  if (Assigned(Escaped)) then
+  begin
+    if (EscapedLen < 1) then
+      Exit(0); // Too few space in Escaped
+    Escaped^ := Quoter;
+  end;
+  Inc(Result);
 end;
 
-function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer;
+function SQLEscapeBin(Value: PAnsiChar; ValueLen: Integer; Escaped: PChar; EscapedLen: Integer; ODBCEncoding: Boolean): Integer;
 const
-  HexDigits: PChar = '0123456789ABCDEF';
-label
-  Start, Start2, StartE,
-  DataL, DataLE, DataE,
-  Error,
-  Finish;
+  Convert: array[0..15] of WideChar = '0123456789ABCDEF';
+var
+  RequiredLen: Integer;
+  I: Integer;
 begin
-  if (not ODBCEncoding) then
-    Result := 2 + 2 * Len + 1
+  if (ODBCEncoding) then
+    RequiredLen := 2 + 2 * ValueLen
   else
-    Result := 2 + 2 * Len;
+    RequiredLen := 2 + 2 * ValueLen + 1;
 
-  if (Assigned(Escaped) and (Result > EscapedLen)) then
-    Result := 0
-  else if (Assigned(Escaped)) then
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
+  if (not Assigned(Escaped)) then
+    Result := RequiredLen
+  else if (EscapedLen < RequiredLen) then
+    Result := 0 // Escaped buffer too small
+  else
+  begin
+    if (Assigned(Escaped)) then
+    begin
+      if (ODBCEncoding) then
+      begin
+        Escaped^ := '0'; Inc(Escaped);
+        Escaped^ := 'x'; Inc(Escaped);
+      end
+      else
+      begin
+        Escaped^ := 'X'; Inc(Escaped);
+        Escaped^ := ''''; Inc(Escaped);
+      end;
 
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
+      for I := 0 to ValueLen - 1 do
+      begin
+        Escaped[0] := Convert[Byte(Value[I]) shr 4];
+        Escaped[1] := Convert[Byte(Value[I]) and $F];
+        Inc(Escaped, 2);
+      end;
 
-        MOV EBX,Pointer(HexDigits)       // Hex digits
-
-        MOV ESI,PChar(Data)              // Copy characters from Data
-        MOV EDI,Escaped                  //   to Escaped
-        MOV EDX,EscapedLen               // Length of Escaped
-        MOV ECX,Len                      // Length of Data
-
-      Start:
-        CMP ODBCEncoding,True            // ODBC Encoding?
-        JNE Start2                       // No!
-        MOV AX,'0'
-        STOSW
-        MOV AX,'x'
-        STOSW
-        JMP StartE
-      Start2:
-        MOV AX,'X'
-        STOSW
-        MOV AX,''''
-        STOSW
-      StartE:
-        CMP ECX,0                        // Empty Data?
-        JE DataE                         // Yes!
-
-      DataL:
-        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
-        LODSB                            // Read byte
-        PUSH EAX
-        SHR AL,4                         // Use high octet
-        MOV AX,[EBX + EAX * 2]           // Get hex character
-        STOSW                            // Store character
-        POP EAX
-        AND AL,$0F                       // Use low octet
-        MOV AX,[EBX + EAX * 2]           // Get hex character
-        STOSW                            // Store character
-      DataLE:
-        LOOP DataL                        // Next Bin byte
-      DataE:
-        CMP ODBCEncoding,True            // ODBC Encoding?
-        JE Finish                        // No!
-        MOV AX,''''
-        STOSW
-        JMP Finish
-
-      // -------------------
-
-      Error:
-        MOV @Result,0
-
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+      if (not ODBCEncoding) then
+      begin
+        Escaped^ := '''';
+      end;
     end;
+
+    Result := RequiredLen;
+  end;
 end;
 
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string;
@@ -1221,75 +998,12 @@ begin
 end;
 
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string;
-const
-  HexDigits: PChar = '0123456789ABCDEF';
-label
-  BinL;
 var
   Len: Integer;
 begin
-  Len := Length(Value);
-
-  if (Len = 0) then
-    Result := ''''''
-  else if (ODBCEncoding) then
-  begin // ODBC notation
-    SetLength(Result, 2 * Len + 2);
-    Result[1] := '0';
-    Result[2] := 'x';
-  end
-  else
-  begin // Ansi SQL notation
-    SetLength(Result, 2 * Len + 3);
-    Result[1] := 'X';
-    Result[2] := '''';
-    Result[2 * Len + 3] := '''';
-  end;
-
-  if (Len > 0) then
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV EBX,Pointer(HexDigits)       // Hex digits
-
-        MOV ESI,Pointer(Value)           // Read bytes from Value
-        MOV EAX,Result                   // Store into Result
-        MOV EDI,[EAX]
-        ADD EDI,4                        // Step over "X'"
-
-        MOV ECX,Len                      // Count of bytes
-
-      // -------------------
-
-        MOV EAX,0                        // Clear high word
-      BinL:
-        LODSW                            // Read byte
-        AND AX,$00FF                     // Interpret value as binary
-        PUSH EAX
-        SHR AL,4                         // Use high octet
-        MOV AX,[EBX + EAX * 2]           // Get hex character
-        STOSW                            // Store character
-        POP EAX
-        AND AL,$F                        // Use low octet
-        MOV AX,[EBX + EAX * 2]           // Get hex character
-        STOSW                            // Store character
-
-        LOOP BinL                        // Next Bin byte
-
-      // -------------------
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
+  Len := SQLEscapeBin(PAnsiChar(RawByteString(Value)), Length(Value), nil, 0, ODBCEncoding);
+  SetLength(Result, Len);
+  SQLEscapeBin(PAnsiChar(RawByteString(Value)), Length(Value), PChar(Result), Len, ODBCEncoding);
 end;
 
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
@@ -1527,7 +1241,7 @@ label
   Definer,
   ObjType,
   Definer1, Definer2, Definer3,
-  ODatabase, OEvent, OFunction, OProcedure, OTable, OTrigger, OView,
+  ODatabase, OEvent, OFunction, OProcedure, OSequence, OTable, OTrigger, OView,
   Name,
   Found,
   Rename, RenameL, RenameLE, RenameC, RenameE,
@@ -1718,8 +1432,14 @@ begin
       OProcedure:
         MOV EAX,[KProcedure]
         CALL CompareKeyword              // 'PROCEDURE'?
-        JNE OTable                       // No!
+        JNE OSequence                    // No!
         MOV BYTE PTR [EBX + 1],otProcedure
+        JMP Found
+      OSequence:
+        MOV EAX,[KSequence]
+        CALL CompareKeyword              // 'SEQUENCE'?
+        JNE OTable                       // No!
+        MOV BYTE PTR [EBX + 1],otSequence
         JMP Found
       OTable:
         MOV EAX,[KTable]
@@ -2544,402 +2264,336 @@ begin
   end;
 end;
 
-function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
-label
-  Start, StartCase, StartIf, StartLoop, StartRepeat, StartWhile, StartCompound,
-  SimpelStmtL, SimpelStmtLE,
-  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyIfFunc, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
-  BodyChar, BodyCharTL, BodyCharE,
-  BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyEndCaseOp, BodyLE,
-  BodyBracket,
-  BracketArea, BracketAreaL, BracketAreaE,
-  Complete, Complete2, Complete3, Complete4, CompleteE,
-  Finish;
-const
-  Terminators: PChar = #9#10#13#32'"''(),.:;=`'; // Characters terminating the identifier
+function LeftTrimNew(var SQL: PChar; var Len: Integer; const Version: Integer; var CondVersion: Integer): Boolean;
 var
-  BracketDeep: Integer;
+  Found: Boolean;
+  OldLen: Integer;
+  Ver: Integer;
+begin
+  OldLen := Len;
+
+  Found := True;
+  while (Found) do
+  begin
+    Found := False;
+    if (Len >= 1) then
+      if ((SQL[0] = #9) or (SQL[0] = #10) or (SQL[0] = #13) or (SQL[0] = ' ')) then
+      begin
+        Found := True;
+        Inc(SQL); Dec(Len);
+      end
+      else if ((SQL[0] = '#')
+        or ((Len >= 3) and (SQL[0] = '-') and (SQL[1] = '-') and ((SQL[2] = #9) or (SQL[2] = #10) or (SQL[2] = #13) or (SQL[2] = ' ')))) then
+      begin
+        Found := True;
+        while (Len > 0) do
+          if ((SQL[0] = #10) or (SQL[0] = #13)) then
+            break
+          else
+          begin
+            Inc(SQL); Dec(Len);
+          end;
+      end
+      else if ((Len >= 2) and (SQL[0] = '/') and (SQL[1] = '*')) then
+      begin
+        Found := True;
+        Inc(SQL); Dec(Len);
+        Inc(SQL); Dec(Len);
+        if ((Len >= 1) and (SQL[0] = '!')) then
+        begin
+          Inc(SQL); Dec(Len);
+          Ver := 0;
+          while ((Len >= 1) and ('0' <= SQL[0]) and (SQL[0] <= '9')) do
+          begin
+            Ver := Ver * 10 + Byte(SQL[0]) - Byte('0');
+            Inc(SQL); Dec(Len);
+          end;
+          if (Version < Ver) then
+          begin
+            while ((Len >= 2) and (SQL[0] <> '*') or (SQL[1] <> '/')) do
+            begin
+              Inc(SQL); Dec(Len);
+            end;
+            if ((Len >= 2) and (SQL[0] = '*') and (SQL[1] = '/')) then
+            begin
+              Inc(SQL); Dec(Len);
+              Inc(SQL); Dec(Len);
+            end;
+          end;
+        end
+        else
+        begin
+          while ((Len >= 2) and (SQL[0] <> '*') or (SQL[1] <> '/')) do
+          begin
+            Inc(SQL); Dec(Len);
+          end;
+          if ((Len >= 2) and (SQL[0] = '*') and (SQL[1] = '/')) then
+          begin
+            Inc(SQL); Dec(Len);
+            Inc(SQL); Dec(Len);
+          end;
+        end;
+      end
+      else if ((Len >= 2) and (SQL[0] = '*') and (SQL[1] = '/')) then
+      begin
+        Found := True;
+        Inc(SQL); Dec(Len);
+        Inc(SQL); Dec(Len);
+      end;
+  end;
+
+  Result := Len < OldLen;
+end;
+
+function CompareKeywordNew(var SQL: PChar; var Len: Integer; const Keyword: PChar): Boolean;
+var
+  I: Integer;
+begin
+  I := 0;
+  while ((Len - I >= 1) and (Char(Byte(SQL[I]) and not $20) = Keyword[I]) and (Keyword[I] <> #0)) do
+    Inc(I);
+  Result := Keyword[I] = #0;
+  Result := Result and ((Len = 0) or not (('A' <= SQL[I]) and (SQL[I] <= 'Z')) and not (('a' <= SQL[I]) and (SQL[I] <= 'z')) and not (SQL[I] = '_'));
+  if (Result) then
+  begin
+    Inc(SQL, I); Dec(Len, I);
+  end;
+end;
+
+function CopyStringNew(var SQL: PChar; var Len: Integer): Boolean;
+var
+  Quoter: Char;
+begin
+  Result := False;
+  while ((Len >= 1) and ((SQL[0] = '"') or (SQL[0] = '''') or (SQL[0] = '`'))) do
+  begin
+    Result := True;
+    Quoter := SQL[0];
+    Inc(SQL); Dec(Len);
+    while ((Len >= 1) and (SQL[0] <> Quoter)) do
+    begin
+      if (SQL[0] = '\') then
+      begin
+        Inc(SQL); Dec(Len);
+      end;
+      if (Len >= 1) then
+      begin
+        Inc(SQL); Dec(Len);
+      end;
+    end;
+    if ((Len >= 1) and (SQL[0] = Quoter)) then
+    begin
+      Inc(SQL); Dec(Len);
+    end;
+  end;
+end;
+
+function BracketAreaNew(var SQL: PChar; var Len: Integer; const Version: Integer; var CondVersion: Integer): Boolean;
+var
+  Deep: Integer;
+begin
+  Result := (Len >= 0) and (SQL[0] = '(');
+  if (Result) then
+  begin
+    Deep := 1;
+    Inc(SQL); Dec(Len);
+    while ((Len >= 1) and ((SQL[0] <> ')') or (Deep > 1))) do
+    begin
+      if (SQL[0] = '(') then
+      begin
+        Inc(Deep);
+        Inc(SQL); Dec(Len);
+      end
+      else if (SQL[0] = ')') then
+      begin
+        Dec(Deep);
+        Inc(SQL); Dec(Len);
+      end
+      else if (not LeftTrimNew(SQL, Len, Version, CondVersion)
+        and not CopyStringNew(SQL, Len)) then
+      begin
+        Inc(SQL); Dec(Len);
+      end;
+    end;
+    if ((Len >= 1) and (SQL[0] = ')')) then
+    begin
+      Inc(SQL); Dec(Len);
+    end;
+  end;
+end;
+
+function SQLStmtLength(SQL: PChar; Len: Integer; const Delimited: PBoolean = nil): Integer;
+const
+  Version = $7FFFFFFF;
+var
   CaseDeep: Integer;
   CompoundDeep: Integer;
+  CondVersion: Integer;
   IfDeep: Integer;
   LoopDeep: Integer;
-  Pos: PChar;
+  OldLen: Integer;
   RepeatDeep: Integer;
+  SimpleBody: Boolean;
   WhileDeep: Integer;
 begin
-  if (not Assigned(SQL) or (Length = 0)) then
+  OldLen := Len;
+
+  CondVersion := 0;
+
+  CaseDeep := 0;
+  CompoundDeep := 0;
+  IfDeep := 0;
+  LoopDeep := 0;
+  RepeatDeep := 0;
+  WhileDeep := 0;
+
+  LeftTrimNew(SQL, Len, Version, CondVersion);
+
+  SimpleBody := False;
+  if (CompareKeywordNew(SQL, Len, KAlter)
+    or CompareKeywordNew(SQL, Len, KCreate)) then
   begin
-    Result := 0;
-    if (Assigned(Delimited)) then
-      Delimited^ := False;
+    LeftTrimNew(SQL, Len, Version, CondVersion);
+    if (CompareKeywordNew(SQL, Len, KDatabase)
+      or CompareKeywordNew(SQL, Len, KTable)) then
+      SimpleBody := True;
+  end
+  else if (CompareKeywordNew(SQL, Len, KBegin)) then
+    Inc(CompoundDeep)
+  else if (CompareKeywordNew(SQL, Len, KCase)) then
+    Inc(CaseDeep)
+  else if (CompareKeywordNew(SQL, Len, KIf)) then
+    Inc(IfDeep)
+  else if (CompareKeywordNew(SQL, Len, KLoop)) then
+    Inc(LoopDeep)
+  else if (CompareKeywordNew(SQL, Len, KRepeat)) then
+    Inc(RepeatDeep)
+  else if (CompareKeywordNew(SQL, Len, KWhile)) then
+    Inc(WhileDeep)
+  else
+    SimpleBody := True;
+
+  if (SimpleBody) then
+  begin
+    while (Len > 0) do
+      if (not LeftTrimNew(SQL, Len, Version, CondVersion)
+        and not CopyStringNew(SQL, Len)) then
+        if (SQL[0] = ';') then
+          break
+        else
+        begin
+          Inc(SQL); Dec(Len);
+        end;
   end
   else
-    asm
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
+  begin
+    repeat
+      if (not LeftTrimNew(SQL, Len, Version, CondVersion)
+        and not CopyStringNew(SQL, Len)
+        and not BracketAreaNew(SQL, Len, Version, CondVersion)) then
+        if (CompareKeywordNew(SQL, Len, KBegin)) then
+          Inc(CompoundDeep)
+        else if (CompareKeywordNew(SQL, Len, KCase)) then
+        begin
+          LeftTrimNew(SQL, Len, Version, CondVersion);
+          if ((Len >= 0) and (SQL[0] = '(')) then
+            BracketAreaNew(SQL, Len, Version, CondVersion)
+          else
+            Inc(CaseDeep);
+        end
+        else if (CompareKeywordNew(SQL, Len, KIf)) then
+        begin
+          LeftTrimNew(SQL, Len, Version, CondVersion);
+          if ((Len >= 0) and (SQL[0] = '(')) then
+          begin
+            BracketAreaNew(SQL, Len, Version, CondVersion);
+            if (CompareKeywordNew(SQL, Len, KThen)) then
+              Inc(IfDeep);
+          end
+          else if (not CompareKeywordNew(SQL, Len, KNot)
+            and not CompareKeywordNew(SQL, Len, KExists)) then
+            Inc(IfDeep);
+        end
+        else if (CompareKeywordNew(SQL, Len, KLoop)) then
+          Inc(LoopDeep)
+        else if (CompareKeywordNew(SQL, Len, KRepeat)) then
+          Inc(RepeatDeep)
+        else if (CompareKeywordNew(SQL, Len, KWhile)) then
+          Inc(WhileDeep)
+        else if (BracketAreaNew(SQL, Len, Version, CondVersion)) then
+          // Do nothing
+        else if (CompareKeywordNew(SQL, Len, KEnd)) then
+        begin
+          LeftTrimNew(SQL, Len, Version, CondVersion);
+          if (CompareKeywordNew(SQL, Len, KCase)) then
+          begin
+            if (CaseDeep > 0) then Dec(CaseDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KIf)) then
+          begin
+            if (IfDeep > 0) then Dec(IfDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KLoop)) then
+          begin
+            if (LoopDeep > 0) then Dec(LoopDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KRepeat)) then
+          begin
+            if (RepeatDeep > 0) then Dec(RepeatDeep);
+          end
+          else if (CompareKeywordNew(SQL, Len, KWhile)) then
+          begin
+            if (WhileDeep > 0) then Dec(WhileDeep);
+          end
+          else
+          begin
+            if (CompoundDeep > 0) then Dec(CompoundDeep);
+          end;
+        end
+        else if (Len >= 1) then
+        begin
+          if (not ('A' <= SQL[0]) and (SQL[0] <= 'Z'))
+            and not (('a' <= SQL[0]) and (SQL[0] <= 'z')
+            and not (SQL[0] = '_')) then
+          begin
+            Inc(SQL); Dec(Len);
+          end
+          else
+            repeat
+              Inc(SQL); Dec(Len);
+            until ((Len = 0)
+              or not (('A' <= SQL[0]) and (SQL[0] <= 'Z'))
+                and not (('a' <= SQL[0]) and (SQL[0] <= 'z'))
+                and not (SQL[0] = '_'));
+        end;
+    until ((Len = 0)
+      or (SQL[0] = ';')
+        and (CompoundDeep = 0)
+        and (CaseDeep = 0)
+        and (IfDeep = 0)
+        and (LoopDeep = 0)
+        and (RepeatDeep = 0)
+        and (WhileDeep = 0));
+  end;
 
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
 
-        MOV ESI,SQL                      // ESI := SQL
-        MOV ECX,Length
+  if (Assigned(Delimited)) then
+    Delimited^ := SQL[0] = ';';
 
-        MOV EDI,0                        // Don't copy inside MoveString
-        MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
+  if ((Len >= 1) and (SQL[0] = ';')) then
+  begin
+    Inc(SQL); Dec(Len);
+  end;
+  if ((Len >= 1) and (SQL[0] = #13)) then
+  begin
+    Inc(SQL); Dec(Len);
+  end;
+  if ((Len >= 1) and (SQL[0] = #10)) then
+  begin
+    Inc(SQL); Dec(Len);
+  end;
 
-        CMP Delimited,0                  // Assigned(CompleteStmt)?
-        JE Start                         // No!
-        MOV EAX,[Delimited]
-        MOV BYTE PTR [EAX],False         // Uncomplete Statement!
-
-      // -------------------
-
-      Start:
-        MOV BracketDeep,0
-        MOV CaseDeep,0
-        MOV CompoundDeep,0
-        MOV IfDeep,0
-        MOV LoopDeep,0
-        MOV RepeatDeep,0
-        MOV WhileDeep,0
-
-        MOV Pos,ESI
-        CALL Trim                        // Ignore empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KAlter]
-        CALL CompareKeyword              // 'ALTER' in SQL?
-        JE Body
-        MOV EAX,[KCreate]
-        CALL CompareKeyword              // 'CREATE' in SQL?
-        JE Body
-
-        MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN' in SQL?
-        JNE StartCase                    // No!
-        MOV CompoundDeep,1
-        JMP BodyL
-      StartCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE' in SQL?
-        JNE StartIf                      // No!
-        MOV CaseDeep,1
-        JMP BodyL
-      StartIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF' in SQL?
-        JNE StartLoop                    // No!
-        MOV IfDeep,1
-        JMP BodyL
-      StartLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP' in SQL?
-        JNE StartRepeat                  // No!
-        MOV LoopDeep,1
-        JMP BodyL
-      StartRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT' in SQL?
-        JNE StartWhile                   // No!
-        MOV RepeatDeep,1
-        JMP BodyL
-      StartWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE' in SQL?
-        JNE SimpelStmtL                  // No!
-        MOV WhileDeep,1
-        JMP BodyL
-
-      // -------------------
-
-      SimpelStmtL:
-        MOV Pos,ESI
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE SimpelStmtLE                  // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,';'                       // SQL Delimiter?
-        JE Complete                      // Yes!
-      SimpelStmtLE:
-        JMP SimpelStmtL
-
-      // -------------------
-
-      Body:
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KTable]
-        CALL CompareKeyword              // 'TABLE'?
-        JE SimpelStmtL                   // Yes!
-        MOV EAX,[KDatabase]
-        CALL CompareKeyword              // 'DATABASE'?
-        JE SimpelStmtL                   // Yes!
-
-      BodyL:
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE BodyLE                        // Yes!
-        MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN'?
-        JNE BodyCase                     // No!
-        INC CompoundDeep
-        JMP BodyLE
-      BodyCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE'?
-        JNE BodyIf                       // No!
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CMP WORD PTR [ESI],'('           // CASE as function?
-        JE BodyLE                        // Yes!
-        INC CaseDeep
-        JMP BodyLE
-      BodyIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF'?
-        JNE BodyLoop                     // No!
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CMP WORD PTR [ESI],'('           // IF as function?
-        JE BodyIfFunc                    // Yes!
-        PUSH ESI
-        PUSH ECX
-        MOV EAX,[KNot]
-        CALL CompareKeyword              // Step over possible 'NOT'
-        CMP ECX,0                        // All characters handled?
-        JZ BodyIf2                       // Yes!
-        CALL Trim                        // Step over spaces
-        CMP ECX,0                        // All characters handled?
-        JZ BodyIf2                       // Yes!
-        MOV EAX,[KExists]
-        CALL CompareKeyword              // Step over possible 'EXISTS'
-        JE BodyIf3
-      BodyIf2:
-        CMP EAX,0                        // Clear ZF
-      BodyIf3:
-        POP ECX
-        POP ESI
-        JE BodyLE
-        INC IfDeep
-        JMP BodyLE
-      BodyIfFunc:
-        LODSW                            // Character -> AX
-        CALL BracketArea
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KThen]
-        CALL CompareKeyword              // 'THEN'?
-        JNE BodyLE                       // No!
-        INC IfDeep
-        JMP BodyLE
-      BodyLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP'?
-        JNE BodyRepeat                   // No!
-        INC LoopDeep
-        JMP BodyLE
-      BodyRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT'?
-        JNE BodyWhile                    // No!
-        INC RepeatDeep
-        JMP BodyLE
-      BodyWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE'?
-        JNE BodyEnd                      // No!
-        INC WhileDeep
-        JMP BodyLE
-      BodyEnd:
-        MOV EAX,[KEnd]
-        CALL CompareKeyword              // 'END'?
-        JNE BodyChar                     // No!
-        MOV Pos,ESI
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-      BodyEndCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'END CASE'?
-        JNE BodyEndIf                    // No!
-        CMP CaseDeep,0
-        JE BodyLE
-        DEC CaseDeep
-        JMP BodyLE
-      BodyEndIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'END IF'?
-        JNE BodyEndLoop                  // No!
-        CMP IfDeep,0
-        JE BodyLE
-        DEC IfDeep
-        JMP BodyLE
-      BodyEndLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'END LOOP'?
-        JNE BodyEndRepeat                // No!
-        CMP LoopDeep,0
-        JE BodyLE
-        DEC LoopDeep
-        JMP BodyLE
-      BodyEndRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'END REPEAT'?
-        JNE BodyEndWhile                 // No!
-        CMP RepeatDeep,0
-        JE BodyLE
-        DEC RepeatDeep
-        JMP BodyLE
-      BodyEndWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'END WHILE'?
-        JNE BodyEndCompound              // No!
-        CMP WhileDeep,0
-        JE BodyLE
-        DEC WhileDeep
-        JMP BodyLE
-      BodyEndCompound:                   // 'END'?
-        CMP CompoundDeep,0               // No!
-        JE BodyEndCaseOp
-        DEC CompoundDeep
-        JMP BodyLE
-      BodyEndCaseOp:
-        CMP CaseDeep,0                   // 'END' inside a CASE Op?
-        JE BodyLE                        // No!
-        DEC CaseDeep
-        JMP BodyLE
-
-      BodyChar:
-        MOV Pos,ESI
-        CALL Trim                        // Empty characters?
-        JE BodyCharE                     // Yes!
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE BodyLE                        // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,'('                       // Bracket in SQL?
-        JE BodyBracket                   // Yes!
-        MOV EBX,[Terminators]            // Terminating characters
-      BodyCharTL:
-        CMP WORD PTR [EBX],0             // All terminators checked?
-        JE BodyChar                      // Yes!
-        CMP AX,[EBX]                     // Charcter in SQL = Terminator?
-        JE BodyCharE                     // Yes!
-        ADD EBX,2                        // Next terminator
-        JMP BodyCharTL
-      BodyCharE:
-        CMP AX,';'                       // SQL Delimiter?
-        JNE BodyLE                       // No!
-        CMP CaseDeep,0                   // Still inside CASE?
-        JNE BodyLE                       // Yes!
-        CMP CompoundDeep,0               // Still inside BEGIN END?
-        JNE BodyLE                       // Yes!
-        CMP IfDeep,0                     // Still inside IF?
-        JNE BodyLE                       // Yes!
-        CMP LoopDeep,0                   // Still inside LOOP?
-        JNE BodyLE                       // Yes!
-        CMP RepeatDeep,0                 // Still inside REPEAT?
-        JNE BodyLE                       // Yes!
-        CMP WhileDeep,0                  // Still inside WHILE?
-        JNE BodyLE                       // Yes!
-        JMP Complete
-
-      BodyBracket:
-        CALL BracketArea
-
-      BodyLE:
-        CMP ECX,0                        // All characters handled?
-        JE Finish                        // Yes!
-        JMP BodyL
-
-      // -------------------
-
-      BracketArea:
-        INC BracketDeep                  // One open bracket found
-      BracketAreaL:
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // All characters handled?
-        JZ BodyLE                        // Yes!
-        CALL MoveString                  // Step over quoted string
-        CMP ECX,0                        // All characters handled?
-        JZ BracketAreaE                  // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,'('                       // Another open bracket?
-        JE BracketArea                   // Yes!
-        CMP AX,')'                       // Closing bracket?
-        JNE BracketAreaL                 // No!
-        DEC BracketDeep                  // One bracket closed
-        JNZ BracketAreaL                 // Furhter brackets open!
-      BracketAreaE:
-        RET
-
-      // -------------------
-
-      Complete:
-        CMP Delimited,0                  // Assigned(Delimited)?
-        JE Complete2                     // No!
-        MOV EAX,[Delimited]
-        MOV BYTE PTR [EAX],True          // Complete statement!
-
-      Complete2:
-        CMP ECX,2                        // Are there two characters left in SQL?
-        JL Complete3                     // No!
-        MOV EAX,[ESI]
-        CMP EAX,$000A000D                // CarriageReturn + LineFeed?
-        JNE Complete3                    // No!
-        ADD ESI,4                        // Step over CarriageReturn + LineFeed
-        SUB ECX,2                        // Ignore CarriageReturn + LineFeed
-        JMP CompleteE
-
-      Complete3:
-        CMP ECX,1                        // Is there one characters left in SQL?
-        JL CompleteE                     // No!
-        MOV AX,[ESI]
-        CMP AX,13                        // Ending CarriageReturn?
-        JE Complete4                     // Yes!
-        CMP AX,10                        // Ending LineFeed?
-        JE Complete4                     // Yes!
-        JMP CompleteE
-
-      Complete4:
-        ADD ESI,2                        // Step over CarriageReturn / LineFeed
-        DEC ECX                          // Ignore CarriageReturn / LineFeed
-        JMP CompleteE
-
-      CompleteE:
-        MOV Pos,ESI
-
-      // -------------------
-
-      Finish:
-        MOV EAX,Pos                      // Result := (Pos - SQL) div SizeOf(Char)
-        SUB EAX,SQL
-        SHR EAX,1                        // 2 bytes = 1 character
-        MOV @Result,EAX
-
-        POP EBX
-        POP EDI
-        POP ESI
-    end;
+  Result := OldLen - Len;
 end;
 
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
@@ -2950,172 +2604,149 @@ begin
     Result := copy(SQL, 1, Len) + '...';
 end;
 
-function SQLTrimStmt(const SQL: string): string;
+function UnescapeStringNew(var SQL: PChar; var Len: Integer; var Unescaped: PChar; var UnescapedLen: Integer): Integer;
 var
-  EndingCommentLen: Integer;
-  Len: Integer;
-  StartingCommentLen: Integer;
+  Quoter: Char;
 begin
-  Len := SQLTrimStmt(SQL, 1, Length(SQL), StartingCommentLen, EndingCommentLen);
-  Result := Copy(SQL, 1 + StartingCommentLen, Len);
-end;
-
-function SQLTrimStmt(const SQL: PChar; const Length: Integer): string;
-var
-  EndingCommentLen: Integer;
-  Len: Integer;
-  StartingCommentLen: Integer;
-begin
-  Len := SQLTrimStmt(SQL, Length, StartingCommentLen, EndingCommentLen);
-  Result := Copy(SQL, 1 + StartingCommentLen, Len);
-end;
-
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
-begin
-  if ((Index < 1) or (System.Length(SQL) < Index)) then
-    Result := 0
-  else
-    Result := SQLTrimStmt(PChar(@SQL[Index]), Length, StartingCommentLength, EndingCommentLength);
-end;
-
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
-label
-  StartL, StartL2, StartSLC, StartMLC, StartLE, StartE,
-  EndL, EndLE, EndE,
-  Finish;
-var
-  ECL: Integer;
-  SCL: Integer;
-begin
-  if (not Assigned(SQL) or (Length = 0)) then
+  Result := 0;
+  Quoter := SQL[0];
+  Inc(SQL); Dec(Len); // Opening quoter
+  while ((Len >= 1) and (SQL[0] <> Quoter)) do
   begin
-    StartingCommentLength := 0;
-    EndingCommentLength := 0;
-    Result := 0;
-  end
-  else
-  begin
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        MOV ESI,SQL                      // Read characters from SQL
-        MOV ECX,Length                   // Count of characters
-        MOV EDI,0                        // Do not copy characters in Trim
-
-      // -------------------
-
-      StartL:
-        MOV AX,[ESI]                     // Character in SQL
-        CMP AX,9                         // Tabulator?
-        JE StartLE                       // Yes!
-        CMP AX,10                        // New Line?
-        JE StartLE                       // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE StartLE                       // Yes!
-        CMP AX,' '                       // Space
-        JE StartLE                       // Yes!
-        CMP AX,'#'                       // "#"?
-        JE StartSLC                       // Yes!
-        CMP ECX,3                        // Three character in SQL?
-        JB StartLE                       // No!
-        MOV EAX,[ESI]                    // Two character in SQL
-        CMP EAX,$002D002D                // "--"?
-        JNE StartL2                      // No!
-        MOV AX,[ESI + 4]                 // Character after "--"
-        CMP AX,9                         // Tabulator?
-        JE StartSLC                      // Yes!
-        CMP AX,10                        // New Line?
-        JE StartSLC                      // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE StartSLC                      // Yes!
-        CMP AX,' '                       // Space
-        JE StartSLC                      // Yes!
-        JMP StartLE
-      StartL2:
-        CMP EAX,$002A002F                // "/*"?
-        JNE StartE                       // No!
-        MOV AX,[ESI + 4]                 // Character after "/*"
-        CMP AX,'!'                       // "!"?
-        JE StartE                        // Yes!
-      StartMLC:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JZ StartE                        // End of SQL!
-        CMP ECX,2                        // Two character left in SQL?
-        JB StartMLC                      // No!
-        MOV EAX,[ESI]                    // Two character in SQL
-        CMP EAX,$002F002A                // "*/"?
-        JNE StartMLC                     // No!
-        ADD ESI,2                        // Step over "*" in SQL
-        DEC ECX                          // One character handled
-        JNZ StartLE                      // Further character in SQL!
-        JMP StartE                       // End of SQL!
-      StartSLC:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JZ StartE                        // End of SQL!
-        MOV AX,[ESI]                     // Character in SQL
-        CMP AX,10                        // New Line?
-        JE StartLE                       // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE StartLE                       // Yes!
-        JMP StartSLC
-      StartLE:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JNZ StartL                       // Further characters in SQL!
-        JMP StartE                       // End of SQL!
-      StartE:
-        MOV EBX,Length
-        SUB EBX,ECX
-        MOV SCL,EBX
-
-        MOV ESI,SQL                      // Go to the end of SQL:
-        MOV EAX,Length                   // ESI := SQL[Length - 1]
-        DEC EAX                          // Last character in SQL
-        SHL EAX,1                        // 1 character = 2 bytes
-        ADD ESI,EAX
-        MOV ECX,Length
-        SUB ECX,EBX                      // Length of SQL - StartingCommentLength
-        JZ Finish                        // The whole Stmt is a comment!
-
-      EndL:
-        MOV AX,[ESI]                     // Character in SQL
-        CMP AX,9                         // Tabulator?
-        JE EndLE                         // Yes!
-        CMP AX,10                        // New Line?
-        JE EndLE                         // Yes!
-        CMP AX,13                        // Carrige Return?
-        JE EndLE                         // Yes!
-        CMP AX,' '                       // Space
-        JE EndLE                         // Yes!
-        JMP Finish
-      EndLE:
-        SUB ESI,2                        // Previous character
-        DEC ECX                          // One character handled
-      EndE:
-        CMP ECX,0                        // All characters handled?
-        JNE EndL
-
-      Finish:
-        MOV EAX,Length                   // Calc EndingCommentLength
-        SUB EAX,SCL
-        SUB EAX,ECX
-        MOV ECL,EAX
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+    if ((SQL[0] <> '\') or (Len < 2)) then
+    begin
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = '"') or (SQL[1] = '''') or (SQL[1] = '`')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if (SQL[1] = '0') then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #0; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'B') or (SQL[1] = 'b')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #8; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'N') or (SQL[1] = 'n')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #10; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'R') or (SQL[1] = 'r')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #13; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'T') or (SQL[1] = 't')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #9; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else if ((SQL[1] = 'Z') or (SQL[1] = 'z')) then
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := #26; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
+    end
+    else
+    begin
+      Inc(SQL); Dec(Len); // Escaper
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen = 0) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(Len); Inc(Result);
     end;
-
-    StartingCommentLength := SCL;
-    EndingCommentLength := ECL;
-    Result := Length - StartingCommentLength - EndingCommentLength;
   end;
+  if ((Len >= 1) and (SQL[0] = Quoter)) then
+  begin
+    Inc(SQL); Dec(Len); // Closing quoter
+  end;
+end;
+
+function SQLUnescapeNew(SQL: PChar; SQLLen: Integer; Unescaped: PChar; UnescapedLen: Integer): Integer; overload;
+var
+  Len: Integer;
+begin
+  Result := 0;
+  while (SQLLen >= 1) do
+    if ((SQL^ <> '"') and (SQL^ <> '''') and (SQL^ <> '`')) then
+    begin
+      if (Assigned(Unescaped)) then
+      begin
+        if (UnescapedLen < 1) then
+          Exit(0);
+        Unescaped^ := SQL^; Inc(Unescaped); Dec(UnescapedLen);
+      end;
+      Inc(SQL); Dec(SQLLen); Inc(Result);
+    end
+    else
+    begin
+      Len := UnescapeStringNew(SQL, SQLLen, Unescaped, UnescapedLen);
+      if (Len = 0) then
+        Exit(0); // Unescaped too small
+      Inc(Result, Len);
+      if (SQLLen = 0) then
+        Exit;
+      while ((SQLLen >= 1) and ((SQL^ = #9) or (SQL^ = #10) or (SQL^ = #13) or (SQL^ = ' '))) do
+      begin
+        Inc(SQL); Dec(SQLLen);
+      end;
+    end;
 end;
 
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer;
@@ -3207,6 +2838,20 @@ begin
   end;
 end;
 
+function SQLUnescapeNew(const Value: string): string; overload;
+var
+  Len: Integer;
+begin
+  if (Value = '') then
+    Result := ''
+  else
+  begin
+    Len := SQLUnescapeNew(PChar(Value), Length(Value), nil, 0);
+    SetLength(Result, Len);
+    SQLUnescapeNew(PChar(Value), Length(Value), PChar(Result), Length(Result));
+  end;
+end;
+
 function SQLUnescape(const Value: string): string;
 var
   Len: Integer;
@@ -3215,358 +2860,22 @@ begin
     Result := ''
   else
   begin
-    try
-      Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
-    except
-      // Debug 2017-01-04
-      on E: Exception do
-        raise ERangeError.Create('Value: ' + Value + #13#10
-          + E.Message);
-    end;
+    Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
     SetLength(Result, Len);
     SQLUnescape(PChar(Value), Length(Value), PChar(Result), Length(Result));
   end;
 end;
 
-function SQLUnescape(const Value: PAnsiChar): RawByteString;
-label
-  AnsiToWideL,
-  StringL, StringE,
-  Quoted,
-  WideToAnsiL;
-var
-  Buffer: PChar;
-  DynamicBuffer: array of Char;
-  Len: Integer;
-  StackBuffer: array[0 .. 255] of Char;
-begin
-  Len := AnsiStrings.StrLen(Value);
-
-  if (Len = 0) then
-    Result := ''
-  else
-  begin
-    if (Len <= Length(StackBuffer)) then
-      Buffer := @StackBuffer[0]
-    else
-    begin
-      SetLength(DynamicBuffer, Len);
-      Buffer := @DynamicBuffer[0];
-    end;
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-      // -------------------
-
-        MOV ESI,Value                    // Copy characters from Value
-        MOV EDI,Buffer                   //   to Buffer
-        MOV ECX,Len
-
-        MOV AH,0                         // Clear AH, since AL will be loaded, but AX stored
-      AnsiToWideL:
-        LODSB                            // Load AnsiChar from Value
-        STOSW                            // Store WideChar into Buffer
-        LOOP AnsiToWideL                 // Repeat for all characters
-
-      // -------------------
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-    Len := SQLUnescape(Buffer, Len, Buffer, Len);
-
-    SetLength(Result, Len);
-
-    if (Len > 0) then
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-      // -------------------
-
-        MOV ESI,Buffer                   // Copy characters from Buffer
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-        MOV ECX,Len
-
-      WideToAnsiL:
-        LODSW                            // Load WideChar form Buffer
-        STOSB                            // Store AnsiChar into Result
-        LOOP WideToAnsiL                 // Repeat for all characters
-
-      // -------------------
-
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-  end;
-end;
-
-function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
-label
-  StringL, String2, StringC, StringLE,
-  Finish;
-var
-  Len: Integer;
-begin
-  Len := Length(SQL);
-
-  if (Len = 0) then
-    Result := ''
-  else
-  begin
-    SetLength(Result, Len);
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Pointer(SQL)             // Copy characters from SQL
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-
-        MOV ECX,Len
-
-        MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
-
-      // -------------------
-
-      StringL:
-        CALL MoveString                  // Copy string from SQL to Result?
-        JNE String2                      // No!
-        JECXZ Finish                     // End of SQL!
-
-      String2:
-        CALL Trim                        // Emtpy characters in SQL?
-        JNE StringC                      // No!
-        JECXZ Finish                     // End of SQL!
-        MOV AX,' '                       // Store a space
-        STOSW                            //   into Result
-        JECXZ Finish                     // End of SQL!
-        JMP StringL
-
-      StringC:
-        MOVSW                            // Copy character from SQL to Result
-
-      StringLE:
-        LOOP StringL
-
-      // -------------------
-
-      Finish:
-        MOV EAX,Result                   // Calculate new length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-    if (Len <> Length(Result)) then
-      SetLength(Result, Len);
-    Result := SQLTrimStmt(Result);
-  end;
-end;
-
 function StrToUInt64(const S: string): UInt64;
-label
-  Select, Select2, Select3,
-  Hex, HexL, HexL1, HexL2, HexL3, HexL4, HexL5,
-  Decimal, DecimalL, DecimalLE,
-  Finish;
 var
-  Error: Boolean;
-  Hi: LONGWORD;
-  Len: LONGWORD;
-  Lo: LONGWORD;
+  I: Integer;
 begin
-  Hi := 0;
-  Lo := 0;
-  Len := Length(S);
-
-  asm
-        PUSH EBX
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV Error,True
-
-        MOV ESI,Pointer(S)               // Read bytes from S
-        MOV ECX,Len                      // Length of S
-
-        CMP ECX,0                        // Empty S?
-        JE Finish                        // Yes!
-
-        MOV EDI,ESI
-        MOV AX,' '
-        REPE SCASW                       // Step over spaces at begin of S
-        SUB EDI,2
-        INC ECX
-        MOV ESI,EDI
-
-        CMP ECX,0                        // End of S?
-        JE Finish                        // Yes!
-
-        MOV AX,[ESI]                     // Char in S
-        CMP AX,'-'                       // '-'?
-        JE Finish                        // Yes!
-        CMP AX,'+'                       // '+'?
-        JNE Select                       // No!
-        ADD ESI,2                        // Step over '+'
-        DEC ECX                          // One char handled
-        MOV AX,[ESI]                     // Char in S
-      Select:
-        CMP AX,'$'                       // '$'?
-        JNE Select2                      // Yes!
-        LODSW                            // '$' handled
-        SUB ECX,1                        // One char handled
-        JMP Hex
-      Select2:
-        CMP ECX,2                        // Two characters left?
-        JB Decimal                       // No!
-        CMP AX,'0'                       // '0'?
-        JNE Decimal                      // No!
-        CMP WORD PTR [ESI + 2],'x'       // '0x'?
-        JE Select3                       // Yes!
-        CMP WORD PTR [ESI + 2],'X'       // '0X'?
-        JNE Decimal                      // Yes!
-      Select3:
-        LODSW                            // '0' handled
-        LODSW                            // 'x' handled
-        SUB ECX,2                        // Two chars handled
-        JMP Hex
-
-      // -------------------
-
-      Decimal:
-      DecimalL:
-        MOV EBX,10                       // Base 10 in decimal
-
-        MOV EAX,Lo
-        MUL EBX                          // Lo * 10
-
-        PUSH EAX
-        PUSH EDX                         // Carry
-
-        MOV EAX,Hi                       // EAX := Hi
-        MUL EBX                          // Hi * 10
-
-        POP EDX
-        POP EBX
-
-        JC Finish                        // Result > High(UInt64)?
-        ADD EDX,EAX                      // EDX := EAX + Carry from Lo * 10
-
-        MOV EAX,0                        // Clear hi word of EAX
-        LODSW                            // Get Char
-        CMP AX,'0'                       // Char < '0'?
-        JB Finish                        // Yes!
-        CMP AX,'9'                       // Char > '9'?
-        JA Finish                        // Yes!
-        SUB AX,'0'                       // Digit := Ord(Char)
-
-        ADD EBX,EAX                      // EAX := Lo * 10 + Digit
-        MOV Lo,EBX                       // Lo := EAX
-        JNC DecimalLE
-        INC EDX                          // Carry from Lo * 10 + Digit
-
-      DecimalLE:
-        MOV Hi,EDX                       // Hi := EDX
-        LOOP DecimalL                    // Handle all chars in S
-
-        MOV Error,False
-        JMP Finish
-
-      // -------------------
-
-      Hex:
-        CMP ECX,0                        // More chars left in S?
-        JE Finish                        // No!
-        MOV EBX,Lo
-        MOV EDX,Hi
-
-      HexL:
-        LODSW                            // Get Char
-        CMP AX,'0'                       // Char < '0'?
-        JB HexL2                         // Yes!
-        CMP AX,'9'                       // Char > '9'?
-        JA HexL2                         // Yes!
-        SUB AX,'0'                       // Digit := Ord(Char)
-        JMP HexL4
-      HexL2:
-        CMP AX,'A'                       // Char < 'A'?
-        JB HexL3                         // Yes!
-        CMP AX,'F'                       // Char > 'F'?
-        JA HexL3                         // Yes!
-        SUB AX,'A' - 10                  // Digit := Ord(Char)
-        JMP HexL4
-      HexL3:
-        CMP AX,'a'                       // Char < 'a'?
-        JB Finish                        // Yes!
-        CMP AX,'f'                       // Char > 'f'?
-        JA Finish                        // Yes!
-        SUB AX,'a' - 10                  // Digit := Ord(Char)
-
-      HexL4:
-        SHL EDX,4                        // Shift Hi 4 bits left
-        JC Finish
-
-        PUSH EAX
-        MOV EAX,EBX                      // Hi 4 bites of Lo
-        SHR EAX,32 - 4
-        OR EDX,EAX                       //   ... add to Hi
-        SHL EBX,4                        // Shift Lo 4 bits left
-        POP EAX
-        ADD EBX,EAX                      // Add Digit to Lo
-
-        LOOP HexL                        // Handle all chars in S
-
-        MOV Lo,EBX
-        MOV Hi,EDX
-
-        MOV Error,False
-
-      // -------------------
-
-      Finish:
-        POP EDI
-        POP ESI
-        POP EBX
-  end;
-
-  if (Error) then raise EConvertError.CreateFmt(SInvalidUInt64, [S]);
-
-  UInt64Rec(Result).Hi := Hi;
-  UInt64Rec(Result).Lo := Lo;
+  Result := 0;
+  for I := 1 to Length(S) do
+    if (('0' <= S[I]) and (S[I] <= '9')) then
+      Result := Result * 10 + Ord(S[I]) - Ord('0')
+    else
+      raise ERangeError.Create(SInvalidInput);
 end;
 
 function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
@@ -3579,63 +2888,15 @@ begin
   end;
 end;
 
-function UInt64ToStr(const Value: UInt64): string;
-label
-  ValueL, ValueS;
-var
-  Hi: LONGWORD;
-  Lo: LONGWORD;
-  P: PChar;
-  Str: array[0..20] of Char;
+function UInt64ToStr(Value: UInt64): string;
 begin
-  Hi := UInt64Rec(Value).Hi;
-  Lo := UInt64Rec(Value).Lo;
-
-  asm
-        PUSH ES
-        PUSH EBX
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        STD                              // string operations uses backward direction
-
-        MOV EBX,10                       // Division thru 10
-        MOV ECX,20                       // Loop for all 64 bits = 20 digits
-        LEA EDI,Str                      // Last char in Str
-        ADD EDI,2 * 20
-        MOV EAX,0                        // Terminating #0
-        STOSW                            //   into Str
-        MOV P,EDI                        // P := Str[19]
-
-      ValueL:
-        MOV EDX,0
-        MOV EAX,Hi
-        DIV EBX                          // EAX := Hi div 10,  EDX := Hi mod 10
-        MOV Hi,EAX                       // Hi := EAX
-
-        MOV EAX,Lo
-        DIV EBX                          // EAX := (EDX shl 32 + Lo) div 10,  EDX := (EDX shl 32 + Lo) mod 10
-        MOV Lo,EAX                       // Lo := EAX
-
-        CMP EDX,0                        // Digit = '0'?
-        JE ValueS                        // Yes!
-        MOV P,EDI                        // First used char
-
-      ValueS:
-        MOV EAX,EDX
-        ADD EAX,'0'                      // EAX := Chr(EAX)
-        STOSW                            // EAX into Str
-
-        LOOP ValueL                      // Handle next digit
-
-        CLD                              // Why is this needed??? Without this, Delphi XE2 crash the program
-        POP EDI
-        POP EBX
-        POP ES
+  while (Value > 0) do
+  begin
+    Result := Chr(Ord('0') + Value mod 10) + Result;
+    Value := Value div 10;
   end;
-
-  Result := StrPas(P);
+  if (Result = '') then
+    Result := '0';
 end;
 
 { TSQLBuffer ******************************************************************}
@@ -3735,62 +2996,30 @@ begin
   Buffer.Write := @Buffer.Write[1];
 end;
 
-procedure TSQLBuffer.WriteData(const Data: PAnsiChar; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = '''');
-label
-  StringL, StringLE,
-  Finish;
-var
-  Len: Integer;
-  Write: PChar;
+procedure TSQLBuffer.WriteData(Value: PAnsiChar; ValueLen: Integer; Quote: Boolean = False; Quoter: Char = '''');
 begin
   if (not Quote) then
-    Len := Length
+    Reallocate(ValueLen)
   else
-    Len := 1 + Length + 1;
+    Reallocate(1 + ValueLen + 1);
 
-  Reallocate(Len);
-
-  Write := Buffer.Write;
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Data                     // Copy characters from Data
-        MOV EDI,Write                    //   to Write
-        MOV ECX,Length                   // Character count
-
-        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
-        CMP Quote,False                  // Quote Value?
-        JE StringL                       // No!
-        MOV AX,Quoter                    // Starting quoter
-        STOSW                            //   into Write
-
-      StringL:
-        CMP ECX,0                        // All characters handled?
-        JE StringLE                      // Yes!
-        LODSB                            // Load AnisChar from Data
-        STOSW                            // Store WideChar into Buffer.Mem
-        DEC ECX
-        JMP StringL                      // Repeat for all characters
-
-      StringLE:
-        CMP Quote,False                  // Quote Value?
-        JE Finish                        // No!
-        MOV AX,Quoter                    // Ending quoter
-        STOSW                            //   into Write
-
-      Finish:
-        POP EDI
-        POP ESI
-        POP ES
+  if (ValueLen > 0) then
+  begin
+    if (Quote) then
+    begin
+      Buffer.Write^ := Quoter; Inc(Buffer.Write);
     end;
 
-  Buffer.Write := @Buffer.Write[Len];
+    while (ValueLen > 0) do
+    begin
+      Buffer.Write^ := Char(Value^); Inc(Buffer.Write); Inc(Value); Dec(ValueLen);
+    end;
+
+    if (Quote) then
+    begin
+      Buffer.Write^ := Quoter; Inc(Buffer.Write);
+    end;
+  end;
 end;
 
 function TSQLBuffer.WriteExternal(const Length: Integer): PChar;
@@ -3816,5 +3045,9 @@ begin
     SQLEscape(Text, Length, WriteExternal(Len), Len);
 end;
 
+begin
+  {$IFDEF Debug}
+  SQLUnescapeNew('H"a\r\n"123');
+  {$ENDIF}
 end.
 
