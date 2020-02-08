@@ -1708,6 +1708,7 @@ const
 // values for SQL_ATTR_ODBC_VERSION
   SQL_OV_ODBC2 = ULONG(2);
   SQL_OV_ODBC3 = ULONG(3);
+  SQL_OV_ODBC3_80 = 380;
 
 // connection attributes
   SQL_ACCESS_MODE = 101;

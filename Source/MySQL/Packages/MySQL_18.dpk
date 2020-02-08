@@ -1,0 +1,44 @@
+package MySQL_18;
+
+{$ALIGN 8}
+{$ASSERTIONS OFF}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS OFF}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST ON}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DESCRIPTION 'MySQL'}
+
+requires
+  DesignIDE,
+  dcldb,
+  bdertl,
+  VCL_Ext_18;
+
+contains
+  MySQLConsts in '..\Source\MySQLConsts.pas',
+  MySQLClient in '..\Source\MySQLClient.pas',
+  SQLUtils in '..\Source\SQLUtils.pas',
+  HTTPTunnel in '..\Source\HTTPTunnel.pas',
+  MySQLDB in '..\Source\MySQLDB.pas',
+  MySQLDBGrid in '..\Source\MySQLDBGrid.pas',
+  MySQLReg in '..\Source\MySQLReg.pas',
+  CSVUtils in '..\Source\CSVUtils.pas',
+  SQLParser in '..\Source\SQLParser.pas';
+
+end.
+

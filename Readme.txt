@@ -1,38 +1,30 @@
-Development Enviroment:
+﻿Development Enviroment:
 =======================
 
-Embarcadero Delphi XE2:
-http://www.embarcadero.com/products/delphi
+Embarcadero Delphi XE4:
+http://www.embarcadero.com/products/delphi/
 
 
 Used packages:
 ==============
 
-FastMM:
-http://sourceforge.net/projects/fastmm/
-
-TPerlRegEx:
-http://www.regular-expressions.info/delphi.html
-
-Synopse PDF:
-http://synopse.info/fossil/wiki?name=PDF+Engine
-
-Unicode SynEdit:
-http://synedit.svn.sourceforge.net/viewvc/synedit/
-
 Active Query Builder VCL Edition:
 http://www.activequerybuilder.com/
 
-ShellBrowser:
-http://www.jam-software.de/shellbrowser_delphi/
+Axialis Pure Flat 2013 Toolbar Icons:
+http://www.axialis.com/stock-icons/pure-flat-2013-toolbar.html
 
-Mirkes MPHexEditor:
-https://launchpad.net/dcr/
+FastMM:
+https://github.com/pleriche/FastMM4/
 
-Note: MPHexEditor was developed by Markus Stephany, who stopped his work.
-Later on the Delphi Code Revival project worked on it - but seems not
-very long. Inside this project there is a own transformation from Delphi 7
-to Delphi XE2.
+Synopse PDF:
+https://github.com/synopse/SynPDF/
+
+SynEdit:
+https://github.com/SynEdit/SynEdit/
+
+BCHexEditor:
+https://github.com/bonecode/BCHexEditor/
 
 
 Tools to build the setup program:
@@ -54,20 +46,38 @@ Inno Setup:
 http://www.jrsoftware.org/isinfo.php
 
 
+Placing the packages into the file system:
+==========================================
+
+Cleanup.bat will create the empty folders for the used packages.
+
+Please download the packages from the given URLs and copy the sources /
+resources into the related folders below the source folder: The .dpr and .pas
+files into the "Source" folders, .res and .dfm files into the "Resource"
+folders.
+
+To get detailed memory leak information while debugging, please store the
+FastMM_FullDebugMode.dll file into the "FastMM" folder directly. After this
+please call Cleanup.bat again to copy it into the Temp folder.
+
+
+
 Developing the program:
 =======================
 
-Inside Delphi first of all, you have to download all packages from the given
-URLs. Store the source code into a new folder "Source" inside the file system.
-A new folder called "Resource" need the .res and .dfm files. After this, you 
-have to built all packages inside Delphi (Menu: Project -> Build All Project).
+Inside Delphi first of all, you have to built all packages inside Delphi
+(Menu: Project -> Build All Project).
 
 All Designtime packages needs to be installed. This will be done inside the
 IDE with the project manager (Menu: View -> Project Manager). For each
 package, you have to make a right click -> Install.
 
-To get detailed memory leak informations while debugging, you have to store
-FastMM_FullDebugMode.dll inside the Temp folder.
+Now, please close Delphi again and call Build_Setup.bat. This will build the
+.res file for this program. If you did not install all tools for building the
+setup program, the Build_Setup.bat will fail - but this is not a problem,
+the .res file was build hopefully.
+
+Now you can start Delphi again and build the program to execute it.
 
 
 Building the setup program:
@@ -75,4 +85,4 @@ Building the setup program:
 
 The setup program will be built with the Build_Setup.bat file.
 
-With Clean.bat all temporary files can be deleted easily.
+With Cleanup.bat all temporary files can be deleted easily.

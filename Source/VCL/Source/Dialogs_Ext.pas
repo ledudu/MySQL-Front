@@ -3,8 +3,9 @@ unit Dialogs_Ext;
 interface {********************************************************************}
 
 uses
-  Windows, SysUtils, Classes, Dialogs, ExtCtrls, Messages, Controls, StdCtrls,
-  ExtDlgs, ShlObj,
+  Windows, Messages, ShlObj,
+  SysUtils, Classes,
+  Dialogs, ExtCtrls, Controls, StdCtrls, ExtDlgs,
   StdCtrls_Ext;
 
 type
@@ -79,86 +80,20 @@ const
   {$EXTERNALSYM PD_NONETWORKBUTTON}
   PD_NONETWORKBUTTON = $00200000;
 
-  PD_RESULT_CANCEL = 0;
-  PD_RESULT_PRINT = 1;
-  PD_RESULT_APPLY = 2;
-
 type
-  tagPRINTPAGERANGE = packed record
-    nFromPage: DWord;
-    nToPage: DWord;
-  end;
-  tagPRINTPAGERANGEs = array [0..255] of tagPRINTPAGERANGE;
-  LPPRINTPAGERANGE = ^tagPRINTPAGERANGEs;
-
   HPROPSHEETPAGE = array of HWND;
-
-  tagPDEXW = packed record
-    lStructSize: DWord;
-    hWndOwner: HWND;
-    hDevMode: HGLOBAL;
-    hDevNames: HGLOBAL;
-    hDC: HDC;
-    Flags: DWORD;
-    Flags2: DWORD;
-    ExclusionFlags: DWORD;
-    nPageRanges: DWORD;
-    nMaxPageRanges: DWORD;
-    lpPageRanges: LPPRINTPAGERANGE;
-    nMinPage: DWord;
-    nMaxPage: DWord;
-    nCopies: DWord;
-    hInstance: HINST;
-    lpPrintTemplateName: PChar;
-    lpCallback: Pointer;
-    nPropertyPages: DWord;
-    lphPropertyPages: ^HPROPSHEETPAGE;
-    nStartPage: DWord;
-    dwResultAction: DWord;
-  end;
-
-type
-  TPrintDlgEx = function(var PrintDlgEx: tagPDEXW): Boolean;
-
-type
-  TPrintPageRange = record
-    FromPage: DWord;
-    ToPage: DWord;
-  end;
-
-  TPrintDialog_Ext = class(TPrintDialog)
-  private
-    FPageRanges: array [0..255] of tagPRINTPAGERANGE;
-    FPageRangesCount: Integer;
-    FPrinterName: string;
-    function GetPageRanges(Index: Integer): TPrintPageRange;
-    function GetPrinterName(): string;
-    procedure SetPrinterName(PrinterName: string);
-  public
-    constructor Create(AOwner: TComponent); override;
-    function Execute(): Boolean; override;
-    property PageRanges[Index: Integer]: TPrintPageRange read GetPageRanges;
-    property PageRangesCount: Integer read FPageRangesCount;
-    property PrinterName: string read GetPrinterName write SetPrinterName;
-  end;
-
-var
-  PrintDlgEx: TPrintDlgEx;
 
 procedure Register();
 
 implementation {***************************************************************}
 
 uses
-  Forms, Printers, CommDlg, Consts, RTLConsts, Dlgs, ActiveX, StrUtils, ComObj,
-  WinSpool;
+  CommDlg, Dlgs,
+  RTLConsts, StrUtils, SysConst,
+  Forms, Consts;
 
 const
-  commdlg32 = 'comdlg32.dll';
   CP_UNICODE = 1200;
-
-var
-  Lib: HModule;
 
 type
   TCharacter_Set = record
@@ -176,38 +111,7 @@ procedure Register();
 begin
   RegisterComponents('VCL Extensions', [TOpenDialog_Ext]);
   RegisterComponents('VCL Extensions', [TSaveDialog_Ext]);
-  RegisterComponents('VCL Extensions', [TPrintDialog_Ext]);
 end;
-
-procedure GetPrinter(var DeviceMode, DeviceNames: THandle);
-var
-  Device, Driver, Port: array[0..1023] of char;
-  DevNames: PDevNames;
-  Offset: PChar;
-begin
-  Printer.GetPrinter(Device, Driver, Port, DeviceMode);
-  if DeviceMode <> 0 then
-  begin
-    DeviceNames := GlobalAlloc(GHND, SizeOf(TDevNames) +
-     (StrLen(Device) + StrLen(Driver) + StrLen(Port) + 3) * SizeOf(Char));
-    DevNames := PDevNames(GlobalLock(DeviceNames));
-    try
-      Offset := PChar(PByte(DevNames) + SizeOf(TDevnames));
-      with DevNames^ do
-      begin
-        wDriverOffset := Offset - PChar(DevNames);
-        Offset := StrECopy(Offset, Driver) + 1;
-        wDeviceOffset := Offset - PChar(DevNames);
-        Offset := StrECopy(Offset, Device) + 1;
-        wOutputOffset := Offset - PChar(DevNames);;
-        StrCopy(Offset, Port);
-      end;
-    finally
-      GlobalUnlock(DeviceNames);
-    end;
-  end;
-end;
-
 
 function CodePageToEncoding(const CodePage: Cardinal): string;
 var
@@ -293,7 +197,11 @@ function TVistaSaveDialog.CreateFileDialog(): IFileDialog;
 var
   I: Integer;
 begin
-  Result := inherited CreateFileDialog;
+  Result := inherited CreateFileDialog();
+
+  // Debug 2016-11-30
+  if (not Assigned(Result)) then
+    raise ERangeError.Create(SRangeError);
 
   if ((SaveDialog.Encodings.Count = 0) or (Result.QueryInterface(StringToGUID('{8016B7B3-3D49-4504-A0AA-2A37494E606F}'), FileDialogCustomize) <> S_OK)) then
     FileDialogCustomize := nil
@@ -524,164 +432,4 @@ begin
     Result := inherited Execute();
 end;
 
-{ TPrintDialog_Ext ************************************************************}
-
-constructor TPrintDialog_Ext.Create(AOwner: TComponent);
-begin
-  inherited;
-
-  FPrinterName := '';
-end;
-
-function TPrintDialog_Ext.Execute(): Boolean;
-const
-  PrintRanges: array[TPrintRange] of Integer =
-    (PD_ALLPAGES, PD_SELECTION, PD_PAGENUMS);
-var
-  DevNames: PDevNames;
-  Offset: Integer;
-  PrintDlgExRec: tagPDEXW;
-  Size: Integer;
-begin
-  FillChar(PrintDlgExRec, SizeOf(PrintDlgExRec), 0);
-
-  FPageRanges[0].nFromPage := FromPage;
-  FPageRanges[0].nToPage := ToPage;
-
-  with PrintDlgExRec do
-  begin
-    lStructSize := SizeOf(PrintDlgExRec);
-    hWndOwner := Application.Handle;
-
-    Size := SizeOf(DevNames^) + (1 + Length(PrinterName) + 1 + 1 + 1) * SizeOf(Char);
-    hDevNames := GlobalAlloc(GHND, Size);
-    DevNames := PDevNames(GlobalLock(hDevNames));
-    ZeroMemory(DevNames, Size);
-    Offset := SizeOf(DevNames^) div SizeOf(Char);
-    DevNames^.wDriverOffset := Offset;
-    Inc(Offset, 1);
-    DevNames^.wDeviceOffset := Offset;
-    StrPCopy(PChar(@PChar(DevNames)[DevNames^.wDeviceOffset]), PrinterName); Inc(Offset, Length(PrinterName) + 1);
-    DevNames^.wOutputOffset := Offset; Inc(Offset, 1);
-    DevNames^.wDefault := Offset;
-    GlobalUnlock(hDevNames);
-
-    hDC := 0;
-    Flags := PrintRanges[PrintRange] or PD_NOCURRENTPAGE;
-    Flags2 := 0;
-    ExclusionFlags := 0;
-    if (Collate) then Inc(Flags, PD_COLLATE);
-    if (not (poPrintToFile in Options)) then Inc(Flags, PD_HIDEPRINTTOFILE);
-    if (not (poPageNums in Options)) then Inc(Flags, PD_NOPAGENUMS);
-    if (not (poSelection in Options)) then Inc(Flags, PD_NOSELECTION);
-    if (poDisablePrintToFile in Options) then Inc(Flags, PD_DISABLEPRINTTOFILE);
-    if (PrintToFile) then Inc(Flags, PD_PRINTTOFILE);
-    if (poHelp in Options) then Inc(Flags, PD_SHOWHELP);
-    if (not (poWarning in Options)) then Inc(Flags, PD_NOWARNING);
-    if (Assigned(Template)) then
-    begin
-      Flags := Flags or PD_ENABLEPRINTTEMPLATE;
-      lpPrintTemplateName := Template;
-      hInstance := SysInit.HInstance;
-    end;
-    nPageRanges := 1;
-    nMaxPageRanges := Length(FPageRanges);
-    lpPageRanges := Pointer(@FPageRanges);
-    nMinPage := MinPage;
-    nMaxPage := MaxPage;
-    nStartPage := START_PAGE_GENERAL;
-    lpCallback := nil;
-    nPropertyPages := 0;
-    lphPropertyPages := nil;
-
-    TaskModalDialog(@PrintDlgEx, PrintDlgExRec);
-
-    if (dwResultAction in [PD_RESULT_PRINT, PD_RESULT_APPLY]) then
-    begin
-      DevNames := PDevNames(GlobalLock(hDevNames));
-      try
-        PrinterName := StrPas(PChar(@PChar(DevNames)[DevNames^.wDeviceOffset]));
-      finally
-        GlobalUnlock(hDevNames);
-      end;
-    end;
-
-    Result := dwResultAction = PD_RESULT_PRINT;
-    if (Result) then
-    begin
-      Collate := Flags and PD_COLLATE <> 0;
-      PrintToFile := Flags and PD_PRINTTOFILE <> 0;
-      if (Flags and PD_SELECTION <> 0) then
-        PrintRange := prSelection
-      else if (Flags and PD_PAGENUMS <> 0) then
-        PrintRange := prPageNums
-      else
-        PrintRange := prAllPages;
-      FromPage := FPageRanges[0].nFromPage;
-      ToPage := FPageRanges[0].nToPage;
-      if (nPageRanges < DWord(Length(FPageRanges))) then
-        FPageRangesCount := nPageRanges
-      else
-        FPageRangesCount := Length(FPageRanges);
-      FPageRangesCount := NPageRanges;
-      if (nCopies = 1) then
-        Copies := Printer.Copies
-      else
-        Copies := nCopies;
-    end;
-
-    if (hDevMode <> 0) then GlobalFree(hDevMode);
-    if (hDevNames <> 0) then GlobalFree(hDevNames);
-  end;
-end;
-
-function TPrintDialog_Ext.GetPageRanges(Index: Integer): TPrintPageRange;
-begin
-  if (not (Index in [0..Length(FPageRanges) - 1])) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Index']);
-
-  Result.FromPage := FPageRanges[Index].nFromPage;
-  Result.ToPage := FPageRanges[Index].nToPage;
-end;
-
-function TPrintDialog_Ext.GetPrinterName(): string;
-var
-  Buffer: PChar;
-  Len: DWord;
-begin
-  if (FPrinterName <> '') then
-    Result := FPrinterName
-  else
-  begin
-    GetDefaultPrinter(nil, @Len);
-    GetMem(Buffer, Len * SizeOf(Char));
-    if (not GetDefaultPrinter(Buffer, @Len)) then
-      Result := ''
-    else
-      Result := StrPas(Buffer);
-    FreeMem(Buffer);
-  end;
-end;
-
-procedure TPrintDialog_Ext.SetPrinterName(PrinterName: string);
-var
-  Buffer: PChar;
-  Len: DWord;
-begin
-  GetDefaultPrinter(nil, @Len);
-  GetMem(Buffer, Len * SizeOf(Char));
-  if (GetDefaultPrinter(Buffer, @Len) and (lstrcmpi(Buffer, PChar(PrinterName)) = 0)) then
-    FPrinterName := ''
-  else
-    FPrinterName := PrinterName;
-  FreeMem(Buffer);
-end;
-
-initialization
-  Lib := LoadLibrary(commdlg32);
-  if (Lib > 0) then
-    PrintDlgEx := GetProcAddress(Lib, 'PrintDlgExW');
-finalization
-  if (Lib > 0) then
-    FreeLibrary(Lib);
 end.

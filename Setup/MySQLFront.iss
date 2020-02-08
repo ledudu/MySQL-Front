@@ -4,11 +4,10 @@ AppName={BuildName}
 AppVerName={BuildName} {BuildVerStr}
 AppPublisherURL={BuildInternetHomepage}
 AppVersion={BuildVerStr}
+AppCopyright={BuildCopyright}
 DefaultDirName={pf}\{BuildProgramFiles}
 DefaultGroupName={BuildName}
 ChangesAssociations=yes
-WizardImageFile={BuildImagesPath}\Setup.bmp
-WizardSmallImageFile={BuildImagesPath}\Setup_Header.bmp
 AllowNoIcons=yes
 ShowLanguageDialog=auto
 VersionInfoVersion={BuildVerStrFull}
@@ -57,6 +56,7 @@ Name: AssociateSQL; Description: "Associate .sql (SQL File) with {BuildName}"; G
 [Registry]
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: string; ValueName: "LanguageFile"; ValueData: "{language}.ini"; Flags: createvalueifdoesntexist uninsdeletevalue
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "SetupProgramInstalled"; ValueData: 1
+Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "UpdateAvailable"; ValueData: "0"; Flags: deletevalue
 Root: HKCR; Subkey: ".sql"; ValueType: string; ValueName: ""; ValueData: "SQLFile"; Tasks: AssociateSQL; Flags: uninsdeletevalue
 Root: HKCR; Subkey: "SQLFile"; ValueType: string; ValueName: ""; ValueData: "SQL Script"; Tasks: AssociateSQL; Flags: uninsdeletekey
 Root: HKCR; Subkey: "SQLFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{BuildName}.exe,0"; Tasks: AssociateSQL; Flags: createvalueifdoesntexist uninsdeletevalue
@@ -74,14 +74,15 @@ Name: "{userappdata}\{BuildName}\Accounts"
 Source: "{BuildTempPath}\{BuildName}.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{BuildTempPath}\{BuildName}.chm"; DestDir: "{app}"
 Source: "{BuildTempPath}\libMySQL.php"; DestDir: "{app}"
-Source: "{BuildLanguagesPath}\*.ini"; DestDir: "{app}\Languages"; Flags: comparetimestamp
+Source: "{BuildLanguagesPath}\*.ini"; DestDir: "{app}\Languages";
+Source: "{srcexe}"; DestDir: "{app}\Install"; DestName: "{BuildName}_Setup_{BuildVerStrFull}.exe"; Flags: external
 
 [Icons]
 Name: "{group}\{BuildName}"; Filename: "{app}\{BuildName}.exe";
-Name: "{group}\Help"; Filename: "{app}\{BuildName}.chm";
 Name: "{userdesktop}\{BuildName}"; Filename: "{app}\{BuildName}.exe"; Tasks: DesktopIcon;
 
 [Run]
 Filename: "{app}\{BuildName}.exe"; Description: "&Launch {BuildName}"; Flags: postinstall nowait
 
-
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\Install"

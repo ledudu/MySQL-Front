@@ -4,7 +4,7 @@
 REM ****************************************************************************
 
 
-SET PublishGit=%ProgramFiles(x86)%\Git\bin\git.exe
+SET PublishGit=%ProgramFiles%\Git\bin\git.exe
 SET PublishFTP=ftp.exe
 SET PublishMOVEit=%ProgramFiles(x86)%\MOVEit\FTPS.exe -quiterror
 

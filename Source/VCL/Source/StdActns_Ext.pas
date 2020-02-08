@@ -3,7 +3,8 @@ unit StdActns_Ext;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, ActnList, StdActns, Dialogs, StrUtils, Consts, StdCtrls;
+  SysUtils, Classes, StrUtils,
+  ActnList, StdActns, Dialogs, Consts, StdCtrls;
 
 type
   TSearchFind_Ext = class(TSearchFind)
@@ -31,7 +32,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  ComCtrls, RichEdit, Windows;
+  Windows, RichEdit,
+  ComCtrls;
 
 procedure Register();
 begin

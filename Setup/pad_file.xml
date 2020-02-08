@@ -1,41 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <XML_DIZ_INFO>
-	<MASTER_PAD_VERSION_INFO>
-		<MASTER_PAD_VERSION>1.00</MASTER_PAD_VERSION>
-		<MASTER_PAD_INFO>Portable Application Description, or PAD for short, is a data set that is used by shareware authors to dissemminate information to anyone interested in their software products.  To find out more go to http://www.asp-shareware.org/pad</MASTER_PAD_INFO>
-	</MASTER_PAD_VERSION_INFO>
-	<Company_Info>
-		<Company_WebSite_URL>{BuildInternetHomepage}</Company_WebSite_URL>
-	</Company_Info>
 	<Program_Info>
-		<Program_Name>{BuildName}</Program_Name>
 		<Program_Version>{BuildVerStr}</Program_Version>
 		<Program_Version_Major>{BuildVerMajor}</Program_Version_Major>
 		<Program_Version_Minor>{BuildVerMinor}</Program_Version_Minor>
 		<Program_Version_Patch>{BuildVerPatch}</Program_Version_Patch>
 		<Program_Version_Build>{BuildVerBuild}</Program_Version_Build>
-		<Program_Release_Year>{BuildVerYear}</Program_Release_Year>
-		<Program_Release_Month>{BuildVerMonth}</Program_Release_Month>
-		<Program_Release_Day>{BuildVerDay}</Program_Release_Day>
 	</Program_Info>
-	<Program_Descriptions>
-		<English>
-			<Char_Desc_450>{BuildName} is a Windows front-end for the MySQL database server. The database structure and data can be handled via dialogs or SQL commands. Import or Export data in several formats are supported. Access to the MySQL server directly or via HTTP tunneling is possible.</Char_Desc_450>
-		</English>
-	</Program_Descriptions>
+	<Recommended_Info>
+		<Program_Version_Major>{BuildRecommendedMajor}</Program_Version_Major>
+		<Program_Version_Minor>{BuildRecommendedMinor}</Program_Version_Minor>
+		<Program_Version_Patch>{BuildRecommendedPatch}</Program_Version_Patch>
+		<Program_Version_Build>{BuildRecommendedBuild}</Program_Version_Build>
+	</Recommended_Info>
 	<Web_Info>
-		<Application_URLs>
-			<Application_Info_URL>{BuildInternetHomepage}</Application_Info_URL>
-			<Application_Screenshot_URL>{BuildInternetPadFileScreenshot}</Application_Screenshot_URL>
-			<Application_Icon_URL>{BuildInternetPadFileIcon}</Application_Icon_URL>
-			<Application_XML_File_URL>{BuildInternetPadFile}</Application_XML_File_URL>
-		</Application_URLs>
 		<Download_URLs>
 			<Primary_Download_URL>{BuildInternetDownload}</Primary_Download_URL>
 		</Download_URLs>
-    <News_URLs>
-      <RSS_URL>http://www.mysqlfront.de/rss.xml</RSS_URL>
-    </News_URLs>
+		<News_URLs>
+			<RSS_URL>http://www.mysqlfront.de/rss.xml</RSS_URL>
+		</News_URLs>
 	</Web_Info>
 </XML_DIZ_INFO>
-

@@ -3,7 +3,9 @@ unit StdCtrls_Ext;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Controls, StdCtrls, Messages, Windows;
+  Messages, Windows,
+  SysUtils, Classes,
+  Controls, StdCtrls, ActnList;
 
 type
   TComboBox_Ext = class(TComboBox)
@@ -35,7 +37,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  StdActns, Clipbrd;
+  StrUtils,
+  StdActns, Clipbrd, Consts;
 
 procedure Register();
 begin
@@ -50,18 +53,35 @@ procedure TComboBox_Ext.CopyToClipboard();
 var
   ClipboardData: HGLOBAL;
   Len: Integer;
+  Opened: Boolean;
+  Retry: Integer;
   S: String;
 begin
-  if (OpenClipboard(Handle)) then
-  begin
-    EmptyClipboard();
+  Retry := 0;
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (not Opened) then
+    begin
+      Sleep(50);
+      Inc(Retry);
+    end;
+  until (Opened or (Retry = 10));
 
-    S := SelText; Len := Length(S);
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(S[1]));
-    Move(PChar(S)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(S[1]));
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else
+  begin
+    try
+      EmptyClipboard();
+
+      S := SelText; Len := Length(S);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(S[1]));
+      Move(PChar(S)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(S[1]));
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
   end;
 end;
 
@@ -88,15 +108,38 @@ end;
 procedure TComboBox_Ext.PasteFromClipboard();
 var
   ClipboardData: HGLOBAL;
-  S: string;
+  I: Integer;
+  Opened: Boolean;
+  Retry: Integer;
+  S: String;
 begin
-  if (OpenClipboard(Handle)) then
+  Retry := 0;
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (not Opened) then
+    begin
+      Sleep(50);
+      Inc(Retry);
+    end;
+  until (Opened or (Retry = 10));
+
+  if (not Opened) then
+    raise EClipboardException.CreateFmt(SCannotOpenClipboard, [SysErrorMessage(GetLastError)])
+  else
   begin
-    ClipboardData := GetClipboardData(CF_UNICODETEXT);
-    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+    try
+      ClipboardData := GetClipboardData(CF_UNICODETEXT);
+      SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+      if ((Length(S) > 0) and (S[Length(S)] = #0)) then
+        SetLength(S, Length(S) - 1);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
+
+    for I := 0 to 31 do
+      S := ReplaceStr(S, Chr(I), '');
     SelText := S;
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
   end;
 end;
 
@@ -111,7 +154,7 @@ begin
       else if (Action is TEditCopy) then
         TEditAction(Action).Enabled := SelText <> ''
       else if (Action is TEditPaste) then
-        TEditAction(Action).Enabled := not (Style in [csDropDownList]) and Clipboard.HasFormat(CF_UNICODETEXT)
+        TEditAction(Action).Enabled := not (Style in [csDropDownList]) and IsClipboardFormatAvailable(CF_UNICODETEXT)
       else if (Action is TEditDelete) then
         TEditAction(Action).Enabled := SelText <> ''
       else

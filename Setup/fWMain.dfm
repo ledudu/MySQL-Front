@@ -4,7 +4,7 @@ object WMain: TWMain
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'WMain'
-  ClientHeight = 121
+  ClientHeight = 130
   ClientWidth = 313
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -106,7 +106,7 @@ object WMain: TWMain
   end
   object FBOk: TButton
     Left = 142
-    Top = 88
+    Top = 97
     Width = 75
     Height = 25
     Caption = 'Ok'
@@ -117,7 +117,7 @@ object WMain: TWMain
   end
   object FBCancel: TButton
     Left = 230
-    Top = 88
+    Top = 97
     Width = 75
     Height = 25
     Cancel = True
@@ -128,10 +128,18 @@ object WMain: TWMain
   end
   object FBeta: TCheckBox
     Left = 8
-    Top = 92
+    Top = 101
     Width = 128
     Height = 17
     Caption = 'Beta'
     TabOrder = 3
+  end
+  object FRecommended: TCheckBox
+    Left = 8
+    Top = 80
+    Width = 128
+    Height = 17
+    Caption = 'Recommended'
+    TabOrder = 4
   end
 end

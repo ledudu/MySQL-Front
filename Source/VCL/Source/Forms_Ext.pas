@@ -3,7 +3,8 @@ unit Forms_Ext;
 interface {********************************************************************}
 
 uses
-  Windows, SysUtils, Classes, Messages, Controls, Graphics, Forms;
+  Windows, Messages,
+  SysUtils, Classes, Controls, Graphics, Forms;
 
 type
   TForm_Ext = class(TForm)
@@ -24,10 +25,8 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure Paint(); override;
   public
-    procedure Activate(); override;
-    procedure ApplyWinAPIUpdates(const Control: TWinControl; const StatusFont: TLogFont); virtual;
+    procedure ApplyWinAPIUpdates(const Control: TWinControl); virtual;
     constructor Create(AOwner: TComponent); override;
-    procedure Deactivate(); override;
   published
     property ShowGripper: Boolean read FShowGripper write FShowGripper default True;
   end;
@@ -38,9 +37,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  ComCtrls, CommCtrl, Consts, Themes, UxTheme, StdCtrls, Buttons,
-  ExtCtrls, Grids,
-  CommCtrl_Ext;
+  CommCtrl, Consts, Themes, UxTheme, Buttons, SysConst, Types,
+  ComCtrls, ExtCtrls, Grids, StdCtrls;
 
 const tiMouseMove = 1;
 
@@ -59,48 +57,32 @@ end;
 
 { TForm_Ext *******************************************************************}
 
-procedure TForm_Ext.Activate();
-begin
-  inherited;
-end;
-
-procedure TForm_Ext.ApplyWinAPIUpdates(const Control: TWinControl; const StatusFont: TLogFont);
+procedure TForm_Ext.ApplyWinAPIUpdates(const Control: TWinControl);
 var
   I: Integer;
 begin
-  if (Control is TStatusBar) then
-  begin
-    TStatusBar(Control).Font.Handle := CreateFontIndirect(StatusFont);
-    TStatusBar(Control).Canvas.Font := TStatusBar(Control).Font;
-    TStatusBar(Control).Height := -TStatusBar(Control).Font.Height + 8;
-  end
-  else
-    for I := 0 to Control.ControlCount - 1 do
-      if (Control.Controls[I] is TWinControl) then
-        ApplyWinAPIUpdates(TWinControl(Control.Controls[I]), StatusFont);
+  for I := 0 to Control.ControlCount - 1 do
+    if (Control.Controls[I] is TWinControl) then
+      ApplyWinAPIUpdates(TWinControl(Control.Controls[I]));
 
-  if (Control is TTreeView) then
-  begin
-    if ((ComCtl32MajorVersion > 4) or (ComCtl32MinorVersion >= 71)) then
-      SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 4, 0);
-    if (CheckWin32Version(6)) then
-    begin
-      TTreeView(Control).Indent := 10;
-      SetWindowLong(Control.Handle, GWL_STYLE, GetWindowLong(Control.Handle, GWL_STYLE) or TVS_NOHSCROLL);
-      SendMessage(Control.Handle, TVM_SETEXTENDEDSTYLE, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER);
-    end;
-  end
-  else if (Control is TListView) then
+  if (Control is TListView) then
   begin
     if (CheckWin32Version(6,1)) then
       SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_JUSTIFYCOLUMNS, 0);
     SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_DOUBLEBUFFER, LVS_EX_DOUBLEBUFFER);
     SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_COLUMNSNAPPOINTS, LVS_EX_COLUMNSNAPPOINTS);
   end
-  else if (Control is TUpDown) then
+  else if (Control is TStatusBar) then
   begin
-    if (Assigned(TUpDown(Control).Associate) and (TUpDown(Control).Associate is TEdit)) then
-      SetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE, GetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE) or ES_NUMBER or ES_RIGHT);
+    TStatusBar(Control).ClientHeight := TStatusBar(Control).Canvas.TextHeight('I') + 5;
+  end
+  else if (Control is TTabControl) then
+  begin
+    TTabControl(Control).TabHeight := TTabControl(Control).Canvas.TextHeight('I') + 10;
+    if (not StyleServices.Enabled) then
+      TTabControl(Control).Height := TTabControl(Control).TabHeight + 1
+    else
+      TTabControl(Control).Height := TTabControl(Control).TabHeight + 2;
   end
   else if (Control is TToolBar) then
   begin
@@ -112,6 +94,24 @@ begin
           TToolBar(Control).Buttons[I].Enabled := False;
           TToolBar(Control).Buttons[I].Style := tbsButton;
         end;
+  end
+  else if (Control is TTreeView) then
+  begin
+    SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + GetSystemMetrics(SM_CXEDGE), 0);
+    if (CheckWin32Version(6)) then
+    begin
+      TTreeView(Control).Indent := GetSystemMetrics(SM_CXSMICON) div 2 + GetSystemMetrics(SM_CXEDGE);
+      SetWindowLong(Control.Handle, GWL_STYLE, GetWindowLong(Control.Handle, GWL_STYLE) or TVS_NOHSCROLL);
+      SendMessage(Control.Handle, TVM_SETEXTENDEDSTYLE, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER);
+    end;
+  end
+  else if (Control is TUpDown) then
+  begin
+    if (Assigned(TUpDown(Control).Associate) and (TUpDown(Control).Associate is TEdit)) then
+    begin
+      TUpDown(Control).Height := TEdit(TUpDown(Control).Associate).Height;
+      SetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE, GetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE) or ES_NUMBER or ES_RIGHT);
+    end;
   end;
 end;
 
@@ -123,11 +123,7 @@ begin
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-  begin
     Font.Handle := CreateFontIndirect(NonClientMetrics.lfMessageFont);
-
-    ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
-  end;
 
   if ((BorderStyle = bsSizeable) and (MouseDownPoint.X >= 0)) then
   begin
@@ -142,7 +138,9 @@ begin
 
   DoubleBuffered := True;
   MouseDownPoint := Point(-1, -1);
-  FShowGripper := not IsWine();
+  FShowGripper := True;
+
+  ApplyWinAPIUpdates(Self);
 end;
 
 procedure TForm_Ext.CreateWindowHandle(const Params: TCreateParams);
@@ -150,11 +148,6 @@ begin
   inherited;
 
   PostMessage(Handle, CM_SYSFONTCHANGED, 0, 0);
-end;
-
-procedure TForm_Ext.Deactivate();
-begin
-  inherited;
 end;
 
 procedure TForm_Ext.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -173,11 +166,14 @@ end;
 procedure TForm_Ext.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   Hour: Word;
+  Msg: TMsg;
   Min: Word;
   MSec: Word;
   Sec: Word;
 begin
-  if ((BorderStyle = bsSizeable) and (MouseDownPoint.X < 0)) then
+  if (PeekMessage(Msg, Handle, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
+    // Handle this Message within the next equal message
+  else if ((BorderStyle = bsSizeable) and (MouseDownPoint.X < 0)) then
   begin
     if (PtInRect(Rect(ClientWidth - GetSystemMetrics(SM_CXVSCROLL), ClientHeight - GetSystemMetrics(SM_CYHSCROLL), ClientWidth, ClientHeight), Point(X, Y)) and not Assigned(ControlAtPos(Point(X, Y), True, True))) then
     begin
